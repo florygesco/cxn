@@ -27,6 +27,8 @@ body{background:#0A0A0A;color:#fff;min-height:100vh;display:flex;align-items:cen
 .box .btn-primary:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(236,72,153,0.3);}
 .box .btn-success{background:linear-gradient(135deg,#10B981,#059669);box-shadow:0 8px 30px rgba(16,185,129,0.2);}
 .box .btn-success:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(16,185,129,0.3);}
+.box .btn-test{background:linear-gradient(135deg,#FBBF24,#F97316);box-shadow:0 8px 30px rgba(251,191,36,0.2);}
+.box .btn-test:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(251,191,36,0.3);}
 .box .btn:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
 .box .error{color:#EC4899;font-size:12px;text-align:center;margin-top:6px;min-height:18px;}
 .box .success{color:#10B981;font-size:12px;text-align:center;margin-top:6px;min-height:18px;}
@@ -50,8 +52,6 @@ body{background:#0A0A0A;color:#fff;min-height:100vh;display:flex;align-items:cen
 .btn-danger:hover{background:#991b1b;}
 .btn-outline{background:transparent;border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);}
 .btn-outline:hover{background:rgba(255,255,255,0.04);color:#fff;}
-.btn-success{background:#14532d;color:#fff;}
-.btn-success:hover{background:#166534;}
 .tabs{display:flex;gap:4px;margin:12px 0;overflow-x:auto;padding:2px 0;}
 .tab{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:6px 14px;border-radius:20px;font-size:10px;font-weight:600;cursor:pointer;color:rgba(255,255,255,0.4);transition:all 0.2s;white-space:nowrap;}
 .tab:hover{background:rgba(255,255,255,0.03);color:#fff;}
@@ -116,6 +116,7 @@ td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,0.02);color:rgba(255
       <button class="btn btn-primary" id="loginBtn">🔓 SE CONNECTER</button>
       <div id="loginError" class="error"></div>
       <div id="loginSuccess" class="success"></div>
+      <button class="btn btn-test" id="testBtn" style="margin-top:8px;">🧪 COMPTE TEST</button>
       <div class="toggle-link">Pas encore de compte ? <a onclick="switchToRegister()">Créer un compte</a></div>
       <div class="info">🔐 Accès sécurisé</div>
     </div>
@@ -218,34 +219,76 @@ window.switchToLogin=function(){document.getElementById('loginForm').style.displ
 document.getElementById('registerBtn').addEventListener('click', async function(){
   const ecole=document.getElementById('regEcole').value.trim();const email=document.getElementById('regEmail').value.trim();const code=document.getElementById('regCode').value.trim();const err=document.getElementById('registerError');const suc=document.getElementById('registerSuccess');
   err.textContent='';suc.textContent='';
-  if(!ecole){err.textContent='⚠️ Nom de l\'école requis';return;}
+  if(!ecole){err.textContent='⚠️ Nom requis';return;}
   if(!email){err.textContent='⚠️ Email requis';return;}
-  if(!code||code.length<6){err.textContent='⚠️ Code à 6 chiffres';return;}
+  if(!code||code.length<6){err.textContent='⚠️ Code 6 chiffres';return;}
   this.disabled=true;this.innerHTML='<span class="loader"></span> Inscription...';
   try{
     const ecoleId=ecole.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
-    const emailFinal=email||'direction.'+ecoleId+'@gmail.com';
+    const emailFinal=email;
     await createUserWithEmailAndPassword(auth,emailFinal,code);
     await setDoc(doc(db,'ecoles',ecoleId,'direction','dir_001'),{_type:'direction',email:emailFinal,code:code,nom:'Direction',actif:true,createdAt:Date.now()});
     suc.textContent='✅ Compte créé pour '+ecole;
     toast('✅ École '+ecole+' créée');
-    setTimeout(()=>{switchToLogin();document.getElementById('loginEmail').value=emailFinal;document.getElementById('loginCode').value=code;},1500);
+    ECOLET_ID=ecoleId;
+    document.getElementById('authContainer').style.display='none';
+    document.getElementById('dashboard').style.display='block';
+    document.getElementById('userDisplay').textContent='👤 '+ecoleId.toUpperCase();
+    document.getElementById('schoolNameLogin').textContent='COMPLEXE SCOLAIRE '+ecoleId.toUpperCase();
+    afficherClasses();chargerEnseignants();chargerStats();chargerClasses();
+    document.getElementById('loginEmail').value=emailFinal;document.getElementById('loginCode').value=code;
   }catch(e){err.textContent='❌ '+e.message;toast('❌ '+e.message,'error');}
   this.disabled=false;this.innerHTML='📝 S\'INSCRIRE';
+});
+
+document.getElementById('testBtn').addEventListener('click', async function(){
+  const err=document.getElementById('loginError');
+  err.textContent='';
+  this.disabled=true;this.innerHTML='<span class="loader"></span> Création...';
+  try{
+    const ecoleId='test_ecole';
+    const email='test.ecole@gmail.com';
+    const code='798239';
+    const snap=await getDoc(doc(db,'ecoles',ecoleId,'direction','dir_001'));
+    if(snap.exists()){
+      ECOLET_ID=ecoleId;
+      await signInWithEmailAndPassword(auth,email,code);
+      return;
+    }
+    await createUserWithEmailAndPassword(auth,email,code);
+    await setDoc(doc(db,'ecoles',ecoleId,'direction','dir_001'),{_type:'direction',email:email,code:code,nom:'Direction Test',actif:true,createdAt:Date.now()});
+    ECOLET_ID=ecoleId;
+    toast('✅ Compte test créé');
+    document.getElementById('authContainer').style.display='none';
+    document.getElementById('dashboard').style.display='block';
+    document.getElementById('userDisplay').textContent='👤 TEST_ECOLE';
+    document.getElementById('schoolNameLogin').textContent='COMPLEXE SCOLAIRE TEST';
+    document.getElementById('loginEmail').value=email;
+    document.getElementById('loginCode').value=code;
+    afficherClasses();chargerEnseignants();chargerStats();chargerClasses();
+  }catch(e){
+    if(e.code==='auth/email-already-in-use'){
+      try{
+        await signInWithEmailAndPassword(auth,'test.ecole@gmail.com','798239');
+        document.getElementById('authContainer').style.display='none';
+        document.getElementById('dashboard').style.display='block';
+        document.getElementById('userDisplay').textContent='👤 TEST_ECOLE';
+        document.getElementById('schoolNameLogin').textContent='COMPLEXE SCOLAIRE TEST';
+        afficherClasses();chargerEnseignants();chargerStats();chargerClasses();
+        toast('✅ Connexion test');
+      }catch(err2){err.textContent='❌ Erreur connexion';toast('❌ Erreur','error');}
+    }else{err.textContent='❌ '+e.message;toast('❌ '+e.message,'error');}
+  }
+  this.disabled=false;this.innerHTML='🧪 COMPTE TEST';
 });
 
 document.getElementById('loginBtn').addEventListener('click', async function(){
   const email=document.getElementById('loginEmail').value.trim();const code=document.getElementById('loginCode').value.trim();const err=document.getElementById('loginError');const suc=document.getElementById('loginSuccess');
   err.textContent='';suc.textContent='';
   if(!email){err.textContent='⚠️ Email requis';return;}
-  if(!code||code.length<6){err.textContent='⚠️ Code à 6 chiffres';return;}
+  if(!code||code.length<6){err.textContent='⚠️ Code 6 chiffres';return;}
   this.disabled=true;this.innerHTML='<span class="loader"></span> Connexion...';
   try{
-    const snap=await getDocs(query(collection(db,'ecoles'),where('direction.email','==',email)));
-    let found=false;
-    snap.forEach(ds=>{const d=ds.data();if(d.direction&&d.direction.code===code){ECOLET_ID=ds.id;found=true;}});
-    if(!found){const snap2=await getDocs(query(collection(db,'ecoles'),where('direction.code','==',code)));snap2.forEach(ds=>{const d=ds.data();if(d.direction&&d.direction.email===email){ECOLET_ID=ds.id;found=true;}});}
-    if(!found){err.textContent='❌ Compte non trouvé';this.disabled=false;this.innerHTML='🔓 SE CONNECTER';return;}
     await signInWithEmailAndPassword(auth,email,code);
   }catch(e){err.textContent='❌ '+e.message;toast('❌ '+e.message,'error');this.disabled=false;this.innerHTML='🔓 SE CONNECTER';}
 });
