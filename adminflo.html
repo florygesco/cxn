@@ -183,11 +183,6 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 .filter-group input:focus,.filter-group select:focus{border-color:var(--pink)}
 .filter-group input::placeholder{color:var(--text-muted)}
 .filter-icon{font-size:12px;color:var(--text-muted)}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:4px 12px;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;transition:var(--transition)}
-.btn-primary{background:linear-gradient(135deg,#EC4899,#8B5CF6);color:#fff;box-shadow:0 2px 8px var(--pink-glow)}
-.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 16px var(--pink-glow)}
-.btn-outline{background:transparent;border:1px solid var(--border-color);color:var(--text-secondary)}
-.btn-outline:hover{background:rgba(255,255,255,0.04);color:#fff}
 .btn-sm{padding:3px 8px;font-size:9px;border-radius:4px}
 .btn-refresh{background:rgba(255,255,255,0.02);color:var(--text-secondary);border:1px solid var(--border-color)}
 .btn-refresh:hover{background:rgba(255,255,255,0.04);color:#fff}
@@ -197,6 +192,10 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 .btn-success:hover{background:rgba(16,185,129,0.15)}
 .btn-danger{background:rgba(236,72,153,0.10);color:#EC4899;border:1px solid rgba(236,72,153,0.10)}
 .btn-danger:hover{background:rgba(236,72,153,0.15)}
+.btn-outline{background:transparent;border:1px solid var(--border-color);color:var(--text-secondary)}
+.btn-outline:hover{background:rgba(255,255,255,0.04);color:#fff}
+.btn-primary{background:linear-gradient(135deg,#EC4899,#8B5CF6);color:#fff;box-shadow:0 2px 8px var(--pink-glow)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 16px var(--pink-glow)}
 .table-wrapper{overflow-x:auto;border-radius:6px;border:1px solid var(--border-color);background:rgba(0,0,0,0.10)}
 .table-wrapper table{width:100%;border-collapse:collapse;font-size:11px}
 .table-wrapper th,.table-wrapper td{padding:5px 8px;text-align:left;border-bottom:1px solid var(--border-color);vertical-align:middle}
@@ -504,10 +503,11 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 <div id="logoPreviewContainer" style="text-align:center;margin:8px 0;display:none;"><img id="logoPreviewImg" src="" alt="Preview" style="max-width:80px;max-height:80px;border-radius:8px;border:2px solid var(--border-color);" /></div>
 <div class="modal-buttons"><button class="btn btn-success" id="logoValidateBtn">💾 Save</button><button class="btn btn-outline" id="logoCancelBtn">Cancel</button></div>
 </div></div>
+<div class="action-dropdown-overlay" id="actionDropdownOverlay"><div class="action-dropdown-box" id="actionDropdownBox"><div style="position:relative;padding-right:30px;"><button class="close-btn" id="actionDropdownClose" style="position:absolute;top:-4px;right:-6px;background:transparent;border:none;color:var(--text-muted);font-size:22px;cursor:pointer;transition:var(--transition);">✕</button><div class="title">⚡ Actions</div></div><div id="actionDropdownItems"></div></div></div>
 <script type="module">
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc } from "firebase/firestore";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 
 const firebaseConfigA = {apiKey: "AIzaSyDX430AIfzzgfq3o8tXHwQfIptgWOZ-K8c", authDomain: "gesco-67c43.firebaseapp.com", projectId: "gesco-67c43", storageBucket: "gesco-67c43.firebasestorage.app", messagingSenderId: "333004443566", appId: "1:333004443566:web:de41f60000e418dce9023f"};
 const firebaseConfigB = {apiKey: "AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw", authDomain: "gesco-2.firebaseapp.com", projectId: "gesco-2", storageBucket: "gesco-2.firebasestorage.app", messagingSenderId: "36319988765", appId: "1:36319988765:web:e8cd823804596495248af4"};
@@ -752,7 +752,6 @@ document.getElementById('hdrEcoles').textContent = allData.schools.length;
 document.getElementById('hdrEnseignants').textContent = allData.teachers.length;
 document.getElementById('hdrFiches').textContent = allData.sheets.length;
 document.getElementById('hdrMembres').textContent = allData.students.length;
-document.getElementById('schoolCountBadge').textContent = allData.schools.length;
 document.getElementById('countTeachers').textContent = allData.teachers.length;
 document.getElementById('countSheets').textContent = allData.sheets.length;
 document.getElementById('countCodes').textContent = allData.codes.length;
@@ -857,8 +856,13 @@ async function handleToggleMasquer(schoolId) {
 const school = allData.schools.find(s => s.id === schoolId);
 if (!school) return;
 if (!await showCodeModal()) return;
-if (!await showConfirm('Hide/show <strong>' + escapeHtml(school.nom) + '</strong>?')) return;
-try { await updateDoc(doc(getDb(), "ecoles", schoolId), { masque: school.masque !== true }); toast('✅ School ' + (school.masque === true ? 'shown' : 'hidden'), 'success'); await loadAllData(); } catch(e) { toast("Error: " + e.message, "error"); }
+const isHidden = school.masque === true;
+if (!await showConfirm((isHidden ? 'Show' : 'Hide') + ' <strong>' + escapeHtml(school.nom) + '</strong>?')) return;
+try {
+await updateDoc(doc(getDb(), "ecoles", schoolId), { masque: !isHidden });
+toast('✅ School ' + (isHidden ? 'shown' : 'hidden'), 'success');
+await loadAllData();
+} catch(e) { toast("Error: " + e.message, "error"); }
 }
 
 async function handleToggleActif(schoolId) {
