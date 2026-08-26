@@ -121,6 +121,8 @@ body.light-mode .header .mode-toggle .sun{color:#94a3b8;}
 .btn-pdf{background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;box-shadow:0 4px 16px rgba(220,38,38,0.25);}
 .btn-pdf:hover{box-shadow:0 8px 24px rgba(220,38,38,0.35);}
 .btn-block{width:100%;padding:14px;}
+.btn-outline{background:transparent;border:2px solid rgba(255,255,255,0.15);color:#e2e8f0;}
+.btn-outline:hover{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.25);}
 .table-wrap{overflow-x:auto;border-radius:12px;border:1px solid rgba(255,255,255,0.04);}
 table{width:100%;border-collapse:collapse;font-size:12px;min-width:1000px;}
 th{background:rgba(255,255,255,0.03);padding:10px 8px;text-align:center;color:#94a3b8;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid rgba(255,255,255,0.05);}
@@ -189,7 +191,6 @@ td.note-input-cell input.total-input{width:55px;background:rgba(59,130,246,0.08)
 .cahier-card .cahier-infos span{display:flex;align-items:center;gap:4px;}
 .cahier-card .cahier-infos .info-value{color:#e2e8f0;font-weight:600;}
 .cahier-card .cahier-right{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-.mode-indicator{padding:4px 14px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(59,130,246,0.12);color:#3B82F6;border:1px solid rgba(59,130,246,0.15);}
 @media(max-width:600px){.form-row{grid-template-columns:1fr;}.header{flex-direction:column;text-align:center;}.header .right{justify-content:center;}.tab{padding:8px 16px;font-size:12px;}.btn{padding:12px 20px;font-size:13px;}.modal-confirm-box{padding:24px;}.cahier-layout{grid-template-columns:1fr;}}
 </style>
 </head>
@@ -299,8 +300,8 @@ td.note-input-cell input.total-input{width:55px;background:rgba(59,130,246,0.08)
 <div class="toast-container" id="toastContainer"></div>
 <div class="modal-overlay" id="confirmModal">
 <div class="modal-confirm-box">
-<h3>📓 Confirmer la création</h3>
-<p class="sub">Vérifiez les informations avant de créer le cahier.</p>
+<h3 id="modalTitle">📓 Confirmer</h3>
+<p class="sub" id="modalSub">Vérifiez les informations</p>
 <div id="confirmDetails">
 <div class="detail-row"><span>📚 Classe</span><span class="val" id="confirmClasse">-</span></div>
 <div class="detail-row"><span>📖 Matière</span><span class="val" id="confirmMatiere">-</span></div>
@@ -309,7 +310,7 @@ td.note-input-cell input.total-input{width:55px;background:rgba(59,130,246,0.08)
 </div>
 <div class="modal-buttons">
 <button class="btn btn-outline" id="confirmCancel">Annuler</button>
-<button class="btn btn-success" id="confirmOk">✅ Créer</button>
+<button class="btn btn-success" id="confirmOk">✅ Confirmer</button>
 </div>
 </div>
 </div>
@@ -329,35 +330,120 @@ const schoolDisplay=displayName.startsWith('T')?'LE '+displayName:displayName;
 document.getElementById('schoolNameLogin').textContent='COMPLEXE SCOLAIRE '+schoolDisplay;
 document.getElementById('schoolNameHeader').innerHTML='COMPLEXE SCOLAIRE <span class="highlight">'+schoolDisplay+'</span>';
 let enseignants=[],enseignantActuel=null,toastQueue=[],isToastProcessing=false,cahierEnCreation=null;
+
+// ===== FONCTION TOAST =====
 function toast(message,type="success"){toastQueue.push({message,type});if(!isToastProcessing)processToastQueue();}
 function processToastQueue(){if(toastQueue.length===0){isToastProcessing=false;return;}isToastProcessing=true;const item=toastQueue.shift();const container=document.getElementById("toastContainer");if(!container){isToastProcessing=false;processToastQueue();return;}const icons={success:"✅",error:"❌",warning:"⚠️",info:"ℹ️"};const titles={success:"Succès",error:"Erreur",warning:"Attention",info:"Information"};const colors={success:"#10b981",error:"#ef4444",warning:"#f59e0b",info:"#3b82f6"};const el=document.createElement("div");el.className=`toast-notification ${item.type}`;el.innerHTML=`<div class="toast-icon">${icons[item.type]||"ℹ️"}</div><div class="toast-content"><div class="toast-title" style="color:${colors[item.type]}">${titles[item.type]||"Information"}</div><div class="toast-message">${item.message}</div></div>`;container.appendChild(el);requestAnimationFrame(()=>{el.classList.add("show");});setTimeout(()=>{el.classList.remove("show");setTimeout(()=>{if(el.parentNode)el.remove();isToastProcessing=false;processToastQueue();},400);},3500);}
-function showModal(title,message,confirmText='Confirmer',cancelText='Annuler'){return new Promise((resolve)=>{const overlay=document.getElementById('confirmModal');document.querySelector('#confirmModal h3').textContent=title;document.querySelector('#confirmModal .sub').textContent=message;document.getElementById('confirmOk').textContent=confirmText;document.getElementById('confirmCancel').textContent=cancelText;document.getElementById('confirmOk').className='btn '+(confirmText.includes('Supprimer')?'btn-danger':'btn-success');overlay.classList.add('show');document.getElementById('confirmOk').onclick=()=>{overlay.classList.remove('show');resolve(true);};document.getElementById('confirmCancel').onclick=()=>{overlay.classList.remove('show');resolve(false);};overlay.onclick=(e)=>{if(e.target===overlay){overlay.classList.remove('show');resolve(false);}};});}
+
+// ===== MODALE DE CRÉATION =====
+function showCreationModal() {
+return new Promise((resolve) => {
+const overlay = document.getElementById('confirmModal');
+document.getElementById('modalTitle').textContent = '📓 Confirmer la création';
+document.getElementById('modalSub').textContent = 'Vérifiez les informations avant de créer le cahier.';
+document.getElementById('confirmOk').textContent = '✅ Créer';
+document.getElementById('confirmOk').className = 'btn btn-success';
+document.getElementById('confirmCancel').textContent = 'Annuler';
+document.getElementById('confirmCancel').className = 'btn btn-outline';
+overlay.classList.add('show');
+document.getElementById('confirmOk').onclick = () => { overlay.classList.remove('show'); resolve(true); };
+document.getElementById('confirmCancel').onclick = () => { overlay.classList.remove('show'); resolve(false); };
+overlay.onclick = (e) => { if(e.target === overlay){ overlay.classList.remove('show'); resolve(false); } };
+});
+}
+
+// ===== MODALE DE SUPPRESSION =====
+function showDeleteModal(title, message) {
+return new Promise((resolve) => {
+const overlay = document.getElementById('confirmModal');
+document.getElementById('modalTitle').textContent = title || '🗑️ Supprimer le cahier';
+document.getElementById('modalSub').textContent = message || 'Voulez-vous vraiment supprimer ce cahier ?';
+document.getElementById('confirmOk').textContent = '🗑️ Supprimer';
+document.getElementById('confirmOk').className = 'btn btn-danger';
+document.getElementById('confirmCancel').textContent = 'Annuler';
+document.getElementById('confirmCancel').className = 'btn btn-outline';
+overlay.classList.add('show');
+document.getElementById('confirmOk').onclick = () => { overlay.classList.remove('show'); resolve(true); };
+document.getElementById('confirmCancel').onclick = () => { overlay.classList.remove('show'); resolve(false); };
+overlay.onclick = (e) => { if(e.target === overlay){ overlay.classList.remove('show'); resolve(false); } };
+});
+}
+
+// ===== FONCTION GÉNÉRIQUE (compatibilité) =====
+function showModal(title, message, confirmText, cancelText) {
+if(confirmText && confirmText.includes('Supprimer')) {
+return showDeleteModal(title, message);
+}
+return showCreationModal();
+}
+
 async function chargerEnseignants(){const select=document.getElementById('enseignantSelect');const debug=document.getElementById('debugInfo');select.innerHTML='<option value="">⏳ Chargement...</option>';debug.textContent='🔍 '+ECOLET_ID+'/enseignants';try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'enseignants'),where('_type','==','enseignant'),where('actif','==',true)));enseignants=[];snap.forEach(ds=>{const data=ds.data();enseignants.push({id:ds.id,nom:data.nom,email:data.email,code:data.code,classes:data.classes||[]});});enseignants.sort((a,b)=>a.nom.localeCompare(b.nom));if(enseignants.length===0){select.innerHTML='<option value="">📭 Aucun enseignant</option>';document.getElementById('loginError').textContent='⚠️ Aucun enseignant actif';return;}select.innerHTML='<option value="">-- Choisissez votre nom --</option>';enseignants.forEach(ens=>{const opt=document.createElement('option');opt.value=ens.id;opt.textContent=ens.nom;select.appendChild(opt);});document.getElementById('loginError').textContent='';}catch(e){console.error('❌',e);select.innerHTML='<option value="">❌ Erreur</option>';document.getElementById('loginError').textContent='❌ '+e.message;}}
 document.getElementById('loginBtn').addEventListener('click',async function(){const ensId=document.getElementById('enseignantSelect').value;const code=document.getElementById('codeInput').value.trim();const errorEl=document.getElementById('loginError');errorEl.textContent='';if(!ensId){errorEl.textContent='⚠️ Choisissez votre nom';return;}if(!code||code.length<6){errorEl.textContent='⚠️ Code à 6 chiffres';return;}const enseignant=enseignants.find(e=>e.id===ensId);if(!enseignant){errorEl.textContent='❌ Enseignant non trouvé';return;}if(enseignant.code!==code){errorEl.textContent='❌ Code incorrect';return;}this.disabled=true;this.innerHTML='<span class="loader"></span> Connexion...';try{await signInWithEmailAndPassword(auth,enseignant.email,code);}catch(e){errorEl.textContent='❌ '+e.message;this.disabled=false;this.innerHTML='🔓 SE CONNECTER';}});
 document.getElementById('codeInput').addEventListener('keypress',function(e){if(e.key==='Enter')document.getElementById('loginBtn').click();});
 document.getElementById('codeInput').addEventListener('input',function(){this.value=this.value.replace(/[^0-9]/g,'').slice(0,6);document.getElementById('loginError').textContent='';});
 document.getElementById('enseignantSelect').addEventListener('change',function(){document.getElementById('loginError').textContent='';document.getElementById('codeInput').value='';document.getElementById('codeInput').focus();});
 onAuthStateChanged(auth,async(user)=>{if(user){try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'enseignants'),where('_type','==','enseignant'),where('email','==',user.email)));snap.forEach(ds=>{enseignantActuel={id:ds.id,...ds.data()};});if(enseignantActuel){document.getElementById('loginSection').style.display='none';document.getElementById('dashboard').style.display='block';document.getElementById('ensNomDisplay').textContent='📓 '+(enseignantActuel.nom||'Enseignant');document.getElementById('userDisplay').textContent='👤 '+(enseignantActuel.nom||'Enseignant');chargerClassesPourCahier();chargerCahiers();chargerSelectCahiers();chargerSelectEpreuves();chargerSelectExport();chargerCotationSelect();}}catch(e){console.error(e);}}});
-document.getElementById('logoutBtn').addEventListener('click',async function(){const confirmed=await showModal('Déconnexion','Voulez-vous vraiment vous déconnecter ?','Se déconnecter','Annuler');if(confirmed){signOut(auth);document.getElementById('loginSection').style.display='block';document.getElementById('dashboard').style.display='none';document.getElementById('codeInput').value='';toast('👋 Déconnecté');}});
+document.getElementById('logoutBtn').addEventListener('click',async function(){const confirmed=await showDeleteModal('Déconnexion','Voulez-vous vraiment vous déconnecter ?');if(confirmed){signOut(auth);document.getElementById('loginSection').style.display='block';document.getElementById('dashboard').style.display='none';document.getElementById('codeInput').value='';toast('👋 Déconnecté');}});
 document.getElementById('modeToggle').addEventListener('click',function(){document.body.classList.toggle('light-mode');const icons=this.querySelectorAll('.icon');icons.forEach(i=>i.classList.toggle('active'));localStorage.setItem('theme-preference',document.body.classList.contains('light-mode')?'light':'dark');});
 if(localStorage.getItem('theme-preference')==='light'){document.body.classList.add('light-mode');document.querySelectorAll('#modeToggle .icon').forEach(i=>i.classList.toggle('active'));}
 document.addEventListener('contextmenu',function(e){e.preventDefault();return false;});
 document.addEventListener('keydown',function(e){if(e.key==='F12'||e.keyCode===123){e.preventDefault();return false;}if(e.ctrlKey&&e.shiftKey&&(e.key==='I'||e.key==='J'||e.key==='C')){e.preventDefault();return false;}if(e.ctrlKey&&(e.key==='U'||e.key==='S')){e.preventDefault();return false;}if(e.metaKey){e.preventDefault();return false;}});
 function getNomComplet(data){const nom=(data.nom||'').toUpperCase();const postnom=(data.postnom||'').toUpperCase();const prenom=(data.prenom||'').toUpperCase();let parts=[];if(nom)parts.push(nom);if(postnom)parts.push(postnom);if(prenom)parts.push(prenom);return parts.join(' ')||'ÉLÈVE';}
 async function chargerClassesPourCahier(){const select=document.getElementById('cahierClasse');try{const classes=new Set();if(enseignantActuel&&enseignantActuel.classes)enseignantActuel.classes.forEach(c=>classes.add(c));select.innerHTML='<option value="">-- Sélectionner --</option>';Array.from(classes).sort().forEach(c=>{const opt=document.createElement('option');opt.value=c;opt.textContent=c;select.appendChild(opt);});}catch(e){console.error(e);}}
-window.preparerCreationCahier=async function(){const classe=document.getElementById('cahierClasse').value;const matiere=document.getElementById('cahierMatiere').value.trim();const pMax=parseInt(document.getElementById('cahierNoteMax').value)||20;if(!classe){toast('⚠️ Sélectionnez une classe','error');return;}if(!matiere){toast('⚠️ Entrez une matière','error');return;}try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'cahiers'),where('enseignantId','==',enseignantActuel.id),where('matiere','==',matiere),where('classe','==',classe)));if(!snap.empty){toast('⚠️ Un cahier "'+matiere+'" existe déjà pour la classe '+classe,'error');return;}}catch(e){toast('❌ Erreur de vérification','error');return;}let nbEleves=0;try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'prima_eleves'),where('classe','==',classe),where('abandon','==',false)));nbEleves+=snap.size;const snap2=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'mater_eleves'),where('classe','==',classe),where('abandon','==',false)));nbEleves+=snap2.size;}catch(e){nbEleves=0;}if(nbEleves===0){toast('⚠️ Aucun élève dans cette classe','error');return;}document.getElementById('confirmClasse').textContent=classe;document.getElementById('confirmMatiere').textContent=matiere;document.getElementById('confirmNoteMax').textContent=pMax+' pts';document.getElementById('confirmEleves').textContent=nbEleves+' élèves';cahierEnCreation={classe,matiere,pMax,nbEleves};document.getElementById('confirmModal').classList.add('show');};
+
+window.preparerCreationCahier = async function() {
+const classe = document.getElementById('cahierClasse').value;
+const matiere = document.getElementById('cahierMatiere').value.trim();
+const pMax = parseInt(document.getElementById('cahierNoteMax').value) || 20;
+if(!classe){toast('⚠️ Sélectionnez une classe','error');return;}
+if(!matiere){toast('⚠️ Entrez une matière','error');return;}
+try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'cahiers'),where('enseignantId','==',enseignantActuel.id),where('matiere','==',matiere),where('classe','==',classe)));if(!snap.empty){toast('⚠️ Un cahier "'+matiere+'" existe déjà pour la classe '+classe,'error');return;}}catch(e){toast('❌ Erreur de vérification','error');return;}
+let nbEleves=0;
+try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'prima_eleves'),where('classe','==',classe),where('abandon','==',false)));nbEleves+=snap.size;const snap2=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'mater_eleves'),where('classe','==',classe),where('abandon','==',false)));nbEleves+=snap2.size;}catch(e){nbEleves=0;}
+if(nbEleves===0){toast('⚠️ Aucun élève dans cette classe','error');return;}
+document.getElementById('confirmClasse').textContent=classe;
+document.getElementById('confirmMatiere').textContent=matiere;
+document.getElementById('confirmNoteMax').textContent=pMax+' pts';
+document.getElementById('confirmEleves').textContent=nbEleves+' élèves';
+const confirmed = await showCreationModal();
+if(confirmed){creerCahier(classe,matiere,pMax);}
+};
+
 document.getElementById('confirmCancel').addEventListener('click',function(){document.getElementById('confirmModal').classList.remove('show');cahierEnCreation=null;});
 document.getElementById('confirmOk').addEventListener('click',function(){document.getElementById('confirmModal').classList.remove('show');if(cahierEnCreation){creerCahier(cahierEnCreation.classe,cahierEnCreation.matiere,cahierEnCreation.pMax);cahierEnCreation=null;}});
+
 async function creerCahier(classe,matiere,pMax){try{const eleves=[];const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'prima_eleves'),where('classe','==',classe),where('abandon','==',false)));snap.forEach(ds=>{const d=ds.data();eleves.push({id:ds.id,nom:d.nom||'',postnom:d.postnom||'',prenom:d.prenom||'',sexe:d.sexe||'M',notes:{}});});const snap2=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'mater_eleves'),where('classe','==',classe),where('abandon','==',false)));snap2.forEach(ds=>{const d=ds.data();eleves.push({id:ds.id,nom:d.nom||'',postnom:d.postnom||'',prenom:d.prenom||'',sexe:d.sexe||'F',notes:{}});});if(eleves.length===0){toast('⚠️ Aucun élève dans cette classe','error');return;}const epreuves={1:[],2:[],3:[],4:[],5:[],6:[]};const cahierId='cahier_'+Date.now();await setDoc(doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId),{classe,matiere,eleves,epreuves,enseignantId:enseignantActuel.id,enseignantNom:enseignantActuel.nom,pMax,nbPeriodes:6,nbTrimestres:3,createdAt:Date.now(),school:ECOLET_ID,source:'comptabilite'});toast('✅ Cahier de cotation créé avec '+eleves.length+' élèves');document.getElementById('cahierMatiere').value='';chargerCahiers();chargerSelectCahiers();chargerSelectEpreuves();chargerSelectExport();chargerCotationSelect();}catch(e){toast('❌ '+e.message,'error');}}
+
 async function chargerCahiers(){const container=document.getElementById('cahierListe');try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'cahiers'),where('enseignantId','==',enseignantActuel?.id||'')));const cahiers=[];snap.forEach(ds=>cahiers.push({id:ds.id,...ds.data()}));document.getElementById('cahierCompteur').textContent=cahiers.length;if(cahiers.length===0){container.innerHTML='<div class="empty"><span class="icon">📭</span>Aucun cahier de cotation</div>';return;}let html='';cahiers.forEach(c=>{const nb=(c.eleves||[]).length;const pMax=c.pMax||20;html+=`<div class="cahier-card"><div class="cahier-left"><div class="cahier-nom"><span class="cahier-matiere">${c.matiere}</span><span class="cahier-classe">${c.classe}</span><span class="cahier-badge">${pMax} pts</span></div><div class="cahier-infos"><span>👥 <span class="info-value">${nb}</span> élèves</span></div></div><div class="cahier-right"><button class="btn-sm btn-primary-sm" onclick="voirCahier('${c.id}')">👁️ Voir</button><button class="btn-sm btn-danger-sm" onclick="supprimerCahier('${c.id}','${c.matiere}')">✕</button></div></div>`;});container.innerHTML=html;}catch(e){console.error(e);}}
+
 window.voirCahier=function(id){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));document.querySelector('[data-tab="tabCotation"]').classList.add('active');document.getElementById('tabCotation').classList.add('active');document.getElementById('cotationCahier').value=id;chargerCotation();};
-window.supprimerCahier=async function(id,matiere){const confirmed=await showModal('🗑️ Supprimer le cahier','Voulez-vous vraiment supprimer "'+matiere+'" ?','🗑️ Supprimer','Annuler');if(confirmed){deleteDoc(doc(db,'ecoles',ECOLET_ID,'cahiers',id)).then(()=>{toast('🗑️ Cahier supprimé');chargerCahiers();chargerSelectCahiers();chargerSelectEpreuves();chargerSelectExport();chargerCotationSelect();}).catch(()=>toast('❌ Erreur','error'));}};
+
+window.supprimerCahier = async function(id, matiere) {
+const confirmed = await showDeleteModal(
+'🗑️ Supprimer le cahier',
+'Voulez-vous vraiment supprimer "' + matiere + '" ?<br><br>⚠️ Cette action est irréversible.'
+);
+if(confirmed){
+try{
+await deleteDoc(doc(db,'ecoles',ECOLET_ID,'cahiers',id));
+toast('🗑️ Cahier "' + matiere + '" supprimé');
+chargerCahiers();
+chargerSelectCahiers();
+chargerSelectEpreuves();
+chargerSelectExport();
+chargerCotationSelect();
+}catch(e){
+toast('❌ Erreur lors de la suppression','error');
+}
+}
+};
+
 async function chargerSelectEpreuves(){const select=document.getElementById('epreuveCahier');try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'cahiers'),where('enseignantId','==',enseignantActuel?.id||'')));select.innerHTML='<option value="">-- Sélectionner --</option>';snap.forEach(ds=>{const d=ds.data();const opt=document.createElement('option');opt.value=ds.id;opt.textContent=d.matiere+' - '+d.classe;select.appendChild(opt);});}catch(e){console.error(e);}}
 window.chargerEpreuves=async function(){const cahierId=document.getElementById('epreuveCahier').value;const periode=parseInt(document.getElementById('epreuvePeriode').value);const container=document.getElementById('epreuvesContainer');if(!cahierId){container.innerHTML='<div class="empty">📭 Sélectionnez un cahier</div>';return;}try{const snap=await getDoc(doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId));if(!snap.exists()){container.innerHTML='';return;}const data=snap.data();const epreuves=data.epreuves?.[periode]||[];if(epreuves.length===0){container.innerHTML='<div class="empty">📭 Aucune épreuve pour cette période</div>';return;}let html='';epreuves.forEach((ep,i)=>{html+=`<div class="epreuve-item"><span style="color:rgba(255,255,255,0.25);font-size:12px;min-width:30px;">${i+1}</span><input type="text" value="${ep.nom||'Épreuve'}" onchange="modifierEpreuve('${cahierId}',${periode},${i},'nom',this.value)" placeholder="Nom" style="flex:1;min-width:100px;"><span style="color:rgba(255,255,255,0.25);font-size:12px;">/</span><input type="number" value="${ep.max||20}" onchange="modifierEpreuve('${cahierId}',${periode},${i},'max',this.value)" class="epreuve-max"><button class="btn-sm btn-danger-sm" onclick="supprimerEpreuve('${cahierId}',${periode},${i})" style="padding:4px 12px;">✕</button></div>`;});container.innerHTML=html;}catch(e){container.innerHTML='<div class="empty">❌ Erreur</div>';}};
 window.ajouterEpreuve=async function(){const cahierId=document.getElementById('epreuveCahier').value;const periode=parseInt(document.getElementById('epreuvePeriode').value);if(!cahierId){toast('⚠️ Sélectionnez un cahier','error');return;}try{const ref=doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId);const snap=await getDoc(ref);if(!snap.exists())return;const data=snap.data();if(!data.epreuves)data.epreuves={};if(!data.epreuves[periode])data.epreuves[periode]=[];const num=data.epreuves[periode].length+1;data.epreuves[periode].push({nom:'Épreuve '+num,max:data.pMax||20});await updateDoc(ref,{epreuves:data.epreuves});toast('✅ Épreuve ajoutée');chargerEpreuves();}catch(e){toast('❌ '+e.message,'error');}};
 window.enregistrerEpreuves=async function(){const cahierId=document.getElementById('epreuveCahier').value;if(!cahierId){toast('⚠️ Sélectionnez un cahier','error');return;}try{const ref=doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId);const snap=await getDoc(ref);if(!snap.exists()){toast('❌ Cahier non trouvé','error');return;}const data=snap.data();const epreuves=data.epreuves||{};const updatedEpreuves=JSON.parse(JSON.stringify(epreuves));await updateDoc(ref,{epreuves:updatedEpreuves});toast('✅ Épreuves enregistrées avec succès');chargerEpreuves();chargerSelectEpreuves();chargerCotation();}catch(e){console.error(e);toast('❌ '+e.message,'error');}};
 window.modifierEpreuve=async function(cahierId,periode,index,champ,valeur){try{const ref=doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId);const snap=await getDoc(ref);if(!snap.exists())return;const data=snap.data();if(!data.epreuves?.[periode]?.[index])return;const updatedEpreuves=JSON.parse(JSON.stringify(data.epreuves));if(champ==='max'){valeur=parseFloat(valeur)||1;if(valeur<1)valeur=1;}updatedEpreuves[periode][index][champ]=valeur;await updateDoc(ref,{epreuves:updatedEpreuves});}catch(e){console.error(e);toast('❌ Erreur','error');}};
-window.supprimerEpreuve=async function(cahierId,periode,index){const confirmed=await showModal('🗑️ Supprimer l\'épreuve','Voulez-vous vraiment supprimer cette épreuve ?','🗑️ Supprimer','Annuler');if(confirmed){try{const ref=doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId);const snap=await getDoc(ref);if(!snap.exists())return;const data=snap.data();const updatedEpreuves=JSON.parse(JSON.stringify(data.epreuves));updatedEpreuves[periode].splice(index,1);await updateDoc(ref,{epreuves:updatedEpreuves});toast('🗑️ Épreuve supprimée');chargerEpreuves();}catch(e){console.error(e);toast('❌ '+e.message,'error');}}};
+window.supprimerEpreuve=async function(cahierId,periode,index){const confirmed=await showDeleteModal('🗑️ Supprimer l\'épreuve','Voulez-vous vraiment supprimer cette épreuve ?');if(confirmed){try{const ref=doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId);const snap=await getDoc(ref);if(!snap.exists())return;const data=snap.data();const updatedEpreuves=JSON.parse(JSON.stringify(data.epreuves));updatedEpreuves[periode].splice(index,1);await updateDoc(ref,{epreuves:updatedEpreuves});toast('🗑️ Épreuve supprimée');chargerEpreuves();}catch(e){console.error(e);toast('❌ '+e.message,'error');}}};
 async function chargerCotationSelect(){const select=document.getElementById('cotationCahier');try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'cahiers'),where('enseignantId','==',enseignantActuel?.id||'')));select.innerHTML='<option value="">-- Sélectionner --</option>';snap.forEach(ds=>{const d=ds.data();const opt=document.createElement('option');opt.value=ds.id;opt.textContent=d.matiere+' - '+d.classe;select.appendChild(opt);});}catch(e){console.error(e);}}
 function calcMoy(periode,notes,eps,pMax){
 const list=eps[periode]||[];
