@@ -1,0 +1,2690 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0e1a">
+<title>GESTION DE SCOLARITÉ</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;touch-action:pan-x pan-y;}
+html,body{height:100%;background:#0a0e1a;font-family:'Inter',sans-serif;overflow-x:hidden;}
+body{overscroll-behavior:none;-webkit-overscroll-behavior:none;}
+.container{max-width:1400px;margin:0 auto;padding:20px;}
+.card{background:rgba(18,18,31,0.9);backdrop-filter:blur(10px);border-radius:20px;margin-bottom:20px;overflow:hidden;border:1px solid rgba(59,130,246,0.2);}
+.card-header{padding:14px 20px;background:linear-gradient(135deg,#0f2b44,#071a2c);color:#fff;font-weight:600;display:flex;justify-content:space-between;align-items:center;}
+.card-header .header-left{display:flex;align-items:center;gap:12px;}
+.school-header{background:linear-gradient(135deg,#0f2b44,#071a2c);border-radius:20px;padding:20px;text-align:center;margin-bottom:20px;}
+.school-name{font-size:22px;font-weight:700;background:linear-gradient(135deg,#fff,#94a3b8);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.school-sub{font-size:11px;opacity:0.8;margin-top:4px;color:#cbd5e1;}
+.tabs-container{overflow-x:auto;margin-bottom:20px;white-space:nowrap;-webkit-overflow-scrolling:touch;}
+.tabs{display:inline-flex;gap:6px;}
+.tab{background:transparent;border:1px solid #334155;padding:9px 20px;border-radius:40px;font-size:13px;cursor:pointer;color:#cbd5e1;transition:all 0.2s;}
+.tab:hover{background:rgba(59,130,246,0.2);border-color:#3b82f6;}
+.tab.active{background:#1e3a5f;color:#fff;border-color:transparent;}
+.tab-content{display:none;animation:fadeIn 0.25s;}
+.tab-content.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.main-nav{display:flex;gap:12px;margin-bottom:20px;background:rgba(18,18,31,0.9);border-radius:20px;padding:8px;border:1px solid rgba(59,130,246,0.2);overflow:hidden;}
+.main-nav-btn{flex:1;padding:14px 20px;border-radius:16px;border:none;font-size:15px;font-weight:700;cursor:pointer;transition:all 0.3s ease;background:transparent;color:#94a3b8;font-family:'Inter',sans-serif;text-align:center;}
+.main-nav-btn:hover{background:rgba(59,130,246,0.1);}
+.main-nav-btn.active{background:linear-gradient(135deg,#1e3a5f,#0f2b44);color:#fff;box-shadow:0 4px 15px rgba(59,130,246,0.3);}
+.main-nav-btn[data-space="titulaire"].active{background:linear-gradient(135deg,#1a3a2a,#0f2b1a);box-shadow:0 4px 15px rgba(16,185,129,0.3);}
+.space-content{display:none;}
+.space-content.active{display:block;animation:fadeIn 0.3s ease;}
+.form-grid{display:grid;grid-template-columns:1fr;gap:14px;}
+@media(min-width:768px){.form-grid{grid-template-columns:repeat(3,1fr)}}
+.form-field{display:flex;flex-direction:column;gap:6px;}
+.form-field label{font-size:11px;font-weight:600;color:#cbd5e1;}
+.form-field input,.form-field select{background:#2d3748;border:1px solid #334155;border-radius:12px;padding:10px 14px;color:#fff;}
+.form-field input:focus,.form-field select:focus{outline:none;border-color:#3b82f6;}
+.hidden-field{display:none !important;}
+.field-required label::after{content:" *";color:#ef4444;}
+.btn{background:#1e3a5f;color:#fff;border:none;padding:10px 20px;border-radius:40px;font-weight:500;cursor:pointer;font-size:13px;display:inline-flex;align-items:center;gap:8px;transition:all 0.2s;}
+.btn:hover{opacity:0.9;transform:scale(0.98);}
+.btn-sm{padding:6px 14px;font-size:12px;}
+.btn-outline{background:transparent;border:1.5px solid #3b82f6;color:#3b82f6;}
+.btn-outline:hover{background:#3b82f6;color:#fff;}
+.btn-danger{background:#7f1d1d;}
+.btn-danger:hover{background:#991b1b;}
+.btn-success{background:#14532d;}
+.btn-success:hover{background:#166534;}
+.btn-secondary{background:#334155;}
+.btn-secondary:hover{background:#475569;}
+.btn-primary{background:#1e3a5f;}
+.btn-primary:hover{background:#0f2b44;}
+.btn-warning{background:#b45309;color:#fff;}
+.btn-warning:hover{background:#c2410c;}
+.table-wrapper{overflow-x:auto;touch-action:pan-x pan-y;}
+.student-table{width:100%;border-collapse:collapse;font-size:12px;min-width:1400px;}
+.student-table th{background:#0f172a;padding:12px 6px;border-bottom:2px solid #334155;font-size:11px;color:#fff;}
+.student-table td{border-bottom:1px solid #334155;padding:8px 4px;color:#e2e8f0;}
+.student-table input{width:55px;padding:6px;border-radius:8px;background:#2d3748;border:1px solid #334155;color:#fff;text-align:center;}
+.footer-note{text-align:center;padding:12px;font-size:11px;color:#4a5568;}
+.fiche-selector{background:rgba(18,18,31,0.9);margin:0;padding:12px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid rgba(59,130,246,0.2);}
+.fiche-selector label{color:#fff;}
+.fiche-selector select{flex:1;padding:8px 12px;border-radius:14px;background:#2d3748;border:1px solid #334155;color:#fff;}
+.modal-fullscreen{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);z-index:20000;display:flex;align-items:center;justify-content:center;visibility:hidden;opacity:0;transition:all 0.2s;}
+.modal-fullscreen.show{visibility:visible;opacity:1;}
+.modal-content{background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:32px;width:90%;max-width:95vw;padding:24px;border:1px solid rgba(59,130,246,0.3);max-height:90vh;overflow-y:auto;}
+.modal-content h3{font-size:18px;margin-bottom:16px;color:#fff;font-weight:600;}
+.toast-container{position:fixed;top:20px;right:20px;z-index:30000;display:flex;flex-direction:column;gap:12px;pointer-events:none;}
+.toast-notification{background:rgba(18,25,45,0.95);backdrop-filter:blur(12px);border-radius:16px;padding:18px 24px;min-width:340px;max-width:380px;display:flex;align-items:center;gap:12px;box-shadow:0 4px 20px rgba(0,0,0,0.3);border-left:4px solid #10b981;transform:translateX(400px);transition:transform 0.3s ease;pointer-events:auto;}
+.toast-notification.show{transform:translateX(0);}
+.toast-notification.error{border-left-color:#ef4444;}
+.toast-notification.warning{border-left-color:#f59e0b;}
+.login-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);z-index:10000;display:flex;align-items:center;justify-content:center;}
+.login-card{background:rgba(18,18,31,0.95);border-radius:32px;padding:32px;width:90%;max-width:400px;text-align:center;border:1px solid rgba(59,130,246,0.3);}
+.login-card h2{font-size:22px;font-weight:800;background:linear-gradient(135deg,#60a5fa,#3b82f6);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:4px;}
+.login-card .subtitle{color:#94a3b8;font-size:13px;margin-bottom:20px;}
+.login-card input,.login-card select{width:100%;padding:12px 16px;margin-bottom:14px;border-radius:40px;background:#2d3748;border:1px solid #334155;color:#fff;font-size:14px;}
+.login-card button{width:100%;padding:12px;border-radius:40px;background:linear-gradient(135deg,#60a5fa,#3b82f6);color:#fff;font-weight:600;border:none;cursor:pointer;font-size:15px;transition:opacity 0.2s;}
+.login-card button:hover{opacity:0.9;}
+.eleve-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;}
+.eleve-row input{flex:2;padding:8px;border-radius:12px;background:#2d3748;border:1px solid #334155;color:#fff;}
+.eleve-row select{padding:8px;border-radius:12px;background:#2d3748;border:1px solid #334155;color:#fff;}
+.prof-config{background:rgba(45,55,72,0.4);border-radius:16px;padding:16px;margin-top:16px;border:1px solid #334155;}
+.prof-config h3{font-size:13px;margin-bottom:12px;color:#fff;}
+.prof-config .note-max-row{display:flex;align-items:center;gap:15px;flex-wrap:wrap;margin-bottom:15px;}
+.prof-config .note-max-row label{color:#cbd5e1;font-size:12px;}
+.prof-config .note-max-row input{width:100px;padding:8px;border-radius:12px;background:#2d3748;color:#fff;border:1px solid #334155;}
+.prof-config .btn-group{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+.titulaire-container .bg-fixed{position:fixed;top:0;left:0;right:0;bottom:0;z-index:-2;background:linear-gradient(135deg,#0a0e1a 0%,#0f172a 50%,#1a2335 100%);}
+.titulaire-container .bg-overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:-1;background:radial-gradient(circle at 20% 30%, rgba(59,130,246,0.06), transparent 70%);}
+.titulaire-container .container-titu{max-width:100%;margin:0;padding:0 16px;}
+.titulaire-container .config-card{background:rgba(18,18,31,0.9);backdrop-filter:blur(10px);border-radius:28px;padding:28px;border:1px solid rgba(59,130,246,0.2);}
+.titulaire-container .config-card h2{font-size:20px;margin-bottom:8px;background:linear-gradient(135deg,#60a5fa,#a78bfa);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.titulaire-container .config-card p{font-size:13px;color:#94a3b8;margin-bottom:24px;}
+.titulaire-container .config-card input{width:100%;padding:14px 18px;margin-bottom:20px;border-radius:60px;border:1px solid rgba(59,130,246,0.3);background:rgba(0,0,0,0.3);color:white;font-size:14px;outline:none;}
+.titulaire-container .classes-list{display:flex;flex-direction:column;gap:10px;margin-bottom:24px;max-height:450px;overflow-y:auto;padding:8px;border:1px solid rgba(59,130,246,0.2);border-radius:20px;background:rgba(0,0,0,0.2);}
+.titulaire-container .class-item{display:block;padding:12px 16px;background:rgba(255,255,255,0.03);border-radius:16px;margin-bottom:8px;}
+.titulaire-container .class-header{display:flex;align-items:center;gap:12px;cursor:pointer;margin-bottom:8px;}
+.titulaire-container .class-header input[type="checkbox"]{width:20px;height:20px;cursor:pointer;accent-color:#3b82f6;}
+.titulaire-container .class-header label{flex:1;cursor:pointer;font-size:14px;font-weight:600;color:#e2e8f0;}
+.titulaire-container .options-list{padding-left:32px;display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;}
+.titulaire-container .option-item{display:flex;align-items:center;gap:8px;background:rgba(59,130,246,0.1);padding:6px 12px;border-radius:30px;}
+.titulaire-container .option-item input{width:18px;height:18px;cursor:pointer;accent-color:#3b82f6;}
+.titulaire-container .option-item label{font-size:12px;cursor:pointer;color:#cbd5e1;}
+.titulaire-container .option-toutes{background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);}
+.titulaire-container .no-options-msg{padding-left:32px;font-size:11px;color:#10b981;font-style:italic;margin-top:6px;}
+.titulaire-container .fiche-card{background:rgba(18,18,31,0.9);backdrop-filter:blur(10px);border-radius:24px;margin-bottom:24px;overflow-x:auto;border:1px solid rgba(59,130,246,0.15);}
+.titulaire-container .fiche-header{background:linear-gradient(135deg,#0f2b44,#071a2c);padding:16px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+.titulaire-container .fiche-header h3{font-size:16px;font-weight:700;color:#ffd700;display:flex;align-items:center;gap:8px;}
+.titulaire-container .fiche-header .ref{font-size:10px;opacity:0.7;background:rgba(0,0,0,0.3);padding:4px 12px;border-radius:40px;font-family:monospace;color:#94a3b8;}
+.titulaire-container .fiche-info{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;padding:12px 20px;background:rgba(0,0,0,0.2);border-bottom:1px solid rgba(59,130,246,0.1);font-size:11px;}
+.titulaire-container .fiche-info-item{display:flex;align-items:center;gap:8px;}
+.titulaire-container .fiche-info-item .label{color:#94a3b8;font-weight:500;}
+.titulaire-container .fiche-info-item .value{color:white;font-weight:600;}
+.titulaire-container .student-table{width:100%;border-collapse:collapse;font-size:12px;}
+.titulaire-container .student-table th{background:linear-gradient(135deg,#1e293b,#0f172a);color:white;padding:12px 8px;border-bottom:2px solid #3b82f6;font-size:11px;font-weight:600;text-align:center;}
+.titulaire-container .student-table td{padding:10px 8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#e2e8f0;text-align:center;}
+.titulaire-container .student-table tr:hover td{background:rgba(59,130,246,0.05);}
+.titulaire-container .student-table td:first-child{font-weight:600;color:#60a5fa;}
+.titulaire-container .student-table td:nth-child(2){text-align:left;font-weight:500;}
+.titulaire-container .note-cell{font-weight:600;}
+.titulaire-container .total-s1{background:rgba(30,58,95,0.5);font-weight:700;color:#ffd700;}
+.titulaire-container .total-s2{background:rgba(30,58,95,0.5);font-weight:700;color:#ffd700;}
+.titulaire-container .total-final{background:rgba(92,74,26,0.5);font-weight:800;color:#fbbf24;}
+.titulaire-container .fiche-actions{padding:16px 20px;border-top:1px solid rgba(59,130,246,0.15);display:flex;justify-content:flex-end;gap:12px;flex-wrap:wrap;}
+.titulaire-container .btn-pdf{background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;border:none;padding:8px 20px;border-radius:40px;font-size:12px;font-weight:600;cursor:pointer;}
+.titulaire-container .btn-outline{background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:#60a5fa;padding:8px 20px;border-radius:40px;font-size:12px;font-weight:600;cursor:pointer;}
+.titulaire-container .welcome-banner{background:linear-gradient(135deg,#0f2b44,#071a2c);border-radius:20px;padding:16px 24px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+.titulaire-container .welcome-banner span{font-weight:500;font-size:15px;color:#fff;}
+.titulaire-container .readonly-banner{background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:16px;padding:10px 16px;margin-bottom:20px;display:flex;align-items:center;gap:10px;font-size:12px;color:#cbd5e1;}
+.titulaire-container .tabs-container-titu{display:flex;gap:12px;margin-bottom:24px;border-bottom:2px solid rgba(59,130,246,0.2);padding-bottom:12px;flex-wrap:wrap;}
+.titulaire-container .tab-btn-titu{background:transparent;border:none;padding:10px 24px;border-radius:40px;font-size:13px;font-weight:600;cursor:pointer;color:#94a3b8;transition:all 0.2s;}
+.titulaire-container .tab-btn-titu.active{background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;}
+.titulaire-container .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-bottom:24px;}
+.titulaire-container .stat-card{background:rgba(15,23,42,0.6);border-radius:20px;padding:20px;text-align:center;border:1px solid rgba(59,130,246,0.2);}
+.titulaire-container .stat-card .value{font-size:32px;font-weight:800;background:linear-gradient(135deg,#60a5fa,#a78bfa);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.titulaire-container .stat-card .label{font-size:12px;color:#94a3b8;margin-top:8px;}
+.titulaire-container .period-filter{display:flex;gap:12px;margin-bottom:20px;justify-content:flex-end;}
+.titulaire-container .period-btn{background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);padding:8px 20px;border-radius:40px;font-size:12px;cursor:pointer;color:#cbd5e1;}
+.titulaire-container .period-btn.active{background:#3b82f6;color:white;}
+.titulaire-container .class-filter{display:flex;gap:12px;margin-bottom:20px;align-items:center;flex-wrap:wrap;}
+.titulaire-container .class-filter label{font-size:12px;color:#94a3b8;font-weight:600;}
+.titulaire-container .class-filter select{background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);padding:8px 20px;border-radius:40px;font-size:12px;color:#cbd5e1;cursor:pointer;min-width:200px;}
+.titulaire-container .class-filter .filter-reset{background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);padding:6px 16px;border-radius:40px;font-size:11px;cursor:pointer;color:#f87171;}
+.titulaire-container .search-card{background:rgba(18,18,31,0.9);border-radius:28px;padding:28px;margin-bottom:24px;border:1px solid rgba(59,130,246,0.2);}
+.titulaire-container .search-box{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;}
+.titulaire-container .input-group{flex:1;min-width:180px;}
+.titulaire-container .input-group label{display:block;font-size:11px;font-weight:600;color:#cbd5e1;margin-bottom:8px;}
+.titulaire-container .input-group input,.titulaire-container .input-group select{width:100%;padding:12px 18px;border-radius:40px;border:1px solid rgba(59,130,246,0.3);background:rgba(0,0,0,0.3);color:white;font-size:14px;outline:none;}
+.titulaire-container .btn-primary{background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;border:none;padding:12px 28px;border-radius:40px;font-size:13px;font-weight:600;cursor:pointer;}
+.titulaire-container .result-card{background:rgba(18,18,31,0.9);border-radius:28px;padding:28px;border:1px solid rgba(59,130,246,0.2);display:none;}
+.titulaire-container .result-card.show{display:block;}
+.titulaire-container .eleve-info{background:rgba(15,23,42,0.6);border-radius:20px;padding:20px 24px;margin-bottom:24px;display:flex;flex-wrap:wrap;gap:24px;}
+.titulaire-container .eleve-info div{font-size:14px;}
+.titulaire-container .eleve-info div span:first-child{color:#94a3b8;font-weight:500;}
+.titulaire-container .eleve-info div span:last-child{font-weight:700;margin-left:12px;color:#ffd700;}
+.titulaire-container .releve-table{width:100%;border-collapse:collapse;font-size:12px;min-width:700px;}
+.titulaire-container .releve-table th{background:linear-gradient(135deg,#1e293b,#0f172a);color:white;padding:12px 10px;border-bottom:2px solid #3b82f6;font-size:11px;font-weight:600;text-align:center;}
+.titulaire-container .releve-table td{padding:10px 10px;border-bottom:1px solid rgba(59,130,246,0.15);color:#e2e8f0;text-align:center;}
+.titulaire-container .releve-table td:first-child{text-align:left;font-weight:600;}
+.titulaire-container .failed{color:#ef4444;font-weight:700;}
+.titulaire-container .passed{color:#10b981;font-weight:700;}
+.titulaire-container .btn-export{background:linear-gradient(135deg,#10b981,#059669);color:white;border:none;padding:12px 24px;border-radius:40px;font-size:13px;font-weight:600;cursor:pointer;margin-top:20px;width:100%;}
+.parent-modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);backdrop-filter:blur(16px);z-index:10002;display:flex;align-items:center;justify-content:center;visibility:hidden;opacity:0;transition:all 0.3s ease;}
+.parent-modal-overlay.active{visibility:visible;opacity:1;}
+.parent-modal{background:linear-gradient(135deg,#1e293b,#0f172a);width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden;}
+.parent-modal .header-fixe{position:sticky;top:0;z-index:999;background:#0a0e1a;padding:12px 20px;border-bottom:1px solid rgba(59,130,246,0.1);}
+.parent-modal-body{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:0;}
+.parent-chat{display:flex;flex-direction:column;height:100%;width:100%;}
+.parent-info{background:linear-gradient(135deg,#0f2b44,#071a2c);padding:14px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(59,130,246,0.2);flex-shrink:0;}
+.parent-info-left{display:flex;flex-direction:column;gap:4px;}
+.parent-info-left span:first-child{color:#ffd700;font-size:15px;font-weight:600;}
+.parent-info-left span:last-child{color:#94a3b8;font-size:12px;}
+.parent-info-right{display:flex;align-items:center;gap:12px;}
+.parent-info-right span:first-child{font-size:12px;color:#94a3b8;}
+.parent-messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:12px;background:radial-gradient(circle at 20% 30%, rgba(59,130,246,0.05), transparent 80%);min-height:0;}
+.parent-msg{display:flex;width:100%;animation:fadeInUp 0.3s ease-out;}
+.parent-msg.user{justify-content:flex-end;}
+.parent-msg.bot{justify-content:flex-start;}
+.parent-msg .bubble{max-width:85%;padding:18px 24px;border-radius:24px;font-size:18px;line-height:1.6;word-wrap:break-word;font-weight:400;transition:all 0.3s cubic-bezier(0.2,0.9,0.4,1.1);white-space:pre-wrap;font-family:'Inter',sans-serif;}
+.parent-msg.user .bubble{background:linear-gradient(135deg,rgba(59,130,246,0.95),rgba(30,64,175,0.95));backdrop-filter:blur(12px);color:#fff;font-weight:500;box-shadow:0 15px 30px -10px rgba(59,130,246,0.5),0 5px 10px -3px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.2),inset 0 -2px 0 rgba(0,0,0,0.1);border:1px solid rgba(255,255,255,0.25);border-radius:24px 24px 8px 24px;}
+.parent-msg.bot .bubble{background:rgba(18,25,45,0.85);backdrop-filter:blur(16px);color:#e2e8f0;border:2px solid rgba(255,107,107,0.3);box-shadow:0 12px 28px -8px rgba(0,0,0,0.4),0 4px 8px -2px rgba(0,0,0,0.2),inset 0 1px 0 rgba(255,255,255,0.08);border-radius:24px 24px 24px 8px;overflow:hidden;position:relative;}
+.parent-input-area{flex-shrink:0;display:flex;gap:12px;background:#0f172a;padding:16px;border-top:1px solid #334155;}
+.parent-input{flex:1;padding:14px 18px;background:#0f172a;border:1px solid #334155;border-radius:40px;color:#fff;font-size:16px;outline:none;resize:none;font-family:'Inter',sans-serif;line-height:1.4;}
+.parent-input:focus{border-color:#3b82f6;}
+.parent-send{background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:40px;padding:0 24px;color:#fff;font-weight:600;cursor:pointer;transition:all 0.2s;font-size:18px;}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+#loadingScreen{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,#0a0e1a,#0f172a);z-index:99999;align-items:center;justify-content:center;flex-direction:column;gap:24px;font-family:'Inter',sans-serif;}
+#loadingScreen.show{display:flex;}
+#loadingScreen img{width:72px;height:72px;border-radius:16px;box-shadow:0 8px 32px rgba(59,130,246,0.3);}
+#loadingScreen .brand{color:#fff;font-size:22px;font-weight:700;letter-spacing:1px;}
+#loadingScreen .spinner{width:40px;height:40px;border:4px solid rgba(59,130,246,0.2);border-top-color:#3b82f6;border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.saisie-modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);display:flex;align-items:center;justify-content:center;visibility:hidden;z-index:20001;}
+.saisie-modal.show{visibility:visible;}
+.saisie-modal-box{background:#1e293b;border-radius:30px;padding:20px;width:95%;max-width:450px;text-align:center;border:1px solid #3b82f6;}
+.saisie-note-big{font-size:60px;font-weight:bold;color:#60a5fa;background:#0f172a;padding:20px;border-radius:40px;margin:10px 0;}
+.saisie-numpad{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:15px 0;}
+.saisie-numpad button{background:#334155;color:white;padding:12px;font-size:18px;border-radius:12px;cursor:pointer;min-width:60px;min-height:55px;}
+.saisie-gesture-zone{background:#0f172a;border-radius:50px;padding:30px 20px;margin:15px 0;cursor:pointer;border:2px solid #f59e0b;}
+.prof-desactiver-msg{background:rgba(239,68,68,0.15);border:2px solid #ef4444;border-radius:20px;padding:30px;text-align:center;max-width:500px;margin:40px auto;}
+.prof-desactiver-msg .icon{font-size:64px;margin-bottom:16px;}
+.prof-desactiver-msg h2{color:#ef4444;font-size:22px;margin-bottom:12px;}
+.prof-desactiver-msg p{color:#cbd5e1;font-size:14px;line-height:1.8;}
+.eleve-importe{color:#10b981;font-size:11px;font-weight:600;background:rgba(16,185,129,0.15);padding:2px 10px;border-radius:30px;}
+.eleve-importe-lock{color:#64748b;font-size:14px;cursor:default;margin-left:4px;}
+.light-mode-toggle-btn{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:40px;padding:8px 16px;color:#fff;cursor:pointer;font-size:18px;transition:all 0.3s ease;display:flex;align-items:center;gap:8px;width:auto !important;font-family:'Inter',sans-serif;font-weight:500;}
+.light-mode-toggle-btn:hover{background:rgba(255,255,255,0.18);transform:scale(1.02);}
+.sous-onglet-prevision.active{background:rgba(59,130,246,0.2) !important;border-color:#3b82f6 !important;color:#fff !important;}
+#prevPopup{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:99999;align-items:center;justify-content:center;}
+#prevPopup > div{background:#1e293b;border-radius:20px;padding:24px;width:90%;max-width:450px;border:1px solid rgba(59,130,246,0.3);max-height:90vh;overflow-y:auto;}
+</style>
+</head>
+<body>
+<div id="loadingScreen" class="show"><img src="https://www.netubex.com/favicon.png.png" alt="NeTubeX" onerror="this.style.display='none'"><div class="brand">NeTubeX SARL</div><div class="spinner"></div></div>
+<div class="container" id="mainApp" style="display:none">
+<div class="school-header"><div class="school-name" id="schoolNameHeader">COMPLEXE SCOLAIRE</div><div class="school-sub" id="schoolSubHeader">CHARGEMENT...</div><div style="font-size:13px;margin-top:8px;color:#fff;">GESTION DE SCOLARITÉ</div></div>
+<div class="main-nav"><button class="main-nav-btn active" data-space="professeur">👨‍🏫 ESPACE PROFESSEUR</button><button class="main-nav-btn" data-space="titulaire">📋 ESPACE TITULAIRE</button></div>
+<div id="spaceProfesseur" class="space-content active">
+<div class="tabs-container"><div class="tabs" id="tabsProfesseur">
+<button class="tab active" data-tab="tabProf">ESPACE PROFESSEUR</button>
+<button class="tab" data-tab="tabEpreuves">EPREUVES</button>
+<button class="tab" data-tab="tabCorrection">📝 CORRECTION ET COTATION</button>
+<button class="tab" data-tab="tabCotation">FICHES DE COTATION</button>
+<button class="tab" data-tab="tabExports">EXPORTS</button>
+<button class="tab" data-tab="tabHoraire">MON HORAIRE</button>
+<button class="tab" data-tab="tabPrevision">📚 PRÉVISION DE MATIÈRES</button>
+<button class="tab" data-tab="tabParams">PARAMETRES</button>
+</div></div>
+<div id="tabProf" class="tab-content active"><div class="card"><div class="card-header"><div class="header-left"><span>GESTION DES FICHES</span></div></div>
+<div class="fiche-selector"><label>Fiche active :</label><select id="ficheSelect"></select></div>
+<div class="form-grid">
+<div class="form-field field-required"><label>MATIÈRE (COURS)</label><input type="text" id="coursInput" placeholder="ex: Français"></div>
+<div class="form-field field-required"><label>CLASSE</label><select id="classeSelect"><option value="">-- Sélectionner --</option><option value="7ème EB">7ème EB</option><option value="8ème EB">8ème EB</option><option value="1ère Année">1ère Année</option><option value="2ème Année">2ème Année</option><option value="3ème Année">3ème Année</option><option value="4ème Année">4ème Année</option></select></div>
+<div class="form-field" id="optionField"><label>OPTION</label>
+<select id="optionSelect">
+<option value="">-- Sélectionner --</option>
+<option value="LATIN-PHILO">LATIN-PHILO</option>
+<option value="SCIENCES">SCIENCES</option>
+<option value="PEDAGOGIE GENERALE">PÉDAGOGIE GÉNÉRALE</option>
+<option value="COMMERCIALE ET GESTION">COMMERCIALE ET GESTION</option>
+<option value="ELECTRICITE">ÉLECTRICITÉ</option>
+<option value="MECANIQUE GENERALE">MÉCANIQUE GÉNÉRALE</option>
+<option value="COUPE ET COUTURE">COUPE ET COUTURE</option>
+<option value="TOUTES">TOUTES</option>
+</select>
+</div>
+<div class="form-field"><label>ANNEE SCOLAIRE</label><input type="text" id="anneeInput" value="2026-2027" readonly></div>
+</div>
+<div class="prof-config"><h3>CONFIGURATION</h3>
+<div class="note-max-row"><label>Note max / période :</label><input type="number" id="p1MaxConfig" value="20" step="1"></div>
+<div class="btn-group" id="btnGroupContainer">
+<button class="btn btn-success" id="creerFicheBtn">📝 CRÉER</button>
+<button class="btn btn-primary" id="modifierFicheBtn" style="display:none;">✏️ MODIFIER</button>
+<button class="btn btn-danger" id="supprimerFicheBtn" style="display:none;">🗑️ SUPPRIMER</button>
+<button class="btn btn-secondary" id="viderChampsBtn">🧹 EFFACER</button>
+</div>
+</div>
+<div style="padding:20px;border-top:1px solid #334155;margin-top:20px;"><h3 style="color:#60a5fa;margin-bottom:15px;">👥 LISTE DES ÉLÈVES</h3><div id="elevesListContainer" style="max-height:300px;overflow-y:auto;margin-bottom:15px;"></div><div style="display:flex;gap:10px;flex-wrap:wrap;"><button class="btn btn-success" id="rechargerElevesBtn" style="flex:1;">🔄 RECHARGER</button></div><div id="ficheStats" style="margin-top:12px;padding:12px;background:#0f172a;border-radius:12px;font-size:13px;color:#cbd5e1;"><div id="ficheStatsContent"></div></div>
+</div></div></div>
+<div id="tabEpreuves" class="tab-content"><div class="card"><div class="card-header">EPREUVES PAR PERIODE</div><div class="fiche-selector"><select id="epreuveFicheSelector"></select></div><div id="epreuvesContainer"></div><div class="btn-group" style="padding:0 20px 20px 20px;margin:0"><button class="btn btn-sm" id="addEpreuve1">+ P1</button><button class="btn btn-sm" id="addEpreuve2">+ P2</button><button class="btn btn-sm" id="addEpreuve3">+ P3</button><button class="btn btn-sm" id="addEpreuve4">+ P4</button></div></div></div>
+<div id="tabCorrection" class="tab-content"><div class="card"><div class="card-header">📝 CORRECTION ET COTATION - 3 MODES DE SAISIE</div>
+<div class="fiche-selector"><label>📁 Fiche à coter :</label><select id="correctionFicheSelector"></select></div>
+<div style="padding:20px;background:#0f172a;border-bottom:1px solid #334155;"><h3 style="color:#60a5fa;margin-bottom:15px;">📌 CORRECTION ET COTATION - SÉLECTIONNER L'ÉPREUVE À NOTER</h3><div style="display:flex;gap:15px;flex-wrap:wrap;"><div><label style="font-size:11px;color:#94a3b8;">Période</label><br><select id="correctionPeriodeSelect" class="pedagogie-number-input"><option value="1">Période 1</option><option value="2">Période 2</option><option value="3">Période 3</option><option value="4">Période 4</option></select></div><div style="flex:1;min-width:200px;"><label style="font-size:11px;color:#94a3b8;">Épreuve</label><br><select id="correctionEpreuveSelect" class="pedagogie-number-input" style="width:100%;"></select></div><div><label style="font-size:11px;color:#94a3b8;">Barème max</label><br><input type="text" id="correctionEpreuveMax" class="pedagogie-number-input" readonly style="width:80px;background:#1e293b;"></div></div></div>
+<div style="padding:20px;border-bottom:1px solid #334155;"><h3 style="color:#8b5cf6;margin-bottom:10px;">⚡ MODE RAPIDE</h3><p style="color:#94a3b8;font-size:12px;margin-bottom:15px;">Pavé numérique compact pour saisir les notes rapidement</p><button class="btn" id="correctionQuickBtn" style="background:#8b5cf6;">Lancer le mode rapide</button></div>
+<div style="padding:20px;border-bottom:1px solid #334155;"><h3 style="color:#f59e0b;margin-bottom:10px;">👆 MODE GESTUEL</h3><p style="color:#94a3b8;font-size:12px;margin-bottom:15px;">Swipe gauche/droite pour modifier, tap pour valider</p><button class="btn" id="correctionGestureBtn" style="background:#f59e0b;">Lancer le mode gestuel</button></div>
+<div style="padding:20px;border-bottom:1px solid #334155;">
+<h3 style="color:#22c55e;margin-bottom:10px;font-size:16px;">📋 MODE SAISIE MANUELLE</h3>
+<p style="color:#94a3b8;font-size:12px;margin-bottom:15px;">Liste complète des élèves avec saisie directe</p>
+<button class="btn" id="correctionManuelBtn" style="background:#22c55e;width:100%;padding:14px;font-size:15px;">📋 Activer le mode saisie</button>
+</div>
+<div id="saisieManuelleContainer" style="display:none;padding:12px;background:rgba(0,0,0,0.2);border-top:1px solid #334155;margin-top:12px;">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+<div>
+<span style="color:#60a5fa;font-weight:600;font-size:13px;">📋 SAISIE MANUELLE</span>
+<span style="color:#94a3b8;font-size:11px;margin-left:8px;" id="saisieManuelleInfo">👥 0 élèves</span>
+<span style="color:#94a3b8;font-size:11px;margin-left:8px;" id="saisieManuelleNoteMax">Barème: 20</span>
+</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap;">
+<button class="btn btn-sm btn-success" id="saisieManuelleSave" style="background:#10b981;font-size:10px;padding:6px 12px;">💾</button>
+<button class="btn btn-sm btn-warning" id="saisieManuelleReset" style="background:#f59e0b;font-size:10px;padding:6px 12px;">↺</button>
+<button class="btn btn-sm btn-pdf" id="saisieManuelleExport" style="background:#dc2626;font-size:10px;padding:6px 12px;">📄</button>
+</div>
+</div>
+<div id="saisieManuelleListe" style="display:flex;flex-direction:column;gap:8px;max-height:500px;overflow-y:auto;padding:4px 0;"></div>
+<div id="saisieManuelleStats" style="margin-top:14px;padding:12px;background:rgba(0,0,0,0.2);border-radius:12px;">
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center;font-size:12px;color:#cbd5e1;">
+<div style="background:rgba(59,130,246,0.1);border-radius:8px;padding:8px;">
+<div style="font-size:9px;color:#94a3b8;">👥 TOTAL</div>
+<div style="font-size:18px;font-weight:700;color:#60a5fa;" id="statTotal">0</div>
+</div>
+<div style="background:rgba(16,185,129,0.1);border-radius:8px;padding:8px;">
+<div style="font-size:9px;color:#94a3b8;">✅ NOTÉS</div>
+<div style="font-size:18px;font-weight:700;color:#10b981;" id="statNoted">0</div>
+</div>
+<div style="background:rgba(245,158,11,0.1);border-radius:8px;padding:8px;">
+<div style="font-size:9px;color:#94a3b8;">⬜ NON NOTÉS</div>
+<div style="font-size:18px;font-weight:700;color:#f59e0b;" id="statNotNoted">0</div>
+</div>
+</div>
+<div style="margin-top:10px;">
+<div style="display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;margin-bottom:3px;">
+<span>📈 RÉUSSITE: <strong id="statReussite" style="color:#34d399;">0%</strong></span>
+<span>📉 ÉCHEC: <strong id="statEchec" style="color:#ef4444;">0%</strong></span>
+</div>
+<div style="height:8px;background:#1e293b;border-radius:20px;overflow:hidden;display:flex;">
+<div id="saisieManuelleReussiteBar" style="height:100%;width:0%;background:linear-gradient(90deg,#10b981,#34d399);border-radius:20px 0 0 20px;transition:width 0.5s ease;"></div>
+<div id="saisieManuelleEchecBar" style="height:100%;width:0%;background:linear-gradient(90deg,#ef4444,#dc2626);border-radius:0 20px 20px 0;transition:width 0.5s ease;"></div>
+</div>
+</div>
+</div>
+</div></div></div>
+<div id="tabCotation" class="tab-content"><div class="card"><div class="card-header">FICHES DE COTATION</div><div class="fiche-selector"><select id="cotationFicheSelector"></select></div><div style="display:flex;gap:8px;flex-wrap:wrap;padding:20px"><input type="text" id="searchInput" placeholder="Rechercher..." style="flex:1;padding:10px;border-radius:40px;background:#2d3748;border:1px solid #334155;color:#fff"><button class="btn-sm btn-outline" id="sortAlphaBtn" style="width:auto">Tri alphabétique</button></div><div class="table-wrapper"><table class="student-table" id="cotationTable"><thead id="cotationHeader"></thead><tbody id="cotationBody"></tbody></table></div></div></div>
+<div id="tabExports" class="tab-content"><div class="card"><div class="card-header">EXPORTATIONS PDF</div><div class="fiche-selector"><select id="exportFicheSelector"></select></div><div style="display:flex;flex-direction:column;gap:12px;padding:20px"><button class="btn" id="exportCurrentBtn" style="width:100%">PDF Fiche de cotation</button><button class="btn" id="exportEleveNotesBtn" style="width:100%">PDF Relevé élève</button><select id="eleveForExportSelect" style="width:100%;padding:10px;border-radius:40px;background:#2d3748;color:#fff;border:1px solid #334155"><option value="">-- Choisir un élève --</option></select></div></div></div>
+<div id="tabHoraire" class="tab-content"><div class="card"><div class="card-header">MON HORAIRE DE COURS</div><div style="padding:20px"><div id="horaireContainer"></div></div></div></div>
+
+<!-- TAB PREVISION AVEC SOUS-ONGLETS -->
+<div id="tabPrevision" class="tab-content">
+<div class="card">
+<div class="card-header">
+<div class="header-left"><span>📚 PRÉVISION DE MATIÈRES</span></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;">
+<button class="btn btn-sm btn-success" id="exportPrevisionPdf" style="background:#dc2626;font-size:11px;">📄 PDF</button>
+<button class="btn btn-sm btn-warning" id="resetPrevisionBtn" style="background:#f59e0b;font-size:11px;">🔄 Réinitialiser</button>
+<button class="btn btn-sm btn-primary" id="savePrevisionBtn" style="background:#10b981;font-size:11px;">💾 Sauvegarder</button>
+</div>
+</div>
+<div style="display:flex;gap:6px;padding:12px 20px;background:rgba(0,0,0,0.15);border-bottom:1px solid rgba(59,130,246,0.1);flex-wrap:wrap;">
+    <button class="sous-onglet-prevision active" data-sous="fiches" style="background:rgba(59,130,246,0.2);border:1px solid #3b82f6;padding:8px 20px;border-radius:30px;font-size:12px;cursor:pointer;color:#fff;transition:all 0.2s;font-family:'Inter',sans-serif;">
+        📋 PRÉVISION DES MATIÈRES
+    </button>
+    <button class="sous-onglet-prevision" data-sous="cours" style="background:transparent;border:1px solid #334155;padding:8px 20px;border-radius:30px;font-size:12px;cursor:pointer;color:#cbd5e1;transition:all 0.2s;font-family:'Inter',sans-serif;">
+        📚 COURS DISPONIBLES
+    </button>
+</div>
+<div id="sousPrevisionFiches" class="sous-prevision-content active">
+    <div class="fiche-selector">
+        <label>📁 Fiche :</label>
+        <select id="previsionFicheSelector"><option value="">-- Choisir --</option></select>
+        <button class="btn btn-sm btn-outline" id="refreshPrevisionFiches" style="padding:4px 12px;font-size:11px;">🔄</button>
+    </div>
+    <div style="padding:10px 20px;background:rgba(0,0,0,0.08);border-bottom:1px solid rgba(59,130,246,0.05);">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;font-size:12px;">
+            <div><span style="color:#94a3b8;">🏫</span> <span id="prevEcole" style="color:#fff;font-weight:600;">-</span></div>
+            <div><span style="color:#94a3b8;">📚</span> <span id="prevClasse" style="color:#fff;font-weight:600;">-</span></div>
+            <div><span style="color:#94a3b8;">🎯</span> <span id="prevOption" style="color:#60a5fa;font-weight:600;">-</span></div>
+            <div><span style="color:#94a3b8;">👨‍🏫</span> <span id="prevProf" style="color:#fff;font-weight:600;">-</span></div>
+            <div><span style="color:#94a3b8;">📘</span> <span id="prevCours" style="color:#fbbf24;font-weight:600;">-</span></div>
+        </div>
+    </div>
+    <div id="prevContainer" style="padding:10px 16px;"></div>
+</div>
+<div id="sousPrevisionCours" class="sous-prevision-content" style="display:none;padding:20px;">
+    <div style="background:rgba(15,23,42,0.6);border-radius:16px;padding:20px;border:1px solid rgba(59,130,246,0.15);">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+            <div>
+                <h3 style="color:#60a5fa;font-size:15px;font-weight:600;display:flex;align-items:center;gap:10px;">
+                    <span style="background:rgba(59,130,246,0.15);padding:4px 12px;border-radius:30px;font-size:11px;color:#60a5fa;">📚</span>
+                    COURS DISPONIBLES
+                </h3>
+                <p style="color:#94a3b8;font-size:11px;margin-top:4px;">Sélectionnez un cours pour le visualiser</p>
+            </div>
+            <span style="font-size:11px;color:#94a3b8;background:rgba(0,0,0,0.3);padding:4px 14px;border-radius:30px;">25 cours disponibles</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            <div>
+                <label style="display:block;font-size:11px;font-weight:600;color:#cbd5e1;margin-bottom:6px;">📖 Sélectionner un cours :</label>
+                <select id="coursDisponiblesSelect" style="width:100%;padding:12px 16px;border-radius:12px;background:#1e293b;border:1px solid #334155;color:#fff;font-size:14px;cursor:pointer;">
+                    <option value="">-- Choisir un cours --</option>
+                </select>
+            </div>
+            <button id="ouvrirCoursBtn" class="btn btn-primary" style="width:100%;padding:12px;background:linear-gradient(135deg,#3b82f6,#2563eb);">📄 Ouvrir le cours</button>
+            <div id="coursPreviewContainer" style="display:none;margin-top:12px;padding:16px;background:rgba(0,0,0,0.2);border-radius:12px;border:1px solid rgba(59,130,246,0.2);">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+                    <span style="color:#60a5fa;font-weight:600;font-size:13px;" id="coursPreviewTitle">📄 Cours sélectionné</span>
+                    <button id="fermerPreviewBtn" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#f87171;padding:4px 12px;border-radius:30px;cursor:pointer;font-size:11px;">✕ Fermer</button>
+                </div>
+                <iframe id="coursPreviewIframe" style="width:100%;height:400px;border:none;border-radius:8px;background:#0a0e1a;"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+</div>
+
+<div id="tabParams" class="tab-content">
+<div class="card">
+<div class="card-header"><div class="header-left"><span>⚙️ PARAMÈTRES</span></div></div>
+<div style="padding:20px;display:flex;flex-direction:column;gap:20px;">
+<div style="background:rgba(18,25,45,0.6);border-radius:16px;padding:20px;border:1px solid rgba(59,130,246,0.15);">
+<h3 style="color:#60a5fa;font-size:15px;margin-bottom:4px;">🔐 CHANGER LE CODE D'ACCÈS</h3>
+<p style="color:#94a3b8;font-size:12px;margin-bottom:16px;">Pour modifier votre code d'accès, contactez le support</p>
+<div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:12px;padding:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+<div style="display:flex;align-items:center;gap:8px;">
+<span style="font-size:24px;">📞</span>
+<div>
+<span style="color:#94a3b8;font-size:11px;">Appelez le</span>
+<div style="color:#fbbf24;font-size:18px;font-weight:700;word-break:break-all;">+243845048412</div>
+</div>
+</div>
+<div style="flex:1;min-width:150px;background:rgba(0,0,0,0.2);border-radius:8px;padding:8px 14px;">
+<span style="color:#94a3b8;font-size:10px;">⚠️ Assistance</span>
+<div style="color:#fbbf24;font-size:12px;">Notre équipe vous assistera pour modifier votre code</div>
+</div>
+</div>
+</div>
+<div style="background:rgba(18,25,45,0.6);border-radius:16px;padding:20px;border:1px solid rgba(59,130,246,0.15);">
+<h3 style="color:#60a5fa;font-size:15px;margin-bottom:4px;">📅 CONFIGURATION HORAIRE</h3>
+<p style="color:#94a3b8;font-size:12px;margin-bottom:16px;">Définissez votre emploi du temps</p>
+<select id="configJourSelect" style="width:100%;padding:10px 14px;border-radius:12px;background:#1a2332;border:1px solid #334155;color:#fff;margin-bottom:12px;font-size:14px;">
+<option value="lundi">Lundi</option>
+<option value="mardi">Mardi</option>
+<option value="mercredi">Mercredi</option>
+<option value="jeudi">Jeudi</option>
+<option value="vendredi">Vendredi</option>
+</select>
+<div id="configHoraireList" style="max-height:300px;overflow-y:auto;"></div>
+<div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
+<button class="btn btn-sm btn-success" id="ajouterHeureBtn" style="flex:1;padding:10px;background:#059669;">➕ AJOUTER UNE HEURE</button>
+<button class="btn btn-sm btn-primary" id="sauvegarderHoraireBtn" style="flex:1;padding:10px;">💾 SAUVEGARDER L'HORAIRE</button>
+</div>
+</div>
+<div style="background:rgba(18,25,45,0.6);border-radius:16px;padding:20px;border:1px solid rgba(59,130,246,0.15);">
+<h3 style="color:#60a5fa;font-size:15px;margin-bottom:4px;">⚡ ACTIONS</h3>
+<p style="color:#94a3b8;font-size:12px;margin-bottom:16px;">Gérer votre session et vos préférences</p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+<button class="btn btn-danger" id="logoutBtnParam" style="padding:12px;background:#dc2626;width:100%;">🚪 DÉCONNEXION</button>
+<button class="btn btn-warning" id="changeSchoolBtn" style="padding:12px;background:#b45309;width:100%;">🏫 CHANGER D'ÉCOLE</button>
+<button class="light-mode-toggle-btn" id="lightModeToggle" style="grid-column:span 2;padding:12px;justify-content:center;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:#fff;cursor:pointer;font-size:14px;font-family:'Inter',sans-serif;font-weight:500;width:100%;">☀️ MODE CLAIR</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div id="spaceTitulaire" class="space-content">
+<div class="titulaire-container"><div class="bg-fixed"></div><div class="bg-overlay"></div><div class="container-titu"><div id="titulaireConfigView"><div class="config-card"><h2>📋 Configuration titulaire</h2><p>Entrez votre nom et sélectionnez vos classes (avec options)</p>
+<input type="text" id="titulaireNomInput" placeholder="Votre nom complet (obligatoire)" value="" required>
+<p style="font-size:11px;color:#ef4444;margin-top:-15px;margin-bottom:12px;">⚠️ Le nom du titulaire est obligatoire</p>
+<h3 style="font-size:14px;margin-bottom:12px;color:#60a5fa;">📌 Vos classes et options :</h3>
+<p style="font-size:11px;margin-bottom:12px;color:#94a3b8;">💡 Cliquez sur une classe pour développer les options</p>
+<p style="font-size:10px;margin-bottom:12px;color:#10b981;">🌟 "TOUTES" = cours d'ensemble (toutes options confondues)</p>
+<p style="font-size:10px;margin-bottom:12px;color:#f59e0b;">📌 7ème EB et 8ème EB n'ont pas d'options</p>
+<div id="titulaireClassesChecklist" class="classes-list"><div class="empty-state">Chargement des classes...</div></div>
+<button class="btn-primary" id="saveTitulaireConfigBtn" style="width:100%">💾 Enregistrer la configuration</button></div></div><div id="titulaireFichesView" style="display:none"><div class="welcome-banner"><span id="titulaireWelcomeMessage"></span><button class="btn-outline" id="reconfigTitulaireBtn">⚙️ Modifier la configuration</button></div><div class="readonly-banner"><span>🔒 Mode consultation</span><span>Les modifications ne sont pas autorisées dans cet espace</span></div><div class="tabs-container-titu"><button class="tab-btn-titu active" data-view-titu="fiches">📋 Fiches de cotation</button><button class="tab-btn-titu" data-view-titu="recherche">🔍 Recherche élève</button></div><div id="titulaireViewFiches"><div class="period-filter"><button class="period-btn active" data-period-titu="all">📅 Année complète</button><button class="period-btn" data-period-titu="s1">📖 Premier semestre</button><button class="period-btn" data-period-titu="s2">📖 Second semestre</button></div><div class="class-filter"><label>📚 Filtrer par classe :</label><select id="titulaireClasseFilterSelect"><option value="all">🌍 Toutes les classes</option></select><button class="filter-reset" id="resetTitulaireClasseFilter">✖ Réinitialiser le filtre</button></div><div id="titulaireFichesContainer"></div></div>
+<div id="titulaireViewRecherche" style="display:none"><div class="search-card"><div class="search-box"><div class="input-group"><label>NOM COMPLET DE L'ÉLÈVE</label><input type="text" id="titulaireSearchNom" placeholder="Ex: KASONGO Jean"></div><div class="input-group"><label>CLASSE (optionnel)</label><select id="titulaireSearchClasse"><option value="">-- Toutes les classes --</option></select></div><button class="btn-primary" id="titulaireSearchBtn">🔍 Rechercher l'élève</button></div></div><div class="result-card" id="titulaireResultCard"><div class="eleve-info" id="titulaireEleveInfo"></div><div class="table-wrapper"><table class="releve-table"><thead><tr><th>MATIÈRE</th><th>CLASSE</th><th>P1 /20</th><th>P2 /20</th><th>EXAM S1 /20</th><th>TOT S1 /60</th><th>P3 /20</th><th>P4 /20</th><th>EXAM S2 /20</th><th>TOT S2 /60</th><th>TOTAL /120</th></tr></thead><tbody id="titulaireReleveBody"></tbody></table></div><button class="btn-export" id="exportTitulaireRelevePdfBtn">📄 Exporter le relevé de notes en PDF</button></div></div></div></div></div></div>
+</div>
+<div class="footer-note" id="footerNote">CHARGEMENT... | Année scolaire 2026-2027</div>
+</div>
+<div class="toast-container" id="toastContainer"></div>
+<div id="saisieModal" class="saisie-modal"><div class="saisie-modal-box"><div id="voiceBadge" class="voice-active-badge" style="display:none;">🎤 Mode vocal actif</div><div id="saisieModalStudentName" style="font-size:20px;font-weight:bold;color:#60a5fa;">---</div><div id="saisieEpreuveInfo" class="correction-info"></div><div id="saisieNoteValue" class="saisie-note-big">0</div><div id="saisieModalControls"></div><div id="saisieVoiceFeedback" class="saisie-voice-feedback" style="display:none;"></div><div style="margin-top:20px"><button id="closeSaisieModal" style="background:#334155;padding:14px 20px;border-radius:30px;color:white;font-size:18px;">Fermer</button></div></div></div>
+<div class="parent-modal-overlay" id="parentModalOverlay"><div class="parent-modal"><div class="header-fixe"><div style="display:flex;align-items:center;gap:18px;padding:6px 0;"><div style="position:relative;width:75px;height:75px;flex-shrink:0;"><div style="position:absolute;inset:-4px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#f59e0b);padding:4px;"><div style="width:100%;height:100%;border-radius:50%;background:#0a0e1a;overflow:hidden;"><img id="parentModalLogo" src="https://www.netubex.com/png.png" alt="Logo" style="width:100%;height:100%;object-fit:cover;display:block;"></div></div></div><div style="display:flex;flex-direction:column;gap:12px;"><div style="font-size:20px;font-weight:700;color:#fff;letter-spacing:1px;white-space:nowrap;">👪 ESPACE PARENTAL</div><div style="font-size:14px;color:#10b981;font-weight:600;">Système Intelligent</div></div></div><div style="display:flex;align-items:center;justify-content:space-between;background:rgba(18,25,45,0.6);border-radius:12px;padding:6px 16px;margin-top:6px;border:1px solid rgba(59,130,246,0.15);"><button id="closeParentModal" style="background:rgba(239,68,68,0.1);border:none;color:#f87171;font-size:22px;font-weight:700;cursor:pointer;padding:0 8px;line-height:1;">✕</button><button class="light-mode-toggle-btn" id="parentLightModeToggle" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:40px;padding:6px 12px;color:#fff;cursor:pointer;font-size:16px;transition:all 0.3s ease;display:flex;align-items:center;gap:6px;font-family:'Inter',sans-serif;font-weight:500;">☀️</button><div style="display:flex;align-items:center;gap:6px;background:rgba(0,0,0,0.3);padding:4px 14px 4px 10px;border-radius:40px;border:1px solid rgba(255,255,255,0.06);"><span style="font-size:11px;color:#94a3b8;">🔋</span><span style="color:#4ade80;font-size:11px;font-weight:600;">CHARGE ILLIMITÉE</span></div></div></div><div class="parent-modal-body"><div id="parentChatContainer" class="parent-chat" style="display:flex;height:100%;"><div class="parent-info"><div class="parent-info-left"><span id="parentInfoEleve" style="font-size:12px;color:#94a3b8;"></span></div><div class="parent-info-right"></div></div><div id="parentChatMessages" class="parent-messages"></div><div class="parent-input-area"><textarea id="parentQuestionInput" class="parent-input" placeholder="Code parent (4 ou 6 chiffres)..." rows="2" style="height:auto;min-height:50px;max-height:120px;"></textarea><button id="parentSendBtn" class="parent-send">📤</button></div></div></div></div></div>
+<div id="prevPopup" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:99999;align-items:center;justify-content:center;">
+<div style="background:#1e293b;border-radius:20px;padding:24px;width:90%;max-width:450px;border:1px solid rgba(59,130,246,0.3);max-height:90vh;overflow-y:auto;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+<h3 style="color:#ffd700;font-size:16px;margin:0;">✏️ MODIFIER</h3>
+<button id="closePrevPopup" style="background:transparent;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">✕</button>
+</div>
+<div style="background:rgba(0,0,0,0.2);border-radius:10px;padding:10px;margin-bottom:12px;font-size:12px;">
+<div><span style="color:#94a3b8;">📅 Semaine :</span> <span id="popupSemaine" style="color:#fff;font-weight:600;">-</span></div>
+<div><span style="color:#94a3b8;">📚 Classe :</span> <span id="popupClasse" style="color:#fff;font-weight:600;">-</span></div>
+<div><span style="color:#94a3b8;">🎯 Option :</span> <span id="popupOption" style="color:#60a5fa;font-weight:600;">-</span></div>
+</div>
+<div style="margin-bottom:12px;">
+<label style="display:block;font-size:11px;font-weight:600;color:#cbd5e1;margin-bottom:4px;">📝 Matière prévue</label>
+<textarea id="popupMatiere" rows="3" style="width:100%;padding:10px;border-radius:10px;background:#2d3748;border:1px solid #334155;color:#fff;font-size:13px;resize:vertical;font-family:inherit;"></textarea>
+</div>
+<div style="margin-bottom:16px;">
+<label style="display:block;font-size:11px;font-weight:600;color:#cbd5e1;margin-bottom:4px;">📌 Observation</label>
+<input type="text" id="popupObservation" style="width:100%;padding:8px 12px;border-radius:10px;background:#2d3748;border:1px solid #334155;color:#fff;font-size:13px;">
+</div>
+<div style="display:flex;gap:10px;">
+<button id="popupSave" style="flex:1;padding:10px;border-radius:30px;background:#10b981;color:#fff;border:none;font-weight:600;cursor:pointer;font-size:14px;">💾 Sauvegarder</button>
+<button id="popupCancel" style="flex:1;padding:10px;border-radius:30px;background:#334155;color:#fff;border:none;font-weight:600;cursor:pointer;font-size:14px;">❌ Annuler</button>
+</div>
+</div>
+</div>
+
+<script type="importmap">
+{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"}}
+</script>
+<script type="module">
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where } from "firebase/firestore";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+
+const firebaseConfig = {
+apiKey: "AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",
+authDomain: "gesco-2.firebaseapp.com",
+projectId: "gesco-2",
+storageBucket: "gesco-2.firebasestorage.app",
+messagingSenderId: "36319988765",
+appId: "1:36319988765:web:e8cd823804596495248af4"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+const urlParams = new URLSearchParams(window.location.search);
+let schoolId = urlParams.get('ecole');
+if (!schoolId) { window.location.href = '/schoolchoice'; throw new Error('Redirection'); }
+const ECOLET_ID = schoolId.replace(/[^a-zA-Z0-9]/g,'_');
+const SC = { PROFESSEURS: 'professeurs', FICHES: 'fiches', HORAIRES: 'horaires', COMPTEUR: 'compteur', CONFIG: 'config', COMPTA_ELEVES: 'compta_eleves', PREVISIONS: 'previsions' };
+
+let currentProf = null, currentFicheId = null, currentFiche = null, toutesFiches = [], isCreatingFiche = false, champsModifiables = false;
+let horaireProf = { lundi: [], mardi: [], mercredi: [], jeudi: [], vendredi: [] };
+let localEleves = [], triAlphabetiqueActif = false, donneesPrevision = [], previsionFicheId = null, popupItemId = null;
+let titulaireConfig = null, toutesFichesTitu = [], fichesTitulaire = [], currentPeriodTitu = "all", currentClasseFilterTitu = "all";
+const classesSansOptionsTitu = ["7ème EB", "8ème EB"];
+const toutesOptionsTitu = ["TOUTES", "LATIN-PHILO", "SCIENCES", "PEDAGOGIE GENERALE", "COMMERCIALE ET GESTION", "ELECTRICITE", "MECANIQUE GENERALE", "COUPE ET COUTURE"];
+const optionsParClasse = {
+"1ère Année": ["LATIN-PHILO", "SCIENCES", "PEDAGOGIE GENERALE", "COMMERCIALE ET GESTION", "ELECTRICITE", "MECANIQUE GENERALE", "COUPE ET COUTURE", "TOUTES"],
+"2ème Année": ["LATIN-PHILO", "SCIENCES", "PEDAGOGIE GENERALE", "COMMERCIALE ET GESTION", "ELECTRICITE", "MECANIQUE GENERALE", "COUPE ET COUTURE", "TOUTES"],
+"3ème Année": ["LATIN-PHILO", "SCIENCES", "PEDAGOGIE GENERALE", "COMMERCIALE ET GESTION", "ELECTRICITE", "MECANIQUE GENERALE", "COUPE ET COUTURE", "TOUTES"],
+"4ème Année": ["LATIN-PHILO", "SCIENCES", "PEDAGOGIE GENERALE", "COMMERCIALE ET GESTION", "ELECTRICITE", "MECANIQUE GENERALE", "COUPE ET COUTURE", "TOUTES"],
+"7ème EB": [],
+"8ème EB": []
+};
+let groupesActuels = [];
+const PREVISION_STORAGE_KEY = 'gloria_prevision_' + ECOLET_ID;
+const semainesPrevision = [
+{ mois: 'SEPTEMBRE 2026', semaine: 'Du 01 au 04 Sep', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'SEPTEMBRE 2026', semaine: 'Du 07 au 11 Sep', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'SEPTEMBRE 2026', semaine: 'Du 14 au 18 Sep', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'SEPTEMBRE 2026', semaine: 'Du 21 au 25 Sep', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'SEPTEMBRE 2026', semaine: 'Du 28 au 30 Sep', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'OCTOBRE 2026', semaine: 'Du 01 au 02 Oct', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'OCTOBRE 2026', semaine: 'Du 05 au 09 Oct', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'OCTOBRE 2026', semaine: 'Du 12 au 16 Oct', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'OCTOBRE 2026', semaine: 'Du 19 au 23 Oct', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'OCTOBRE 2026', semaine: 'Du 26 au 30 Oct', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'NOVEMBRE 2026', semaine: 'Du 02 au 06 Nov', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'NOVEMBRE 2026', semaine: 'Du 09 au 13 Nov', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'NOVEMBRE 2026', semaine: 'Du 16 au 20 Nov', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'NOVEMBRE 2026', semaine: 'Du 23 au 27 Nov', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'NOVEMBRE 2026', semaine: 'Du 30 Nov au 04 Déc', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'DÉCEMBRE 2026', semaine: 'Du 07 au 11 Déc', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'DÉCEMBRE 2026', semaine: 'Du 14 au 18 Déc', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'DÉCEMBRE 2026', semaine: 'Du 21 au 25 Déc', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'DÉCEMBRE 2026', semaine: 'Du 28 Déc au 01 Jan', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'JANVIER 2027', semaine: 'Du 04 au 08 Jan', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'JANVIER 2027', semaine: 'Du 11 au 15 Jan', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'JANVIER 2027', semaine: 'Du 18 au 22 Jan', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'JANVIER 2027', semaine: 'Du 25 au 29 Jan', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'FÉVRIER 2027', semaine: 'Du 01 au 05 Fév', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'FÉVRIER 2027', semaine: 'Du 08 au 12 Fév', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'FÉVRIER 2027', semaine: 'Du 15 au 19 Fév', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'FÉVRIER 2027', semaine: 'Du 22 au 26 Fév', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'MARS 2027', semaine: 'Du 01 au 05 Mar', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'MARS 2027', semaine: 'Du 08 au 12 Mar', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'MARS 2027', semaine: 'Du 15 au 19 Mar', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'MARS 2027', semaine: 'Du 22 au 26 Mar', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'MARS 2027', semaine: 'Du 29 Mar au 02 Avr', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'AVRIL 2027', semaine: 'Du 05 au 09 Avr', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'AVRIL 2027', semaine: 'Du 12 au 16 Avr', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'AVRIL 2027', semaine: 'Du 19 au 23 Avr', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'AVRIL 2027', semaine: 'Du 26 au 30 Avr', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'MAI 2027', semaine: 'Du 03 au 07 Mai', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'MAI 2027', semaine: 'Du 10 au 14 Mai', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'MAI 2027', semaine: 'Du 17 au 21 Mai', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'MAI 2027', semaine: 'Du 24 au 28 Mai', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'MAI 2027', semaine: 'Du 31 Mai au 04 Juin', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'JUIN 2027', semaine: 'Du 07 au 11 Juin', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'JUIN 2027', semaine: 'Du 14 au 18 Juin', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'JUIN 2027', semaine: 'Du 21 au 25 Juin', matiere: '', statut: 'NON VUES', observation: '' },
+{ mois: 'JUIN 2027', semaine: 'Du 28 au 30 Juin', matiere: '', statut: 'NON VUES', observation: '' }
+];
+
+function toast(message, type = "success") {
+const container = document.getElementById("toastContainer");
+if (!container) return;
+const icons = { success: "✅", error: "❌", warning: "⚠️", info: "ℹ️" };
+const colors = { success: "#10b981", error: "#ef4444", warning: "#f59e0b", info: "#3b82f6" };
+const el = document.createElement("div");
+el.className = `toast-notification ${type}`;
+el.innerHTML = `<div class="toast-icon">${icons[type] || "ℹ️"}</div><div class="toast-content"><div class="toast-title" style="color:${colors[type]}">${type.charAt(0).toUpperCase() + type.slice(1)}</div><div class="toast-message">${message}</div></div>`;
+container.appendChild(el);
+setTimeout(() => el.classList.add("show"), 10);
+setTimeout(() => { el.classList.remove("show"); setTimeout(() => el.remove(), 400); }, 3500);
+}
+
+function showStyledConfirm(title, message, onConfirm, onCancel) {
+let d = document.createElement('div');
+d.className = 'modal-fullscreen';
+d.innerHTML = `<div class="modal-content" style="max-width:500px;text-align:center;padding:32px;border-radius:28px;"><div style="font-size:48px;margin-bottom:16px;">🚫</div><h3 style="color:#ef4444;margin-bottom:16px;font-size:20px;font-weight:700;">${title}</h3><p style="color:#cbd5e1;margin-bottom:24px;line-height:1.8;font-size:14px;text-align:left;">${message}</p><div style="display:flex;gap:14px;justify-content:center;">${onCancel ? `<button id="styledConfirmCancel" style="background:#334155;color:#fff;border:none;padding:10px 28px;border-radius:40px;cursor:pointer;font-weight:600;font-size:14px;">Annuler</button>` : ''}${onConfirm ? `<button id="styledConfirmOk" style="background:#dc2626;color:#fff;border:none;padding:10px 28px;border-radius:40px;cursor:pointer;font-weight:600;font-size:14px;">Confirmer</button>` : `<button id="styledConfirmClose" style="background:#3b82f6;color:#fff;border:none;padding:10px 28px;border-radius:40px;cursor:pointer;font-weight:600;font-size:14px;">Fermer</button>`}</div></div>`;
+document.body.appendChild(d);
+setTimeout(() => d.classList.add('show'), 10);
+if (onConfirm) d.querySelector('#styledConfirmOk').onclick = () => { d.remove(); onConfirm(); };
+if (onCancel) d.querySelector('#styledConfirmCancel').onclick = () => { d.remove(); onCancel(); };
+const closeBtn = d.querySelector('#styledConfirmClose');
+if (closeBtn) closeBtn.onclick = () => { d.remove(); };
+}
+
+function showConfirm(msg, onOk) {
+let d = document.createElement('div');
+d.className = 'modal-fullscreen';
+d.innerHTML = `<div class="modal-content" style="max-width:350px;text-align:center;"><p style="color:#fff;margin-bottom:20px;">${msg}</p><div style="display:flex;gap:12px;margin-top:20px;justify-content:center;"><button class="btn" id="confirmOk" style="background:#ef4444;">Confirmer</button><button class="btn btn-outline" id="confirmCancel">Annuler</button></div></div>`;
+document.body.appendChild(d);
+setTimeout(() => d.classList.add('show'), 10);
+d.querySelector('#confirmOk').onclick = () => { d.remove(); if (onOk) onOk(); };
+d.querySelector('#confirmCancel').onclick = () => { d.remove(); };
+}
+
+function escapeHtml(s) { if (!s) return ''; return s.replace(/[&<>]/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[m])); }
+function formatNumero(n) { return n ? 'F' + String(n).padStart(3,'0') : '???'; }
+function normaliserClasse(nomClasse) { if (!nomClasse) return ''; const c = {'7eme EB':'7ème EB','7ème EB':'7ème EB','8eme EB':'8ème EB','8ème EB':'8ème EB','1ere Annee':'1ère Année','1ère Année':'1ère Année','2eme Annee':'2ème Année','2ème Année':'2ème Année','3eme Annee':'3ème Année','3ème Année':'3ème Année','4eme Annee':'4ème Année','4ème Année':'4ème Année'}; return c[nomClasse.trim().replace(/\s+/g,' ')] || nomClasse; }
+function getNomComplet(eleve) { const nom = eleve.nom || ''; const post = eleve.postnom || ''; const pre = eleve.prenom || ''; if (!nom && !post && !pre) return 'Élève'; return [nom, post, pre].filter(p => p.trim()).join(' '); }
+function getPeriodeMax(p) { return currentFiche?.p1Max || 20; }
+function getExamMax(s) { if (s===1) return getPeriodeMax(1)+getPeriodeMax(2); else return getPeriodeMax(3)+getPeriodeMax(4); }
+function getTotalSemestreMax(s) { if(s===1) return getPeriodeMax(1)+getPeriodeMax(2)+getExamMax(1); else return getPeriodeMax(3)+getPeriodeMax(4)+getExamMax(2); }
+function getTotalAnnuelMax() { return getTotalSemestreMax(1)+getTotalSemestreMax(2); }
+
+function toggleOptionField() {
+let c = document.getElementById('classeSelect').value;
+let o = document.getElementById('optionField');
+if (c === '7ème EB' || c === '8ème EB') { o.classList.add('hidden-field'); document.getElementById('optionSelect').value = ''; }
+else if (c && c !== '') o.classList.remove('hidden-field');
+else o.classList.add('hidden-field');
+}
+
+function mettreAJourSelectOptions(c) {
+let s = document.getElementById('optionSelect');
+if (!s) return;
+let opts = optionsParClasse[c] || [];
+if (opts.length === 0) { s.value = ''; return; }
+if (currentFiche && currentFiche.option && opts.includes(currentFiche.option)) s.value = currentFiche.option;
+else if (opts.includes("TOUTES") && s.value === '') s.value = "TOUTES";
+else if (opts.length > 0 && s.value === '') s.value = opts[0];
+}
+
+function setChampsModifiables(actif) {
+champsModifiables = actif;
+const elts = ['coursInput','p1MaxConfig','classeSelect','optionSelect'];
+elts.forEach(id => {
+const el = document.getElementById(id);
+if(!el) return;
+if(actif && !currentFicheId) {
+el.disabled = false; el.style.opacity = '1'; el.style.cursor = 'text'; el.style.borderColor = '#3b82f6'; el.style.pointerEvents = 'auto'; el.style.background = '#2d3748'; el.style.color = '#fff';
+} else {
+el.disabled = true; el.style.opacity = '0.7'; el.style.cursor = 'not-allowed'; el.style.borderColor = '#334155'; el.style.pointerEvents = 'none';
+}
+});
+if(document.getElementById('classeSelect')) { document.getElementById('classeSelect').style.backgroundImage = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>\"); document.getElementById('classeSelect').style.backgroundRepeat = 'no-repeat'; document.getElementById('classeSelect').style.backgroundPosition = 'right 12px center'; document.getElementById('classeSelect').style.backgroundSize = '14px'; document.getElementById('classeSelect').style.paddingRight = '32px !important'; }
+if(document.getElementById('optionSelect')) { document.getElementById('optionSelect').style.backgroundImage = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>\"); document.getElementById('optionSelect').style.backgroundRepeat = 'no-repeat'; document.getElementById('optionSelect').style.backgroundPosition = 'right 12px center'; document.getElementById('optionSelect').style.backgroundSize = '14px'; document.getElementById('optionSelect').style.paddingRight = '32px !important'; }
+const modifierBtn = document.getElementById('modifierFicheBtn');
+if(actif && currentFicheId) { modifierBtn.innerHTML = '💾 METTRE À JOUR'; modifierBtn.style.background = '#16a34a'; modifierBtn.className = 'btn btn-success'; }
+else if(!actif && currentFicheId) { modifierBtn.innerHTML = '✏️ MODIFIER'; modifierBtn.style.background = '#1e3a5f'; modifierBtn.className = 'btn btn-primary'; }
+}
+
+function mettreAJourBoutons() {
+const creerBtn = document.getElementById('creerFicheBtn');
+const modifierBtn = document.getElementById('modifierFicheBtn');
+const supprimerBtn = document.getElementById('supprimerFicheBtn');
+if (currentFicheId && currentFiche) {
+creerBtn.style.display = 'none';
+modifierBtn.style.display = 'inline-flex';
+supprimerBtn.style.display = 'inline-flex';
+if (!champsModifiables) setChampsModifiables(false);
+} else {
+creerBtn.style.display = 'inline-flex';
+modifierBtn.style.display = 'none';
+supprimerBtn.style.display = 'none';
+champsModifiables = true;
+setChampsModifiables(true);
+}
+}
+
+function viderChamps() {
+document.getElementById('coursInput').value = '';
+document.getElementById('classeSelect').value = '';
+document.getElementById('optionSelect').value = '';
+document.getElementById('p1MaxConfig').value = 20;
+toggleOptionField();
+['coursInput','classeSelect','optionSelect','p1MaxConfig'].forEach(id => { const el = document.getElementById(id); if(el) { el.disabled = false; el.style.opacity = '1'; el.style.cursor = 'text'; el.style.borderColor = '#3b82f6'; el.style.pointerEvents = 'auto'; el.style.background = '#2d3748'; el.style.color = '#fff'; } });
+champsModifiables = true;
+currentFiche = null; currentFicheId = null;
+mettreAJourBoutons();
+}
+
+async function getAllComptaEleves() {
+try {
+const snap = await getDocs(collection(db, "ecoles", ECOLET_ID, SC.COMPTA_ELEVES));
+localEleves = [];
+snap.forEach(ds => {
+const d = ds.data();
+if (d._type === 'config' || d._type === 'settings' || d._type === 'inscription' || !d.nom) return;
+localEleves.push({
+id: d.eleveId || ds.id, nom: d.nom || '', postnom: d.postnom || '', prenom: d.prenom || '',
+nomComplet: [d.nom||'', d.postnom||'', d.prenom||''].filter(p=>p.trim()).join(' '),
+sexe: d.sexe || "M", classe: normaliserClasse(d.classe), option: d.option || "",
+parentCode: d.parentCode || "", abandon: d.abandon || false
+});
+});
+return localEleves;
+} catch(e) { return []; }
+}
+
+async function loadAllFiches() {
+if (!currentProf) return [];
+try {
+const snap = await getDocs(collection(db, "ecoles", ECOLET_ID, SC.FICHES));
+const fiches = [];
+snap.forEach(ds => {
+const data = ds.data();
+if (!data._type && data.profId === currentProf.id) fiches.push({ id: ds.id, cours: data.cours || '', classe: data.classe || '', option: data.option || '', numeroRef: data.numeroRef || null });
+});
+fiches.sort((a,b) => (a.numeroRef||999) - (b.numeroRef||999));
+return fiches;
+} catch(e) { return []; }
+}
+
+async function saveCurrentFiche() {
+if (!currentProf || !currentFicheId || !currentFiche) return;
+currentFiche.lastModified = new Date();
+if (navigator.onLine) await setDoc(doc(db,"ecoles",ECOLET_ID,SC.FICHES,currentFicheId), currentFiche);
+}
+
+async function getNextFicheNumero() {
+let nv = 1;
+if (navigator.onLine) {
+try {
+const docRef = doc(db,"ecoles",ECOLET_ID,SC.COMPTEUR,"global");
+const docSnap = await getDoc(docRef);
+if (docSnap.exists()) nv = (docSnap.data().valeur || 0) + 1;
+await setDoc(docRef, { valeur: nv });
+} catch(e) { nv = Date.now(); }
+} else nv = Date.now();
+return nv;
+}
+
+async function refreshSelectors(selectedId = null) {
+toutesFiches = await loadAllFiches();
+const selectorIds = ['ficheSelect','epreuveFicheSelector','cotationFicheSelector','exportFicheSelector','correctionFicheSelector','previsionFicheSelector'];
+selectorIds.forEach(s => {
+const sel = document.getElementById(s);
+if (!sel) return;
+const currentValue = sel.value;
+sel.innerHTML = '<option value="">-- Choisir --</option>';
+toutesFiches.forEach(f => {
+const opt = document.createElement('option');
+opt.value = f.id;
+const refa = f.numeroRef ? formatNumero(f.numeroRef) : 'Nouvelle';
+opt.textContent = refa + ' - ' + (f.cours || '?') + ' - ' + (f.classe || '?') + (f.option ? ' ('+f.option+')' : '');
+sel.appendChild(opt);
+});
+if (selectedId && toutesFiches.some(f=>f.id===selectedId)) sel.value = selectedId;
+else if (currentValue && toutesFiches.some(f=>f.id===currentValue)) sel.value = currentValue;
+else if (currentFicheId && toutesFiches.some(f=>f.id===currentFicheId)) sel.value = currentFicheId;
+sel.onchange = function() {
+if (isCreatingFiche) return;
+if (this.value) {
+if (s === 'correctionFicheSelector') selectFicheForCorrection(this.value);
+else if (s === 'previsionFicheSelector') selectFicheForPrevision(this.value);
+else selectFiche(this.value);
+}
+};
+});
+}
+
+async function selectFiche(id) {
+if (!id || isCreatingFiche) return;
+currentFicheId = id;
+try {
+const docRef = doc(db,"ecoles",ECOLET_ID,SC.FICHES,id);
+const docSnap = await getDoc(docRef);
+if (docSnap.exists()) {
+const data = docSnap.data();
+if (!data._type) {
+currentFiche = data;
+if (currentProf) currentFiche.titulaire = currentProf.nom;
+document.getElementById('coursInput').value = currentFiche.cours || '';
+document.getElementById('classeSelect').value = currentFiche.classe || '';
+mettreAJourSelectOptions(currentFiche.classe || '');
+document.getElementById('optionSelect').value = currentFiche.option || '';
+document.getElementById('p1MaxConfig').value = currentFiche.p1Max || 20;
+toggleOptionField();
+afficherEpreuves(); afficherEleves(); afficherCotation(); updateExportSelect();
+setChampsModifiables(false); mettreAJourBoutons();
+synchroniserPrevisionAvecFicheActive();
+} else toast("Fiche invalide", 'error');
+}
+} catch(e) { toast("Erreur chargement fiche", 'error'); }
+}
+
+async function selectFicheForCorrection(id) {
+if (!id) return;
+if (navigator.onLine) {
+try {
+const docRef = doc(db,"ecoles",ECOLET_ID,SC.FICHES,id);
+const docSnap = await getDoc(docRef);
+if (docSnap.exists()) {
+const data = docSnap.data();
+if (!data._type) {
+window.correctionFiche = data;
+window.correctionFicheId = id;
+correctionUpdateEpreuveList();
+document.getElementById('correctionFicheSelector').value = id;
+toast("Fiche chargée pour la correction", 'success');
+}
+}
+} catch(e) { toast("Erreur chargement fiche", 'error'); }
+}
+}
+
+function afficherEleves() {
+let c = document.getElementById('elevesListContainer');
+if (!c || !currentFiche) { if(c) c.innerHTML = '<div class="empty-state">Aucune fiche sélectionnée</div>'; return; }
+c.innerHTML = '';
+let ev = currentFiche.eleves || [];
+ev.forEach((e,i) => {
+let d = document.createElement('div');
+d.className = 'eleve-row';
+const nomComplet = getNomComplet(e);
+const estImporte = e.source === 'auto' || e.source === 'reload' || e.source === 'auto_refresh' || e.source === 'comptabilite';
+if (estImporte) {
+d.innerHTML = `<span style="flex:2;color:#e2e8f0;padding:8px;font-weight:500;">${escapeHtml(nomComplet)}</span><span style="color:#94a3b8;padding:8px;">${e.sexe||'M'}</span><span class="eleve-importe">🔒 Importé</span>`;
+} else {
+d.innerHTML = `<input type="text" value="${escapeHtml(nomComplet)}" placeholder="Nom complet" onchange="window.updEleve(${i},'nom',this.value)" style="flex:2"><select onchange="window.updEleve(${i},'sexe',this.value)"><option value="M" ${e.sexe=='M'?'selected':''}>M</option><option value="F" ${e.sexe=='F'?'selected':''}>F</option></select><span onclick="window.delEleve(${i})" style="cursor:pointer;color:#ef4444;padding:8px;">X</span>`;
+}
+c.appendChild(d);
+});
+if (ev.length === 0) c.innerHTML += '<div class="empty-state">Aucun élève inscrit</div>';
+updateExportSelect();
+}
+
+window.updEleve = function(i,f,v) {
+if (!currentFiche?.eleves?.[i]) return;
+const estImporte = currentFiche.eleves[i].source === 'auto' || currentFiche.eleves[i].source === 'reload' || currentFiche.eleves[i].source === 'auto_refresh' || currentFiche.eleves[i].source === 'comptabilite';
+if (estImporte) { toast("🔒 Impossible de modifier un élève importé", 'error'); return; }
+if (f === 'nom' && (!v || v.trim()==='')) { toast("Le nom ne peut pas être vide", 'error'); return; }
+currentFiche.eleves[i][f] = v;
+afficherEleves(); afficherCotation(); updateExportSelect();
+};
+
+window.delEleve = function(i) {
+if (!currentFiche?.eleves?.[i]) return;
+const estImporte = currentFiche.eleves[i].source === 'auto' || currentFiche.eleves[i].source === 'reload' || currentFiche.eleves[i].source === 'auto_refresh' || currentFiche.eleves[i].source === 'comptabilite';
+if (estImporte) { toast("🔒 Impossible de supprimer un élève importé", 'error'); return; }
+let n = currentFiche.eleves[i].nom || 'Élève';
+showConfirm("Supprimer "+n+" de la liste ?", () => { currentFiche.eleves.splice(i,1); afficherEleves(); afficherCotation(); updateExportSelect(); toast(n+" supprimé",'warning'); });
+};
+
+function calcMoy(p, notes) {
+let eps = currentFiche?.epreuvesParPeriode?.[p] || [];
+if (!eps.length || !notes?.length) return 0;
+let sommeNotes = 0, sommeMax = 0;
+for (let i = 0; i < eps.length; i++) {
+sommeNotes += (notes[i] || 0);
+sommeMax += (eps[i].max || 1);
+}
+if (sommeMax === 0) return 0;
+let noteMaxPeriode = currentFiche.p1Max || 20;
+return Math.round(Math.min(noteMaxPeriode, (sommeNotes/sommeMax) * noteMaxPeriode));
+}
+
+function getNoteClass(note, maxNote) {
+if (maxNote === 0) return '';
+const ratio = note / maxNote;
+if (ratio >= 0.8) return 'note-excellent';
+if (ratio >= 0.7) return 'note-bien';
+if (ratio >= 0.5) return 'note-moyen';
+return 'note-insuffisant';
+}
+
+function afficherCotation() {
+let th = document.getElementById('cotationHeader');
+let tb = document.getElementById('cotationBody');
+let ev = currentFiche?.eleves || [];
+let elevesFiltres = [...ev];
+const searchTerm = document.getElementById('searchInput')?.value?.toLowerCase() || '';
+if (searchTerm) elevesFiltres = elevesFiltres.filter(e => getNomComplet(e).toLowerCase().includes(searchTerm));
+if (triAlphabetiqueActif) elevesFiltres.sort((a,b) => getNomComplet(a).localeCompare(getNomComplet(b)));
+if (!elevesFiltres.length) { th.innerHTML = ''; tb.innerHTML = '<tr><td class="empty-state">Aucun élève</td></tr>'; return; }
+let p1m = getPeriodeMax(1), p2m = getPeriodeMax(2), p3m = getPeriodeMax(3), p4m = getPeriodeMax(4);
+let e1m = getExamMax(1), e2m = getExamMax(2);
+let ts1m = getTotalSemestreMax(1), ts2m = getTotalSemestreMax(2), tam = getTotalAnnuelMax();
+let h = ['<th>N°</th><th>NOMS COMPLETS</th><th>SEXE</th>'];
+let e1 = currentFiche.epreuvesParPeriode?.[1] || [], e2 = currentFiche.epreuvesParPeriode?.[2] || [], e3 = currentFiche.epreuvesParPeriode?.[3] || [], e4 = currentFiche.epreuvesParPeriode?.[4] || [];
+for (let ep of e1) h.push('<th>'+ep.nom+'<br>P1 /'+ep.max+'</th>');
+h.push('<th>MOY P1<br>/'+p1m+'</th>');
+for (let ep of e2) h.push('<th>'+ep.nom+'<br>P2 /'+ep.max+'</th>');
+h.push('<th>MOY P2<br>/'+p2m+'</th>');
+h.push('<th>EXAM S1<br>/'+e1m+'</th><th>TOT S1<br>/'+ts1m+'</th>');
+for (let ep of e3) h.push('<th>'+ep.nom+'<br>P3 /'+ep.max+'</th>');
+h.push('<th>MOY P3<br>/'+p3m+'</th>');
+for (let ep of e4) h.push('<th>'+ep.nom+'<br>P4 /'+ep.max+'</th>');
+h.push('<th>MOY P4<br>/'+p4m+'</th>');
+h.push('<th>EXAM S2<br>/'+e2m+'</th><th>TOT S2<br>/'+ts2m+'</th><th>TOTAL<br>/'+tam+'</th>');
+th.innerHTML = h.join('');
+tb.innerHTML = '';
+elevesFiltres.forEach((e,i) => {
+if(!e.notes) e.notes = {p1:[],p2:[],p3:[],p4:[],exam1:0,exam2:0};
+let p1 = calcMoy(1,e.notes.p1), p2 = calcMoy(2,e.notes.p2), p3 = calcMoy(3,e.notes.p3), p4 = calcMoy(4,e.notes.p4);
+let ex1 = e.notes.exam1||0, ex2 = e.notes.exam2||0;
+let ts1 = p1+p2+ex1, ts2 = p3+p4+ex2, tot = ts1+ts2;
+let r = '<tr><td>'+String(i+1).padStart(2,'0')+'</td><td style="text-align:left">'+escapeHtml(getNomComplet(e))+'</td><td>'+e.sexe||'M' +'</td>';
+e1.forEach((ep,ei) => { let val = e.notes.p1?.[ei]||0; r += '<td><input type="number" step="0.5" min="0" max="'+ep.max+'" value="'+val+'" onchange="window.updNote('+i+',1,'+ei+',this.value)" style="width:55px" class="'+getNoteClass(val,ep.max)+'" readonly></td>'; });
+r += '<td style="background:#1e3a5f" class="'+getNoteClass(p1,p1m)+'">'+p1+'</td>';
+e2.forEach((ep,ei) => { let val = e.notes.p2?.[ei]||0; r += '<td><input type="number" step="0.5" min="0" max="'+ep.max+'" value="'+val+'" onchange="window.updNote('+i+',2,'+ei+',this.value)" style="width:55px" class="'+getNoteClass(val,ep.max)+'" readonly></td>'; });
+r += '<td style="background:#1e3a5f" class="'+getNoteClass(p2,p2m)+'">'+p2+'</td>';
+r += '<td><input type="number" step="0.5" min="0" max="'+e1m+'" value="'+ex1+'" onchange="window.updExam('+i+',1,this.value)" style="width:55px" class="'+getNoteClass(ex1,e1m)+'" readonly></td>';
+r += '<td style="background:#5c4a1a" class="'+getNoteClass(ts1,ts1m)+'">'+ts1+'</td>';
+e3.forEach((ep,ei) => { let val = e.notes.p3?.[ei]||0; r += '<td><input type="number" step="0.5" min="0" max="'+ep.max+'" value="'+val+'" onchange="window.updNote('+i+',3,'+ei+',this.value)" style="width:55px" class="'+getNoteClass(val,ep.max)+'" readonly></td>'; });
+r += '<td style="background:#1e3a5f" class="'+getNoteClass(p3,p3m)+'">'+p3+'</td>';
+e4.forEach((ep,ei) => { let val = e.notes.p4?.[ei]||0; r += '<td><input type="number" step="0.5" min="0" max="'+ep.max+'" value="'+val+'" onchange="window.updNote('+i+',4,'+ei+',this.value)" style="width:55px" class="'+getNoteClass(val,ep.max)+'" readonly></td>'; });
+r += '<td style="background:#1e3a5f" class="'+getNoteClass(p4,p4m)+'">'+p4+'</td>';
+r += '<td><input type="number" step="0.5" min="0" max="'+e2m+'" value="'+ex2+'" onchange="window.updExam('+i+',2,this.value)" style="width:55px" class="'+getNoteClass(ex2,e2m)+'" readonly></td>';
+r += '<td style="background:#5c4a1a" class="'+getNoteClass(ts2,ts2m)+'">'+ts2+'</td>';
+r += '<td style="background:#5c4a1a" class="'+getNoteClass(tot,tam)+'">'+tot+'</td></tr>';
+tb.innerHTML += r;
+});
+}
+
+window.updNote = function(i,p,epi,v) {
+let va = parseFloat(v) || 0;
+let me = currentFiche.epreuvesParPeriode[p]?.[epi]?.max || 20;
+if (va > me) va = me; if (va < 0) va = 0;
+if (!currentFiche.eleves[i].notes) currentFiche.eleves[i].notes = {p1:[],p2:[],p3:[],p4:[],exam1:0,exam2:0};
+if (!currentFiche.eleves[i].notes['p'+p]) currentFiche.eleves[i].notes['p'+p] = [];
+currentFiche.eleves[i].notes['p'+p][epi] = va;
+afficherCotation();
+};
+
+window.updExam = function(i,s,v) {
+let va = parseFloat(v) || 0;
+let me = (s===1) ? getExamMax(1) : getExamMax(2);
+if (va > me) va = me; if (va < 0) va = 0;
+if (!currentFiche.eleves[i].notes) currentFiche.eleves[i].notes = {p1:[],p2:[],p3:[],p4:[],exam1:0,exam2:0};
+if (s===1) currentFiche.eleves[i].notes.exam1 = va;
+else currentFiche.eleves[i].notes.exam2 = va;
+afficherCotation();
+};
+
+function afficherEpreuves() {
+let c = document.getElementById('epreuvesContainer');
+if (!c || !currentFiche) { if(c) c.innerHTML = '<div class="empty-state">Aucune fiche</div>'; return; }
+c.innerHTML = '';
+for (let p = 1; p <= 4; p++) {
+let b = document.createElement('div');
+b.className = 'epreuve-box';
+b.innerHTML = '<h4 style="color:#60a5fa;margin-bottom:10px;">PERIODE '+p+'</h4><div class="epreuve-list" id="listEpreuve'+p+'"></div>';
+c.appendChild(b);
+let ld = document.getElementById('listEpreuve'+p);
+if (ld) {
+ld.innerHTML = '';
+let eps = currentFiche.epreuvesParPeriode?.[p] || [];
+eps.forEach((ep,i) => {
+let d = document.createElement('div');
+d.className = 'epreuve-item';
+d.innerHTML = '<input type="text" value="'+ep.nom+'" onchange="window.updEpreuve('+p+','+i+',\'nom\',this.value)" style="width:80px;padding:6px;border-radius:20px;background:#2d3748;border:1px solid #334155;color:#fff"><input type="number" value="'+ep.max+'" onchange="window.updEpreuve('+p+','+i+',\'max\',this.value)" style="width:55px;padding:6px;border-radius:20px;background:#2d3748;border:1px solid #334155;color:#fff"><span style="cursor:pointer;color:#ef4444" onclick="window.delEpreuve('+p+','+i+')">X</span>';
+ld.appendChild(d);
+});
+if (eps.length === 0) ld.innerHTML = '<span style="font-size:12px;color:#94a3b8">Aucune épreuve</span>';
+}
+}
+}
+
+window.updEpreuve = function(p,i,f,v) {
+if (f === 'nom') currentFiche.epreuvesParPeriode[p][i].nom = v;
+else { let newMax = parseFloat(v)||20; if(newMax<0) newMax=0; currentFiche.epreuvesParPeriode[p][i].max = newMax; }
+afficherCotation(); correctionUpdateEpreuveList(); saveCurrentFiche();
+};
+
+window.delEpreuve = function(p,i) {
+currentFiche.epreuvesParPeriode[p].splice(i,1);
+afficherEpreuves(); afficherCotation(); correctionUpdateEpreuveList(); saveCurrentFiche();
+};
+
+function addEpreuve(p) {
+if (!currentFiche) { toast("Aucune fiche",'error'); return; }
+if (!currentFiche.epreuvesParPeriode[p]) currentFiche.epreuvesParPeriode[p] = [];
+currentFiche.epreuvesParPeriode[p].push({ nom: "Epreuve "+(currentFiche.epreuvesParPeriode[p].length+1), max: 20 });
+afficherEpreuves(); afficherCotation(); correctionUpdateEpreuveList(); saveCurrentFiche();
+toast("Epreuve P"+p+" ajoutée",'success');
+}
+
+function updateExportSelect() {
+let es = document.getElementById('eleveForExportSelect');
+if (es && currentFiche) {
+es.innerHTML = '<option value="">-- Choisir --</option>';
+currentFiche.eleves?.forEach((e,i) => { if(e.nom) es.innerHTML += '<option value="'+i+'">'+escapeHtml(getNomComplet(e))+'</option>'; });
+}
+}
+
+function correctionUpdateEpreuveList() {
+const periodeSelect = document.getElementById('correctionPeriodeSelect');
+const epreuveSelect = document.getElementById('correctionEpreuveSelect');
+const maxInput = document.getElementById('correctionEpreuveMax');
+let fiche = window.correctionFiche || currentFiche;
+if (!fiche || !periodeSelect || !epreuveSelect) return;
+const periode = periodeSelect.value;
+const eps = fiche.epreuvesParPeriode?.[parseInt(periode)] || [];
+epreuveSelect.innerHTML = '';
+eps.forEach((ep, idx) => { const opt = document.createElement('option'); opt.value = idx; opt.textContent = ep.nom + ' (max ' + ep.max + ')'; epreuveSelect.appendChild(opt); });
+if (eps.length === 0) { epreuveSelect.innerHTML = '<option value="">Aucune épreuve</option>'; maxInput.value = '0'; }
+else { epreuveSelect.value = '0'; maxInput.value = eps[0].max; }
+epreuveSelect.onchange = () => { const idx = parseInt(epreuveSelect.value); if (!isNaN(idx) && eps[idx]) maxInput.value = eps[idx].max; else maxInput.value = '0'; };
+}
+
+function getJourReel() {
+const j = new Date().getDay();
+return { code: {1:"lundi",2:"mardi",3:"mercredi",4:"jeudi",5:"vendredi",6:"weekend",0:"weekend"}[j], estWeekend: j===0||j===6, date: new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}) };
+}
+let jourAffichage = null;
+function afficherHoraire() {
+let c = document.getElementById('horaireContainer');
+if (!c) return;
+let j = jourAffichage ? { code: jourAffichage, estWeekend: false } : getJourReel();
+if (j.estWeekend) { c.innerHTML = '<div style="text-align:center;padding:40px"><div style="font-size:64px;margin-bottom:16px;">🎉</div><div style="font-size:24px;font-weight:bold;color:#60a5fa;">WEEK-END</div><div style="color:#cbd5e1;margin-top:8px;">Aucun cours</div></div>'; return; }
+let h = horaireProf[j.code] || [];
+if (h.length === 0) { c.innerHTML = '<div class="empty-state">Aucun horaire configuré<br><small>Allez dans Paramètres</small></div>'; return; }
+let html = '<div class="horaire-list-container">';
+h.forEach(p => {
+let ht = {1:"1ère",2:"2ème",3:"3ème",4:"4ème",5:"5ème",6:"6ème",7:"7ème",8:"8ème"}[p.heure] || p.heure+"ème";
+if (p.pause) html += '<div class="horaire-item horaire-pause"><div class="horaire-numero">'+ht+' HEURE</div><div class="horaire-info-hidden">PAUSE</div></div>';
+else html += '<div class="horaire-item"><div class="horaire-numero">'+ht+' HEURE</div><div class="horaire-info-hidden">'+(p.classe||"Non définie")+' | '+(p.option||"-")+' | '+(p.cours||"Non défini")+'</div></div>';
+});
+html += '</div>';
+c.innerHTML = html;
+}
+
+function afficherConfigHoraire() {
+let c = document.getElementById('configHoraireList');
+if (!c) return;
+let jour = document.getElementById('configJourSelect').value;
+let h = horaireProf[jour] || [];
+c.innerHTML = '';
+h.sort((a,b) => a.heure - b.heure);
+h.forEach((p, idx) => {
+let div = document.createElement('div');
+div.className = 'horaire-config-item';
+let ht = {1:"1ère",2:"2ème",3:"3ème",4:"4ème",5:"5ème",6:"6ème",7:"7ème",8:"8ème"}[p.heure] || p.heure+"ème";
+if (p.pause) div.innerHTML = '<strong style="min-width:70px;color:#60a5fa;">'+ht+'</strong><span style="flex:1;color:#fbbf24;">PAUSE</span><button class="btn-sm btn-danger" data-idx="'+idx+'">X</button>';
+else {
+div.innerHTML = '<strong style="min-width:70px;color:#60a5fa;">'+ht+'</strong><select id="conf_classe_'+idx+'" style="width:110px;"><option value="">Classe</option>'+document.getElementById('classeSelect').innerHTML+'</select><select id="conf_option_'+idx+'" style="width:90px;"><option value="">Option</option></select><input type="text" id="conf_cours_'+idx+'" placeholder="Cours" value="'+escapeHtml(p.cours||'')+'" style="width:120px;"><button class="btn-sm btn-danger" data-idx="'+idx+'">X</button>';
+let clsSel = div.querySelector('#conf_classe_'+idx);
+if (clsSel && p.classe) clsSel.value = p.classe;
+let optSel = div.querySelector('#conf_option_'+idx);
+if (optSel) {
+let opts = optionsParClasse[p.classe] || [];
+optSel.innerHTML = '<option value="">Option</option>';
+opts.forEach(o => optSel.innerHTML += '<option value="'+escapeHtml(o)+'" '+(p.option===o?'selected':'')+'>'+escapeHtml(o)+'</option>');
+}
+}
+c.appendChild(div);
+div.querySelector('.btn-danger')?.addEventListener('click', () => { horaireProf[jour].splice(idx,1); horaireProf[jour].forEach((h2,i2)=>h2.heure=i2+1); afficherConfigHoraire(); });
+let cls = div.querySelector('#conf_classe_'+idx);
+if (cls) cls.onchange = function() {
+let optDiv = div.querySelector('#conf_option_'+idx);
+if (optDiv) {
+let opts = optionsParClasse[this.value] || [];
+optDiv.innerHTML = '<option value="">Option</option>';
+opts.forEach(o => optDiv.innerHTML += '<option value="'+escapeHtml(o)+'">'+escapeHtml(o)+'</option>');
+}
+};
+});
+}
+
+async function sauvegarderHoraireFirebase() {
+if (!currentProf) return;
+try { await setDoc(doc(db,"ecoles",ECOLET_ID,SC.HORAIRES,"horaire_"+currentProf.id), { profId: currentProf.id, horaire: horaireProf, lastUpdated: new Date() }); toast("Horaire sauvegardé",'success'); }
+catch(e) { toast("Erreur sauvegarde horaire",'error'); }
+}
+
+async function chargerHoraireFirebase() {
+if (!currentProf) return;
+try {
+const docRef = await getDoc(doc(db,"ecoles",ECOLET_ID,SC.HORAIRES,"horaire_"+currentProf.id));
+if (docRef.exists()) horaireProf = docRef.data().horaire || horaireProf;
+} catch(e) {}
+afficherHoraire(); afficherConfigHoraire();
+}
+
+function ajouterHeure() {
+let jour = document.getElementById('configJourSelect').value;
+let nh = (horaireProf[jour]?.length || 0) + 1;
+horaireProf[jour].push({ heure: nh, classe: "", option: "", cours: "", pause: false });
+afficherConfigHoraire();
+}
+
+function sauvegarderHoraireAuto() {
+let jour = document.getElementById('configJourSelect').value;
+let h = horaireProf[jour] || [];
+for (let i = 0; i < h.length; i++) {
+if (!h[i].pause) {
+let cls = document.getElementById('conf_classe_'+i);
+let opt = document.getElementById('conf_option_'+i);
+let crs = document.getElementById('conf_cours_'+i);
+if (cls) h[i].classe = cls.value;
+if (opt) h[i].option = opt.value;
+if (crs) h[i].cours = crs.value;
+}
+}
+if (currentProf) sauvegarderHoraireFirebase();
+afficherHoraire();
+toast("Horaire mis à jour",'success');
+}
+
+async function chargerDonneesPrevision() {
+try {
+const profId = currentProf?.id || 'global';
+const storageKey = PREVISION_STORAGE_KEY + '_' + profId;
+const saved = localStorage.getItem(storageKey);
+if (saved) {
+const parsed = JSON.parse(saved);
+if (Array.isArray(parsed) && parsed.length > 0) {
+donneesPrevision = parsed;
+return;
+}
+}
+} catch(e) { console.warn('Erreur chargement prévision:', e); }
+donneesPrevision = JSON.parse(JSON.stringify(semainesPrevision));
+donneesPrevision.forEach((item, index) => { item.id = 'sem_' + index + '_' + Date.now(); });
+}
+
+async function sauvegarderDonneesPrevision() {
+try {
+const profId = currentProf?.id || 'global';
+const storageKey = PREVISION_STORAGE_KEY + '_' + profId;
+localStorage.setItem(storageKey, JSON.stringify(donneesPrevision));
+if (currentProf && currentProf.id) {
+const docRef = doc(db,"ecoles",ECOLET_ID,SC.PREVISIONS,currentProf.id);
+await setDoc(docRef, { profId: currentProf.id, donnees: donneesPrevision, ficheId: currentFicheId || '', lastModified: new Date().toISOString() });
+}
+toast('✅ Données sauvegardées', 'success');
+} catch(e) { toast('❌ Erreur sauvegarde', 'error'); }
+}
+
+function afficherPrevision() {
+const container = document.getElementById('prevContainer');
+if (!container) return;
+const classe = currentFiche?.classe || document.getElementById('prevClasse')?.textContent || '-';
+const option = currentFiche?.option || document.getElementById('prevOption')?.textContent || '-';
+const prof = currentProf?.nom || document.getElementById('prevProf')?.textContent || '-';
+const ecole = document.getElementById('prevEcole')?.textContent || schoolId?.toUpperCase().replace(/-/g,' ') || 'CS. GLORIA DEI';
+const cours = currentFiche?.cours || document.getElementById('prevCours')?.textContent || '-';
+document.getElementById('prevEcole').textContent = ecole;
+document.getElementById('prevClasse').textContent = classe;
+document.getElementById('prevOption').textContent = option;
+document.getElementById('prevProf').textContent = prof;
+document.getElementById('prevCours').textContent = cours;
+const moisGroupes = {};
+donneesPrevision.forEach(item => { if (!moisGroupes[item.mois]) moisGroupes[item.mois] = []; moisGroupes[item.mois].push(item); });
+let html = '', compteurGlobal = 0;
+for (const [mois, semaines] of Object.entries(moisGroupes)) {
+html += `<div style="margin-top:12px;border:1px solid rgba(59,130,246,0.1);border-radius:10px;overflow:hidden;">
+<div style="background:linear-gradient(135deg,#0f2b44,#071a2c);padding:8px 14px;font-weight:700;color:#ffd700;font-size:13px;display:flex;justify-content:space-between;align-items:center;">
+<span>📅 ${mois}</span>
+<span style="font-size:10px;color:#94a3b8;font-weight:400;">${semaines.length} semaine${semaines.length>1?'s':''}</span>
+</div>
+<div style="overflow-x:auto;padding:0 4px;">
+<table style="width:100%;border-collapse:collapse;font-size:12px;min-width:650px;">
+<thead><tr style="background:rgba(0,0,0,0.2);">
+<th style="padding:6px 4px;text-align:center;color:#94a3b8;font-size:10px;border-bottom:2px solid #334155;width:35px;">N°</th>
+<th style="padding:6px 4px;text-align:left;color:#94a3b8;font-size:10px;border-bottom:2px solid #334155;width:120px;">SEMAINE</th>
+<th style="padding:6px 4px;text-align:left;color:#94a3b8;font-size:10px;border-bottom:2px solid #334155;">📝 MATIÈRES PRÉVUES</th>
+<th style="padding:6px 4px;text-align:center;color:#94a3b8;font-size:10px;border-bottom:2px solid #334155;width:110px;">✅ VUES</th>
+</tr></thead><tbody>`;
+semaines.forEach(item => {
+compteurGlobal++;
+const isVue = item.statut === 'VUES';
+const rowColor = isVue ? 'rgba(16,185,129,0.05)' : 'rgba(255,255,255,0.02)';
+const borderLeft = isVue ? '3px solid #10b981' : '3px solid #f59e0b';
+const affichageMatiere = item.matiere || 'Aucune matière';
+html += `<tr style="background:${rowColor};border-left:${borderLeft};">
+<td style="padding:4px 4px;text-align:center;color:#94a3b8;font-weight:600;font-size:11px;">${String(compteurGlobal).padStart(2,'0')}</td>
+<td style="padding:4px 4px;text-align:left;color:#e2e8f0;font-weight:500;font-size:11px;">${item.semaine}</td>
+<td style="padding:4px 4px;"><div style="display:flex;flex-direction:column;gap:3px;">
+<span style="color:${item.matiere?'#e2e8f0':'#64748b'};font-size:12px;font-weight:${item.matiere?'500':'400'};">${escapeHtml(affichageMatiere)}</span>
+<button class="btn-matiere-modifier" data-id="${item.id}" style="padding:2px 10px;border-radius:20px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:#60a5fa;cursor:pointer;font-size:10px;font-weight:500;transition:all 0.2s;width:fit-content;">📝 Modifier</button>
+</div></td>
+<td style="padding:4px 4px;text-align:center;">
+<select class="matiere-statut-select" data-id="${item.id}" style="padding:4px 8px;border-radius:6px;background:#1e293b;border:1px solid #334155;color:#fff;font-size:11px;width:100%;cursor:pointer;">
+<option value="NON VUES" ${item.statut==='NON VUES'?'selected':''}>⬜ NON VUES</option>
+<option value="VUES" ${item.statut==='VUES'?'selected':''}>✅ VUES</option>
+</select>
+</td></tr>`;
+});
+html += `</tbody></table></div></div>`;
+}
+container.innerHTML = html;
+document.querySelectorAll('.btn-matiere-modifier').forEach(btn => {
+btn.addEventListener('click', function() {
+const item = donneesPrevision.find(d => d.id === this.dataset.id);
+if (item) ouvrirPopupPrevision(item);
+});
+});
+document.querySelectorAll('.matiere-statut-select').forEach(select => {
+select.addEventListener('change', function() {
+const item = donneesPrevision.find(d => d.id === this.dataset.id);
+if (item) { item.statut = this.value; afficherPrevision(); toast('Statut mis à jour', 'info'); }
+});
+});
+}
+
+function ouvrirPopupPrevision(item) {
+popupItemId = item.id;
+document.getElementById('popupSemaine').textContent = item.semaine;
+document.getElementById('popupClasse').textContent = document.getElementById('prevClasse')?.textContent || 'Non définie';
+document.getElementById('popupOption').textContent = document.getElementById('prevOption')?.textContent || '-';
+document.getElementById('popupMatiere').value = item.matiere || '';
+document.getElementById('popupObservation').value = item.observation || '';
+document.getElementById('prevPopup').style.display = 'flex';
+document.body.style.overflow = 'hidden';
+setTimeout(() => document.getElementById('popupMatiere').focus(), 300);
+}
+
+function fermerPopupPrevision() {
+document.getElementById('prevPopup').style.display = 'none';
+document.body.style.overflow = '';
+popupItemId = null;
+}
+
+function synchroniserPrevisionAvecFicheActive() {
+if (!currentFiche) { document.getElementById('prevClasse').textContent = '-'; document.getElementById('prevOption').textContent = '-'; document.getElementById('prevCours').textContent = '-'; return; }
+document.getElementById('prevClasse').textContent = currentFiche.classe || '-';
+document.getElementById('prevOption').textContent = currentFiche.option || '-';
+document.getElementById('prevProf').textContent = currentProf?.nom || '-';
+document.getElementById('prevCours').textContent = currentFiche.cours || '-';
+afficherPrevision();
+}
+
+function selectFicheForPrevision(id) { if (!id) return; previsionFicheId = id; selectFiche(id); }
+
+function chargerCoursDisponibles() {
+const select = document.getElementById('coursDisponiblesSelect');
+if (!select) return;
+select.innerHTML = '<option value="">-- Choisir un cours --</option>';
+for (let i = 1; i <= 25; i++) {
+const option = document.createElement('option');
+option.value = i;
+option.textContent = `📄 COURS ${i}`;
+select.appendChild(option);
+}
+}
+
+async function verifierCompteActif(profId) {
+try {
+const docRef = doc(db,"ecoles",ECOLET_ID,SC.PROFESSEURS,profId);
+const docSnap = await getDoc(docRef);
+if (docSnap.exists() && docSnap.data().actif === false) return false;
+return true;
+} catch(e) { return true; }
+}
+
+function sauvegarderSession(prof) {
+if (prof) localStorage.setItem('gloria_session_prof', JSON.stringify({ id: prof.id, nom: prof.nom, code: prof.code, createdAt: prof.createdAt, school: ECOLET_ID }));
+else localStorage.removeItem('gloria_session_prof');
+}
+
+async function restaurerSession() {
+let session = localStorage.getItem('gloria_session_prof');
+if (session) {
+try {
+let prof = JSON.parse(session);
+if (prof.school !== ECOLET_ID) { localStorage.removeItem('gloria_session_prof'); return false; }
+const actif = await verifierCompteActif(prof.id);
+if (!actif) { localStorage.removeItem('gloria_session_prof'); return false; }
+currentProf = { id: prof.id, nom: prof.nom, code: prof.code, createdAt: prof.createdAt || Date.now() };
+document.getElementById('mainApp').style.display = 'block';
+toutesFiches = await loadAllFiches();
+if (toutesFiches.length) await selectFiche(toutesFiches[0].id);
+await refreshSelectors();
+await chargerHoraireFirebase();
+toast("Bienvenue " + currentProf.nom, 'success');
+return true;
+} catch(e) { console.log(e); }
+}
+return false;
+}
+
+async function showLogin() {
+let d = document.createElement('div');
+d.className = 'login-overlay';
+d.id = 'loginOverlay';
+d.innerHTML = `<div class="login-card"><h2>ÉCOLE ${schoolId.toUpperCase().replace(/-/g,' ')}</h2><p class="subtitle">Accès enseignant</p><div class="select-wrapper"><span class="select-label">Professeur</span><select id="loginNom"><option value="">-- Choisir --</option></select></div><input type="password" id="loginCode" placeholder="🔑 Code d'accès"><div style="display:flex;gap:12px;margin-top:12px;width:100%;"><button id="loginBtn" style="flex:2;">Se connecter</button><button id="refreshPageBtn" style="flex:1;background:rgba(59,130,246,0.2);color:#fff;border:1px solid rgba(59,130,246,0.3);border-radius:40px;padding:12px;cursor:pointer;font-size:14px;">🔄 Rafraîchir</button></div><div id="loginError" style="margin-top:12px;font-size:13px;color:#ef4444"></div></div>`;
+document.body.appendChild(d);
+await refreshTeachersList();
+document.getElementById('loginBtn').onclick = async function() {
+const btn = this; btn.disabled = true; btn.innerHTML = '⏳ Connexion...';
+let n = document.getElementById('loginNom').value;
+let c = document.getElementById('loginCode').value;
+let fp = null;
+if (navigator.onLine) {
+try {
+const snap = await getDocs(query(collection(db,"ecoles",ECOLET_ID,SC.PROFESSEURS), where("nom","==",n)));
+snap.forEach(ds => { const data = ds.data(); if (data.school === ECOLET_ID) fp = { id: data.profId, nom: data.nom, code: data.code, email: data.emailProf || data.email }; });
+} catch(e) {}
+}
+if (!fp) { document.getElementById('loginError').innerHTML = 'Compte désactivé ou identifiants incorrects'; btn.disabled=false; btn.innerHTML='Se connecter'; return; }
+const actif = await verifierCompteActif(fp.id);
+if (!actif) {
+document.getElementById('loginOverlay').innerHTML = `<div class="prof-desactiver-msg"><div class="icon">🚫</div><h2>COMPTE DÉSACTIVÉ</h2><p>Contactez la Direction de votre école.</p><div style="margin-top:20px;"><button onclick="window.location.reload()" style="background:#3b82f6;color:#fff;border:none;padding:10px 30px;border-radius:40px;cursor:pointer;font-size:14px;">Réessayer</button></div></div>`;
+btn.disabled=false; btn.innerHTML='Se connecter'; return;
+}
+try {
+await signInWithEmailAndPassword(auth, fp.email, c);
+currentProf = { id: fp.id, nom: n, code: c, email: fp.email, createdAt: Date.now() };
+sauvegarderSession(currentProf);
+document.getElementById('loginOverlay').remove();
+document.getElementById('mainApp').style.display = 'block';
+toutesFiches = await loadAllFiches();
+if (toutesFiches.length) await selectFiche(toutesFiches[0].id);
+await refreshSelectors();
+await chargerHoraireFirebase();
+await getAllComptaEleves();
+toast("Bienvenue " + currentProf.nom, 'success');
+btn.disabled=false; btn.innerHTML='Se connecter';
+} catch(authError) {
+document.getElementById('loginError').innerHTML = "Code d'accès incorrect";
+toast("Code incorrect",'error');
+btn.disabled=false; btn.innerHTML='Se connecter';
+}
+};
+document.getElementById('refreshPageBtn').addEventListener('click', () => window.location.reload());
+}
+
+async function refreshTeachersList() {
+let professeurs = [];
+if (navigator.onLine) {
+try {
+const snap = await getDocs(collection(db,"ecoles",ECOLET_ID,SC.PROFESSEURS));
+snap.forEach(ds => { const data = ds.data(); if (data.school === ECOLET_ID) professeurs.push({ id: data.profId, nom: data.nom }); });
+} catch(e) {}
+}
+professeurs.sort((a,b) => a.nom.localeCompare(b.nom));
+let lo = document.getElementById('loginOverlay');
+if (lo) { let se = lo.querySelector('#loginNom'); if (se) { se.innerHTML = '<option value="">-- Choisir --</option>'; let numero = 1; professeurs.forEach(p => { let o = document.createElement('option'); o.value = p.nom; o.textContent = String(numero).padStart(2,'0') + '. ' + p.nom; se.appendChild(o); numero++; }); } }
+}
+
+// TITULAIRE
+async function loadAllFichesFromFirebaseTitu() {
+try {
+const snap = await getDocs(collection(db,"ecoles",ECOLET_ID,SC.FICHES));
+const fiches = [];
+snap.forEach(ds => {
+const data = ds.data();
+if (data._type === "prof" || !data.classe || !data.cours) return;
+fiches.push({
+id: ds.id, cours: data.cours, classe: data.classe, option: data.option || '',
+eleves: data.eleves || [], p1Max: data.p1Max || 20,
+epreuvesParPeriode: data.epreuvesParPeriode || {1:[],2:[],3:[],4:[]},
+numeroRef: data.numeroRef || 0, titulaire: data.titulaire || '',
+profId: data.profId, lastModified: data.lastModified || data.updatedAt || new Date()
+});
+});
+return fiches;
+} catch(e) { return []; }
+}
+
+async function loadAllClassesFromFichesTitu() {
+const fiches = await loadAllFichesFromFirebaseTitu();
+const classesMap = new Map();
+fiches.forEach(fiche => {
+if (!classesMap.has(fiche.classe)) classesMap.set(fiche.classe, new Set());
+if (fiche.option && fiche.option.trim()) classesMap.get(fiche.classe).add(fiche.option);
+});
+return Array.from(classesMap.keys()).sort().map(classe => ({
+nom: classe,
+options: Array.from(classesMap.get(classe)).sort(),
+hasOptions: !classesSansOptionsTitu.includes(classe)
+}));
+}
+
+function renderClassesChecklistTitu(classes, selectedClassesOptions) {
+const c = document.getElementById('titulaireClassesChecklist');
+if (!c) return;
+if (classes.length === 0) { c.innerHTML = '<div class="empty-state">Aucune classe trouvée</div>'; return; }
+c.innerHTML = '';
+classes.forEach(cls => {
+const savedForClass = selectedClassesOptions?.find(c => c.classe === cls.nom);
+const isClassChecked = !!savedForClass;
+const selectedOptions = savedForClass?.options || [];
+const div = document.createElement('div');
+div.className = 'class-item';
+if (cls.hasOptions) {
+div.innerHTML = `<div class="class-header"><input type="checkbox" class="class-checkbox" data-classe="${cls.nom.replace(/"/g,'&quot;')}" ${isClassChecked?'checked':''}><label>📚 ${cls.nom}</label><span style="font-size:10px;color:#60a5fa;margin-left:auto">▼</span></div><div class="options-list" style="display:${isClassChecked?'flex':'none'}">${toutesOptionsTitu.map(opt=>`<div class="option-item ${opt==='TOUTES'?'option-toutes':''}"><input type="checkbox" class="option-checkbox" data-classe="${cls.nom.replace(/"/g,'&quot;')}" data-option="${opt}" ${selectedOptions.includes(opt)?'checked':''} ${!isClassChecked?'disabled':''}><label>${opt}</label></div>`).join('')}</div>`;
+} else {
+div.innerHTML = `<div class="class-header"><input type="checkbox" class="class-checkbox" data-classe="${cls.nom.replace(/"/g,'&quot;')}" ${isClassChecked?'checked':''}><label>📚 ${cls.nom}</label></div><div class="no-options-msg">📌 Cours général</div>`;
+}
+c.appendChild(div);
+if (cls.hasOptions) {
+const headerCheckbox = div.querySelector('.class-checkbox');
+const optionsDiv = div.querySelector('.options-list');
+const optionCheckboxes = div.querySelectorAll('.option-checkbox');
+headerCheckbox.addEventListener('change', function() {
+const isChecked = this.checked;
+optionsDiv.style.display = isChecked ? 'flex' : 'none';
+optionCheckboxes.forEach(cb => { cb.disabled = !isChecked; if (!isChecked) cb.checked = false; });
+});
+}
+});
+}
+
+function getSelectedClassesOptionsTitu() {
+const selected = [];
+document.querySelectorAll('.class-item').forEach(div => {
+const classCheckbox = div.querySelector('.class-checkbox');
+if (classCheckbox && classCheckbox.checked) {
+const classe = classCheckbox.dataset.classe;
+const options = [];
+if (classesSansOptionsTitu.includes(classe)) options.push("AUCUNE");
+else div.querySelectorAll('.option-checkbox:checked').forEach(cb => options.push(cb.dataset.option));
+if (options.length === 0 && !classesSansOptionsTitu.includes(classe)) options.push("TOUTES");
+selected.push({ classe: classe, options: options });
+}
+});
+return selected;
+}
+
+function getNotesByPeriodTitu(fiche, eleve, period) {
+const pMax = fiche.p1Max || 20;
+function calcMoyNormalise(periode, notes, eps) {
+let epsList = eps[periode] || [];
+if (!epsList.length || !notes || !notes.length) return 0;
+let sumN = 0, sumM = 0;
+for (let i = 0; i < epsList.length; i++) { sumN += (notes[i]||0); sumM += (epsList[i].max||1); }
+if (sumM === 0) return 0;
+return Math.min(pMax, Math.round((sumN/sumM) * pMax));
+}
+let p1 = calcMoyNormalise(1, eleve.notes?.p1||[], fiche.epreuvesParPeriode);
+let p2 = calcMoyNormalise(2, eleve.notes?.p2||[], fiche.epreuvesParPeriode);
+let p3 = calcMoyNormalise(3, eleve.notes?.p3||[], fiche.epreuvesParPeriode);
+let p4 = calcMoyNormalise(4, eleve.notes?.p4||[], fiche.epreuvesParPeriode);
+let exam1 = eleve.notes?.exam1||0, exam2 = eleve.notes?.exam2||0;
+const examMax = pMax * 2;
+let totalS1 = p1+p2+exam1, totalS2 = p3+p4+exam2;
+const totalSMax = pMax * 4;
+if (period === "s1") return { p1,p2,exam1,examMax,totalS1,totalS1Max:totalSMax, p3:0,p4:0,exam2:0,totalS2:0,totalS2Max:0,total:totalS1,totalMax:totalSMax,pMax };
+if (period === "s2") return { p1:0,p2:0,exam1:0,examMax:0,totalS1:0,totalS1Max:0, p3,p4,exam2,totalS2,totalS2Max:totalSMax,total:totalS2,totalMax:totalSMax,pMax };
+return { p1,p2,exam1,examMax,totalS1,totalS1Max:totalSMax, p3,p4,exam2,totalS2,totalS2Max:totalSMax, total:totalS1+totalS2, totalMax:pMax*8, pMax };
+}
+
+function renderFicheCardTitu(fiche) {
+const pMax = fiche.p1Max || 20;
+const eleves = fiche.eleves || [];
+const refNum = fiche.numeroRef ? formatNumero(fiche.numeroRef) : '???';
+const optionDisplay = fiche.option === 'TOUTES' ? '(Toutes options)' : (fiche.option ? `(${fiche.option})` : '');
+const lastModif = fiche.lastModified ? new Date(fiche.lastModified).toLocaleDateString('fr-FR') + ' ' + new Date(fiche.lastModified).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : 'Date inconnue';
+const examMax = pMax * 2;
+const totalSMax = pMax * 4;
+let headers = [];
+if (currentPeriodTitu === "s1") headers = ['N°','NOMS & PRÉNOMS','SEXE',`P1/${pMax}`,`P2/${pMax}`,`EXAM S1/${examMax}`,`TOT S1/${totalSMax}`];
+else if (currentPeriodTitu === "s2") headers = ['N°','NOMS & PRÉNOMS','SEXE',`P3/${pMax}`,`P4/${pMax}`,`EXAM S2/${examMax}`,`TOT S2/${totalSMax}`];
+else headers = ['N°','NOMS & PRÉNOMS','SEXE',`P1/${pMax}`,`P2/${pMax}`,`EXAM S1/${examMax}`,`TOT S1/${totalSMax}`,`P3/${pMax}`,`P4/${pMax}`,`EXAM S2/${examMax}`,`TOT S2/${totalSMax}`,`TOTAL/${pMax*8}`];
+let tableRows = '';
+eleves.forEach((e,i) => {
+let notes = getNotesByPeriodTitu(fiche, e, currentPeriodTitu);
+const nomComplet = getNomComplet(e);
+tableRows += '<tr><td style="text-align:center;font-weight:600;">'+String(i+1).padStart(2,'0')+'</td><td style="text-align:left;font-weight:500;">'+escapeHtml(nomComplet)+'</td><td style="text-align:center;">'+(e.sexe||'-')+'</td>';
+if (currentPeriodTitu === "s1") tableRows += `<td>${notes.p1}</td><td>${notes.p2}</td><td>${notes.exam1}</td><td class="total-s1">${notes.totalS1}</td>`;
+else if (currentPeriodTitu === "s2") tableRows += `<td>${notes.p3}</td><td>${notes.p4}</td><td>${notes.exam2}</td><td class="total-s2">${notes.totalS2}</td>`;
+else tableRows += `<td>${notes.p1}</td><td>${notes.p2}</td><td>${notes.exam1}</td><td class="total-s1">${notes.totalS1}</td><td>${notes.p3}</td><td>${notes.p4}</td><td>${notes.exam2}</td><td class="total-s2">${notes.totalS2}</td><td class="total-final">${notes.total}</td>`;
+tableRows += '</tr>';
+});
+if (eleves.length === 0) { let colSpan = headers.length; tableRows = `<tr><td colspan="${colSpan}" style="text-align:center;padding:40px;">📭 Aucun élève</td></tr>`; }
+let headerRow = '<thead>'; headers.forEach(h => headerRow += `<th>${h}</th>`); headerRow += '</thead>';
+return `<div class="fiche-card"><div class="fiche-header"><h3><span style="background:rgba(255,215,0,0.1);padding:3px 12px;border-radius:30px;font-size:11px;color:#fbbf24;">${refNum}</span> ${fiche.cours} <span style="color:#94a3b8;font-weight:400;font-size:13px;">${fiche.classe} ${optionDisplay}</span></h3><span style="font-size:10px;color:#64748b;">🕐 ${lastModif}</span></div><div class="fiche-info"><div class="fiche-info-item"><span class="label">📅 Année:</span><span class="value">2026-2027</span></div><div class="fiche-info-item"><span class="label">👨‍🏫 Titulaire:</span><span class="value">${fiche.titulaire||'Non spécifié'}</span></div><div class="fiche-info-item"><span class="label">📊 Note max:</span><span class="value">${pMax}/20</span></div><div class="fiche-info-item"><span class="label">👥 Effectif:</span><span class="value">${eleves.length} élèves</span></div></div><div class="table-wrapper"><table class="student-table">${headerRow}<tbody>${tableRows}</tbody></table></div></div>`;
+}
+
+function updateClasseFilterOptionsTitu() {
+const select = document.getElementById('titulaireClasseFilterSelect');
+if (!select) return;
+const classesSet = new Set();
+fichesTitulaire.forEach(fiche => classesSet.add(fiche.classe));
+const classesTriees = Array.from(classesSet).sort();
+let options = '<option value="all">🌍 Toutes les classes</option>';
+classesTriees.forEach(classe => { const selected = currentClasseFilterTitu === classe ? 'selected' : ''; options += `<option value="${classe}" ${selected}>📚 ${classe}</option>`; });
+select.innerHTML = options;
+}
+
+async function chargerFichesTitulaireTitu() {
+if (!titulaireConfig) return;
+toutesFichesTitu = await loadAllFichesFromFirebaseTitu();
+const classesOptionsMap = new Map();
+titulaireConfig.classesOptions.forEach(co => classesOptionsMap.set(co.classe, co.options));
+fichesTitulaire = toutesFichesTitu.filter(f => {
+const optionsForClasse = classesOptionsMap.get(f.classe);
+if (!optionsForClasse) return false;
+if (classesSansOptionsTitu.includes(f.classe)) return true;
+if (optionsForClasse.includes("TOUTES")) return true;
+if (f.option && f.option !== "") return optionsForClasse.includes(f.option);
+return optionsForClasse.includes("TOUTES");
+});
+updateClasseFilterOptionsTitu();
+renderAllFichesTitu();
+}
+
+async function renderAllFichesTitu() {
+const container = document.getElementById('titulaireFichesContainer');
+if (!container) return;
+let fichesAFiltrer = fichesTitulaire;
+if (currentClasseFilterTitu !== "all") fichesAFiltrer = fichesTitulaire.filter(fiche => fiche.classe === currentClasseFilterTitu);
+if (fichesAFiltrer.length === 0) {
+let message = currentClasseFilterTitu !== "all" ? `<div class="empty-state"><h3>📭 Aucune fiche pour "${currentClasseFilterTitu}"</h3></div>` : '<div class="empty-state"><h3>📭 Aucune fiche disponible</h3></div>';
+container.innerHTML = message;
+return;
+}
+let html = '';
+fichesAFiltrer.forEach(f => html += renderFicheCardTitu(f));
+container.innerHTML = html;
+}
+
+async function chargerFichesPourRechercheTitu() {
+toutesFichesCompletTitu = await loadAllFichesFromFirebaseTitu();
+const classeSet = new Set();
+toutesFichesCompletTitu.forEach(f => classeSet.add(f.classe));
+const classeSelect = document.getElementById('titulaireSearchClasse');
+if (classeSelect) {
+classeSelect.innerHTML = '<option value="">-- Toutes les classes --</option>';
+Array.from(classeSet).sort().forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; classeSelect.appendChild(o); });
+}
+}
+
+function rechercherEleveTitu(nom) {
+const nomLower = nom.toLowerCase().trim();
+if (!nomLower) return [];
+const resultats = [];
+toutesFichesCompletTitu.forEach(f => {
+const pMax = f.p1Max || 20;
+f.eleves.forEach(e => {
+const nomComplet = getNomComplet(e).toLowerCase();
+if (nomComplet.includes(nomLower)) {
+const notes = getNotesByPeriodTitu(f, e, "all");
+const identifiant = getNomComplet(e);
+if (!resultats.some(r => r.nomEleve === identifiant && r.classe === f.classe)) {
+resultats.push({
+nomEleve: identifiant, sexe: e.sexe, classe: f.classe, option: f.option||'', cours: f.cours,
+p1: notes.p1, p2: notes.p2, p3: notes.p3, p4: notes.p4,
+exam1: notes.exam1, exam2: notes.exam2, examMax: pMax*2,
+totalS1: notes.totalS1, totalS1Max: pMax*4,
+totalS2: notes.totalS2, totalS2Max: pMax*4,
+total: notes.total, totalMax: pMax*8, pMax: pMax,
+_id: identifiant+'_'+f.id
+});
+}
+}
+});
+});
+return resultats;
+}
+
+async function generateFichePDFTitu(cours, classe, option, refNum, eleves, epreuves, pMax, titulaireNom) {
+const { jsPDF } = window.jspdf;
+const pdf = new jsPDF('landscape', 'mm', 'a4');
+pdf.setFillColor(255,255,255); pdf.rect(0,0,297,210,'F');
+pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.setTextColor(0,51,102);
+let schoolNameForPdf = schoolId ? schoolId.toUpperCase().replace(/-/g,' ') : 'COMPLEXE SCOLAIRE';
+pdf.text('COMPLEXE SCOLAIRE '+schoolNameForPdf, 148, 20, { align: 'center' });
+pdf.setFont('helvetica','normal'); pdf.setFontSize(10); pdf.setTextColor(80,80,80);
+pdf.text('GESTION DE SCOLARITÉ', 148, 28, { align: 'center' });
+pdf.setFont('helvetica','bold'); pdf.setFontSize(12); pdf.setTextColor(0,51,102);
+pdf.text('FICHE DE COTATION', 148, 38, { align: 'center' });
+pdf.setFont('helvetica','normal'); pdf.setFontSize(9); pdf.setTextColor(0,0,0);
+pdf.text('Année scolaire: 2026-2027', 14, 50);
+pdf.text('Référence: '+refNum, 14, 57);
+pdf.text('Cours: '+cours, 14, 64);
+pdf.text('Classe: '+classe+(option?' - '+(option==='TOUTES'?'TOUTES OPTIONS':option):''), 14, 71);
+pdf.text('Titulaire: '+titulaireNom, 14, 78);
+const headers = [['N°','NOMS COMPLETS','SEXE','P1','P2','EXAM S1','TOT S1','P3','P4','EXAM S2','TOT S2','TOTAL']];
+const body = [];
+function calcMoyPdf(periode, notes, eps, pM) { let e = eps[periode]||[]; if(!e.length||!notes||!notes.length) return 0; let sn=0, sm=0; for(let i=0;i<e.length;i++){sn+=(notes[i]||0); sm+=(e[i].max||1);} return sm?Math.min(pM,Math.round((sn/sm)*pM)):0; }
+body.push(['MAXIMA','','',pMax,pMax,pMax*2,pMax*4,pMax,pMax,pMax*2,pMax*4,pMax*8]);
+eleves.forEach((e,i) => {
+let p1 = calcMoyPdf(1,e.notes?.p1||[],epreuves,pMax);
+let p2 = calcMoyPdf(2,e.notes?.p2||[],epreuves,pMax);
+let p3 = calcMoyPdf(3,e.notes?.p3||[],epreuves,pMax);
+let p4 = calcMoyPdf(4,e.notes?.p4||[],epreuves,pMax);
+let exam1 = e.notes?.exam1||0, exam2 = e.notes?.exam2||0;
+body.push([String(i+1).padStart(2,'0'), getNomComplet(e).toUpperCase(), e.sexe||'', p1,p2,exam1,p1+p2+exam1,p3,p4,exam2,p3+p4+exam2,p1+p2+exam1+p3+p4+exam2]);
+});
+pdf.autoTable({ head: headers, body: body, startY: 85, theme: 'grid', styles: { fontSize: 8, cellPadding: 2, halign: 'center' }, headStyles: { fillColor: [0,51,102], textColor: [255,255,255], fontStyle: 'bold' }, alternateRowStyles: { fillColor: [245,245,245] } });
+return pdf;
+}
+
+async function initTitulaire() {
+let savedConfig = localStorage.getItem('gloria_titulaire_config');
+if (savedConfig) {
+titulaireConfig = JSON.parse(savedConfig);
+await chargerFichesTitulaireTitu();
+await chargerFichesPourRechercheTitu();
+document.getElementById('titulaireConfigView').style.display = 'none';
+document.getElementById('titulaireFichesView').style.display = 'block';
+document.getElementById('titulaireWelcomeMessage').innerHTML = `Bonjour ${titulaireConfig.nom} - Responsable de ${titulaireConfig.classesOptions.length} classe(s)`;
+} else {
+document.getElementById('titulaireConfigView').style.display = 'block';
+document.getElementById('titulaireFichesView').style.display = 'none';
+let classesDispo = await loadAllClassesFromFichesTitu();
+renderClassesChecklistTitu(classesDispo, []);
+await chargerFichesPourRechercheTitu();
+if (currentProf && currentProf.nom) document.getElementById('titulaireNomInput').value = currentProf.nom;
+}
+}
+
+// EVENT LISTENERS
+document.getElementById('creerFicheBtn').addEventListener('click', async function() {
+if (isCreatingFiche) { toast("Opération en cours",'warning'); return; }
+const cours = document.getElementById('coursInput').value.trim();
+const classe = document.getElementById('classeSelect').value;
+const option = document.getElementById('optionSelect').value;
+const noteMax = document.getElementById('p1MaxConfig').value || 20;
+if (!cours) { toast("Veuillez renseigner le cours",'error'); return; }
+if (!classe) { toast("Veuillez sélectionner une classe",'error'); return; }
+if (classe !== '7ème EB' && classe !== '8ème EB' && !option) { toast("Veuillez sélectionner une option",'error'); return; }
+const fop = (classe === '7ème EB' || classe === '8ème EB') ? '' : option;
+const fichesExistantes = await loadAllFiches();
+if (fichesExistantes.find(f => f.cours===cours && f.classe===classe && (f.option||'')===fop)) { toast("⚠️ Une fiche identique existe déjà",'warning'); return; }
+isCreatingFiche = true;
+const btn = this; btn.disabled = true; btn.innerHTML = '⏳ CRÉATION...';
+try {
+await getAllComptaEleves();
+const elevesCompta = localEleves || [];
+let elevesFiltres = elevesCompta.filter(e => e && !e.abandon && e.classe === classe && (fop === 'TOUTES' || (fop && e.option === fop)));
+if (elevesFiltres.length === 0) {
+showStyledConfirm('🚫 CRÉATION IMPOSSIBLE', `⚠️ Aucun élève inscrit pour :<br><br>• Classe : <strong>${classe}</strong>${fop ? `<br>• Option : <strong>${fop}</strong>` : ''}<br><br>📌 Contactez la comptabilité.`);
+toast('❌ Aucun élève inscrit','error');
+btn.disabled=false; btn.innerHTML='📝 CRÉER'; isCreatingFiche=false; return;
+}
+const nid = 'f'+Date.now()+'_'+Math.random().toString(36).substr(2,4);
+const nnum = await getNextFicheNumero();
+const now = new Date();
+let eleves = elevesFiltres.map(e => ({
+id: e.id||Date.now()+Math.random(), nom: e.nom||'', postnom: e.postnom||'', prenom: e.prenom||'',
+nomComplet: [e.nom||'',e.postnom||'',e.prenom||''].filter(p=>p.trim()).join(' '),
+sexe: e.sexe||'M', notes: {p1:[],p2:[],p3:[],p4:[],exam1:0,exam2:0},
+parentCode: e.parentCode||'', eleveId: e.id, importeLe: new Date().toISOString(), source: "auto"
+}));
+const nouvelleFiche = {
+profId: currentProf.id, ficheId: nid, cours: cours, classe: classe, option: fop,
+titulaire: currentProf.nom, anneeScolaire: "2026-2027", p1Max: parseFloat(noteMax)||20,
+numeroRef: nnum, dateCreation: now, lastModified: now,
+epreuvesParPeriode: {1:[{nom:"Interrogation",max:20}],2:[{nom:"Interrogation",max:20}],3:[{nom:"Interrogation",max:20}],4:[{nom:"Interrogation",max:20}]},
+eleves: eleves, school: ECOLET_ID,
+importAuto: { date: now.toISOString(), nbEleves: eleves.length, classe: classe, option: fop, auto: true }
+};
+if (navigator.onLine) await setDoc(doc(db,"ecoles",ECOLET_ID,SC.FICHES,nid), nouvelleFiche);
+else { toast("❌ Pas de connexion",'error'); return; }
+currentFiche = nouvelleFiche; currentFicheId = nid;
+document.getElementById('coursInput').value = ''; document.getElementById('classeSelect').value = ''; document.getElementById('optionSelect').value = ''; document.getElementById('p1MaxConfig').value = 20;
+toggleOptionField();
+await refreshSelectors(nid);
+afficherEpreuves(); afficherEleves(); afficherCotation(); updateExportSelect();
+toast(`✅ Fiche "${cours}" créée avec ${eleves.length} élève(s)`,'success');
+mettreAJourBoutons();
+} catch(error) { toast("❌ Erreur création",'error'); console.error(error); }
+finally { btn.disabled=false; btn.innerHTML='📝 CRÉER'; isCreatingFiche=false; }
+});
+
+document.getElementById('modifierFicheBtn').addEventListener('click', async function() {
+if (!currentFicheId || !currentFiche) { toast("Aucune fiche",'error'); return; }
+if (!champsModifiables) { setChampsModifiables(true); toast("✏️ Mode modification activé",'info'); return; }
+const btn = this; btn.disabled = true; btn.innerHTML = '⏳ MISE À JOUR...';
+try {
+const cours = document.getElementById('coursInput').value.trim();
+const p1Max = parseFloat(document.getElementById('p1MaxConfig').value)||20;
+if (!cours) { toast("Veuillez renseigner le cours",'error'); return; }
+currentFiche.cours = cours; currentFiche.p1Max = p1Max; currentFiche.lastModified = new Date();
+if (navigator.onLine) await setDoc(doc(db,"ecoles",ECOLET_ID,SC.FICHES,currentFicheId), currentFiche);
+else { toast("❌ Pas de connexion",'error'); return; }
+toast("✅ Fiche mise à jour",'success');
+await refreshSelectors(currentFicheId);
+afficherEpreuves(); afficherEleves(); afficherCotation();
+setChampsModifiables(false); mettreAJourBoutons();
+} catch(error) { toast("❌ Erreur",'error'); console.error(error); }
+finally { btn.disabled=false; btn.innerHTML='✏️ MODIFIER'; btn.style.background='#1e3a5f'; btn.className='btn btn-primary'; }
+});
+
+document.getElementById('supprimerFicheBtn').addEventListener('click', function() {
+if (!currentFicheId || !currentFiche) { toast("Aucune fiche",'error'); return; }
+const ficheNom = currentFiche.cours || 'Fiche';
+showStyledConfirm(`🗑️ SUPPRIMER "${ficheNom}"`, `⚠️ La fiche sera supprimée définitivement. Confirmez-vous ?`, async function() {
+try { await deleteDoc(doc(db,"ecoles",ECOLET_ID,SC.FICHES,currentFicheId)); toast(`✅ Fiche supprimée`,'success'); viderChamps(); await refreshSelectors(); afficherEpreuves(); afficherEleves(); afficherCotation(); updateExportSelect(); }
+catch(e) { toast("❌ Erreur suppression",'error'); }
+});
+});
+
+document.getElementById('viderChampsBtn').addEventListener('click', function() {
+if (champsModifiables && currentFicheId) {
+showConfirm("Annuler les modifications ?", "Les modifications non sauvegardées seront perdues.", function() { viderChamps(); refreshSelectors(); afficherEpreuves(); afficherEleves(); afficherCotation(); updateExportSelect(); });
+} else { viderChamps(); refreshSelectors(); afficherEpreuves(); afficherEleves(); afficherCotation(); updateExportSelect(); }
+});
+
+document.getElementById('rechargerElevesBtn').onclick = async function() {
+if (!currentFiche) { toast("Aucune fiche",'error'); return; }
+const classe = currentFiche.classe, option = currentFiche.option;
+await getAllComptaEleves();
+const elevesCompta = localEleves || [];
+let elevesFiltres = elevesCompta.filter(e => !e.abandon && e.classe===classe && (option==='TOUTES'||(option&&e.option===option)));
+const nomsExistants = new Set((currentFiche.eleves||[]).map(e => getNomComplet(e)));
+const elevesAAjouter = elevesFiltres.filter(e => !nomsExistants.has(getNomComplet(e)));
+if (elevesAAjouter.length === 0) { toast("✅ Aucun nouvel élève",'info'); return; }
+if (!currentFiche.eleves) currentFiche.eleves = [];
+elevesAAjouter.forEach(e => { currentFiche.eleves.push({ id: e.id||Date.now()+Math.random(), nom:e.nom||'', postnom:e.postnom||'', prenom:e.prenom||'', nomComplet:[e.nom||'',e.postnom||'',e.prenom||''].filter(p=>p.trim()).join(' '), sexe:e.sexe||'M', notes:{p1:[],p2:[],p3:[],p4:[],exam1:0,exam2:0}, parentCode:e.parentCode||'', eleveId:e.id, importeLe:new Date().toISOString(), source:"reload" }); });
+await saveCurrentFiche();
+afficherEleves(); afficherCotation(); updateExportSelect();
+toast(`✅ ${elevesAAjouter.length} élève(s) ajouté(s)`,'success');
+};
+
+document.getElementById('addEpreuve1').onclick = () => addEpreuve(1);
+document.getElementById('addEpreuve2').onclick = () => addEpreuve(2);
+document.getElementById('addEpreuve3').onclick = () => addEpreuve(3);
+document.getElementById('addEpreuve4').onclick = () => addEpreuve(4);
+
+document.getElementById('sortAlphaBtn').addEventListener('click', function() {
+triAlphabetiqueActif = !triAlphabetiqueActif;
+this.textContent = triAlphabetiqueActif ? '🔽 Tri activé' : 'Tri alphabétique';
+afficherCotation();
+toast(triAlphabetiqueActif ? 'Tri activé' : 'Tri désactivé','info');
+});
+
+document.getElementById('searchInput').addEventListener('input', () => afficherCotation());
+
+document.getElementById('configJourSelect').addEventListener('change', () => afficherConfigHoraire());
+document.getElementById('ajouterHeureBtn').addEventListener('click', ajouterHeure);
+document.getElementById('sauvegarderHoraireBtn').addEventListener('click', sauvegarderHoraireAuto);
+
+document.getElementById('exportCurrentBtn').onclick = async function() {
+if (!currentFiche || !currentFiche.eleves?.length) { toast("Aucune donnée",'error'); return; }
+try {
+const { jsPDF } = window.jspdf;
+const pdf = new jsPDF('landscape','mm','a4');
+pdf.setFillColor(255,255,255); pdf.rect(0,0,297,210,'F');
+pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.setTextColor(0,51,102);
+let schoolNameForPdf = schoolId ? schoolId.toUpperCase().replace(/-/g,' ') : 'COMPLEXE SCOLAIRE';
+pdf.text('COMPLEXE SCOLAIRE '+schoolNameForPdf, 148, 20, { align: 'center' });
+pdf.setFont('helvetica','normal'); pdf.setFontSize(10); pdf.setTextColor(80,80,80);
+pdf.text('GESTION SCOLAIRE', 148, 27, { align: 'center' });
+pdf.setFont('helvetica','bold'); pdf.setFontSize(12); pdf.setTextColor(0,51,102);
+pdf.text('FICHE DE COTATION', 148, 37, { align: 'center' });
+pdf.setFont('helvetica','normal'); pdf.setFontSize(9); pdf.setTextColor(0,0,0);
+const rn = currentFiche.numeroRef ? formatNumero(currentFiche.numeroRef) : '???';
+pdf.text("Année scolaire : 2026-2027", 14, 50);
+pdf.text("Référence : "+rn, 14, 57);
+pdf.text("Cours : "+(currentFiche.cours||''), 14, 64);
+pdf.text("Classe : "+(currentFiche.classe||''), 14, 71);
+let y = 78;
+if (currentFiche.option) { pdf.text("Option : "+currentFiche.option, 14, y); y += 7; }
+pdf.text("Titulaire : "+(currentProf?currentProf.nom:''), 14, y);
+const eps = currentFiche.epreuvesParPeriode || {1:[],2:[],3:[],4:[]};
+const p1m = getPeriodeMax(1), p2m = getPeriodeMax(2), p3m = getPeriodeMax(3), p4m = getPeriodeMax(4);
+const e1m = getExamMax(1), e2m = getExamMax(2);
+const ts1m = getTotalSemestreMax(1), ts2m = getTotalSemestreMax(2), tam = getTotalAnnuelMax();
+const hd = [['N°','NOMS COMPLETS','SEXE','P1/'+p1m,'P2/'+p2m,'EXAM S1/'+e1m,'TOT S1/'+ts1m,'P3/'+p3m,'P4/'+p4m,'EXAM S2/'+e2m,'TOT S2/'+ts2m,'TOTAL/'+tam]];
+const bd = [];
+currentFiche.eleves.forEach((e,i) => {
+const n = e.notes||{};
+const p1 = calcMoy(1,n.p1), p2 = calcMoy(2,n.p2), p3 = calcMoy(3,n.p3), p4 = calcMoy(4,n.p4);
+const ex1 = n.exam1||0, ex2 = n.exam2||0;
+bd.push([String(i+1), getNomComplet(e).toUpperCase(), e.sexe==='F'?'F':'M', p1,p2,ex1,p1+p2+ex1,p3,p4,ex2,p3+p4+ex2,p1+p2+ex1+p3+p4+ex2]);
+});
+pdf.autoTable({ head: hd, body: bd, startY: y+10, theme: 'grid', styles: { fontSize: 8, cellPadding: 2, halign: 'center' }, headStyles: { fillColor: [0,51,102], textColor: [255,255,255], fontStyle: 'bold' }, alternateRowStyles: { fillColor: [245,245,245] } });
+pdf.save("Fiche_"+rn+"_"+(currentFiche.cours||'cours')+".pdf");
+toast("PDF exporté",'success');
+} catch(e) { toast("Erreur PDF",'error'); console.error(e); }
+};
+
+document.getElementById('exportEleveNotesBtn').onclick = async function() {
+let idx = document.getElementById('eleveForExportSelect').value;
+if (idx === "") { toast("Sélectionnez un élève",'warning'); return; }
+let eleve = currentFiche.eleves[parseInt(idx)];
+if (!eleve) { toast("Élève non trouvé",'error'); return; }
+try {
+const { jsPDF } = window.jspdf;
+const pdf = new jsPDF('portrait','mm','a4');
+pdf.setFillColor(255,255,255); pdf.rect(0,0,210,297,'F');
+pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.setTextColor(0,51,102);
+let schoolNameForPdf = schoolId ? schoolId.toUpperCase().replace(/-/g,' ') : 'COMPLEXE SCOLAIRE';
+pdf.text('COMPLEXE SCOLAIRE '+schoolNameForPdf, 105, 20, { align: 'center' });
+pdf.setFont('helvetica','normal'); pdf.setFontSize(10); pdf.setTextColor(80,80,80);
+pdf.text('GESTION DE SCOLARITÉ', 105, 27, { align: 'center' });
+pdf.setFont('helvetica','bold'); pdf.setFontSize(12); pdf.setTextColor(0,51,102);
+pdf.text('RELEVE DES EPREUVES', 105, 37, { align: 'center' });
+pdf.setFont('helvetica','normal'); pdf.setFontSize(9); pdf.setTextColor(0,0,0);
+const rn = currentFiche.numeroRef ? formatNumero(currentFiche.numeroRef) : '???';
+pdf.text("Référence: "+rn, 150, 50);
+pdf.text("Élève: "+(eleve.nom||'').toUpperCase(), 20, 50);
+pdf.text("Classe: "+(currentFiche.classe||'')+(currentFiche.option?' - '+currentFiche.option:''), 20, 58);
+pdf.text("Cours: "+(currentFiche.cours||''), 20, 66);
+const eps = currentFiche.epreuvesParPeriode || {1:[],2:[],3:[],4:[]};
+const getP = () => currentFiche.p1Max || 20;
+const bd = [];
+for (let p = 1; p <= 4; p++) {
+(eps[p]||[]).forEach((ep,ei) => {
+let nt = (eleve.notes?.['p'+p]?.[ei]) || 0;
+bd.push(["Période "+p, ep.nom, nt+" / "+ep.max, Math.round((nt/ep.max)*getP())+" / "+getP()]);
+});
+}
+bd.push(['','','','']);
+bd.push(['RECAPITULATIF','','','']);
+const p1m = getP(1), p2m = getP(2), p3m = getP(3), p4m = getP(4);
+const p1 = (() => { let e = eps[1]||[], s=0,m=0; for(let i=0;i<e.length;i++){s+=(eleve.notes?.p1?.[i]||0); m+=(e[i].max||1);} return m?Math.min(p1m,Math.round((s/m)*p1m)):0; })();
+const p2 = (() => { let e = eps[2]||[], s=0,m=0; for(let i=0;i<e.length;i++){s+=(eleve.notes?.p2?.[i]||0); m+=(e[i].max||1);} return m?Math.min(p2m,Math.round((s/m)*p2m)):0; })();
+const p3 = (() => { let e = eps[3]||[], s=0,m=0; for(let i=0;i<e.length;i++){s+=(eleve.notes?.p3?.[i]||0); m+=(e[i].max||1);} return m?Math.min(p3m,Math.round((s/m)*p3m)):0; })();
+const p4 = (() => { let e = eps[4]||[], s=0,m=0; for(let i=0;i<e.length;i++){s+=(eleve.notes?.p4?.[i]||0); m+=(e[i].max||1);} return m?Math.min(p4m,Math.round((s/m)*p4m)):0; })();
+const ex1 = eleve.notes?.exam1||0, ex2 = eleve.notes?.exam2||0;
+bd.push(['Période 1','',p1+" / "+p1m,'']); bd.push(['Période 2','',p2+" / "+p2m,'']);
+bd.push(['Examen S1','',ex1+" / "+(p1m+p2m),'']); bd.push(['Total S1','',(p1+p2+ex1)+" / "+(p1m+p2m+p1m+p2m),'']);
+bd.push(['Période 3','',p3+" / "+p3m,'']); bd.push(['Période 4','',p4+" / "+p4m,'']);
+bd.push(['Examen S2','',ex2+" / "+(p3m+p4m),'']); bd.push(['Total S2','',(p3+p4+ex2)+" / "+(p3m+p4m+p3m+p4m),'']);
+bd.push(['TOTAL ANNUEL','',(p1+p2+ex1+p3+p4+ex2)+" / "+((p1m+p2m)*2+(p3m+p4m)*2),'']);
+pdf.autoTable({ head: [['Période','Epreuve','Note','Note / max période']], body: bd, startY: 75, theme: 'grid', styles: { fontSize: 9, cellPadding: 3 }, headStyles: { fillColor: [0,51,102], textColor: [255,255,255], fontStyle: 'bold' }, alternateRowStyles: { fillColor: [245,245,245] } });
+pdf.save("Releve_"+rn+"_"+((eleve.nom||'eleve').replace(/\s/g,'_'))+".pdf");
+toast("PDF généré",'success');
+} catch(e) { toast("Erreur PDF",'error'); console.error(e); }
+};
+
+// CORRECTION MODES
+let correctionFiche = null, correctionFicheId = null;
+document.getElementById('correctionPeriodeSelect').addEventListener('change', correctionUpdateEpreuveList);
+
+function correctionSaveCurrentNote() {
+let fiche = correctionFiche || currentFiche;
+if (!fiche) return;
+const eleves = fiche.eleves;
+if (!eleves[window.correctionMode.currentIndex]) return;
+const eleveNom = getNomComplet(eleves[window.correctionMode.currentIndex]);
+const prenom = eleveNom.split(' ').pop() || eleveNom;
+const noteValue = window.correctionMode.currentNote;
+if (!eleves[window.correctionMode.currentIndex].notes) eleves[window.correctionMode.currentIndex].notes = {p1:[],p2:[],p3:[],p4:[],exam1:0,exam2:0};
+if (!eleves[window.correctionMode.currentIndex].notes['p'+window.correctionMode.periode]) eleves[window.correctionMode.currentIndex].notes['p'+window.correctionMode.periode] = [];
+eleves[window.correctionMode.currentIndex].notes['p'+window.correctionMode.periode][window.correctionMode.epreuveIdx] = noteValue;
+saveCurrentFiche();
+afficherCotation();
+setTimeout(() => {
+if (window.correctionMode && window.correctionMode.currentIndex + 1 < eleves.length) correctionNextStudent(true);
+else if (window.correctionMode) { toast("Tous les élèves notés !",'success'); document.getElementById('saisieModal').classList.remove('show'); if(window.correctionMode?.hammer) window.correctionMode.hammer.destroy(); window.correctionMode = null; }
+}, 500);
+}
+
+function correctionNextStudent(autoMode) {
+let fiche = correctionFiche || currentFiche;
+if (!fiche) return;
+const eleves = fiche.eleves;
+if (window.correctionMode.currentIndex + 1 < eleves.length) {
+window.correctionMode.currentIndex++;
+window.correctionMode.currentNote = eleves[window.correctionMode.currentIndex]?.notes?.['p'+window.correctionMode.periode]?.[window.correctionMode.epreuveIdx] || 0;
+const nom = getNomComplet(eleves[window.correctionMode.currentIndex]);
+document.getElementById('saisieModalStudentName').textContent = nom || '---';
+document.getElementById('saisieNoteValue').textContent = window.correctionMode.currentNote;
+if (window.correctionMode.type === 'gesture') { const disp = document.querySelector('#gestureZone div:first-child'); if(disp) disp.textContent = window.correctionMode.currentNote; }
+} else {
+toast("Tous les élèves notés !",'success');
+document.getElementById('saisieModal').classList.remove('show');
+if(window.correctionMode?.hammer) window.correctionMode.hammer.destroy();
+window.correctionMode = null;
+}
+}
+
+function correctionPrevStudent() {
+let fiche = correctionFiche || currentFiche;
+if (!fiche) return;
+const eleves = fiche.eleves;
+if (window.correctionMode.currentIndex > 0) {
+window.correctionMode.currentIndex--;
+window.correctionMode.currentNote = eleves[window.correctionMode.currentIndex]?.notes?.['p'+window.correctionMode.periode]?.[window.correctionMode.epreuveIdx] || 0;
+const nom = getNomComplet(eleves[window.correctionMode.currentIndex]);
+document.getElementById('saisieModalStudentName').textContent = nom || '---';
+document.getElementById('saisieNoteValue').textContent = window.correctionMode.currentNote;
+if (window.correctionMode.type === 'gesture') { const disp = document.querySelector('#gestureZone div:first-child'); if(disp) disp.textContent = window.correctionMode.currentNote; }
+}
+}
+
+document.getElementById('correctionQuickBtn').addEventListener('click', () => {
+let fiche = correctionFiche || currentFiche;
+if (!fiche || !fiche.eleves?.length) { toast("Aucune fiche ou élève",'error'); return; }
+const periode = parseInt(document.getElementById('correctionPeriodeSelect').value);
+const epreuveIdx = parseInt(document.getElementById('correctionEpreuveSelect').value);
+const eps = fiche.epreuvesParPeriode?.[periode] || [];
+if (!eps[epreuveIdx]) { toast("Sélectionnez une épreuve",'error'); return; }
+window.correctionMode = { type: 'quick', periode, epreuveIdx, noteMax: eps[epreuveIdx].max, currentIndex: 0, currentNote: 0 };
+const eleves = fiche.eleves;
+window.correctionMode.currentIndex = 0;
+window.correctionMode.currentNote = eleves[0]?.notes?.['p'+periode]?.[epreuveIdx] || 0;
+const nom = getNomComplet(eleves[0]);
+document.getElementById('saisieModalStudentName').textContent = nom || '---';
+document.getElementById('saisieNoteValue').textContent = window.correctionMode.currentNote;
+document.getElementById('saisieEpreuveInfo').innerHTML = '📌 '+eps[epreuveIdx].nom+' (max '+eps[epreuveIdx].max+')';
+document.getElementById('voiceBadge').style.display = 'none';
+document.getElementById('saisieVoiceFeedback').style.display = 'none';
+let controls = `<div class="saisie-numpad" id="saisieNumpad"></div><div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;"><button id="quickPrev" style="background:#334155;font-size:14px;padding:8px 16px;">◀ Préc</button><button id="quickSave" style="background:#10b981;font-size:14px;padding:8px 16px;">✓ Valider</button><button id="quickNext" style="background:#3b82f6;font-size:14px;padding:8px 16px;">Suiv ▶</button></div>`;
+document.getElementById('saisieModalControls').innerHTML = controls;
+const pad = document.getElementById('saisieNumpad');
+if(pad) {
+pad.innerHTML = '';
+[7,8,9,4,5,6,1,2,3,0,'C','←'].forEach(btn => {
+let b = document.createElement('button');
+b.textContent = btn;
+b.style.background = btn==='C'?'#ef4444':(btn==='←'?'#f59e0b':'#334155');
+b.style.padding = '8px';
+b.style.fontSize = '18px';
+b.onclick = () => {
+if (btn === 'C') window.correctionMode.currentNote = 0;
+else if (btn === '←') window.correctionMode.currentNote = Math.floor(window.correctionMode.currentNote/10);
+else {
+let newVal = parseFloat(window.correctionMode.currentNote.toString() + btn.toString());
+if (newVal <= window.correctionMode.noteMax) window.correctionMode.currentNote = newVal;
+}
+document.getElementById('saisieNoteValue').textContent = window.correctionMode.currentNote;
+};
+pad.appendChild(b);
+});
+}
+document.getElementById('quickSave').onclick = correctionSaveCurrentNote;
+document.getElementById('quickNext').onclick = () => correctionNextStudent(false);
+document.getElementById('quickPrev').onclick = correctionPrevStudent;
+document.getElementById('saisieModal').classList.add('show');
+});
+
+document.getElementById('correctionGestureBtn').addEventListener('click', () => {
+let fiche = correctionFiche || currentFiche;
+if (!fiche || !fiche.eleves?.length) { toast("Aucune fiche ou élève",'error'); return; }
+const periode = parseInt(document.getElementById('correctionPeriodeSelect').value);
+const epreuveIdx = parseInt(document.getElementById('correctionEpreuveSelect').value);
+const eps = fiche.epreuvesParPeriode?.[periode] || [];
+if (!eps[epreuveIdx]) { toast("Sélectionnez une épreuve",'error'); return; }
+window.correctionMode = { type: 'gesture', periode, epreuveIdx, noteMax: eps[epreuveIdx].max, currentIndex: 0, currentNote: 0, hammer: null };
+const eleves = fiche.eleves;
+window.correctionMode.currentIndex = 0;
+window.correctionMode.currentNote = eleves[0]?.notes?.['p'+periode]?.[epreuveIdx] || 0;
+const nom = getNomComplet(eleves[0]);
+document.getElementById('saisieModalStudentName').textContent = nom || '---';
+document.getElementById('saisieNoteValue').textContent = window.correctionMode.currentNote;
+document.getElementById('saisieEpreuveInfo').innerHTML = '👆 '+eps[epreuveIdx].nom+' (max '+eps[epreuveIdx].max+')';
+document.getElementById('voiceBadge').style.display = 'none';
+document.getElementById('saisieVoiceFeedback').style.display = 'none';
+let controls = `<div id="gestureZone" class="saisie-gesture-zone" style="padding:30px;text-align:center;"><div style="font-size:50px;font-weight:bold;color:#f59e0b;">${window.correctionMode.currentNote}</div><div style="margin-top:15px;color:#94a3b8;font-size:11px;">👈 Swipe -1 | 👉 Swipe +1 | 👆 Tap = Valider</div></div><div style="margin-top:12px;"><button id="gestureSkip" style="background:#f59e0b;font-size:14px;padding:8px 16px;">⏩ Passer</button></div>`;
+document.getElementById('saisieModalControls').innerHTML = controls;
+const zone = document.getElementById('gestureZone');
+if (zone && window.Hammer) {
+if (window.correctionMode.hammer) window.correctionMode.hammer.destroy();
+window.correctionMode.hammer = new Hammer(zone);
+window.correctionMode.hammer.on('swipeleft', () => {
+if (window.correctionMode.currentNote > 0) { window.correctionMode.currentNote--; updateGestureDisplay(); }
+});
+window.correctionMode.hammer.on('swiperight', () => {
+if (window.correctionMode.currentNote < window.correctionMode.noteMax) { window.correctionMode.currentNote++; updateGestureDisplay(); }
+});
+window.correctionMode.hammer.on('tap', correctionSaveCurrentNote);
+function updateGestureDisplay() { document.getElementById('saisieNoteValue').textContent = window.correctionMode.currentNote; const disp = document.querySelector('#gestureZone div:first-child'); if(disp) disp.textContent = window.correctionMode.currentNote; }
+}
+document.getElementById('gestureSkip').onclick = () => correctionNextStudent(false);
+document.getElementById('saisieModal').classList.add('show');
+});
+
+document.getElementById('closeSaisieModal').addEventListener('click', () => {
+document.getElementById('saisieModal').classList.remove('show');
+if (window.correctionMode?.hammer) window.correctionMode.hammer.destroy();
+window.correctionMode = null;
+});
+
+// SAISIE MANUELLE
+let saisieActive = false;
+document.getElementById('correctionManuelBtn').addEventListener('click', function() {
+const container = document.getElementById('saisieManuelleContainer');
+if (!saisieActive) {
+const fiche = correctionFiche || currentFiche;
+if (!fiche || !fiche.eleves?.length) { toast("Aucune fiche ou élève",'error'); return; }
+saisieActive = true;
+container.style.display = 'block';
+this.textContent = '❌ Fermer';
+this.style.background = '#ef4444';
+chargerSaisie();
+} else {
+saisieActive = false;
+container.style.display = 'none';
+this.textContent = '📋 Activer';
+this.style.background = '#22c55e';
+}
+});
+
+function chargerSaisie() {
+const fiche = correctionFiche || currentFiche;
+if (!fiche) return;
+const periode = parseInt(document.getElementById('correctionPeriodeSelect').value);
+const epreuveIdx = parseInt(document.getElementById('correctionEpreuveSelect').value);
+const eps = fiche.epreuvesParPeriode?.[periode] || [];
+if (!eps[epreuveIdx]) { toast("Sélectionnez une épreuve",'error'); return; }
+const noteMax = eps[epreuveIdx].max || 20;
+const eleves = fiche.eleves || [];
+document.getElementById('saisieManuelleInfo').textContent = '👥 '+eleves.length+' élèves';
+document.getElementById('saisieManuelleNoteMax').textContent = 'Barème: '+noteMax;
+let html = '';
+eleves.forEach((eleve, index) => {
+const note = eleve.notes?.['p'+periode]?.[epreuveIdx] || '';
+const nom = getNomComplet(eleve) || 'Élève '+(index+1);
+let bg = '#1e293b', border = '#334155';
+if (note > 0) { if (note >= noteMax*0.5) { bg='rgba(16,185,129,0.15)'; border='#10b981'; } else { bg='rgba(239,68,68,0.15)'; border='#ef4444'; } }
+html += `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;background:rgba(255,255,255,0.03);border-radius:8px;border:1px solid rgba(59,130,246,0.06);margin-bottom:4px;">
+<span style="color:#94a3b8;font-size:11px;font-weight:600;min-width:28px;">#${String(index+1).padStart(2,'0')}</span>
+<span style="color:#e2e8f0;font-size:12px;font-weight:500;flex:1;">${escapeHtml(nom)}</span>
+<input type="number" class="saisie-note" data-i="${index}" data-p="${periode}" data-e="${epreuveIdx}" value="${note}" min="0" max="${noteMax}" step="0.5" style="width:60px;padding:4px 6px;border-radius:6px;background:${bg};border:1px solid ${border};color:#fff;text-align:center;font-size:13px;outline:none;">
+</div>`;
+});
+document.getElementById('saisieManuelleListe').innerHTML = html;
+document.querySelectorAll('.saisie-note').forEach(input => {
+input.addEventListener('input', function() {
+const val = parseFloat(this.value);
+const max = parseFloat(this.max);
+if (!isNaN(val) && val > max) this.value = max;
+if (!isNaN(val) && val < 0) this.value = 0;
+sauvegarderNote(this);
+mettreAJourStats();
+});
+input.addEventListener('blur', function() { sauvegarderNote(this); });
+});
+mettreAJourStats();
+}
+
+function sauvegarderNote(input) {
+const fiche = correctionFiche || currentFiche;
+if (!fiche) return;
+const idx = parseInt(input.dataset.i);
+const p = parseInt(input.dataset.p);
+const e = parseInt(input.dataset.e);
+const val = parseFloat(input.value) || 0;
+if (!fiche.eleves[idx]) return;
+if (!fiche.eleves[idx].notes) fiche.eleves[idx].notes = {p1:[],p2:[],p3:[],p4:[],exam1:0,exam2:0};
+if (!fiche.eleves[idx].notes['p'+p]) fiche.eleves[idx].notes['p'+p] = [];
+fiche.eleves[idx].notes['p'+p][e] = val;
+saveCurrentFiche();
+afficherCotation();
+}
+
+function mettreAJourStats() {
+const inputs = document.querySelectorAll('.saisie-note');
+const max = parseFloat(inputs[0]?.max || 20);
+let total = inputs.length, notesValides = 0, reussite = 0, echec = 0;
+inputs.forEach(input => {
+const val = parseFloat(input.value);
+if (!isNaN(val) && val > 0) {
+notesValides++;
+if (val >= (max * 0.5)) reussite++;
+else echec++;
+}
+});
+document.getElementById('statTotal').textContent = total;
+document.getElementById('statNoted').textContent = notesValides;
+document.getElementById('statNotNoted').textContent = total - notesValides;
+document.getElementById('statReussite').textContent = notesValides > 0 ? Math.round((reussite/notesValides)*100)+'%' : '0%';
+document.getElementById('statEchec').textContent = notesValides > 0 ? Math.round((echec/notesValides)*100)+'%' : '0%';
+document.getElementById('saisieManuelleReussiteBar').style.width = notesValides > 0 ? (reussite/notesValides)*100+'%' : '0%';
+document.getElementById('saisieManuelleEchecBar').style.width = notesValides > 0 ? (echec/notesValides)*100+'%' : '0%';
+}
+
+document.getElementById('saisieManuelleSave').addEventListener('click', function() { saveCurrentFiche(); afficherCotation(); toast('✅ Notes sauvegardées','success'); });
+document.getElementById('saisieManuelleReset').addEventListener('click', function() {
+showStyledConfirm('🔄 Réinitialiser', 'Voulez-vous remettre toutes les notes à 0 ?', function() {
+document.querySelectorAll('.saisie-note').forEach(input => { input.value = ''; input.style.background='#1e293b'; input.style.borderColor='#334155'; sauvegarderNote(input); });
+mettreAJourStats();
+toast('🔄 Notes réinitialisées','warning');
+});
+});
+document.getElementById('saisieManuelleExport').addEventListener('click', function() {
+const fiche = correctionFiche || currentFiche;
+if (!fiche || !fiche.eleves) { toast("Aucune donnée",'error'); return; }
+const periode = parseInt(document.getElementById('correctionPeriodeSelect').value);
+const epreuveIdx = parseInt(document.getElementById('correctionEpreuveSelect').value);
+const eps = fiche.epreuvesParPeriode?.[periode] || [];
+if (!eps[epreuveIdx]) { toast("Épreuve non sélectionnée",'error'); return; }
+const noteMax = eps[epreuveIdx].max || 20;
+const nomEpreuve = eps[epreuveIdx].nom || 'Épreuve';
+const { jsPDF } = window.jspdf;
+const pdf = new jsPDF('portrait','mm','a4');
+const nomEcole = schoolId ? schoolId.toUpperCase().replace(/-/g,' ') : 'COMPLEXE SCOLAIRE';
+pdf.setFontSize(14); pdf.setFont('helvetica','bold'); pdf.text('LISTE DES NOTES - '+nomEpreuve, 105, 15, { align: 'center' });
+pdf.setFontSize(10); pdf.setFont('helvetica','normal');
+pdf.text('École: '+nomEcole, 14, 25);
+pdf.text('Cours: '+fiche.cours, 14, 32);
+pdf.text('Classe: '+fiche.classe+(fiche.option?' - '+fiche.option:''), 14, 39);
+pdf.text('Période: '+periode+' - Barème: '+noteMax, 14, 46);
+const body = [];
+fiche.eleves.forEach((eleve, idx) => {
+const note = eleve.notes?.['p'+periode]?.[epreuveIdx] || 0;
+body.push([String(idx+1).padStart(2,'0'), getNomComplet(eleve).toUpperCase(), eleve.sexe||'M', note]);
+});
+pdf.autoTable({ head: [['N°','NOMS & PRÉNOMS','SEXE','NOTE / '+noteMax]], body: body, startY: 52, theme: 'grid', styles: { fontSize: 9, cellPadding: 3 }, headStyles: { fillColor: [26,35,50], textColor: [255,255,255], fontStyle: 'bold' }, alternateRowStyles: { fillColor: [245,247,250] } });
+pdf.save('Notes_'+nomEpreuve+'_'+fiche.classe+'.pdf');
+toast('✅ PDF exporté','success');
+});
+
+// PREVISION
+document.getElementById('savePrevisionBtn').addEventListener('click', sauvegarderDonneesPrevision);
+document.getElementById('resetPrevisionBtn').addEventListener('click', function() {
+showStyledConfirm('🔄 Réinitialiser', 'Voulez-vous réinitialiser toutes les matières prévues ?', function() {
+donneesPrevision.forEach(item => { item.matiere = ''; item.observation = ''; item.statut = 'NON VUES'; });
+afficherPrevision();
+toast('🔄 Réinitialisation effectuée','warning');
+});
+});
+document.getElementById('refreshPrevisionFiches').addEventListener('click', function() { refreshSelectors(); toast('✅ Fiches actualisées','success'); });
+document.getElementById('exportPrevisionPdf').addEventListener('click', function() {
+if (!donneesPrevision?.length) { toast("Aucune donnée",'error'); return; }
+const { jsPDF } = window.jspdf;
+const pdf = new jsPDF('landscape','mm','a4');
+const nomEcole = schoolId ? schoolId.toUpperCase().replace(/-/g,' ') : 'COMPLEXE SCOLAIRE';
+const classe = document.getElementById('prevClasse')?.textContent || '-';
+const option = document.getElementById('prevOption')?.textContent || '-';
+const prof = document.getElementById('prevProf')?.textContent || '-';
+const cours = document.getElementById('prevCours')?.textContent || '-';
+pdf.setFontSize(14); pdf.setFont('helvetica','bold'); pdf.text('PRÉVISION DE MATIÈRES', 148, 15, { align: 'center' });
+pdf.setFontSize(10); pdf.setFont('helvetica','normal');
+pdf.text('École: '+nomEcole, 14, 25);
+pdf.text('Cours: '+cours, 14, 32);
+pdf.text('Classe: '+classe+(option!=='-'?' - Option: '+option:''), 14, 39);
+pdf.text('Professeur: '+prof, 14, 46);
+pdf.text('Année scolaire: 2026-2027', 14, 53);
+const body = [];
+let moisActuel = '';
+donneesPrevision.forEach(item => {
+if (item.mois !== moisActuel) { moisActuel = item.mois; body.push([{ content: moisActuel, colSpan: 5, styles: { fillColor: [240,247,255], fontStyle: 'bold' } }]); }
+body.push([item.semaine, item.matiere||'-', item.statut, item.observation||'-']);
+});
+pdf.autoTable({ head: [['SEMAINE','MATIÈRE PRÉVUE','STATUT','OBSERVATION']], body: body, startY: 58, theme: 'grid', styles: { fontSize: 8, cellPadding: 2 }, headStyles: { fillColor: [26,35,50], textColor: [255,255,255], fontStyle: 'bold' }, alternateRowStyles: { fillColor: [245,247,250] } });
+pdf.save('Prevision_Matières_'+classe+'.pdf');
+toast('✅ PDF exporté','success');
+});
+
+// POPUP PREVISION
+document.getElementById('closePrevPopup').addEventListener('click', fermerPopupPrevision);
+document.getElementById('popupCancel').addEventListener('click', fermerPopupPrevision);
+document.getElementById('popupSave').addEventListener('click', function() {
+if (!popupItemId) return;
+const item = donneesPrevision.find(d => d.id === popupItemId);
+if (!item) return;
+item.matiere = document.getElementById('popupMatiere').value.trim();
+item.observation = document.getElementById('popupObservation').value.trim();
+fermerPopupPrevision();
+afficherPrevision();
+toast('✅ Matière mise à jour','success');
+});
+
+// COURS DISPONIBLES
+chargerCoursDisponibles();
+document.getElementById('ouvrirCoursBtn').addEventListener('click', function() {
+const select = document.getElementById('coursDisponiblesSelect');
+const value = select.value;
+if (!value) { toast('Veuillez sélectionner un cours','warning'); return; }
+const num = parseInt(value);
+const url = `https://www.netubex.com/cours${num}.pdf`;
+const container = document.getElementById('coursPreviewContainer');
+const iframe = document.getElementById('coursPreviewIframe');
+const title = document.getElementById('coursPreviewTitle');
+container.style.display = 'block';
+title.textContent = `📄 COURS ${num}`;
+iframe.src = url;
+toast(`Ouverture du cours ${num}`,'success');
+});
+document.getElementById('fermerPreviewBtn').addEventListener('click', function() {
+document.getElementById('coursPreviewContainer').style.display = 'none';
+document.getElementById('coursPreviewIframe').src = '';
+});
+document.getElementById('coursDisponiblesSelect').addEventListener('dblclick', function() {
+document.getElementById('ouvrirCoursBtn').click();
+});
+
+// SOUS-ONGLETS PREVISION
+document.querySelectorAll('.sous-onglet-prevision').forEach(btn => {
+btn.addEventListener('click', function() {
+document.querySelectorAll('.sous-onglet-prevision').forEach(b => {
+b.classList.remove('active');
+b.style.background = 'transparent';
+b.style.borderColor = '#334155';
+b.style.color = '#cbd5e1';
+});
+this.classList.add('active');
+this.style.background = 'rgba(59,130,246,0.2)';
+this.style.borderColor = '#3b82f6';
+this.style.color = '#fff';
+const target = this.dataset.sous;
+document.querySelectorAll('.sous-prevision-content').forEach(c => c.style.display = 'none');
+if (target === 'fiches') document.getElementById('sousPrevisionFiches').style.display = 'block';
+else if (target === 'cours') document.getElementById('sousPrevisionCours').style.display = 'block';
+});
+});
+
+// TITULAIRE EVENTS
+document.getElementById('saveTitulaireConfigBtn').onclick = async () => {
+let nom = document.getElementById('titulaireNomInput').value.trim();
+if (!nom) { toast("❌ Veuillez entrer votre nom",'error'); return; }
+let classesOptions = getSelectedClassesOptionsTitu();
+if (classesOptions.length === 0) { toast("Sélectionnez au moins une classe",'error'); return; }
+let config = { nom: nom, classesOptions: classesOptions };
+localStorage.setItem('gloria_titulaire_config', JSON.stringify(config));
+titulaireConfig = config;
+await chargerFichesTitulaireTitu();
+await chargerFichesPourRechercheTitu();
+document.getElementById('titulaireConfigView').style.display = 'none';
+document.getElementById('titulaireFichesView').style.display = 'block';
+document.getElementById('titulaireWelcomeMessage').innerHTML = `Bonjour ${nom} - Responsable de ${titulaireConfig.classesOptions.length} classe(s)`;
+toast("Configuration enregistrée",'success');
+};
+
+document.getElementById('reconfigTitulaireBtn').onclick = () => {
+showStyledConfirm("⚙️ Modifier la configuration", "Voulez-vous vraiment modifier votre configuration ?<br><br>⚠️ Toutes vos classes et options seront perdues.",
+async () => {
+localStorage.removeItem('gloria_titulaire_config');
+titulaireConfig = null;
+document.getElementById('titulaireConfigView').style.display = 'block';
+document.getElementById('titulaireFichesView').style.display = 'none';
+let classesDispo = await loadAllClassesFromFichesTitu();
+renderClassesChecklistTitu(classesDispo, []);
+await chargerFichesPourRechercheTitu();
+if (currentProf && currentProf.nom) document.getElementById('titulaireNomInput').value = currentProf.nom;
+toast("Configuration réinitialisée",'success');
+},
+() => { toast("Modification annulée",'info'); }
+);
+};
+
+document.querySelectorAll('.tab-btn-titu').forEach(btn => {
+btn.onclick = function() {
+document.querySelectorAll('.tab-btn-titu').forEach(b => b.classList.remove('active'));
+this.classList.add('active');
+const view = this.dataset.viewTitu;
+document.getElementById('titulaireViewFiches').style.display = view === 'fiches' ? 'block' : 'none';
+document.getElementById('titulaireViewRecherche').style.display = view === 'recherche' ? 'block' : 'none';
+if (view === 'fiches') renderAllFichesTitu();
+};
+});
+
+document.querySelectorAll('.period-btn').forEach(btn => {
+btn.onclick = function() {
+document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+this.classList.add('active');
+currentPeriodTitu = this.dataset.periodTitu;
+renderAllFichesTitu();
+};
+});
+
+document.getElementById('titulaireClasseFilterSelect').addEventListener('change', (e) => {
+currentClasseFilterTitu = e.target.value;
+renderAllFichesTitu();
+});
+document.getElementById('resetTitulaireClasseFilter').addEventListener('click', () => {
+currentClasseFilterTitu = "all";
+document.getElementById('titulaireClasseFilterSelect').value = "all";
+renderAllFichesTitu();
+toast("Filtre réinitialisé");
+});
+
+document.getElementById('titulaireSearchBtn').addEventListener('click', () => {
+const nom = document.getElementById('titulaireSearchNom').value;
+if (!nom.trim()) { toast("Entrez un nom",'error'); return; }
+const resultats = rechercherEleveTitu(nom);
+const resultCard = document.getElementById('titulaireResultCard');
+if (resultats.length === 0) { resultCard.classList.remove('show'); toast("Aucun élève",'error'); return; }
+const premier = resultats[0];
+const classesUniques = [...new Set(resultats.map(r => `${r.classe}${r.option?` (${r.option})`:''}`))].join(', ');
+document.getElementById('titulaireEleveInfo').innerHTML = `<div><span>👤 Élève:</span><span>${premier.nomEleve}</span></div><div><span>⚧ Sexe:</span><span>${premier.sexe==='M'?'Masculin':'Féminin'}</span></div><div><span>📚 Classe(s):</span><span>${classesUniques}</span></div>`;
+let tableHTML = '';
+resultats.forEach(r => {
+tableHTML += `<tr><td style="text-align:left;font-weight:600">${r.cours}</td><td style="text-align:center">${r.classe}${r.option?` (${r.option})`:''}</td><td class="${r.p1<(r.pMax/2)?'failed':'passed'}">${r.p1}</td><td class="${r.p2<(r.pMax/2)?'failed':'passed'}">${r.p2}</td><td class="${r.exam1<(r.pMax/2)?'failed':'passed'}">${r.exam1}</td><td class="${r.totalS1<60?'failed':'passed'}">${r.totalS1}</td><td class="${r.p3<(r.pMax/2)?'failed':'passed'}">${r.p3}</td><td class="${r.p4<(r.pMax/2)?'failed':'passed'}">${r.p4}</td><td class="${r.exam2<(r.pMax/2)?'failed':'passed'}">${r.exam2}</td><td class="${r.totalS2<60?'failed':'passed'}">${r.totalS2}</td><td class="${r.total<120?'failed':'passed'}">${r.total}</td></tr>`;
+});
+document.getElementById('titulaireReleveBody').innerHTML = tableHTML;
+resultCard.classList.add('show');
+window.derniersResultatsTitu = resultats;
+window.nomEleveRechercheTitu = premier.nomEleve;
+window.sexeEleveTitu = premier.sexe;
+window.classesEleveTitu = classesUniques;
+});
+
+document.getElementById('exportTitulaireRelevePdfBtn').addEventListener('click', async () => {
+if (!window.derniersResultatsTitu?.length) { toast("Aucun résultat",'error'); return; }
+const { jsPDF } = window.jspdf;
+const pdf = new jsPDF('landscape','mm','a4');
+pdf.setFillColor(255,255,255); pdf.rect(0,0,297,210,'F');
+pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.setTextColor(0,51,102);
+let schoolNameForPdf = schoolId ? schoolId.toUpperCase().replace(/-/g,' ') : 'COMPLEXE SCOLAIRE';
+pdf.text('COMPLEXE SCOLAIRE '+schoolNameForPdf, 148, 20, { align: 'center' });
+pdf.setFont('helvetica','normal'); pdf.setFontSize(10); pdf.setTextColor(80,80,80);
+pdf.text('SYSTÈME DE GESTION DE SCOLARITÉ', 148, 28, { align: 'center' });
+pdf.setFont('helvetica','bold'); pdf.setFontSize(12); pdf.setTextColor(0,51,102);
+pdf.text('EXTRAIT DU BULLETIN', 148, 38, { align: 'center' });
+pdf.setFont('helvetica','normal'); pdf.setFontSize(9); pdf.setTextColor(0,0,0);
+pdf.text('Élève: '+window.nomEleveRechercheTitu.toUpperCase(), 20, 55);
+pdf.text('Sexe: '+(window.sexeEleveTitu==='M'?'Masculin':'Féminin'), 20, 63);
+pdf.text('Classe(s): '+window.classesEleveTitu, 20, 71);
+const headers = [['MATIÈRE','P1','P2','EXAM S1','TOT S1','P3','P4','EXAM S2','TOT S2','TOTAL']];
+const body = [];
+window.derniersResultatsTitu.forEach(r => {
+body.push([r.cours.toUpperCase(), r.p1, r.p2, r.exam1, r.totalS1, r.p3, r.p4, r.exam2, r.totalS2, r.total]);
+});
+pdf.autoTable({ head: headers, body: body, startY: 80, theme: 'grid', styles: { fontSize: 9, cellPadding: 3, halign: 'center' }, headStyles: { fillColor: [0,51,102], textColor: [255,255,255], fontStyle: 'bold' }, alternateRowStyles: { fillColor: [245,245,245] } });
+pdf.save('Extrait_Bulletin_'+window.nomEleveRechercheTitu.replace(/\s/g,'_')+'.pdf');
+toast("PDF exporté",'success');
+});
+
+// NAVIGATION
+document.querySelectorAll('.main-nav-btn').forEach(btn => {
+btn.addEventListener('click', function() {
+document.querySelectorAll('.main-nav-btn').forEach(b => b.classList.remove('active'));
+this.classList.add('active');
+document.querySelectorAll('.space-content').forEach(s => s.classList.remove('active'));
+const space = this.dataset.space;
+document.getElementById('space'+space.charAt(0).toUpperCase()+space.slice(1)).classList.add('active');
+if (space === 'professeur') {
+document.querySelectorAll('#tabsProfesseur .tab').forEach((t,i) => t.classList.toggle('active', i===0));
+document.querySelectorAll('#spaceProfesseur .tab-content').forEach((c,i) => c.classList.toggle('active', i===0));
+}
+});
+});
+
+document.querySelectorAll('#tabsProfesseur .tab').forEach(tab => {
+tab.addEventListener('click', function() {
+document.querySelectorAll('#tabsProfesseur .tab').forEach(t => t.classList.remove('active'));
+this.classList.add('active');
+document.querySelectorAll('#spaceProfesseur .tab-content').forEach(c => c.classList.remove('active'));
+const target = document.getElementById(this.dataset.tab);
+if (target) target.classList.add('active');
+});
+});
+
+// PARAMETRES
+document.getElementById('logoutBtnParam').addEventListener('click', function() {
+showStyledConfirm("Déconnexion", "Êtes-vous sûr de vouloir vous déconnecter ?",
+async function() {
+const profId = currentProf?.id || 'global';
+const prevKey = 'gloria_prevision_' + ECOLET_ID + '_' + profId;
+localStorage.removeItem(prevKey);
+localStorage.removeItem('gloria_session_prof');
+localStorage.removeItem('gloria_titulaire_config');
+localStorage.removeItem('theme-preference');
+document.getElementById('mainApp').style.display = 'none';
+showLogin();
+toast("Déconnecté",'success');
+},
+function() { toast("Déconnexion annulée",'info'); }
+);
+});
+
+document.getElementById('changeSchoolBtn').addEventListener('click', () => {
+showStyledConfirm("Changer d'école ?", "⚠️ Toutes les données seront perdues.", function() {
+window.location.href = 'https://www.netubex.com/schoolchoice';
+}, function() { toast("Annulé",'info'); });
+});
+
+function toggleLightMode() {
+document.body.classList.toggle('light-mode');
+const isLight = document.body.classList.contains('light-mode');
+const toggleBtn = document.getElementById('lightModeToggle');
+if (toggleBtn) {
+toggleBtn.innerHTML = isLight ? '🌙 MODE SOMBRE' : '☀️ MODE CLAIR';
+toggleBtn.style.background = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.05)';
+toggleBtn.style.borderColor = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.1)';
+toggleBtn.style.color = isLight ? '#1a2332' : '#fff';
+}
+localStorage.setItem('theme-preference', isLight ? 'light' : 'dark');
+}
+
+function initTheme() {
+const savedTheme = localStorage.getItem('theme-preference');
+if (savedTheme === 'light') {
+document.body.classList.add('light-mode');
+const toggleBtn = document.getElementById('lightModeToggle');
+if (toggleBtn) { toggleBtn.innerHTML = '🌙 MODE SOMBRE'; toggleBtn.style.background = 'rgba(0,0,0,0.08)'; toggleBtn.style.borderColor = 'rgba(0,0,0,0.08)'; toggleBtn.style.color = '#1a2332'; }
+}
+}
+initTheme();
+document.getElementById('lightModeToggle').addEventListener('click', toggleLightMode);
+
+// PARENT MODAL
+const parentModalOverlay = document.getElementById('parentModalOverlay');
+const closeParentModal = document.getElementById('closeParentModal');
+const parentChatMessages = document.getElementById('parentChatMessages');
+const parentQuestionInput = document.getElementById('parentQuestionInput');
+const parentSendBtn = document.getElementById('parentSendBtn');
+
+let estEnAttenteReponse = false, listeElevesComplets = [], dernierEleveData = null, currentParentCode = null;
+let reponseCache = new Map(), lastDataHash = null;
+let enAttenteChoixEleve = false, listeElevesEnAttente = [];
+
+function getDataHash(eleveData) { if(!eleveData) return null; const dataStr = JSON.stringify({ nom: eleveData.nom, prenom: eleveData.prenom, sexe: eleveData.sexe, classe: eleveData.classe }); let hash=0; for(let i=0;i<dataStr.length;i++){ const char=dataStr.charCodeAt(i); hash=((hash<<5)-hash)+char; hash=hash&hash; } return hash.toString(); }
+function getCacheKey(question, eleveData) { const hash = getDataHash(eleveData); if(!hash) return null; return hash+'_'+question.toLowerCase().trim().replace(/\s+/g,' '); }
+function isCacheValid(eleveData) { return getDataHash(eleveData) === lastDataHash; }
+
+async function chercherInfosFinancieresParCode(code) {
+try {
+const eleves = [];
+const moisListe = ["Septembre","Octobre","Novembre","Decembre","Janvier","Fevrier","Mars","Avril","Mai","Juin"];
+const moisActuel = (() => { const d=new Date(); const m=d.getMonth(); if(m>=8) return moisListe[m-8]; if(m>=0&&m<=5) return moisListe[m+4]; return "Septembre"; })();
+const q = query(collection(db,"ecoles",ECOLET_ID,SC.COMPTA_ELEVES), where("parentCode","==",code));
+const snap = await getDocs(q);
+snap.forEach(doc => {
+const data = doc.data();
+if(data.nom) eleves.push({ id: doc.id, ...data });
+});
+if(eleves.length===0) return null;
+const resultats = [];
+for(const e of eleves) {
+const paiements = e.paiements||{};
+const minerval = e.minerval||25000;
+const moisBlancs = e.moisBlancs||[];
+let totalPaye = 0;
+moisListe.forEach(m => totalPaye += paiements[m]?.montant||0);
+const nbMoisPayants = 10 - moisBlancs.length;
+const totalMinervalEffectif = minerval * nbMoisPayants;
+const reste = totalMinervalEffectif - totalPaye;
+let moisImpayes = [];
+const dateInscription = e.dateInscription||new Date().toISOString();
+const moisInscription = (() => { const d=new Date(dateInscription); const m=d.getMonth(); if(m>=8) return moisListe[m-8]; if(m>=0&&m<=5) return moisListe[m+4]; return "Septembre"; })();
+const indexInscription = moisListe.indexOf(moisInscription);
+const indexActuel = moisListe.indexOf(moisActuel);
+for(let i=indexInscription; i<indexActuel; i++) {
+const mois = moisListe[i];
+if(moisBlancs.includes(mois)) continue;
+if((paiements[mois]?.montant||0) < minerval && !e.exonere) moisImpayes.push(mois);
+}
+let statut = "En ordre";
+if(e.exonere) statut = "Exonéré";
+else if(moisImpayes.length>=3) statut = "Liste noire";
+else if(moisImpayes.length>0) statut = "Paiement partiel";
+resultats.push({
+id: e.id, nom: e.nom, postnom: e.postnom||'', prenom: e.prenom||'',
+sexe: e.sexe||"M", classe: e.classe, option: e.option||"",
+exonere: e.exonere||false, minerval: minerval, totalPaye: totalPaye,
+reste: reste, moisImpayes: moisImpayes, statut: statut,
+parentCode: e.parentCode, dateInscription: dateInscription, moisBlancs: moisBlancs
+});
+}
+return resultats;
+} catch(e) { console.error(e); return null; }
+}
+
+async function chercherNotesParNom(nom) {
+const fiches = await loadAllFichesFromFirebaseTitu();
+const resultats = [];
+const searchTerm = nom.toLowerCase().trim();
+fiches.forEach(fiche => {
+fiche.eleves?.forEach(eleve => {
+const nomEleve = getNomComplet(eleve).toLowerCase();
+if(nomEleve.includes(searchTerm) || searchTerm.includes(nomEleve)) {
+const epreuvesList = [];
+if(eleve.notes) {
+for(let periode=1; periode<=4; periode++) {
+const epreuves = fiche.epreuvesParPeriode?.[periode]||[];
+const notesPeriode = eleve.notes[`p${periode}`]||[];
+for(let i=0; i<epreuves.length; i++) {
+const nomEpreuve = epreuves[i].nom||"Epreuve";
+if(!nomEpreuve.toLowerCase().includes("examen")) {
+let note = notesPeriode[i]||0;
+if(note > 0) epreuvesList.push({ matiere: fiche.cours, epreuve: nomEpreuve, note: note, max: epreuves[i].max||1, periode: periode });
+}
+}
+}
+}
+resultats.push({ eleveNom: eleve.nom, sexe: eleve.sexe||'M', classe: fiche.classe, option: fiche.option||'', titulaire: fiche.titulaire||null, epreuves: epreuvesList, nombreElevesClasse: fiche.eleves?.length||0 });
+}
+});
+});
+return resultats;
+}
+
+function getSexePronom(sexe) { if(sexe==='F'||sexe==='Féminin') return { genre:'fille', pronom:'elle' }; return { genre:'garçon', pronom:'il' }; }
+function getGreeting() { const h=new Date().getHours(); if(h<12) return "Bonjour"; if(h<18) return "Bon après-midi"; return "Bonsoir"; }
+function getSectionFromClasse(classe) { if(!classe) return "SECONDAIRE"; const prim=["1ère A","1ère B","2ème A","2ème B","3ème A","3ème B","4ème A","4ème B","5ème A","5ème B","6ème A","6ème B"]; const mat=["Niveau 1","Niveau 2","Niveau 3"]; if(mat.includes(classe)) return "MATERNELLE"; if(prim.includes(classe)) return "PRIMAIRE"; return "SECONDAIRE"; }
+
+function getQuestionCountFromLocalStorage(code) {
+if(!code) return 0;
+const today = new Date().toISOString().slice(0,10);
+const key = 'parent_counter_'+ECOLET_ID+'_'+code;
+try {
+const data = localStorage.getItem(key);
+if(data) { const parsed=JSON.parse(data); if(parsed.date===today) return parsed.count||0; else localStorage.removeItem(key); }
+return 0;
+} catch(e) { return 0; }
+}
+function incrementQuestionCountInLocalStorage(code) {
+if(!code) return 0;
+const today = new Date().toISOString().slice(0,10);
+const key = 'parent_counter_'+ECOLET_ID+'_'+code;
+try {
+let currentCount=0;
+const data=localStorage.getItem(key);
+if(data) { const parsed=JSON.parse(data); if(parsed.date===today) currentCount=parsed.count||0; }
+const newCount=currentCount+1;
+localStorage.setItem(key, JSON.stringify({date:today,count:newCount}));
+return newCount;
+} catch(e) { return 0; }
+}
+async function canAskQuestion() { return getQuestionCountFromLocalStorage(currentParentCode) < 20; }
+
+function createTypingIndicator() { const div=document.createElement('div'); div.className='parent-msg bot'; div.id='typingIndicator'; div.innerHTML='<div class="typing-indicator"><span>en train d\'écrire</span><div class="typing-dots"><span></span><span></span><span></span></div></div>'; return div; }
+async function typeWriterEffect(element, text, speed=15) { element.innerHTML=''; for(let i=0;i<text.length;i++){ element.innerHTML += text.charAt(i); await new Promise(r=>setTimeout(r,speed)); } }
+
+async function afficherInfosEleve(eleve) {
+dernierEleveData = { nom: eleve.nom, prenom: eleve.prenom, sexe: eleve.sexe, classe: eleve.classe, option: eleve.option, id: eleve.id };
+reponseCache.clear();
+lastDataHash = getDataHash(dernierEleveData);
+const { pronom } = getSexePronom(eleve.sexe);
+const section = getSectionFromClasse(eleve.classe);
+const nomEcole = schoolId ? schoolId.toUpperCase().replace(/-/g,' ') : 'COMPLEXE SCOLAIRE';
+let reponse = `${getGreeting()} cher parent,\n\n`;
+reponse += `J'ai trouvé ${eleve.nom} ${eleve.prenom||''}.\n`;
+reponse += `C'est ${eleve.sexe==='F'?'une fille':'un garçon'}.\n`;
+if(section==="MATERNELLE") reponse += `Niveau ${eleve.classe.replace('Niveau ','')}\nSection MATERNELLE\n\n`;
+else if(section==="PRIMAIRE") reponse += `${pronom==='il'?'Il':'Elle'} est en ${eleve.classe}\nSection PRIMAIRE\n\n`;
+else reponse += `${pronom==='il'?'Il':'Elle'} est en ${eleve.classe} option ${eleve.option}\nSection SECONDAIRE\n\n`;
+if(listeElevesComplets.length>1) {
+const currentIndex = listeElevesComplets.findIndex(e => e.nom===eleve.nom && (e.prenom||'')===(eleve.prenom||''));
+if(currentIndex!==-1) {
+const restants = listeElevesComplets.length - currentIndex - 1;
+if(restants>0) reponse += `\n📌 ${restants} autre(s) enfant(s) associé(s). Dites "suivant".`;
+}
+}
+reponse += `\n\nJe peux vous parler de sa situation financière, puis-je commencer ?`;
+return reponse;
+}
+
+async function genererReponseFrais(eleveData) {
+const nomComplet = `${eleveData.nom} ${eleveData.prenom||''}`.trim();
+const minerval = eleveData.minerval||25000;
+const totalPaye = eleveData.totalPaye||0;
+const reste = eleveData.reste||0;
+const moisImpayes = eleveData.moisImpayes||[];
+let reponse = `Situation financière de ${nomComplet}.\n\n`;
+reponse += `Minerval: ${minerval} FC/mois.\n`;
+reponse += `Payé: ${totalPaye} FC.\n`;
+if(reste===0) reponse += `✅ En ordre.`;
+else {
+reponse += `Reste: ${reste} FC.`;
+if(moisImpayes.length===1) reponse += ` Mois impayé: ${moisImpayes[0]}.`;
+else if(moisImpayes.length>1) reponse += ` Mois impayés: ${moisImpayes.join(', ')}.`;
+}
+return reponse;
+}
+
+async function genererReponseNotes(eleveData) {
+const nomComplet = `${eleveData.nom} ${eleveData.prenom||''}`.trim();
+const resultats = await chercherNotesParNom(eleveData.nom);
+const notes = resultats.flatMap(r => r.epreuves||[]).filter(n => n.note > 0);
+if(notes.length===0) return `${nomComplet} n'a pas encore de notes.`;
+let meilleure = notes.reduce((a,b) => (a.note/a.max)>(b.note/b.max)?a:b, notes[0]);
+return `Notes de ${nomComplet} : ${meilleure.epreuve}: ${meilleure.note}/${meilleure.max}`;
+}
+
+async function traiterMessage(message) {
+const msg = message.trim().toLowerCase();
+const nomEcole = schoolId ? schoolId.toUpperCase().replace(/-/g,' ') : 'COMPLEXE SCOLAIRE';
+
+if(/^\d{4}$/.test(msg) || /^\d{6}$/.test(msg)) {
+const code = msg;
+if(getQuestionCountFromLocalStorage(code)>=20) return `⚠️ Limite quotidienne atteinte. Revenez demain.`;
+const infos = await chercherInfosFinancieresParCode(code);
+if(!infos || infos.length===0) return `Code parent "${code}" non reconnu.`;
+incrementQuestionCountInLocalStorage(code);
+currentParentCode = code;
+listeElevesComplets = infos;
+if(infos.length===1) return await afficherInfosEleve(infos[0]);
+else {
+enAttenteChoixEleve = true;
+listeElevesEnAttente = infos;
+let reponse = `Plusieurs élèves associés :\n\n`;
+infos.forEach((e,i) => {
+const section = getSectionFromClasse(e.classe);
+let sectionLabel = section==="MATERNELLE"?"MATERNELLE":section==="PRIMAIRE"?"PRIMAIRE":"SECONDAIRE";
+const opt = e.option && section==="SECONDAIRE" ? ` (${e.option})` : "";
+reponse += `${i+1}. ${e.nom} ${e.prenom||''}\n   Classe: ${e.classe}${opt}\n   Section: ${sectionLabel}\n\n`;
+});
+reponse += `Répondez avec le numéro (1,2,...) ou "suivant".`;
+return reponse;
+}
+}
+
+if((msg.includes('suivant') || msg.includes('prochain')) && listeElevesComplets.length>1) {
+if(!dernierEleveData) return "Veuillez d'abord entrer un code parent.";
+const currentNom = dernierEleveData.nom;
+const currentPrenom = dernierEleveData.prenom||'';
+let foundIndex = listeElevesComplets.findIndex(e => e.nom===currentNom && (e.prenom||'')===currentPrenom);
+if(foundIndex!==-1) {
+let nextIndex = (foundIndex+1) % listeElevesComplets.length;
+const eleve = listeElevesComplets[nextIndex];
+return await afficherInfosEleve(eleve);
+}
+}
+
+if(enAttenteChoixEleve && listeElevesEnAttente.length>0) {
+const choix = parseInt(msg.trim());
+if(!isNaN(choix) && choix>=1 && choix<=listeElevesEnAttente.length) {
+const eleveChoisi = listeElevesEnAttente[choix-1];
+enAttenteChoixEleve = false;
+listeElevesEnAttente = [];
+return await afficherInfosEleve(eleveChoisi);
+} else {
+let listeNoms = listeElevesEnAttente.map((e,i) => `${i+1}. ${e.nom} ${e.prenom||''} - ${e.classe}`).join('\n');
+return `Choix invalide. Choisissez un numéro entre 1 et ${listeElevesEnAttente.length}:\n\n${listeNoms}`;
+}
+}
+
+if(['oui','o','ok','d\'accord','vas-y','go','yes'].includes(msg)) {
+if(dernierEleveData) return await genererReponseFrais(dernierEleveData);
+else return "Veuillez d'abord entrer votre code parent.";
+}
+if(['non','non merci','pas maintenant','stop','nan','nope'].includes(msg)) {
+return `D'accord. Si vous avez besoin d'informations, entrez un code parent.`;
+}
+
+if(dernierEleveData) {
+const motsFrais = ['frais','finance','argent','dette','payer','minerval','paiement','reste','impayé','solde'];
+if(motsFrais.some(m => msg.includes(m))) return await genererReponseFrais(dernierEleveData);
+const motsNotes = ['note','notes','résultat','bulletin','point','points','epreuve','devoir','interro','matière'];
+if(motsNotes.some(m => msg.includes(m))) return await genererReponseNotes(dernierEleveData);
+return await genererReponseFrais(dernierEleveData);
+}
+return `${getGreeting()} ! Entrez votre code parent à 4 ou 6 chiffres.`;
+}
+
+if(parentSendBtn) {
+parentSendBtn.onclick = async () => {
+if(estEnAttenteReponse) { toast("Veuillez patienter",'warning'); return; }
+const message = parentQuestionInput.value.trim();
+if(!message) return;
+if(!await canAskQuestion()) {
+parentChatMessages.innerHTML += `<div class="parent-msg bot"><div class="bubble">⚠️ Limite de 20 questions atteinte.</div></div>`;
+parentChatMessages.scrollTop = parentChatMessages.scrollHeight;
+return;
+}
+parentChatMessages.innerHTML += `<div class="parent-msg user"><div class="bubble">${escapeHtml(message)}</div></div>`;
+parentQuestionInput.value = '';
+parentChatMessages.scrollTop = parentChatMessages.scrollHeight;
+const typingIndicator = createTypingIndicator();
+parentChatMessages.appendChild(typingIndicator);
+parentChatMessages.scrollTop = parentChatMessages.scrollHeight;
+estEnAttenteReponse = true;
+try {
+const reponse = await traiterMessage(message);
+const typingElement = document.getElementById('typingIndicator');
+if(typingElement) typingElement.remove();
+const msgBotDiv = document.createElement('div');
+msgBotDiv.className = 'parent-msg bot';
+const bubbleBot = document.createElement('div');
+bubbleBot.className = 'bubble';
+msgBotDiv.appendChild(bubbleBot);
+parentChatMessages.appendChild(msgBotDiv);
+parentChatMessages.scrollTop = parentChatMessages.scrollHeight;
+await typeWriterEffect(bubbleBot, reponse, 12);
+parentChatMessages.scrollTop = parentChatMessages.scrollHeight;
+} catch(error) {
+const typingElement = document.getElementById('typingIndicator');
+if(typingElement) typingElement.remove();
+parentChatMessages.innerHTML += `<div class="parent-msg bot"><div class="bubble">Je prends le temps de rassembler les informations.</div></div>`;
+parentChatMessages.scrollTop = parentChatMessages.scrollHeight;
+} finally { estEnAttenteReponse = false; }
+};
+}
+
+if(parentQuestionInput) {
+parentQuestionInput.addEventListener('keypress', (e) => { if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); parentSendBtn.click(); } });
+}
+
+closeParentModal.onclick = () => { parentModalOverlay.classList.remove('active'); document.body.style.overflow = ''; };
+parentModalOverlay.onclick = (e) => { if(e.target===parentModalOverlay) { parentModalOverlay.classList.remove('active'); document.body.style.overflow = ''; } };
+
+document.getElementById('parentLightModeToggle').addEventListener('click', toggleLightMode);
+
+// INITIALISATION
+await chargerOptionsParClasse();
+let sessionRestored = await restaurerSession();
+if(!sessionRestored) showLogin();
+else { if(document.getElementById('loginOverlay')) document.getElementById('loginOverlay').remove(); }
+
+await initTitulaire();
+await chargerDonneesPrevision();
+synchroniserPrevisionAvecFicheActive();
+
+// Afficher le nom de l'école dans le header
+const schoolNameElement = document.querySelector('.school-name');
+const schoolSubElement = document.querySelector('.school-sub');
+const footerElement = document.getElementById('footerNote');
+const schoolNameForDisplay = schoolId.toUpperCase().replace(/-/g,' ');
+if(schoolNameElement) schoolNameElement.textContent = `COMPLEXE SCOLAIRE ${schoolNameForDisplay}`;
+if(schoolSubElement) schoolSubElement.textContent = `Année scolaire 2026-2027`;
+if(footerElement && schoolId) footerElement.textContent = `COMPLEXE SCOLAIRE ${schoolNameForDisplay} | Année scolaire 2026-2027`;
+
+document.getElementById('loadingScreen').classList.remove('show');
+document.getElementById('mainApp').style.display = 'block';
+
+</script>
+</body>
+</html>
