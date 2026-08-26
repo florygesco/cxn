@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Support NeTubeX - Gestion des messages</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#0a0e1a;color:#e6edf3;min-height:100vh;padding:16px}
+.container{max-width:1200px;margin:0 auto}
+.header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:linear-gradient(135deg,#1a2332,#2d3b4f);border-radius:16px;margin-bottom:16px}
+.header h1{font-size:20px;font-weight:700;color:#fff}
+.header h1 i{color:#ffd700;margin-right:10px}
+.header .user-info{display:flex;align-items:center;gap:12px;font-size:13px;color:#94a3b8}
+.header .user-info .email{color:#fff;font-weight:500}
+.btn-logout{background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#f87171;padding:8px 18px;border-radius:30px;font-size:12px;font-weight:600;cursor:pointer;transition:all .3s}
+.btn-logout:hover{background:rgba(239,68,68,0.25);border-color:#ef4444;color:#ef4444}
+.login-container{max-width:420px;margin:80px auto;background:#161b22;border-radius:20px;padding:40px 32px;border:1px solid #30363d}
+.login-container h2{font-size:24px;font-weight:700;color:#fff;text-align:center;margin-bottom:8px}
+.login-container .subtitle{text-align:center;color:#8b949e;font-size:14px;margin-bottom:30px}
+.login-container .logo{text-align:center;font-size:48px;margin-bottom:16px;color:#ffd700}
+.login-container .form-group{margin-bottom:16px}
+.login-container label{display:block;font-size:12px;font-weight:600;color:#8b949e;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px}
+.login-container input{width:100%;padding:12px 16px;border-radius:12px;background:#0d1117;border:2px solid #30363d;color:#e6edf3;font-size:14px;outline:none;transition:border .3s;font-family:'Inter',sans-serif}
+.login-container input:focus{border-color:#58a6ff}
+.login-container input::placeholder{color:#8b949e}
+.login-container .btn-login{width:100%;padding:14px;border-radius:12px;background:#238636;color:#fff;border:none;font-size:15px;font-weight:600;cursor:pointer;transition:all .3s;margin-top:8px}
+.login-container .btn-login:hover{background:#2ea043}
+.login-container .btn-login:disabled{opacity:0.5;cursor:not-allowed}
+.login-container .error-msg{color:#f85149;font-size:13px;text-align:center;margin-top:12px;min-height:20px}
+.login-container .info-text{text-align:center;color:#8b949e;font-size:12px;margin-top:16px;padding-top:16px;border-top:1px solid #30363d}
+.toast-container{position:fixed;top:20px;right:20px;z-index:30000;display:flex;flex-direction:column;gap:10px;pointer-events:none}
+.toast{background:#161b22;border-radius:12px;padding:12px 16px;min-width:280px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,0.4);border-left:4px solid #238636;transform:translateX(420px);transition:transform .4s;pointer-events:auto;color:#e6edf3}
+.toast.show{transform:translateX(0)}
+.toast.error{border-left-color:#f85149}
+.toast.warning{border-left-color:#d29922}
+.toast-icon{font-size:16px}
+.toast-content{flex:1}
+.toast-title{font-weight:700;font-size:13px;color:#e6edf3}
+.toast-message{font-size:12px;color:#8b949e}
+.support-layout{display:grid;grid-template-columns:340px 1fr;gap:16px;height:calc(100vh - 140px);min-height:500px}
+.sidebar{background:#161b22;border-radius:16px;border:1px solid #30363d;display:flex;flex-direction:column;overflow:hidden}
+.sidebar-header{padding:14px 18px;border-bottom:1px solid #30363d;font-weight:600;font-size:13px;color:#e6edf3;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.sidebar-header .badge{background:#238636;padding:2px 10px;border-radius:30px;font-size:10px;font-weight:600}
+.sidebar-list{flex:1;overflow-y:auto;padding:8px}
+.sidebar-item{padding:12px 14px;border-radius:10px;cursor:pointer;transition:all .2s;border:1px solid transparent;margin-bottom:4px}
+.sidebar-item:hover{background:#1c2333;border-color:#30363d}
+.sidebar-item.active{background:#1c2333;border-color:#58a6ff}
+.sidebar-item .school-name{font-weight:600;font-size:13px;color:#e6edf3}
+.sidebar-item .school-name .ecole-badge{background:#1a2332;padding:1px 8px;border-radius:30px;font-size:9px;color:#8b949e;margin-left:6px}
+.sidebar-item .school-sub{font-size:11px;color:#8b949e;margin-top:2px}
+.sidebar-item .preview{font-size:11px;color:#8b949e;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sidebar-item .time{font-size:10px;color:#8b949e;margin-top:2px}
+.sidebar-item .unread{background:#238636;color:#fff;padding:1px 8px;border-radius:30px;font-size:10px;font-weight:600;margin-left:8px}
+.sidebar-empty{text-align:center;padding:40px 20px;color:#8b949e}
+.sidebar-empty i{font-size:32px;display:block;margin-bottom:12px;color:#30363d}
+.chat-area{background:#161b22;border-radius:16px;border:1px solid #30363d;display:flex;flex-direction:column;overflow:hidden}
+.chat-header{padding:14px 18px;border-bottom:1px solid #30363d;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.chat-header .school-info{font-weight:600;font-size:14px;color:#e6edf3}
+.chat-header .school-info small{font-weight:400;font-size:12px;color:#8b949e;margin-left:6px}
+.chat-messages{flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:6px;background:#0d1117}
+.chat-message{display:flex;margin-bottom:2px;max-width:80%}
+.chat-message.support{align-self:flex-start}
+.chat-message.direction{align-self:flex-end}
+.chat-message .bubble{padding:8px 14px;border-radius:14px;position:relative;word-wrap:break-word;font-size:13px;line-height:1.5;max-width:100%}
+.chat-message.support .bubble{background:#1c2333;border-bottom-left-radius:4px;border:1px solid #30363d;color:#e6edf3}
+.chat-message.direction .bubble{background:#238636;border-bottom-right-radius:4px;color:#fff}
+.chat-message .bubble .sender{font-size:10px;font-weight:600;color:#58a6ff;margin-bottom:2px}
+.chat-message .bubble .sender .ecole-tag{font-weight:400;color:#8b949e;font-size:9px;margin-left:4px}
+.chat-message.direction .bubble .sender{color:#a8d8a8}
+.chat-message .bubble .time{font-size:9px;color:#8b949e;margin-top:3px;text-align:right}
+.chat-message .bubble .subject-tag{display:inline-block;font-size:8px;background:#1a2332;color:#8b949e;padding:1px 8px;border-radius:30px;margin-bottom:3px}
+.chat-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#8b949e;text-align:center}
+.chat-empty i{font-size:48px;color:#30363d;margin-bottom:16px}
+.chat-input-area{padding:12px 16px;border-top:1px solid #30363d;display:flex;gap:10px;flex-shrink:0;background:#161b22}
+.chat-input-area textarea{flex:1;padding:10px 14px;border-radius:12px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;font-size:13px;outline:none;resize:none;font-family:'Inter',sans-serif;min-height:44px;max-height:100px}
+.chat-input-area textarea:focus{border-color:#58a6ff}
+.chat-input-area textarea::placeholder{color:#8b949e}
+.chat-input-area .btn-send{padding:10px 20px;border-radius:12px;background:#238636;color:#fff;border:none;font-weight:600;cursor:pointer;transition:all .2s;font-size:13px;display:flex;align-items:center;gap:8px;height:44px}
+.chat-input-area .btn-send:hover{background:#2ea043}
+.chat-input-area .btn-send:disabled{opacity:0.5;cursor:not-allowed}
+.typing-indicator{display:flex;align-items:center;gap:3px;padding:6px 14px;background:#1c2333;border-radius:14px;border-bottom-left-radius:4px;align-self:flex-start;max-width:80%;margin-bottom:3px;border:1px solid #30363d}
+.typing-indicator .dots{display:flex;gap:3px}
+.typing-indicator .dot{width:6px;height:6px;border-radius:50%;background:#8b949e;animation:typingBounce 1.4s infinite ease-in-out}
+.typing-indicator .dot:nth-child(2){animation-delay:.2s}
+.typing-indicator .dot:nth-child(3){animation-delay:.4s}
+.typing-indicator .typing-text{font-size:11px;color:#8b949e;margin-left:4px}
+@keyframes typingBounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+@media(max-width:768px){.support-layout{grid-template-columns:1fr;height:auto}.sidebar{max-height:300px}.chat-area{min-height:400px}.header{flex-direction:column;gap:10px;text-align:center}}
+</style>
+</head>
+<body>
+
+<div id="app">
+    <!-- Page de login -->
+    <div id="loginPage" style="display:none;">
+        <div class="login-container">
+            <div class="logo"><i class="fas fa-headset"></i></div>
+            <h2>Support NeTubeX</h2>
+            <p class="subtitle">Connectez-vous pour gérer les messages</p>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label><i class="fas fa-envelope"></i> Email</label>
+                    <input type="email" id="loginEmail" placeholder="support@netubex.com" required>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-lock"></i> Mot de passe</label>
+                    <input type="password" id="loginPassword" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn-login" id="loginBtn"><i class="fas fa-sign-in-alt"></i> SE CONNECTER</button>
+                <div class="error-msg" id="loginError"></div>
+                <div class="info-text">
+                    <i class="fas fa-shield-alt" style="color:#58a6ff;"></i> Connexion sécurisée via Firebase
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Application support -->
+    <div id="supportApp" style="display:none;">
+        <div class="container">
+            <div class="header">
+                <h1><i class="fas fa-headset"></i> Support NeTubeX</h1>
+                <div class="user-info">
+                    <span class="email" id="userEmail"><i class="fas fa-user-circle"></i> support@netubex.com</span>
+                    <button class="btn-logout" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> DÉCONNEXION</button>
+                </div>
+            </div>
+
+            <div class="support-layout">
+                <!-- Sidebar : Liste des écoles -->
+                <div class="sidebar">
+                    <div class="sidebar-header">
+                        <span><i class="fas fa-school"></i> Écoles</span>
+                        <span class="badge" id="ecoleCount">0</span>
+                    </div>
+                    <div class="sidebar-list" id="sidebarList">
+                        <div class="sidebar-empty">
+                            <i class="fas fa-school"></i>
+                            <p>Aucune école n'a encore envoyé de message</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Zone de chat -->
+                <div class="chat-area">
+                    <div class="chat-header">
+                        <div class="school-info" id="chatSchoolInfo">
+                            <i class="fas fa-school"></i> Sélectionnez une école
+                            <small>pour voir les messages</small>
+                        </div>
+                        <span style="font-size:11px;color:#8b949e;" id="chatMessageCount">0 messages</span>
+                    </div>
+
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="chat-empty">
+                            <i class="fas fa-comments"></i>
+                            <p>Sélectionnez une école pour voir la conversation</p>
+                        </div>
+                    </div>
+
+                    <div class="chat-input-area">
+                        <textarea id="chatInput" placeholder="Écrivez votre réponse..." rows="1"></textarea>
+                        <button class="btn-send" id="sendBtn"><i class="fas fa-paper-plane"></i> ENVOYER</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script type="importmap">
+{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"}}
+</script>
+
+<script type="module">
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, where, orderBy, updateDoc, arrayUnion } from "firebase/firestore";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",
+    authDomain: "gesco-2.firebaseapp.com",
+    projectId: "gesco-2",
+    storageBucket: "gesco-2.firebasestorage.app",
+    messagingSenderId: "36319988765",
+    appId: "1:36319988765:web:e8cd823804596495248af4"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+let currentUser = null;
+let currentEcole = null;
+let allMessages = {};
+let unsubscribeEcoles = null;
+let unsubscribeMessages = null;
+let typingTimeout = null;
+
+// ========== TOAST ==========
+function toast(message, type = 'success') {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', warning: 'fa-exclamation-triangle' };
+    const colors = { success: '#238636', error: '#f85149', warning: '#d29922' };
+    const el = document.createElement('div');
+    el.className = 'toast ' + type;
+    el.innerHTML = `
+        <div class="toast-icon" style="color:${colors[type]}"><i class="fas ${icons[type]}"></i></div>
+        <div class="toast-content">
+            <div class="toast-title">${type === 'success' ? 'Succès' : type === 'error' ? 'Erreur' : 'Attention'}</div>
+            <div class="toast-message">${message}</div>
+        </div>
+    `;
+    container.appendChild(el);
+    setTimeout(() => el.classList.add('show'), 10);
+    setTimeout(() => {
+        el.classList.remove('show');
+        setTimeout(() => el.remove(), 400);
+    }, 3500);
+}
+
+// ========== LOGIN ==========
+const loginPage = document.getElementById('loginPage');
+const supportApp = document.getElementById('supportApp');
+const loginForm = document.getElementById('loginForm');
+const loginEmail = document.getElementById('loginEmail');
+const loginPassword = document.getElementById('loginPassword');
+const loginBtn = document.getElementById('loginBtn');
+const loginError = document.getElementById('loginError');
+
+loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = loginEmail.value.trim();
+    const password = loginPassword.value.trim();
+    if (!email || !password) {
+        loginError.textContent = 'Veuillez remplir tous les champs';
+        return;
+    }
+    loginBtn.disabled = true;
+    loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Connexion...';
+    loginError.textContent = '';
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+        loginError.textContent = error.message === 'Firebase: Error (auth/user-not-found).' ? 'Email non trouvé' :
+                                 error.message === 'Firebase: Error (auth/wrong-password).' ? 'Mot de passe incorrect' :
+                                 error.message === 'Firebase: Error (auth/invalid-email).' ? 'Email invalide' :
+                                 error.message;
+        loginBtn.disabled = false;
+        loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> SE CONNECTER';
+    }
+});
+
+// ========== AUTH STATE ==========
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        currentUser = user;
+        document.getElementById('userEmail').textContent = user.email;
+        loginPage.style.display = 'none';
+        supportApp.style.display = 'block';
+        initSupportApp();
+        toast('✅ Connecté en tant que ' + user.email, 'success');
+    } else {
+        currentUser = null;
+        loginPage.style.display = 'block';
+        supportApp.style.display = 'none';
+        if (unsubscribeEcoles) { unsubscribeEcoles(); unsubscribeEcoles = null; }
+        if (unsubscribeMessages) { unsubscribeMessages(); unsubscribeMessages = null; }
+    }
+});
+
+// ========== LOGOUT ==========
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+    try {
+        await signOut(auth);
+        toast('Déconnecté', 'warning');
+    } catch (e) {
+        toast('Erreur: ' + e.message, 'error');
+    }
+});
+
+// ========== INIT SUPPORT APP ==========
+function initSupportApp() {
+    loadEcoles();
+    setupSendMessage();
+}
+
+// ========== CHARGER LES ÉCOLES ==========
+function loadEcoles() {
+    if (unsubscribeEcoles) return;
+    
+    const docRef = doc(db, "communication", "support_netubex_board");
+    unsubscribeEcoles = onSnapshot(docRef, (snap) => {
+        if (snap.exists()) {
+            const data = snap.data();
+            const messages = data.messages || [];
+            
+            // Grouper par école
+            const ecoles = {};
+            messages.forEach(msg => {
+                const ecole = msg.ecole || 'Inconnue';
+                if (!ecoles[ecole]) {
+                    ecoles[ecole] = {
+                        ecole: ecole,
+                        messages: [],
+                        lastMessage: null,
+                        unread: 0
+                    };
+                }
+                ecoles[ecole].messages.push(msg);
+                if (!ecoles[ecole].lastMessage || msg.timestamp > ecoles[ecole].lastMessage.timestamp) {
+                    ecoles[ecole].lastMessage = msg;
+                }
+                if (msg.expediteur === 'direction' && msg.lu !== true) {
+                    ecoles[ecole].unread++;
+                }
+            });
+            
+            // Trier les écoles par dernier message
+            const ecolesList = Object.values(ecoles).sort((a, b) => {
+                return (b.lastMessage?.timestamp || 0) - (a.lastMessage?.timestamp || 0);
+            });
+            
+            allMessages = ecoles;
+            renderSidebar(ecolesList);
+            document.getElementById('ecoleCount').textContent = ecolesList.length;
+            
+            // Si une école est sélectionnée, mettre à jour les messages
+            if (currentEcole && ecoles[currentEcole]) {
+                loadEcoleMessages(currentEcole);
+            }
+        } else {
+            document.getElementById('sidebarList').innerHTML = `
+                <div class="sidebar-empty">
+                    <i class="fas fa-school"></i>
+                    <p>Aucune école n'a encore envoyé de message</p>
+                </div>
+            `;
+            document.getElementById('ecoleCount').textContent = '0';
+        }
+    }, (error) => {
+        toast('Erreur de chargement: ' + error.message, 'error');
+    });
+}
+
+// ========== RENDER SIDEBAR ==========
+function renderSidebar(ecoles) {
+    const container = document.getElementById('sidebarList');
+    if (!ecoles || ecoles.length === 0) {
+        container.innerHTML = `
+            <div class="sidebar-empty">
+                <i class="fas fa-school"></i>
+                <p>Aucune école n'a encore envoyé de message</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    ecoles.forEach(ecole => {
+        const last = ecole.lastMessage;
+        const preview = last ? (last.message || '').substring(0, 50) + (last.message?.length > 50 ? '...' : '') : 'Aucun message';
+        const time = last ? last.heure || 'N/A' : '';
+        const unread = ecole.unread || 0;
+        const isActive = currentEcole === ecole.ecole;
+        
+        html += `
+            <div class="sidebar-item ${isActive ? 'active' : ''}" data-ecole="${ecole.ecole}">
+                <div class="school-name">
+                    <i class="fas fa-school" style="color:#58a6ff;font-size:12px;"></i>
+                    ${ecole.ecole.toUpperCase()}
+                    ${unread > 0 ? `<span class="unread">${unread}</span>` : ''}
+                </div>
+                <div class="preview">${preview}</div>
+                <div class="time">${time}</div>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+    
+    // Événements de clic
+    container.querySelectorAll('.sidebar-item').forEach(item => {
+        item.addEventListener('click', function() {
+            const ecole = this.dataset.ecole;
+            selectEcole(ecole);
+        });
+    });
+}
+
+// ========== SÉLECTIONNER UNE ÉCOLE ==========
+function selectEcole(ecole) {
+    currentEcole = ecole;
+    
+    // Mettre à jour la sidebar
+    document.querySelectorAll('.sidebar-item').forEach(el => {
+        el.classList.toggle('active', el.dataset.ecole === ecole);
+    });
+    
+    // Marquer comme lu
+    markAsRead(ecole);
+    
+    // Charger les messages
+    loadEcoleMessages(ecole);
+}
+
+// ========== MARQUER COMME LU ==========
+async function markAsRead(ecole) {
+    try {
+        const docRef = doc(db, "communication", "support_netubex_board");
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+            const data = snap.data();
+            const messages = data.messages || [];
+            let updated = false;
+            
+            const newMessages = messages.map(msg => {
+                if (msg.ecole === ecole && msg.expediteur === 'direction' && msg.lu !== true) {
+                    updated = true;
+                    return { ...msg, lu: true };
+                }
+                return msg;
+            });
+            
+            if (updated) {
+                await setDoc(docRef, { messages: newMessages });
+            }
+        }
+    } catch (error) {
+        console.error('Erreur marquage lu:', error);
+    }
+}
+
+// ========== CHARGER LES MESSAGES D'UNE ÉCOLE ==========
+function loadEcoleMessages(ecole) {
+    if (unsubscribeMessages) {
+        unsubscribeMessages();
+        unsubscribeMessages = null;
+    }
+    
+    const container = document.getElementById('chatMessages');
+    const info = document.getElementById('chatSchoolInfo');
+    const count = document.getElementById('chatMessageCount');
+    
+    info.innerHTML = `<i class="fas fa-school"></i> ${ecole.toUpperCase()} <small>- Messages en temps réel</small>`;
+    
+    // Écouter en temps réel les messages de cette école
+    const docRef = doc(db, "communication", "support_netubex_board");
+    unsubscribeMessages = onSnapshot(docRef, (snap) => {
+        if (snap.exists()) {
+            const data = snap.data();
+            const messages = data.messages || [];
+            const ecoleMessages = messages.filter(m => m.ecole === ecole);
+            ecoleMessages.sort((a, b) => (a.number || 0) - (b.number || 0));
+            
+            count.textContent = ecoleMessages.length + ' messages';
+            renderMessages(ecoleMessages);
+            
+            // Scroll en bas
+            setTimeout(() => {
+                container.scrollTop = container.scrollHeight;
+            }, 100);
+        }
+    }, (error) => {
+        toast('Erreur de chargement des messages: ' + error.message, 'error');
+    });
+}
+
+// ========== RENDER MESSAGES ==========
+function renderMessages(messages) {
+    const container = document.getElementById('chatMessages');
+    
+    if (!messages || messages.length === 0) {
+        container.innerHTML = `
+            <div class="chat-empty">
+                <i class="fas fa-comments"></i>
+                <p>Aucun message avec cette école</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    messages.forEach(msg => {
+        const isSupport = msg.expediteur === 'support';
+        const senderName = isSupport ? 'Support NeTubeX' : 'Direction';
+        const time = msg.heure || 'N/A';
+        const sujet = msg.sujet || '';
+        
+        html += `
+            <div class="chat-message ${isSupport ? 'support' : 'direction'}">
+                <div class="bubble">
+                    <div class="sender">
+                        ${senderName}
+                        ${!isSupport ? `<span class="ecole-tag"><i class="fas fa-school"></i> ${msg.ecole || ''}</span>` : ''}
+                    </div>
+                    ${sujet ? `<div class="subject-tag">📌 ${sujet.replace('_', ' ').toUpperCase()}</div>` : ''}
+                    <div>${msg.message || ''}</div>
+                    <div class="time">${time}</div>
+                </div>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+}
+
+// ========== ENVOYER UN MESSAGE ==========
+function setupSendMessage() {
+    const input = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendBtn');
+    
+    const sendMessage = async () => {
+        const message = input.value.trim();
+        if (!message) {
+            toast('Veuillez écrire un message', 'warning');
+            return;
+        }
+        if (!currentEcole) {
+            toast('Veuillez sélectionner une école', 'warning');
+            return;
+        }
+        if (!currentUser) {
+            toast('Vous devez être connecté', 'error');
+            return;
+        }
+        
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        
+        try {
+            const docRef = doc(db, "communication", "support_netubex_board");
+            const snap = await getDoc(docRef);
+            let data = snap.exists() ? snap.data() : { messages: [] };
+            let messages = data.messages || [];
+            
+            const newMessage = {
+                number: messages.length + 1,
+                message: message,
+                sujet: 'Réponse support',
+                ecole: currentEcole,
+                expediteur: 'support',
+                heure: new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
+                timestamp: Date.now(),
+                lu: true
+            };
+            
+            messages.push(newMessage);
+            await setDoc(docRef, { messages: messages });
+            
+            input.value = '';
+            toast('✅ Message envoyé à ' + currentEcole, 'success');
+            
+            // Scroll en bas
+            setTimeout(() => {
+                const container = document.getElementById('chatMessages');
+                container.scrollTop = container.scrollHeight;
+            }, 100);
+            
+        } catch (error) {
+            toast('❌ Erreur: ' + error.message, 'error');
+        }
+        
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> ENVOYER';
+    };
+    
+    sendBtn.addEventListener('click', sendMessage);
+    
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    
+    // Auto-resize textarea
+    input.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+    });
+}
+
+// ========== KEYBOARD SHORTCUTS ==========
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'Enter' && document.getElementById('chatInput') === document.activeElement) {
+        document.getElementById('sendBtn').click();
+    }
+});
+
+console.log('✅ Support NeTubeX chargé avec succès');
+console.log('📌 Sélectionnez une école pour voir les messages');
+console.log('💬 Répondez en temps réel aux écoles');
+</script>
+</body>
+</html>
