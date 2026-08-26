@@ -536,7 +536,14 @@ const urlParams = new URLSearchParams(window.location.search);
 const ECOLET_ID = urlParams.get('school') || "odari";
 
 // --- Mise à jour du nom de l'école dans l'interface ---
-document.getElementById('schoolNameHeader').textContent = ECOLET_ID.toUpperCase().replace(/_/g, ' ');
+const schoolNameDisplay = ECOLET_ID.toUpperCase().replace(/_/g, ' ');
+let prefix = 'COMPLEXE SCOLAIRE ';
+const firstLetter = schoolNameDisplay.charAt(0).toUpperCase();
+// Si le nom commence par T, ajouter "LE"
+if (firstLetter === 'T') {
+    prefix = 'COMPLEXE SCOLAIRE LE ';
+}
+document.getElementById('schoolNameHeader').textContent = prefix + schoolNameDisplay;
 document.getElementById('schoolSubHeader').textContent = 'Établissement : ' + ECOLET_ID;
 
 let currentEnseignant = null;
@@ -708,6 +715,18 @@ async function restaurerSession() {
       if (toutesFiches.length) await selectFiche(toutesFiches[0].id);
       await refreshSelectors();
       await getAllEleves();
+      
+      // Sélectionner automatiquement la classe de l'enseignant
+      const classeSelect = document.getElementById('classeSelect');
+      if (ens.classes && ens.classes.length > 0) {
+        for (let i = 0; i < classeSelect.options.length; i++) {
+          if (classeSelect.options[i].value === ens.classes[0]) {
+            classeSelect.selectedIndex = i;
+            break;
+          }
+        }
+      }
+      
       toast("Bienvenue " + currentEnseignant.nom, 'success');
       return true;
     } catch (e) { console.log(e); }
@@ -1022,7 +1041,6 @@ function afficherEpreuves() {
   if (!c) return;
   if (!currentFiche) { c.innerHTML = '<div class="empty-state">Aucun cahier sélectionné</div>'; return; }
   c.innerHTML = '';
-  // 6 périodes pour 3 trimestres
   for (let p = 1; p <= 6; p++) {
     let trimestre = Math.ceil(p / 2);
     let periode = ((p - 1) % 2) + 1;
@@ -1178,7 +1196,6 @@ function afficherCotation() {
     eps[p] = currentFiche.epreuvesParPeriode?.[p] || [];
   }
   
-  // Entêtes par trimestre
   for (let t = 1; t <= 3; t++) {
     let p1 = (t - 1) * 2 + 1;
     let p2 = (t - 1) * 2 + 2;
@@ -1204,25 +1221,21 @@ function afficherCotation() {
     for (let t = 1; t <= 3; t++) {
       let p1 = (t - 1) * 2 + 1;
       let p2 = (t - 1) * 2 + 2;
-      // Période 1 du trimestre
       for (let ei = 0; ei < eps[p1].length; ei++) {
         let val = e.notes['p' + p1]?.[ei] || 0;
         let maxVal = eps[p1][ei]?.max || 20;
         let noteClass = getNoteClass(val, maxVal);
         r += '<td><input type="number" step="0.5" min="0" max="' + maxVal + '" value="' + val + '" onchange="window.updNote(' + i + ',' + p1 + ',' + ei + ',this.value)" style="width:50px" class="' + noteClass + '"></td>';
       }
-      // Période 2 du trimestre
       for (let ei = 0; ei < eps[p2].length; ei++) {
         let val = e.notes['p' + p2]?.[ei] || 0;
         let maxVal = eps[p2][ei]?.max || 20;
         let noteClass = getNoteClass(val, maxVal);
         r += '<td><input type="number" step="0.5" min="0" max="' + maxVal + '" value="' + val + '" onchange="window.updNote(' + i + ',' + p2 + ',' + ei + ',this.value)" style="width:50px" class="' + noteClass + '"></td>';
       }
-      // Examen
       let exVal = e.notes['exam' + t] || 0;
       let exClass = getNoteClass(exVal, examMax);
       r += '<td><input type="number" step="0.5" min="0" max="' + examMax + '" value="' + exVal + '" onchange="window.updExam(' + i + ',' + t + ',this.value)" style="width:50px" class="' + exClass + '"></td>';
-      // Total trimestre
       let p1m = calcMoy(p1, e.notes['p' + p1] || []);
       let p2m = calcMoy(p2, e.notes['p' + p2] || []);
       let totalTrim = p1m + p2m + exVal;
@@ -1230,7 +1243,6 @@ function afficherCotation() {
       let totClass = getNoteClass(totalTrim, totalTrimMax);
       r += '<td style="background:#5c4a1a" class="' + totClass + '">' + totalTrim + '</td>';
     }
-    // Total annuel
     let totAnnClass = getNoteClass(totalAnnuel, totalAnnuelMax);
     r += '<td style="background:#5c4a1a" class="' + totAnnClass + '">' + totalAnnuel + '</td>';
     
@@ -1367,7 +1379,7 @@ async function showLogin() {
   d.id = 'loginOverlay';
   d.innerHTML = `
   <div class="login-card">
-  <h2>${ECOLET_ID.toUpperCase().replace(/_/g, ' ')}</h2>
+  <h2>${prefix + schoolNameDisplay}</h2>
   <p class="subtitle">Accès enseignant</p>
   <div class="select-wrapper">
   <span class="select-label">Enseignant</span>
@@ -1431,11 +1443,9 @@ async function showLogin() {
       document.getElementById('mainApp').style.display = 'block';
       appliquerThemeCycle(ens.cycle);
       
-      // Mettre à jour les classes dans le select
       const classeSelect = document.getElementById('classeSelect');
       classeSelect.innerHTML = '<option value="">-- Sélectionner --</option>';
       const classes = ens.cycle === 'primaire' ? classesPrimaire : classesMaternelle;
-      // Filtrer par les classes de l'enseignant
       const classesEnseignant = ens.classes || [];
       classes.forEach(c => {
         if (classesEnseignant.length === 0 || classesEnseignant.includes(c)) {
@@ -1445,6 +1455,16 @@ async function showLogin() {
           classeSelect.appendChild(opt);
         }
       });
+      
+      // Sélectionner automatiquement la classe de l'enseignant
+      if (classesEnseignant.length > 0) {
+        for (let i = 0; i < classeSelect.options.length; i++) {
+          if (classeSelect.options[i].value === classesEnseignant[0]) {
+            classeSelect.selectedIndex = i;
+            break;
+          }
+        }
+      }
       
       toutesFiches = await loadAllFiches();
       if (toutesFiches.length) await selectFiche(toutesFiches[0].id);
@@ -1951,7 +1971,7 @@ document.getElementById('exportCurrentBtn').onclick = async function() {
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(14);
     pdf.setTextColor(0, 51, 102);
-    pdf.text(ECOLET_ID.toUpperCase().replace(/_/g, ' '), 148, 20, { align: 'center' });
+    pdf.text(prefix + schoolNameDisplay, 148, 20, { align: 'center' });
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(10);
     pdf.setTextColor(80, 80, 80);
@@ -2018,7 +2038,7 @@ document.getElementById('exportEleveNotesBtn').onclick = async function() {
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(14);
     pdf.setTextColor(0, 51, 102);
-    pdf.text(ECOLET_ID.toUpperCase().replace(/_/g, ' '), 105, 20, { align: 'center' });
+    pdf.text(prefix + schoolNameDisplay, 105, 20, { align: 'center' });
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(10);
     pdf.setTextColor(80, 80, 80);
