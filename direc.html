@@ -96,7 +96,6 @@ td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,0.02);color:rgba(255
 </head>
 <body>
 
-<!-- ÉCRAN DE CONNEXION -->
 <div id="loginScreen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;padding:16px;">
   <div class="login-box">
     <div class="logo">
@@ -114,7 +113,6 @@ td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,0.02);color:rgba(255
   </div>
 </div>
 
-<!-- DASHBOARD -->
 <div id="dashboard" class="dashboard">
   <div class="topbar">
     <div class="brand">
@@ -133,7 +131,6 @@ td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,0.02);color:rgba(255
     <button class="tab" data-tab="tabClasses">📚 Classes</button>
   </div>
 
-  <!-- TAB ENSEIGNANTS -->
   <div id="tabEnseignants" class="tab-content active">
     <div class="card">
       <div class="card-header">
@@ -182,7 +179,6 @@ td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,0.02);color:rgba(255
     </div>
   </div>
 
-  <!-- TAB STATISTIQUES -->
   <div id="tabStats" class="tab-content">
     <div class="card">
       <div class="card-header"><h3>📊 Statistiques</h3></div>
@@ -195,7 +191,6 @@ td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,0.02);color:rgba(255
     </div>
   </div>
 
-  <!-- TAB CLASSES -->
   <div id="tabClasses" class="tab-content">
     <div class="card">
       <div class="card-header"><h3>📚 Classes et effectifs</h3></div>
@@ -221,7 +216,7 @@ td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,0.02);color:rgba(255
 <script type="module">
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, query, where } from "firebase/firestore";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDX430AIfzzgfq3o8tXHwQfIptgWOZ-K8c",
@@ -254,10 +249,6 @@ function toast(msg, type='success'){
   setTimeout(() => el.classList.remove('show'), 3000);
 }
 
-// ============================================
-// CONNEXION DIRECTION - UNIQUEMENT AVEC LE CODE
-// ============================================
-
 document.getElementById('loginBtn').addEventListener('click', async function(){
   const code = document.getElementById('codeInput').value.trim();
   const errorEl = document.getElementById('loginError');
@@ -272,7 +263,6 @@ document.getElementById('loginBtn').addEventListener('click', async function(){
   this.innerHTML = '<span class="loader"></span> Connexion...';
   
   try {
-    // 1. Chercher le code dans la collection "direction" de l'école
     const snap = await getDocs(query(
       collection(db, 'ecoles', ECOLET_ID, 'direction'),
       where('_type', '==', 'direction'),
@@ -281,9 +271,7 @@ document.getElementById('loginBtn').addEventListener('click', async function(){
     ));
     
     let direction = null;
-    snap.forEach(ds => {
-      direction = { id: ds.id, ...ds.data() };
-    });
+    snap.forEach(ds => { direction = { id: ds.id, ...ds.data() }; });
     
     if(!direction){
       errorEl.textContent = '❌ Code incorrect ou compte désactivé';
@@ -292,18 +280,45 @@ document.getElementById('loginBtn').addEventListener('click', async function(){
       return;
     }
     
-    // 2. Vérifier que l'email existe
-    if(!direction.email){
+    const email = direction.email;
+    if(!email){
       errorEl.textContent = '❌ Email manquant, contactez le support';
       this.disabled = false;
       this.innerHTML = '🔓 SE CONNECTER';
       return;
     }
     
-    // 3. Authentifier avec Firebase Auth
-    await signInWithEmailAndPassword(auth, direction.email, code);
+    try {
+      await signInWithEmailAndPassword(auth, email, code);
+    } catch(authError) {
+      if(authError.code === 'auth/wrong-password') {
+        const user = auth.currentUser;
+        if(user) {
+          await user.updatePassword(code);
+          await signInWithEmailAndPassword(auth, email, code);
+        } else {
+          try {
+            await signInWithEmailAndPassword(auth, email, code);
+          } catch {
+            await createUserWithEmailAndPassword(auth, email, code);
+          }
+        }
+      } else {
+        errorEl.textContent = '❌ ' + authError.message;
+        this.disabled = false;
+        this.innerHTML = '🔓 SE CONNECTER';
+        return;
+      }
+    }
     
     toast('✅ Bienvenue Direction');
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    document.getElementById('userDisplay').textContent = '👤 ' + (direction.nom || 'Direction');
+    afficherClasses();
+    chargerEnseignants();
+    chargerStats();
+    chargerClasses();
     
   } catch(e){
     errorEl.textContent = '❌ ' + e.message;
@@ -322,23 +337,16 @@ document.getElementById('codeInput').addEventListener('input', function(){
   document.getElementById('loginError').textContent = '';
 });
 
-// ============================================
-// AUTH STATE
-// ============================================
-
 onAuthStateChanged(auth, async (user) => {
   if(user){
     try {
-      // Vérifier que l'utilisateur est bien la direction
       const snap = await getDocs(query(
         collection(db, 'ecoles', ECOLET_ID, 'direction'),
         where('_type', '==', 'direction'),
         where('email', '==', user.email)
       ));
-      
       let direction = null;
       snap.forEach(ds => { direction = { id: ds.id, ...ds.data() }; });
-      
       if(direction){
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('dashboard').style.display = 'block';
@@ -347,17 +355,10 @@ onAuthStateChanged(auth, async (user) => {
         chargerEnseignants();
         chargerStats();
         chargerClasses();
-      } else {
-        // Si l'utilisateur n'est pas la direction, on le déconnecte
-        await signOut(auth);
       }
     } catch(e){ console.error(e); }
   }
 });
-
-// ============================================
-// DECONNEXION
-// ============================================
 
 window.deconnexion = function(){
   if(confirm('Se déconnecter ?')){
@@ -368,10 +369,6 @@ window.deconnexion = function(){
     toast('👋 Déconnecté');
   }
 };
-
-// ============================================
-// GESTION DES ENSEIGNANTS
-// ============================================
 
 function genererCode(){
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -419,7 +416,7 @@ window.ajouterEnseignant = async function(){
   const ensId = 'ens_' + Date.now();
   
   try {
-    await signInWithEmailAndPassword(auth, email, code).catch(() => {});
+    await createUserWithEmailAndPassword(auth, email, code).catch(() => {});
     await setDoc(doc(db, 'ecoles', ECOLET_ID, 'enseignants', ensId), {
       _type: 'enseignant', id: ensId, ensId, nom, cycle: cycleActuel,
       classes, code, email, actif: true, createdAt: Date.now(), school: ECOLET_ID
@@ -495,10 +492,6 @@ window.supprimerEns = function(id, nom){
     .catch(() => toast('❌ Erreur', 'error'));
 };
 
-// ============================================
-// STATISTIQUES
-// ============================================
-
 async function chargerStats(){
   try {
     const ensSnap = await getDocs(query(collection(db, 'ecoles', ECOLET_ID, 'enseignants'), where('_type','==','enseignant')));
@@ -513,10 +506,6 @@ async function chargerStats(){
     document.getElementById('statCahiers').textContent = cahiersSnap.size;
   } catch(e){ console.error(e); }
 }
-
-// ============================================
-// CLASSES
-// ============================================
 
 async function chargerClasses(){
   const container = document.getElementById('classesContainer');
@@ -542,10 +531,6 @@ async function chargerClasses(){
   } catch(e){ container.innerHTML = '<div class="empty">❌ Erreur</div>'; }
 }
 
-// ============================================
-// ONGLETS
-// ============================================
-
 document.querySelectorAll('.tab').forEach(tab => {
   tab.onclick = function(){
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -557,12 +542,7 @@ document.querySelectorAll('.tab').forEach(tab => {
   };
 });
 
-// ============================================
-// INIT
-// ============================================
-
 document.getElementById('btnAjouter').addEventListener('click', window.ajouterEnseignant);
-
 afficherClasses();
 </script>
 </body>
