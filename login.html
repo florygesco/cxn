@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0e1a">
+<title>Connexion - Gestion de Scolarité</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script type="importmap">
+{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"}}
+</script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif;}
+body{display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#0a0e1a 0%,#0f1a2e 40%,#0f172a 70%,#0d1a2b 100%);position:relative;overscroll-behavior:none;-webkit-overscroll-behavior:none;}
+
+.floating-shapes{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden;z-index:0}
+.floating-shapes .shape{position:absolute;border-radius:50%;opacity:0.04;background:linear-gradient(135deg,#3b82f6,#8b5cf6)}
+.floating-shapes .shape:nth-child(1){width:500px;height:500px;top:-200px;right:-100px;animation:floatShape1 35s ease-in-out infinite alternate}
+.floating-shapes .shape:nth-child(2){width:400px;height:400px;bottom:-150px;left:-100px;animation:floatShape2 28s ease-in-out infinite alternate-reverse}
+.floating-shapes .shape:nth-child(3){width:250px;height:250px;top:30%;left:50%;animation:floatShape3 40s ease-in-out infinite alternate}
+.floating-shapes .shape:nth-child(4){width:180px;height:180px;bottom:20%;right:10%;animation:floatShape1 25s ease-in-out infinite alternate}
+@keyframes floatShape1{0%{transform:translate(0,0) scale(1) rotate(0deg)}100%{transform:translate(50px,-50px) scale(1.2) rotate(8deg)}}
+@keyframes floatShape2{0%{transform:translate(0,0) scale(1)}100%{transform:translate(-40px,40px) scale(0.8)}}
+@keyframes floatShape3{0%{transform:translate(0,0) scale(1)}100%{transform:translate(-30px,-30px) scale(1.1) rotate(-5deg)}}
+
+.login-wrapper{position:relative;width:100%;max-width:480px;padding:15px;perspective:1800px;z-index:10;height:100vh;display:flex;align-items:center;justify-content:center;}
+.login-box{background:rgba(255,255,255,0.92);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border-radius:38px;padding:18px 28px 20px;border:1px solid rgba(255,255,255,0.3);box-shadow:0 50px 120px rgba(0,0,0,0.4),0 20px 50px rgba(0,0,0,0.2),inset 0 1px 0 rgba(255,255,255,0.6);transform:rotateX(2deg) rotateY(-1deg) translateZ(0);transition:all 0.6s cubic-bezier(0.16,1,0.3,1);position:relative;overflow:hidden;width:100%;will-change:transform;}
+.login-box::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#3b82f6,#8b5cf6,#3b82f6);background-size:200% 100%;animation:gradientMove 3s ease-in-out infinite}
+@keyframes gradientMove{0%{background-position:0% 0%}50%{background-position:100% 0%}100%{background-position:0% 0%}}
+.login-box::after{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(ellipse at 30% 20%,rgba(59,130,246,0.03),transparent 60%),radial-gradient(ellipse at 70% 80%,rgba(139,92,246,0.02),transparent 60%);pointer-events:none;z-index:0}
+.login-box:hover{transform:rotateX(0deg) rotateY(0deg) translateY(-4px) translateZ(30px);box-shadow:0 70px 140px rgba(0,0,0,0.3),0 25px 60px rgba(0,0,0,0.15),inset 0 1px 0 rgba(255,255,255,0.7);}
+
+.logo-container{display:flex;align-items:center;justify-content:center;margin-bottom:2px;position:relative;z-index:1;}
+.logo-wrapper{width:150px;height:150px;border-radius:50%;background:linear-gradient(145deg,#e8edf5,#c8d0dc);border:5px solid rgba(255,255,255,0.4);padding:8px;display:flex;align-items:center;justify-content:center;box-shadow:0 35px 90px rgba(59,130,246,0.2),inset 0 4px 0 rgba(255,255,255,0.9),inset 0 -4px 0 rgba(0,0,0,0.05);transition:all 0.5s cubic-bezier(0.16,1,0.3,1);transform:perspective(800px) rotateX(8deg) rotateY(3deg);}
+.logo-wrapper:hover{transform:perspective(800px) rotateX(0deg) rotateY(0deg) scale(1.05);box-shadow:0 45px 110px rgba(59,130,246,0.25),inset 0 4px 0 rgba(255,255,255,0.9);}
+.logo-wrapper img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;transform:perspective(600px) rotateX(-5deg) rotateY(-2deg);transition:transform 0.5s ease;}
+.logo-wrapper img:hover{transform:perspective(600px) rotateX(0deg) rotateY(0deg);}
+.logo-wrapper .placeholder{font-size:56px;color:#94a3b8;display:flex;align-items:center;justify-content:center;width:100%;height:100%;}
+
+.login-box h1{text-align:center;font-size:20px;font-weight:900;background:linear-gradient(135deg,#1a2a3a,#2d4a6a);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.5px;margin-bottom:0px;position:relative;z-index:1;text-shadow:0 4px 20px rgba(0,0,0,0.05),0 2px 10px rgba(0,0,0,0.03);transform:perspective(400px) rotateX(1deg);}
+.login-box .sub{text-align:center;color:#64748b;font-size:13px;font-weight:500;margin-bottom:0px;position:relative;z-index:1;text-shadow:0 2px 8px rgba(0,0,0,0.03);letter-spacing:0.3px;}
+.login-box .salutation-wrapper{text-align:center;margin-bottom:10px;position:relative;z-index:1;min-height:44px;display:flex;align-items:center;justify-content:center;}
+.login-box .salutation{color:#3b82f6;font-size:18px;background:rgba(59,130,246,0.06);padding:6px 20px;border-radius:30px;border:1px solid rgba(59,130,246,0.08);display:inline-block;font-weight:700;letter-spacing:0.5px;box-shadow:0 4px 15px rgba(59,130,246,0.05);min-width:200px;text-align:center;font-family:'Inter',sans-serif;}
+.login-box .salutation .cursor{display:inline-block;width:3px;height:24px;background:#3b82f6;margin-left:2px;vertical-align:text-bottom;animation:blink 1s step-end infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+.form-group{margin-bottom:14px;position:relative;z-index:1;}
+.form-group label{display:block;color:#475569;font-size:10px;font-weight:700;margin-bottom:4px;text-align:center;letter-spacing:1.5px;text-transform:uppercase;text-shadow:0 2px 8px rgba(0,0,0,0.02);}
+.form-group input{width:100%;padding:14px 18px;border-radius:16px;background:#e8ecf0;border:2px solid transparent;color:#1a2a3a;font-size:24px;text-align:center;letter-spacing:12px;font-family:'Inter',sans-serif;outline:none;transition:all 0.4s cubic-bezier(0.16,1,0.3,1);box-shadow:inset 0 2px 8px rgba(0,0,0,0.06);}
+.form-group input:focus{border-color:#3b82f6;background:#e2e6eb;box-shadow:0 0 0 4px rgba(59,130,246,0.06),inset 0 2px 8px rgba(0,0,0,0.06);}
+.form-group input::placeholder{color:#9aa8b6;font-size:13px;letter-spacing:5px;font-weight:300;}
+.form-group input:disabled{opacity:0.4;cursor:not-allowed;}
+
+#loginBtn{width:100%;padding:14px;border-radius:16px;border:none;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:all 0.4s cubic-bezier(0.16,1,0.3,1);letter-spacing:1.5px;position:relative;overflow:hidden;box-shadow:0 12px 40px rgba(59,130,246,0.3),inset 0 -4px 0 rgba(0,0,0,0.15),inset 0 4px 0 rgba(255,255,255,0.2);z-index:1;text-shadow:0 2px 4px rgba(0,0,0,0.05);transform:perspective(400px) rotateX(2deg) translateY(-2px);}
+#loginBtn::after{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);transition:left 0.6s;}
+#loginBtn::before{content:'';position:absolute;top:4px;left:4px;right:4px;height:50%;background:linear-gradient(180deg,rgba(255,255,255,0.2),transparent);border-radius:14px 14px 0 0;pointer-events:none;}
+#loginBtn:hover:not(:disabled){transform:perspective(400px) rotateX(0deg) translateY(-4px) translateZ(10px);box-shadow:0 18px 50px rgba(59,130,246,0.4),inset 0 -4px 0 rgba(0,0,0,0.1),inset 0 4px 0 rgba(255,255,255,0.3);}
+#loginBtn:hover:not(:disabled)::after{left:100%;}
+#loginBtn:active:not(:disabled){transform:perspective(400px) rotateX(0deg) translateY(2px) translateZ(-5px);box-shadow:0 4px 15px rgba(59,130,246,0.2),inset 0 2px 0 rgba(0,0,0,0.2);}
+#loginBtn:disabled{opacity:0.6;transform:perspective(400px) rotateX(0deg) translateY(0px);box-shadow:0 4px 15px rgba(59,130,246,0.1);cursor:not-allowed;}
+#loginBtn .btn-content{display:flex;align-items:center;justify-content:center;gap:10px;}
+#loginBtn .spinner{display:none;width:20px;height:20px;border:3px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite;}
+#loginBtn.loading .spinner{display:inline-block;}
+#loginBtn.loading .btn-text{display:none;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.back-btn{display:inline-flex;align-items:center;gap:8px;background:transparent;border:none;color:#64748b;font-size:12px;font-weight:500;cursor:pointer;transition:all 0.3s ease;padding:6px 14px;border-radius:30px;margin-top:2px;text-decoration:none;font-family:'Inter',sans-serif;}
+.back-btn:hover{color:#3b82f6;background:rgba(59,130,246,0.04);transform:translateX(-4px);}
+.back-btn .arrow{font-size:14px;transition:transform 0.3s ease;}
+.back-btn:hover .arrow{transform:translateX(-4px);}
+
+.footer{text-align:center;margin-top:6px;padding-top:8px;border-top:1px solid rgba(59,130,246,0.04);position:relative;z-index:1;}
+.footer p{color:#94a3b8;font-size:9px;letter-spacing:0.5px;}
+.footer .support{color:#94a3b8;font-size:9px;margin-top:2px;}
+.footer .support a{color:#3b82f6;text-decoration:none;font-weight:600;transition:color 0.3s;}
+.footer .support a:hover{color:#1d4ed8;text-decoration:underline;}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(40px) scale(0.95) rotateX(3deg)}to{opacity:1;transform:translateY(0) scale(1) rotateX(0deg)}}
+.login-box{animation:fadeIn 0.7s cubic-bezier(0.16,1,0.3,1)}
+
+.toast-container{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:99999;display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:none;width:100%;max-width:540px;padding:0 20px;}
+.toast{background:rgba(255,255,255,0.97);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-radius:20px;padding:16px 24px;min-width:300px;max-width:540px;width:100%;box-shadow:0 30px 80px rgba(0,0,0,0.08),0 10px 30px rgba(0,0,0,0.04),inset 0 1px 0 rgba(255,255,255,0.8);border:1px solid rgba(255,255,255,0.4);display:flex;align-items:center;gap:14px;transform:translateY(-120px);opacity:0;transition:all 0.6s cubic-bezier(0.16,1,0.3,1);pointer-events:auto;position:relative;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.hide{transform:translateY(-60px);opacity:0;}
+.toast .toast-icon{font-size:22px;flex-shrink:0;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+.toast.success .toast-icon{background:rgba(16,185,129,0.12);color:#059669;}
+.toast.error .toast-icon{background:rgba(239,68,68,0.12);color:#dc2626;}
+.toast.warning .toast-icon{background:rgba(245,158,11,0.12);color:#d97706;}
+.toast.info .toast-icon{background:rgba(59,130,246,0.12);color:#2563eb;}
+.toast .toast-content{flex:1;}
+.toast .toast-title{font-weight:700;font-size:14px;color:#1a2a3a;margin-bottom:1px;}
+.toast .toast-message{font-size:13px;color:#64748b;line-height:1.5;}
+.toast .toast-close{background:transparent;border:none;color:#94a3b8;cursor:pointer;font-size:14px;padding:4px;transition:all 0.3s;flex-shrink:0;}
+.toast .toast-close:hover{color:#475569;transform:rotate(90deg);}
+.toast.success{border-left:4px solid #10b981;}
+.toast.error{border-left:4px solid #ef4444;}
+.toast.warning{border-left:4px solid #f59e0b;}
+.toast.info{border-left:4px solid #3b82f6;}
+
+@media(max-width:480px){.login-box{padding:14px 14px 14px;border-radius:24px;}.login-box h1{font-size:16px;}.logo-wrapper{width:120px;height:120px;}.logo-wrapper .placeholder{font-size:44px;}.form-group input{font-size:18px;letter-spacing:8px;padding:10px;}.toast{min-width:auto;padding:10px 12px;}.login-wrapper{max-width:100%;}.login-box .salutation{font-size:14px;padding:4px 14px;min-width:140px;}}
+</style>
+</head>
+<body>
+<div class="floating-shapes">
+<div class="shape"></div>
+<div class="shape"></div>
+<div class="shape"></div>
+<div class="shape"></div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="login-wrapper">
+<div class="login-box">
+<div class="logo-container">
+<div class="logo-wrapper" id="logoWrapper">
+<div class="placeholder" id="logoPlaceholder">🏫</div>
+<img id="schoolLogo" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="Logo école">
+</div>
+</div>
+<h1 id="schoolNameTitle">GESTION SCOLAIRE</h1>
+<p class="sub" id="schoolSub">COMPLEXE SCOLAIRE</p>
+<div class="salutation-wrapper">
+<span class="salutation" id="salutationText"><span id="typedText"></span><span class="cursor"></span></span>
+</div>
+<div class="form-group">
+<label>CODE D'ACCÈS</label>
+<input type="password" id="loginPassword" placeholder="••••••••••" maxlength="6" inputmode="numeric" autofocus>
+</div>
+<button id="loginBtn">
+<span class="btn-content">
+<span class="spinner"></span>
+<span class="btn-text">SE CONNECTER</span>
+</span>
+</button>
+<button class="back-btn" onclick="window.location.href='https://www.netubex.com/schoolchoice'"><span class="arrow">◀</span> Retourner au sélecteur d'école</button>
+<div class="footer">
+<p>© 2026 - Tous droits réservés</p>
+<p class="support">📞 Support : <a href="tel:+243845048412">+243845048412</a></p>
+</div>
+</div>
+</div>
+
+<script>
+document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    return false;
+});
+
+document.addEventListener('selectstart', function(e) {
+    e.preventDefault();
+    return false;
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'F12' || e.keyCode === 123) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }
+    if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.keyCode === 73)) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }
+    if (e.ctrlKey && e.shiftKey && (e.key === 'C' || e.key === 'c' || e.keyCode === 67)) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }
+    if (e.ctrlKey && e.shiftKey && (e.key === 'J' || e.key === 'j' || e.keyCode === 74)) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }
+    if (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.keyCode === 85)) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }
+    if (e.ctrlKey && (e.key === 'S' || e.key === 's' || e.keyCode === 83)) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }
+    if (e.metaKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }
+    return true;
+});
+
+document.addEventListener('dragover', function(e) { e.preventDefault(); return false; });
+document.addEventListener('drop', function(e) { e.preventDefault(); return false; });
+</script>
+
+<script type="importmap">
+{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"}}
+</script>
+
+<script type="module">
+import{initializeApp}from"firebase/app";
+import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword}from"firebase/auth";
+import{getFirestore,doc,getDoc}from"firebase/firestore";
+
+const firebaseConfig={apiKey:"AIzaSyDX430AIfzzgfq3o8tXHwQfIptgWOZ-K8c",authDomain:"gesco-67c43.firebaseapp.com",projectId:"gesco-67c43",storageBucket:"gesco-67c43.firebasestorage.app",messagingSenderId:"333004443566",appId:"1:333004443566:web:de41f60000e418dce9023f"};
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const db=getFirestore(app);
+
+const urlParams=new URLSearchParams(window.location.search);
+const ecoleId=urlParams.get("ecole")||"mon-ecole";
+const schoolDisplay=ecoleId.toUpperCase().replace(/-/g," ");
+document.getElementById("schoolSub").textContent="COMPLEXE SCOLAIRE "+schoolDisplay;
+document.getElementById("schoolNameTitle").textContent="ÉCOLE "+schoolDisplay;
+document.title="Connexion - "+schoolDisplay;
+
+let tentatives=0;
+let toastTimeout=null;
+
+function getSalutation() {
+    const now = new Date();
+    const hour = now.getHours();
+    let message = "";
+    if (hour >= 5 && hour < 12) message = "Bonjour, à vous ";
+    else if (hour >= 12 && hour < 18) message = "Bon après-midi, à vous !";
+    else if (hour >= 18 && hour < 22) message = "Bonsoir, à vous !";
+    else message = "Content de vous revoir";
+    return message;
+}
+
+function typeWriter(element, text, speed = 90) {
+    let i = 0;
+    const cursor = element.querySelector('.cursor');
+    const textSpan = element.querySelector('#typedText');
+    
+    if (!textSpan) {
+        const newSpan = document.createElement('span');
+        newSpan.id = 'typedText';
+        element.innerHTML = '';
+        element.appendChild(newSpan);
+        const cursorSpan = document.createElement('span');
+        cursorSpan.className = 'cursor';
+        element.appendChild(cursorSpan);
+    }
+    
+    const targetSpan = element.querySelector('#typedText');
+    targetSpan.textContent = '';
+    
+    function type() {
+        if (i < text.length) {
+            targetSpan.textContent += text.charAt(i);
+            i++;
+            setTimeout(type, speed);
+        }
+    }
+    type();
+}
+
+const salutationEl = document.getElementById('salutationText');
+const salutationMsg = getSalutation();
+salutationEl.innerHTML = `<span id="typedText"></span><span class="cursor"></span>`;
+setTimeout(() => {
+    typeWriter(salutationEl, salutationMsg, 90);
+}, 500);
+
+function genererEmailPromoteur(ecoleId){return`promoteur.${ecoleId}@gmail.com`;}
+function genererEmailDirection(ecoleId){return`direction.${ecoleId}@gmail.com`;}
+function genererEmailCompta(ecoleId){return`compta.${ecoleId}@gmail.com`;}
+
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    
+    if (toastTimeout) {
+        clearTimeout(toastTimeout);
+        toastTimeout = null;
+    }
+    
+    const existingToast = container.querySelector('.toast');
+    if (existingToast) {
+        existingToast.classList.remove('show');
+        existingToast.classList.add('hide');
+        setTimeout(() => {
+            existingToast.remove();
+            createToast(message, type);
+        }, 500);
+    } else {
+        createToast(message, type);
+    }
+}
+
+function createToast(message, type) {
+    const container = document.getElementById('toastContainer');
+    const config = {
+        success: { icon: '✅', title: 'Succès' },
+        error: { icon: '❌', title: 'Erreur' },
+        warning: { icon: '⚠️', title: 'Attention' },
+        info: { icon: 'ℹ️', title: 'Information' }
+    };
+    const c = config[type] || config.info;
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.innerHTML = `
+        <div class="toast-icon">${c.icon}</div>
+        <div class="toast-content">
+            <div class="toast-title">${c.title}</div>
+            <div class="toast-message">${message}</div>
+        </div>
+        <button class="toast-close">✕</button>
+    `;
+    container.appendChild(el);
+    
+    setTimeout(() => el.classList.add('show'), 50);
+    
+    el.querySelector('.toast-close').addEventListener('click', () => {
+        el.classList.remove('show');
+        el.classList.add('hide');
+        toastTimeout = setTimeout(() => el.remove(), 500);
+    });
+    
+    toastTimeout = setTimeout(() => {
+        if (el.parentNode) {
+            el.classList.remove('show');
+            el.classList.add('hide');
+            setTimeout(() => {
+                if (el.parentNode) el.remove();
+            }, 500);
+        }
+    }, 4000);
+}
+
+async function getSchoolLogo(ecoleId) {
+    try {
+        const docRef = doc(db, "ecoles", ecoleId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            return data.logoUrl || null;
+        }
+        return null;
+    } catch (error) {
+        console.error("Erreur chargement logo:", error);
+        return null;
+    }
+}
+
+async function updateSchoolLogo(ecoleId) {
+    const logoImg = document.getElementById('schoolLogo');
+    const placeholder = document.getElementById('logoPlaceholder');
+    const logoUrl = await getSchoolLogo(ecoleId);
+    if (logoUrl) {
+        logoImg.src = logoUrl;
+        logoImg.style.display = 'block';
+        placeholder.style.display = 'none';
+        logoImg.onerror = function() {
+            logoImg.style.display = 'none';
+            placeholder.style.display = 'flex';
+        };
+    } else {
+        logoImg.style.display = 'none';
+        placeholder.style.display = 'flex';
+    }
+}
+
+async function getSchoolCodes(){
+    try{
+        const ref = doc(db, "ecoles", ecoleId, "settings", "data");
+        let snap = await getDoc(ref);
+        
+        if(snap.exists()){
+            const data = snap.data();
+            
+            if (!data.codeDirection) {
+                const schoolRef = doc(db, "ecoles", ecoleId);
+                const schoolSnap = await getDoc(schoolRef);
+                
+                if (schoolSnap.exists()) {
+                    const schoolData = schoolSnap.data();
+                    if (schoolData.codeDirection) {
+                        data.codeDirection = schoolData.codeDirection;
+                    }
+                }
+            }
+            
+            return data;
+        } else {
+            return null;
+        }
+    } catch(e){
+        console.error("Erreur chargement codes:", e);
+        return null;
+    }
+}
+
+async function seConnecter(){
+    const password = document.getElementById("loginPassword").value.trim();
+    const btn = document.getElementById("loginBtn");
+    
+    if(!password || password.length < 4){
+        showToast("Code d'accès incorrect. Veuillez réessayer.", "error");
+        tentatives++;
+        if(tentatives >= 5){
+            showToast("Trop de tentatives. Veuillez contacter le support.", "error");
+            document.getElementById("loginPassword").disabled = true;
+        }
+        return;
+    }
+
+    btn.disabled = true;
+    btn.classList.add('loading');
+
+    try{
+        const codes = await getSchoolCodes();
+        
+        if(!codes){
+            showToast("École non reconnue. Veuillez contacter le support.", "error");
+            btn.disabled = false;
+            btn.classList.remove('loading');
+            return;
+        }
+
+        let role = null;
+        let email = null;
+        let urlDestination = '';
+
+        const codeDir = codes.codeDirection ? codes.codeDirection.trim() : '';
+        const codeCompta = codes.codeComptabilite ? codes.codeComptabilite.trim() : '';
+        const codePromoteur = codes.codePromoteur ? codes.codePromoteur.trim() : '';
+        const passwordClean = password.trim();
+
+        if(codeDir === passwordClean){
+            role = 'direction';
+            email = codes.emailDirection || genererEmailDirection(ecoleId);
+            urlDestination = 'https://www.netubex.com/schooldirection';
+        } else if(codeCompta === passwordClean){
+            role = 'comptabilite';
+            email = codes.emailComptabilite || genererEmailCompta(ecoleId);
+            urlDestination = 'https://www.netubex.com/schoolcompta';
+        } else if(codePromoteur === passwordClean){
+            role = 'promoteur';
+            email = codes.emailPromoteur || genererEmailPromoteur(ecoleId);
+            urlDestination = 'https://www.netubex.com/schoolpromo';
+        } else {
+            showToast("Code d'accès incorrect. Veuillez réessayer.", "error");
+            tentatives++;
+            btn.disabled = false;
+            btn.classList.remove('loading');
+            if(tentatives >= 5){
+                showToast("Trop de tentatives. Veuillez contacter le support.", "error");
+                document.getElementById("loginPassword").disabled = true;
+            }
+            return;
+        }
+
+        const roleLabels = { direction:'Direction', comptabilite:'Comptabilité', promoteur:'Promoteur' };
+        showToast(`Vérification réussie. Connexion en tant que ${roleLabels[role]}...`, "success");
+
+        try{
+            await createUserWithEmailAndPassword(auth, email, password);
+        } catch(e){
+            if(e.code !== 'auth/email-already-in-use'){
+                console.error("Erreur création compte:", e);
+            }
+        }
+
+        try{
+            await signInWithEmailAndPassword(auth, email, password);
+        } catch(authError){
+            if(authError.code === 'auth/user-not-found'){
+                await createUserWithEmailAndPassword(auth, email, password);
+                await signInWithEmailAndPassword(auth, email, password);
+            } else {
+                throw authError;
+            }
+        }
+
+        sessionStorage.setItem('ecoleId', ecoleId);
+        sessionStorage.setItem('role', role);
+        sessionStorage.setItem('code', password);
+        sessionStorage.setItem('isAuthenticated', 'true');
+        sessionStorage.setItem('loginTime', Date.now().toString());
+        sessionStorage.setItem('projet', '1');
+
+        showToast(`✅ Connexion réussie ! Redirection...`, "success");
+        
+        setTimeout(() => {
+            window.location.replace('https://www.netubex.com');
+        }, 800);
+
+    } catch(error){
+        console.error("Erreur:", error);
+        showToast("Une erreur est survenue. Veuillez contacter le support.", "error");
+        btn.disabled = false;
+        btn.classList.remove('loading');
+    }
+}
+
+document.getElementById("loginBtn").addEventListener("click", seConnecter);
+document.getElementById("loginPassword").addEventListener("keypress", function(e){
+    if(e.key === "Enter") seConnecter();
+});
+document.getElementById("loginPassword").addEventListener("input", function(){
+    if(this.value.length > 6) this.value = this.value.slice(0, 6);
+});
+document.getElementById("loginPassword").focus();
+
+updateSchoolLogo(ecoleId);
+
+document.addEventListener('contextmenu', e => e.preventDefault());
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'F12' || e.keyCode === 123) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }
+    if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.keyCode === 73)) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }
+    if (e.ctrlKey && e.shiftKey && (e.key === 'C' || e.key === 'c' || e.keyCode === 67)) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }
+    if (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.keyCode === 85)) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }
+    if (e.ctrlKey && e.shiftKey && (e.key === 'J' || e.key === 'j' || e.keyCode === 74)) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }
+    return true;
+});
+
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => e.preventDefault());
+</script>
+</body>
+</html>
