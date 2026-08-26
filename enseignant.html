@@ -331,120 +331,44 @@ document.getElementById('schoolNameLogin').textContent='COMPLEXE SCOLAIRE '+scho
 document.getElementById('schoolNameHeader').innerHTML='COMPLEXE SCOLAIRE <span class="highlight">'+schoolDisplay+'</span>';
 let enseignants=[],enseignantActuel=null,toastQueue=[],isToastProcessing=false,cahierEnCreation=null;
 
-// ===== FONCTION TOAST =====
+// ===== TOAST =====
 function toast(message,type="success"){toastQueue.push({message,type});if(!isToastProcessing)processToastQueue();}
 function processToastQueue(){if(toastQueue.length===0){isToastProcessing=false;return;}isToastProcessing=true;const item=toastQueue.shift();const container=document.getElementById("toastContainer");if(!container){isToastProcessing=false;processToastQueue();return;}const icons={success:"✅",error:"❌",warning:"⚠️",info:"ℹ️"};const titles={success:"Succès",error:"Erreur",warning:"Attention",info:"Information"};const colors={success:"#10b981",error:"#ef4444",warning:"#f59e0b",info:"#3b82f6"};const el=document.createElement("div");el.className=`toast-notification ${item.type}`;el.innerHTML=`<div class="toast-icon">${icons[item.type]||"ℹ️"}</div><div class="toast-content"><div class="toast-title" style="color:${colors[item.type]}">${titles[item.type]||"Information"}</div><div class="toast-message">${item.message}</div></div>`;container.appendChild(el);requestAnimationFrame(()=>{el.classList.add("show");});setTimeout(()=>{el.classList.remove("show");setTimeout(()=>{if(el.parentNode)el.remove();isToastProcessing=false;processToastQueue();},400);},3500);}
 
-// ===== MODALE DE CRÉATION =====
-function showCreationModal() {
-return new Promise((resolve) => {
-const overlay = document.getElementById('confirmModal');
-document.getElementById('modalTitle').textContent = '📓 Confirmer la création';
-document.getElementById('modalSub').textContent = 'Vérifiez les informations avant de créer le cahier.';
-document.getElementById('confirmOk').textContent = '✅ Créer';
-document.getElementById('confirmOk').className = 'btn btn-success';
-document.getElementById('confirmCancel').textContent = 'Annuler';
-document.getElementById('confirmCancel').className = 'btn btn-outline';
-overlay.classList.add('show');
-document.getElementById('confirmOk').onclick = () => { overlay.classList.remove('show'); resolve(true); };
-document.getElementById('confirmCancel').onclick = () => { overlay.classList.remove('show'); resolve(false); };
-overlay.onclick = (e) => { if(e.target === overlay){ overlay.classList.remove('show'); resolve(false); } };
-});
-}
+// ===== MODALES =====
+function showCreationModal(){return new Promise((resolve)=>{const overlay=document.getElementById('confirmModal');document.getElementById('modalTitle').textContent='📓 Confirmer la création';document.getElementById('modalSub').textContent='Vérifiez les informations avant de créer le cahier.';document.getElementById('confirmOk').textContent='✅ Créer';document.getElementById('confirmOk').className='btn btn-success';document.getElementById('confirmCancel').textContent='Annuler';document.getElementById('confirmCancel').className='btn btn-outline';overlay.classList.add('show');document.getElementById('confirmOk').onclick=()=>{overlay.classList.remove('show');resolve(true);};document.getElementById('confirmCancel').onclick=()=>{overlay.classList.remove('show');resolve(false);};overlay.onclick=(e)=>{if(e.target===overlay){overlay.classList.remove('show');resolve(false);}};});}
+function showDeleteModal(title,message){return new Promise((resolve)=>{const overlay=document.getElementById('confirmModal');document.getElementById('modalTitle').textContent=title||'🗑️ Supprimer';document.getElementById('modalSub').textContent=message||'Voulez-vous vraiment supprimer ?';document.getElementById('confirmOk').textContent='🗑️ Supprimer';document.getElementById('confirmOk').className='btn btn-danger';document.getElementById('confirmCancel').textContent='Annuler';document.getElementById('confirmCancel').className='btn btn-outline';overlay.classList.add('show');document.getElementById('confirmOk').onclick=()=>{overlay.classList.remove('show');resolve(true);};document.getElementById('confirmCancel').onclick=()=>{overlay.classList.remove('show');resolve(false);};overlay.onclick=(e)=>{if(e.target===overlay){overlay.classList.remove('show');resolve(false);}};});}
+function showModal(title,message,confirmText,cancelText){if(confirmText&&confirmText.includes('Supprimer')){return showDeleteModal(title,message);}return showCreationModal();}
 
-// ===== MODALE DE SUPPRESSION =====
-function showDeleteModal(title, message) {
-return new Promise((resolve) => {
-const overlay = document.getElementById('confirmModal');
-document.getElementById('modalTitle').textContent = title || '🗑️ Supprimer le cahier';
-document.getElementById('modalSub').textContent = message || 'Voulez-vous vraiment supprimer ce cahier ?';
-document.getElementById('confirmOk').textContent = '🗑️ Supprimer';
-document.getElementById('confirmOk').className = 'btn btn-danger';
-document.getElementById('confirmCancel').textContent = 'Annuler';
-document.getElementById('confirmCancel').className = 'btn btn-outline';
-overlay.classList.add('show');
-document.getElementById('confirmOk').onclick = () => { overlay.classList.remove('show'); resolve(true); };
-document.getElementById('confirmCancel').onclick = () => { overlay.classList.remove('show'); resolve(false); };
-overlay.onclick = (e) => { if(e.target === overlay){ overlay.classList.remove('show'); resolve(false); } };
-});
-}
-
-// ===== FONCTION GÉNÉRIQUE (compatibilité) =====
-function showModal(title, message, confirmText, cancelText) {
-if(confirmText && confirmText.includes('Supprimer')) {
-return showDeleteModal(title, message);
-}
-return showCreationModal();
-}
-
-async function chargerEnseignants(){const select=document.getElementById('enseignantSelect');const debug=document.getElementById('debugInfo');select.innerHTML='<option value="">⏳ Chargement...</option>';debug.textContent='🔍 '+ECOLET_ID+'/enseignants';try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'enseignants'),where('_type','==','enseignant'),where('actif','==',true)));enseignants=[];snap.forEach(ds=>{const data=ds.data();enseignants.push({id:ds.id,nom:data.nom,email:data.email,code:data.code,classes:data.classes||[]});});enseignants.sort((a,b)=>a.nom.localeCompare(b.nom));if(enseignants.length===0){select.innerHTML='<option value="">📭 Aucun enseignant</option>';document.getElementById('loginError').textContent='⚠️ Aucun enseignant actif';return;}select.innerHTML='<option value="">-- Choisissez votre nom --</option>';enseignants.forEach(ens=>{const opt=document.createElement('option');opt.value=ens.id;opt.textContent=ens.nom;select.appendChild(opt);});document.getElementById('loginError').textContent='';}catch(e){console.error('❌',e);select.innerHTML='<option value="">❌ Erreur</option>';document.getElementById('loginError').textContent='❌ '+e.message;}}
-document.getElementById('loginBtn').addEventListener('click',async function(){const ensId=document.getElementById('enseignantSelect').value;const code=document.getElementById('codeInput').value.trim();const errorEl=document.getElementById('loginError');errorEl.textContent='';if(!ensId){errorEl.textContent='⚠️ Choisissez votre nom';return;}if(!code||code.length<6){errorEl.textContent='⚠️ Code à 6 chiffres';return;}const enseignant=enseignants.find(e=>e.id===ensId);if(!enseignant){errorEl.textContent='❌ Enseignant non trouvé';return;}if(enseignant.code!==code){errorEl.textContent='❌ Code incorrect';return;}this.disabled=true;this.innerHTML='<span class="loader"></span> Connexion...';try{await signInWithEmailAndPassword(auth,enseignant.email,code);}catch(e){errorEl.textContent='❌ '+e.message;this.disabled=false;this.innerHTML='🔓 SE CONNECTER';}});
-document.getElementById('codeInput').addEventListener('keypress',function(e){if(e.key==='Enter')document.getElementById('loginBtn').click();});
-document.getElementById('codeInput').addEventListener('input',function(){this.value=this.value.replace(/[^0-9]/g,'').slice(0,6);document.getElementById('loginError').textContent='';});
-document.getElementById('enseignantSelect').addEventListener('change',function(){document.getElementById('loginError').textContent='';document.getElementById('codeInput').value='';document.getElementById('codeInput').focus();});
-onAuthStateChanged(auth,async(user)=>{if(user){try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'enseignants'),where('_type','==','enseignant'),where('email','==',user.email)));snap.forEach(ds=>{enseignantActuel={id:ds.id,...ds.data()};});if(enseignantActuel){document.getElementById('loginSection').style.display='none';document.getElementById('dashboard').style.display='block';document.getElementById('ensNomDisplay').textContent='📓 '+(enseignantActuel.nom||'Enseignant');document.getElementById('userDisplay').textContent='👤 '+(enseignantActuel.nom||'Enseignant');chargerClassesPourCahier();chargerCahiers();chargerSelectCahiers();chargerSelectEpreuves();chargerSelectExport();chargerCotationSelect();}}catch(e){console.error(e);}}});
-document.getElementById('logoutBtn').addEventListener('click',async function(){const confirmed=await showDeleteModal('Déconnexion','Voulez-vous vraiment vous déconnecter ?');if(confirmed){signOut(auth);document.getElementById('loginSection').style.display='block';document.getElementById('dashboard').style.display='none';document.getElementById('codeInput').value='';toast('👋 Déconnecté');}});
-document.getElementById('modeToggle').addEventListener('click',function(){document.body.classList.toggle('light-mode');const icons=this.querySelectorAll('.icon');icons.forEach(i=>i.classList.toggle('active'));localStorage.setItem('theme-preference',document.body.classList.contains('light-mode')?'light':'dark');});
-if(localStorage.getItem('theme-preference')==='light'){document.body.classList.add('light-mode');document.querySelectorAll('#modeToggle .icon').forEach(i=>i.classList.toggle('active'));}
-document.addEventListener('contextmenu',function(e){e.preventDefault();return false;});
-document.addEventListener('keydown',function(e){if(e.key==='F12'||e.keyCode===123){e.preventDefault();return false;}if(e.ctrlKey&&e.shiftKey&&(e.key==='I'||e.key==='J'||e.key==='C')){e.preventDefault();return false;}if(e.ctrlKey&&(e.key==='U'||e.key==='S')){e.preventDefault();return false;}if(e.metaKey){e.preventDefault();return false;}});
+// ===== FONCTIONS DE BASE =====
 function getNomComplet(data){const nom=(data.nom||'').toUpperCase();const postnom=(data.postnom||'').toUpperCase();const prenom=(data.prenom||'').toUpperCase();let parts=[];if(nom)parts.push(nom);if(postnom)parts.push(postnom);if(prenom)parts.push(prenom);return parts.join(' ')||'ÉLÈVE';}
-async function chargerClassesPourCahier(){const select=document.getElementById('cahierClasse');try{const classes=new Set();if(enseignantActuel&&enseignantActuel.classes)enseignantActuel.classes.forEach(c=>classes.add(c));select.innerHTML='<option value="">-- Sélectionner --</option>';Array.from(classes).sort().forEach(c=>{const opt=document.createElement('option');opt.value=c;opt.textContent=c;select.appendChild(opt);});}catch(e){console.error(e);}}
 
-window.preparerCreationCahier = async function() {
-const classe = document.getElementById('cahierClasse').value;
-const matiere = document.getElementById('cahierMatiere').value.trim();
-const pMax = parseInt(document.getElementById('cahierNoteMax').value) || 20;
-if(!classe){toast('⚠️ Sélectionnez une classe','error');return;}
-if(!matiere){toast('⚠️ Entrez une matière','error');return;}
-try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'cahiers'),where('enseignantId','==',enseignantActuel.id),where('matiere','==',matiere),where('classe','==',classe)));if(!snap.empty){toast('⚠️ Un cahier "'+matiere+'" existe déjà pour la classe '+classe,'error');return;}}catch(e){toast('❌ Erreur de vérification','error');return;}
-let nbEleves=0;
-try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'prima_eleves'),where('classe','==',classe),where('abandon','==',false)));nbEleves+=snap.size;const snap2=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'mater_eleves'),where('classe','==',classe),where('abandon','==',false)));nbEleves+=snap2.size;}catch(e){nbEleves=0;}
-if(nbEleves===0){toast('⚠️ Aucun élève dans cette classe','error');return;}
-document.getElementById('confirmClasse').textContent=classe;
-document.getElementById('confirmMatiere').textContent=matiere;
-document.getElementById('confirmNoteMax').textContent=pMax+' pts';
-document.getElementById('confirmEleves').textContent=nbEleves+' élèves';
-const confirmed = await showCreationModal();
-if(confirmed){creerCahier(classe,matiere,pMax);}
-};
-
-document.getElementById('confirmCancel').addEventListener('click',function(){document.getElementById('confirmModal').classList.remove('show');cahierEnCreation=null;});
-document.getElementById('confirmOk').addEventListener('click',function(){document.getElementById('confirmModal').classList.remove('show');if(cahierEnCreation){creerCahier(cahierEnCreation.classe,cahierEnCreation.matiere,cahierEnCreation.pMax);cahierEnCreation=null;}});
-
-async function creerCahier(classe,matiere,pMax){try{const eleves=[];const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'prima_eleves'),where('classe','==',classe),where('abandon','==',false)));snap.forEach(ds=>{const d=ds.data();eleves.push({id:ds.id,nom:d.nom||'',postnom:d.postnom||'',prenom:d.prenom||'',sexe:d.sexe||'M',notes:{}});});const snap2=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'mater_eleves'),where('classe','==',classe),where('abandon','==',false)));snap2.forEach(ds=>{const d=ds.data();eleves.push({id:ds.id,nom:d.nom||'',postnom:d.postnom||'',prenom:d.prenom||'',sexe:d.sexe||'F',notes:{}});});if(eleves.length===0){toast('⚠️ Aucun élève dans cette classe','error');return;}const epreuves={1:[],2:[],3:[],4:[],5:[],6:[]};const cahierId='cahier_'+Date.now();await setDoc(doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId),{classe,matiere,eleves,epreuves,enseignantId:enseignantActuel.id,enseignantNom:enseignantActuel.nom,pMax,nbPeriodes:6,nbTrimestres:3,createdAt:Date.now(),school:ECOLET_ID,source:'comptabilite'});toast('✅ Cahier de cotation créé avec '+eleves.length+' élèves');document.getElementById('cahierMatiere').value='';chargerCahiers();chargerSelectCahiers();chargerSelectEpreuves();chargerSelectExport();chargerCotationSelect();}catch(e){toast('❌ '+e.message,'error');}}
-
-async function chargerCahiers(){const container=document.getElementById('cahierListe');try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'cahiers'),where('enseignantId','==',enseignantActuel?.id||'')));const cahiers=[];snap.forEach(ds=>cahiers.push({id:ds.id,...ds.data()}));document.getElementById('cahierCompteur').textContent=cahiers.length;if(cahiers.length===0){container.innerHTML='<div class="empty"><span class="icon">📭</span>Aucun cahier de cotation</div>';return;}let html='';cahiers.forEach(c=>{const nb=(c.eleves||[]).length;const pMax=c.pMax||20;html+=`<div class="cahier-card"><div class="cahier-left"><div class="cahier-nom"><span class="cahier-matiere">${c.matiere}</span><span class="cahier-classe">${c.classe}</span><span class="cahier-badge">${pMax} pts</span></div><div class="cahier-infos"><span>👥 <span class="info-value">${nb}</span> élèves</span></div></div><div class="cahier-right"><button class="btn-sm btn-primary-sm" onclick="voirCahier('${c.id}')">👁️ Voir</button><button class="btn-sm btn-danger-sm" onclick="supprimerCahier('${c.id}','${c.matiere}')">✕</button></div></div>`;});container.innerHTML=html;}catch(e){console.error(e);}}
-
-window.voirCahier=function(id){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));document.querySelector('[data-tab="tabCotation"]').classList.add('active');document.getElementById('tabCotation').classList.add('active');document.getElementById('cotationCahier').value=id;chargerCotation();};
-
-window.supprimerCahier = async function(id, matiere) {
-const confirmed = await showDeleteModal(
-'🗑️ Supprimer le cahier',
-'Voulez-vous vraiment supprimer "' + matiere + '" ?<br><br>⚠️ Cette action est irréversible.'
-);
-if(confirmed){
+// ===== FONCTION POUR RÉPARER LES DONNÉES =====
+async function reparerDonneesCahier(cahierId){
 try{
-await deleteDoc(doc(db,'ecoles',ECOLET_ID,'cahiers',id));
-toast('🗑️ Cahier "' + matiere + '" supprimé');
-chargerCahiers();
-chargerSelectCahiers();
-chargerSelectEpreuves();
-chargerSelectExport();
-chargerCotationSelect();
-}catch(e){
-toast('❌ Erreur lors de la suppression','error');
+const ref=doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId);
+const snap=await getDoc(ref);
+if(!snap.exists())return;
+const data=snap.data();
+const eleves=Array.isArray(data.eleves)?data.eleves:[];
+const updates={};
+eleves.forEach((e,i)=>{
+if(!e.notes){updates[`eleves.${i}.notes`]={};}
+const notes=e.notes||{};
+for(let p=1;p<=6;p++){
+const key=`p${p}`;
+if(!notes[key]||!Array.isArray(notes[key])){updates[`eleves.${i}.notes.${key}`]=[];}
 }
+if(notes.exam1===undefined){updates[`eleves.${i}.notes.exam1`]=0;}
+if(notes.exam2===undefined){updates[`eleves.${i}.notes.exam2`]=0;}
+if(notes.exam3===undefined){updates[`eleves.${i}.notes.exam3`]=0;}
+});
+if(Object.keys(updates).length>0){await updateDoc(ref,updates);console.log('✅ Données réparées');}
+return true;
+}catch(e){console.error('Erreur réparation:',e);return false;}
 }
-};
 
-async function chargerSelectEpreuves(){const select=document.getElementById('epreuveCahier');try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'cahiers'),where('enseignantId','==',enseignantActuel?.id||'')));select.innerHTML='<option value="">-- Sélectionner --</option>';snap.forEach(ds=>{const d=ds.data();const opt=document.createElement('option');opt.value=ds.id;opt.textContent=d.matiere+' - '+d.classe;select.appendChild(opt);});}catch(e){console.error(e);}}
-window.chargerEpreuves=async function(){const cahierId=document.getElementById('epreuveCahier').value;const periode=parseInt(document.getElementById('epreuvePeriode').value);const container=document.getElementById('epreuvesContainer');if(!cahierId){container.innerHTML='<div class="empty">📭 Sélectionnez un cahier</div>';return;}try{const snap=await getDoc(doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId));if(!snap.exists()){container.innerHTML='';return;}const data=snap.data();const epreuves=data.epreuves?.[periode]||[];if(epreuves.length===0){container.innerHTML='<div class="empty">📭 Aucune épreuve pour cette période</div>';return;}let html='';epreuves.forEach((ep,i)=>{html+=`<div class="epreuve-item"><span style="color:rgba(255,255,255,0.25);font-size:12px;min-width:30px;">${i+1}</span><input type="text" value="${ep.nom||'Épreuve'}" onchange="modifierEpreuve('${cahierId}',${periode},${i},'nom',this.value)" placeholder="Nom" style="flex:1;min-width:100px;"><span style="color:rgba(255,255,255,0.25);font-size:12px;">/</span><input type="number" value="${ep.max||20}" onchange="modifierEpreuve('${cahierId}',${periode},${i},'max',this.value)" class="epreuve-max"><button class="btn-sm btn-danger-sm" onclick="supprimerEpreuve('${cahierId}',${periode},${i})" style="padding:4px 12px;">✕</button></div>`;});container.innerHTML=html;}catch(e){container.innerHTML='<div class="empty">❌ Erreur</div>';}};
-window.ajouterEpreuve=async function(){const cahierId=document.getElementById('epreuveCahier').value;const periode=parseInt(document.getElementById('epreuvePeriode').value);if(!cahierId){toast('⚠️ Sélectionnez un cahier','error');return;}try{const ref=doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId);const snap=await getDoc(ref);if(!snap.exists())return;const data=snap.data();if(!data.epreuves)data.epreuves={};if(!data.epreuves[periode])data.epreuves[periode]=[];const num=data.epreuves[periode].length+1;data.epreuves[periode].push({nom:'Épreuve '+num,max:data.pMax||20});await updateDoc(ref,{epreuves:data.epreuves});toast('✅ Épreuve ajoutée');chargerEpreuves();}catch(e){toast('❌ '+e.message,'error');}};
-window.enregistrerEpreuves=async function(){const cahierId=document.getElementById('epreuveCahier').value;if(!cahierId){toast('⚠️ Sélectionnez un cahier','error');return;}try{const ref=doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId);const snap=await getDoc(ref);if(!snap.exists()){toast('❌ Cahier non trouvé','error');return;}const data=snap.data();const epreuves=data.epreuves||{};const updatedEpreuves=JSON.parse(JSON.stringify(epreuves));await updateDoc(ref,{epreuves:updatedEpreuves});toast('✅ Épreuves enregistrées avec succès');chargerEpreuves();chargerSelectEpreuves();chargerCotation();}catch(e){console.error(e);toast('❌ '+e.message,'error');}};
-window.modifierEpreuve=async function(cahierId,periode,index,champ,valeur){try{const ref=doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId);const snap=await getDoc(ref);if(!snap.exists())return;const data=snap.data();if(!data.epreuves?.[periode]?.[index])return;const updatedEpreuves=JSON.parse(JSON.stringify(data.epreuves));if(champ==='max'){valeur=parseFloat(valeur)||1;if(valeur<1)valeur=1;}updatedEpreuves[periode][index][champ]=valeur;await updateDoc(ref,{epreuves:updatedEpreuves});}catch(e){console.error(e);toast('❌ Erreur','error');}};
-window.supprimerEpreuve=async function(cahierId,periode,index){const confirmed=await showDeleteModal('🗑️ Supprimer l\'épreuve','Voulez-vous vraiment supprimer cette épreuve ?');if(confirmed){try{const ref=doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId);const snap=await getDoc(ref);if(!snap.exists())return;const data=snap.data();const updatedEpreuves=JSON.parse(JSON.stringify(data.epreuves));updatedEpreuves[periode].splice(index,1);await updateDoc(ref,{epreuves:updatedEpreuves});toast('🗑️ Épreuve supprimée');chargerEpreuves();}catch(e){console.error(e);toast('❌ '+e.message,'error');}}};
-async function chargerCotationSelect(){const select=document.getElementById('cotationCahier');try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'cahiers'),where('enseignantId','==',enseignantActuel?.id||'')));select.innerHTML='<option value="">-- Sélectionner --</option>';snap.forEach(ds=>{const d=ds.data();const opt=document.createElement('option');opt.value=ds.id;opt.textContent=d.matiere+' - '+d.classe;select.appendChild(opt);});}catch(e){console.error(e);}}
+// ===== FONCTIONS DE CALCUL =====
 function calcMoy(periode,notes,eps,pMax){
 const list=eps[periode]||[];
 const notesList=Array.isArray(notes)?notes:[];
@@ -457,11 +381,93 @@ sumM+=(list[i].max||1);
 if(sumM===0)return 0;
 return Math.min(pMax,Math.round((sumN/sumM)*pMax));
 }
+
+function calcMoyPdf(periode,notes,eps,pMax){
+const list=eps[periode]||[];
+const notesList=Array.isArray(notes)?notes:[];
+if(!list.length||!notesList.length)return 0;
+let sumN=0,sumM=0;
+for(let i=0;i<list.length;i++){
+sumN+=(notesList[i]||0);
+sumM+=(list[i].max||1);
+}
+if(sumM===0)return 0;
+return Math.min(pMax,Math.round((sumN/sumM)*pMax));
+}
+
+function getNotesPeriode(periode,notes,eps){
+const e=eps[periode]||[];
+const notesList=Array.isArray(notes)?notes:[];
+const result=[];
+for(let i=0;i<e.length;i++){
+result.push(notesList[i]||0);
+}
+return result;
+}
+
+// ===== CHARGEMENT DES ENSEIGNANTS =====
+async function chargerEnseignants(){const select=document.getElementById('enseignantSelect');const debug=document.getElementById('debugInfo');select.innerHTML='<option value="">⏳ Chargement...</option>';debug.textContent='🔍 '+ECOLET_ID+'/enseignants';try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'enseignants'),where('_type','==','enseignant'),where('actif','==',true)));enseignants=[];snap.forEach(ds=>{const data=ds.data();enseignants.push({id:ds.id,nom:data.nom,email:data.email,code:data.code,classes:data.classes||[]});});enseignants.sort((a,b)=>a.nom.localeCompare(b.nom));if(enseignants.length===0){select.innerHTML='<option value="">📭 Aucun enseignant</option>';document.getElementById('loginError').textContent='⚠️ Aucun enseignant actif';return;}select.innerHTML='<option value="">-- Choisissez votre nom --</option>';enseignants.forEach(ens=>{const opt=document.createElement('option');opt.value=ens.id;opt.textContent=ens.nom;select.appendChild(opt);});document.getElementById('loginError').textContent='';}catch(e){console.error('❌',e);select.innerHTML='<option value="">❌ Erreur</option>';document.getElementById('loginError').textContent='❌ '+e.message;}}
+document.getElementById('loginBtn').addEventListener('click',async function(){const ensId=document.getElementById('enseignantSelect').value;const code=document.getElementById('codeInput').value.trim();const errorEl=document.getElementById('loginError');errorEl.textContent='';if(!ensId){errorEl.textContent='⚠️ Choisissez votre nom';return;}if(!code||code.length<6){errorEl.textContent='⚠️ Code à 6 chiffres';return;}const enseignant=enseignants.find(e=>e.id===ensId);if(!enseignant){errorEl.textContent='❌ Enseignant non trouvé';return;}if(enseignant.code!==code){errorEl.textContent='❌ Code incorrect';return;}this.disabled=true;this.innerHTML='<span class="loader"></span> Connexion...';try{await signInWithEmailAndPassword(auth,enseignant.email,code);}catch(e){errorEl.textContent='❌ '+e.message;this.disabled=false;this.innerHTML='🔓 SE CONNECTER';}});
+document.getElementById('codeInput').addEventListener('keypress',function(e){if(e.key==='Enter')document.getElementById('loginBtn').click();});
+document.getElementById('codeInput').addEventListener('input',function(){this.value=this.value.replace(/[^0-9]/g,'').slice(0,6);document.getElementById('loginError').textContent='';});
+document.getElementById('enseignantSelect').addEventListener('change',function(){document.getElementById('loginError').textContent='';document.getElementById('codeInput').value='';document.getElementById('codeInput').focus();});
+onAuthStateChanged(auth,async(user)=>{if(user){try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'enseignants'),where('_type','==','enseignant'),where('email','==',user.email)));snap.forEach(ds=>{enseignantActuel={id:ds.id,...ds.data()};});if(enseignantActuel){document.getElementById('loginSection').style.display='none';document.getElementById('dashboard').style.display='block';document.getElementById('ensNomDisplay').textContent='📓 '+(enseignantActuel.nom||'Enseignant');document.getElementById('userDisplay').textContent='👤 '+(enseignantActuel.nom||'Enseignant');chargerClassesPourCahier();chargerCahiers();chargerSelectCahiers();chargerSelectEpreuves();chargerSelectExport();chargerCotationSelect();}}catch(e){console.error(e);}}});
+document.getElementById('logoutBtn').addEventListener('click',async function(){const confirmed=await showDeleteModal('Déconnexion','Voulez-vous vraiment vous déconnecter ?');if(confirmed){signOut(auth);document.getElementById('loginSection').style.display='block';document.getElementById('dashboard').style.display='none';document.getElementById('codeInput').value='';toast('👋 Déconnecté');}});
+document.getElementById('modeToggle').addEventListener('click',function(){document.body.classList.toggle('light-mode');const icons=this.querySelectorAll('.icon');icons.forEach(i=>i.classList.toggle('active'));localStorage.setItem('theme-preference',document.body.classList.contains('light-mode')?'light':'dark');});
+if(localStorage.getItem('theme-preference')==='light'){document.body.classList.add('light-mode');document.querySelectorAll('#modeToggle .icon').forEach(i=>i.classList.toggle('active'));}
+document.addEventListener('contextmenu',function(e){e.preventDefault();return false;});
+document.addEventListener('keydown',function(e){if(e.key==='F12'||e.keyCode===123){e.preventDefault();return false;}if(e.ctrlKey&&e.shiftKey&&(e.key==='I'||e.key==='J'||e.key==='C')){e.preventDefault();return false;}if(e.ctrlKey&&(e.key==='U'||e.key==='S')){e.preventDefault();return false;}if(e.metaKey){e.preventDefault();return false;}});
+
+// ===== GESTION DES CAHIERS =====
+async function chargerClassesPourCahier(){const select=document.getElementById('cahierClasse');try{const classes=new Set();if(enseignantActuel&&enseignantActuel.classes)enseignantActuel.classes.forEach(c=>classes.add(c));select.innerHTML='<option value="">-- Sélectionner --</option>';Array.from(classes).sort().forEach(c=>{const opt=document.createElement('option');opt.value=c;opt.textContent=c;select.appendChild(opt);});}catch(e){console.error(e);}}
+
+window.preparerCreationCahier=async function(){
+const classe=document.getElementById('cahierClasse').value;
+const matiere=document.getElementById('cahierMatiere').value.trim();
+const pMax=parseInt(document.getElementById('cahierNoteMax').value)||20;
+if(!classe){toast('⚠️ Sélectionnez une classe','error');return;}
+if(!matiere){toast('⚠️ Entrez une matière','error');return;}
+try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'cahiers'),where('enseignantId','==',enseignantActuel.id),where('matiere','==',matiere),where('classe','==',classe)));if(!snap.empty){toast('⚠️ Un cahier "'+matiere+'" existe déjà pour la classe '+classe,'error');return;}}catch(e){toast('❌ Erreur de vérification','error');return;}
+let nbEleves=0;
+try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'prima_eleves'),where('classe','==',classe),where('abandon','==',false)));nbEleves+=snap.size;const snap2=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'mater_eleves'),where('classe','==',classe),where('abandon','==',false)));nbEleves+=snap2.size;}catch(e){nbEleves=0;}
+if(nbEleves===0){toast('⚠️ Aucun élève dans cette classe','error');return;}
+document.getElementById('confirmClasse').textContent=classe;
+document.getElementById('confirmMatiere').textContent=matiere;
+document.getElementById('confirmNoteMax').textContent=pMax+' pts';
+document.getElementById('confirmEleves').textContent=nbEleves+' élèves';
+cahierEnCreation={classe,matiere,pMax,nbEleves};
+const confirmed=await showCreationModal();
+if(confirmed){creerCahier(classe,matiere,pMax);}
+};
+
+document.getElementById('confirmCancel').addEventListener('click',function(){document.getElementById('confirmModal').classList.remove('show');cahierEnCreation=null;});
+document.getElementById('confirmOk').addEventListener('click',function(){document.getElementById('confirmModal').classList.remove('show');if(cahierEnCreation){creerCahier(cahierEnCreation.classe,cahierEnCreation.matiere,cahierEnCreation.pMax);cahierEnCreation=null;}});
+
+async function creerCahier(classe,matiere,pMax){try{const eleves=[];const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'prima_eleves'),where('classe','==',classe),where('abandon','==',false)));snap.forEach(ds=>{const d=ds.data();eleves.push({id:ds.id,nom:d.nom||'',postnom:d.postnom||'',prenom:d.prenom||'',sexe:d.sexe||'M',notes:{p1:[],p2:[],p3:[],p4:[],p5:[],p6:[],exam1:0,exam2:0,exam3:0}});});const snap2=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'mater_eleves'),where('classe','==',classe),where('abandon','==',false)));snap2.forEach(ds=>{const d=ds.data();eleves.push({id:ds.id,nom:d.nom||'',postnom:d.postnom||'',prenom:d.prenom||'',sexe:d.sexe||'F',notes:{p1:[],p2:[],p3:[],p4:[],p5:[],p6:[],exam1:0,exam2:0,exam3:0}});});if(eleves.length===0){toast('⚠️ Aucun élève dans cette classe','error');return;}const epreuves={1:[],2:[],3:[],4:[],5:[],6:[]};const cahierId='cahier_'+Date.now();await setDoc(doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId),{classe,matiere,eleves,epreuves,enseignantId:enseignantActuel.id,enseignantNom:enseignantActuel.nom,pMax,nbPeriodes:6,nbTrimestres:3,createdAt:Date.now(),school:ECOLET_ID,source:'comptabilite'});toast('✅ Cahier de cotation créé avec '+eleves.length+' élèves');document.getElementById('cahierMatiere').value='';chargerCahiers();chargerSelectCahiers();chargerSelectEpreuves();chargerSelectExport();chargerCotationSelect();}catch(e){toast('❌ '+e.message,'error');}}
+
+async function chargerCahiers(){const container=document.getElementById('cahierListe');try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'cahiers'),where('enseignantId','==',enseignantActuel?.id||'')));const cahiers=[];snap.forEach(ds=>cahiers.push({id:ds.id,...ds.data()}));document.getElementById('cahierCompteur').textContent=cahiers.length;if(cahiers.length===0){container.innerHTML='<div class="empty"><span class="icon">📭</span>Aucun cahier de cotation</div>';return;}let html='';cahiers.forEach(c=>{const nb=(c.eleves||[]).length;const pMax=c.pMax||20;html+=`<div class="cahier-card"><div class="cahier-left"><div class="cahier-nom"><span class="cahier-matiere">${c.matiere}</span><span class="cahier-classe">${c.classe}</span><span class="cahier-badge">${pMax} pts</span></div><div class="cahier-infos"><span>👥 <span class="info-value">${nb}</span> élèves</span></div></div><div class="cahier-right"><button class="btn-sm btn-primary-sm" onclick="voirCahier('${c.id}')">👁️ Voir</button><button class="btn-sm btn-danger-sm" onclick="supprimerCahier('${c.id}','${c.matiere}')">✕</button></div></div>`;});container.innerHTML=html;}catch(e){console.error(e);}}
+
+window.voirCahier=function(id){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));document.querySelector('[data-tab="tabCotation"]').classList.add('active');document.getElementById('tabCotation').classList.add('active');document.getElementById('cotationCahier').value=id;chargerCotation();};
+
+window.supprimerCahier=async function(id,matiere){const confirmed=await showDeleteModal('🗑️ Supprimer le cahier','Voulez-vous vraiment supprimer "'+matiere+'" ?<br><br>⚠️ Cette action est irréversible.');if(confirmed){try{await deleteDoc(doc(db,'ecoles',ECOLET_ID,'cahiers',id));toast('🗑️ Cahier "'+matiere+'" supprimé');chargerCahiers();chargerSelectCahiers();chargerSelectEpreuves();chargerSelectExport();chargerCotationSelect();}catch(e){toast('❌ Erreur lors de la suppression','error');}}};
+
+// ===== GESTION DES ÉPREUVES =====
+async function chargerSelectEpreuves(){const select=document.getElementById('epreuveCahier');try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'cahiers'),where('enseignantId','==',enseignantActuel?.id||'')));select.innerHTML='<option value="">-- Sélectionner --</option>';snap.forEach(ds=>{const d=ds.data();const opt=document.createElement('option');opt.value=ds.id;opt.textContent=d.matiere+' - '+d.classe;select.appendChild(opt);});}catch(e){console.error(e);}}
+window.chargerEpreuves=async function(){const cahierId=document.getElementById('epreuveCahier').value;const periode=parseInt(document.getElementById('epreuvePeriode').value);const container=document.getElementById('epreuvesContainer');if(!cahierId){container.innerHTML='<div class="empty">📭 Sélectionnez un cahier</div>';return;}try{const snap=await getDoc(doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId));if(!snap.exists()){container.innerHTML='';return;}const data=snap.data();const epreuves=data.epreuves?.[periode]||[];if(epreuves.length===0){container.innerHTML='<div class="empty">📭 Aucune épreuve pour cette période</div>';return;}let html='';epreuves.forEach((ep,i)=>{html+=`<div class="epreuve-item"><span style="color:rgba(255,255,255,0.25);font-size:12px;min-width:30px;">${i+1}</span><input type="text" value="${ep.nom||'Épreuve'}" onchange="modifierEpreuve('${cahierId}',${periode},${i},'nom',this.value)" placeholder="Nom" style="flex:1;min-width:100px;"><span style="color:rgba(255,255,255,0.25);font-size:12px;">/</span><input type="number" value="${ep.max||20}" onchange="modifierEpreuve('${cahierId}',${periode},${i},'max',this.value)" class="epreuve-max"><button class="btn-sm btn-danger-sm" onclick="supprimerEpreuve('${cahierId}',${periode},${i})" style="padding:4px 12px;">✕</button></div>`;});container.innerHTML=html;}catch(e){container.innerHTML='<div class="empty">❌ Erreur</div>';}};
+window.ajouterEpreuve=async function(){const cahierId=document.getElementById('epreuveCahier').value;const periode=parseInt(document.getElementById('epreuvePeriode').value);if(!cahierId){toast('⚠️ Sélectionnez un cahier','error');return;}try{const ref=doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId);const snap=await getDoc(ref);if(!snap.exists())return;const data=snap.data();if(!data.epreuves)data.epreuves={};if(!data.epreuves[periode])data.epreuves[periode]=[];const num=data.epreuves[periode].length+1;data.epreuves[periode].push({nom:'Épreuve '+num,max:data.pMax||20});await updateDoc(ref,{epreuves:data.epreuves});toast('✅ Épreuve ajoutée');chargerEpreuves();}catch(e){toast('❌ '+e.message,'error');}};
+window.enregistrerEpreuves=async function(){const cahierId=document.getElementById('epreuveCahier').value;if(!cahierId){toast('⚠️ Sélectionnez un cahier','error');return;}try{const ref=doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId);const snap=await getDoc(ref);if(!snap.exists()){toast('❌ Cahier non trouvé','error');return;}const data=snap.data();const epreuves=data.epreuves||{};const updatedEpreuves=JSON.parse(JSON.stringify(epreuves));await updateDoc(ref,{epreuves:updatedEpreuves});toast('✅ Épreuves enregistrées avec succès');chargerEpreuves();chargerSelectEpreuves();chargerCotation();}catch(e){console.error(e);toast('❌ '+e.message,'error');}};
+window.modifierEpreuve=async function(cahierId,periode,index,champ,valeur){try{const ref=doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId);const snap=await getDoc(ref);if(!snap.exists())return;const data=snap.data();if(!data.epreuves?.[periode]?.[index])return;const updatedEpreuves=JSON.parse(JSON.stringify(data.epreuves));if(champ==='max'){valeur=parseFloat(valeur)||1;if(valeur<1)valeur=1;}updatedEpreuves[periode][index][champ]=valeur;await updateDoc(ref,{epreuves:updatedEpreuves});}catch(e){console.error(e);toast('❌ Erreur','error');}};
+window.supprimerEpreuve=async function(cahierId,periode,index){const confirmed=await showDeleteModal('🗑️ Supprimer l\'épreuve','Voulez-vous vraiment supprimer cette épreuve ?');if(confirmed){try{const ref=doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId);const snap=await getDoc(ref);if(!snap.exists())return;const data=snap.data();const updatedEpreuves=JSON.parse(JSON.stringify(data.epreuves));updatedEpreuves[periode].splice(index,1);await updateDoc(ref,{epreuves:updatedEpreuves});toast('🗑️ Épreuve supprimée');chargerEpreuves();}catch(e){console.error(e);toast('❌ '+e.message,'error');}}};
+
+// ===== COTATION =====
+async function chargerCotationSelect(){const select=document.getElementById('cotationCahier');try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'cahiers'),where('enseignantId','==',enseignantActuel?.id||'')));select.innerHTML='<option value="">-- Sélectionner --</option>';snap.forEach(ds=>{const d=ds.data();const opt=document.createElement('option');opt.value=ds.id;opt.textContent=d.matiere+' - '+d.classe;select.appendChild(opt);});}catch(e){console.error(e);}}
+
 window.chargerCotation=async function(){
 const cahierId=document.getElementById('cotationCahier').value;
 const container=document.getElementById('cotationContainer');
 if(!cahierId){container.innerHTML='<div class="empty">📭 Sélectionnez un cahier</div>';return;}
 try{
+await reparerDonneesCahier(cahierId);
 const snap=await getDoc(doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId));
 if(!snap.exists()){container.innerHTML='';return;}
 const data=snap.data();
@@ -521,6 +527,7 @@ html+='</tbody></table></div>';
 container.innerHTML=html;
 }catch(e){console.error(e);container.innerHTML='<div class="empty">❌ Erreur: '+e.message+'</div>';}
 };
+
 window.enregistrerCotation=async function(){
 const cahierId=document.getElementById('cotationCahier').value;
 if(!cahierId){toast('⚠️ Sélectionnez un cahier','error');return;}
@@ -564,12 +571,201 @@ toast('⚠️ Aucune note à enregistrer','warning');
 }
 }catch(e){console.error(e);toast('❌ Erreur: '+e.message,'error');}
 };
+
+// ===== EXPORTS =====
 async function chargerSelectCahiers(){const select=document.getElementById('notesCahier');try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'cahiers'),where('enseignantId','==',enseignantActuel?.id||'')));select.innerHTML='<option value="">-- Sélectionner --</option>';snap.forEach(ds=>{const d=ds.data();const opt=document.createElement('option');opt.value=ds.id;opt.textContent=d.matiere+' - '+d.classe;select.appendChild(opt);});}catch(e){console.error(e);}}
+
 async function chargerSelectExport(){const select=document.getElementById('exportCahier');const select2=document.getElementById('exportReleveCahier');try{const snap=await getDocs(query(collection(db,'ecoles',ECOLET_ID,'cahiers'),where('enseignantId','==',enseignantActuel?.id||'')));const html='<option value="">-- Sélectionner --</option>';let opts=html;snap.forEach(ds=>{const d=ds.data();const txt=d.matiere+' - '+d.classe;opts+=`<option value="${ds.id}">${txt}</option>`;});select.innerHTML=opts;select2.innerHTML=opts;}catch(e){console.error(e);}}
-window.chargerElevesExport=async function(){const cahierId=document.getElementById('exportReleveCahier').value;const select=document.getElementById('exportEleve');if(!cahierId){select.innerHTML='<option value="">-- Sélectionner --</option>';return;}try{const snap=await getDoc(doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId));if(!snap.exists()){select.innerHTML='<option value="">-- Sélectionner --</option>';return;}const data=snap.data();const eleves=data.eleves||[];let html='<option value="">-- Sélectionner --</option>';eleves.forEach((e,i)=>{const nom=getNomComplet(e);html+=`<option value="${i}">${nom}</option>`;});select.innerHTML=html;}catch(e){console.error(e);}}
-window.exporterCahierPDF=async function(){const cahierId=document.getElementById('exportCahier').value;if(!cahierId){toast('⚠️ Sélectionnez un cahier','error');return;}try{const snap=await getDoc(doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId));if(!snap.exists()){toast('Cahier non trouvé','error');return;}const data=snap.data();const epreuves=data.epreuves||{};const eleves=data.eleves||[];const pMax=data.pMax||20;const {jsPDF}=window.jspdf;const pdf=new jsPDF('landscape','mm','a4');const pageWidth=pdf.internal.pageSize.getWidth();const schoolName='COMPLEXE SCOLAIRE '+schoolDisplay;pdf.setFillColor(26,35,50);pdf.rect(0,0,pageWidth,35,"F");pdf.setFontSize(16);pdf.setFont('helvetica','bold');pdf.setTextColor(255,255,255);pdf.text(schoolName,pageWidth/2,14,{align:'center'});pdf.setFontSize(12);pdf.setFont('helvetica','normal');pdf.setTextColor(200,200,200);pdf.text('CAHIER DE COTATION - PRIMAIRE',pageWidth/2,24,{align:'center'});pdf.setFontSize(9);pdf.setTextColor(80,80,80);pdf.text('Année scolaire: 2026-2027',14,42);pdf.text('Matière: '+data.matiere,14,49);pdf.text('Classe: '+data.classe,14,56);pdf.text('Enseignant: '+(data.enseignantNom||''),14,63);pdf.text('Note max: '+(data.pMax||20)+' pts',14,70);const headers=['N°','ÉLÈVE','SEXE'];const eps1=epreuves[1]||[];eps1.forEach(ep=>{headers.push(ep.nom||'Épreuve 1');});const eps2=epreuves[2]||[];eps2.forEach(ep=>{headers.push(ep.nom||'Épreuve 2');});headers.push('Examen T1','TOT T1');const eps3=epreuves[3]||[];eps3.forEach(ep=>{headers.push(ep.nom||'Épreuve 3');});const eps4=epreuves[4]||[];eps4.forEach(ep=>{headers.push(ep.nom||'Épreuve 4');});headers.push('Examen T2','TOT T2');const eps5=epreuves[5]||[];eps5.forEach(ep=>{headers.push(ep.nom||'Épreuve 5');});const eps6=epreuves[6]||[];eps6.forEach(ep=>{headers.push(ep.nom||'Épreuve 6');});headers.push('Examen T3','TOT T3');headers.push('TOTAL');const body=[];function getNotesPeriode(periode,notes,e){const eps=e[periode]||[];const notesList=notes||[];const result=[];for(let i=0;i<eps.length;i++){result.push(notesList[i]||0);}return result;}eleves.forEach((e,idx)=>{const notes=e.notes||{};const p1Notes=getNotesPeriode(1,notes.p1,epreuves);const p2Notes=getNotesPeriode(2,notes.p2,epreuves);const p3Notes=getNotesPeriode(3,notes.p3,epreuves);const p4Notes=getNotesPeriode(4,notes.p4,epreuves);const p5Notes=getNotesPeriode(5,notes.p5,epreuves);const p6Notes=getNotesPeriode(6,notes.p6,epreuves);function calcMoyPdf(periode,notes,eps,pM){const list=eps[periode]||[];if(!list.length||!notes||!notes.length)return 0;let sumN=0,sumM=0;for(let i=0;i<list.length;i++){sumN+=(notes[i]||0);sumM+=(list[i].max||1);}if(sumM===0)return 0;return Math.min(pM,Math.round((sumN/sumM)*pM));}const p1=calcMoyPdf(1,notes.p1||[],epreuves,pMax);const p2=calcMoyPdf(2,notes.p2||[],epreuves,pMax);const p3=calcMoyPdf(3,notes.p3||[],epreuves,pMax);const p4=calcMoyPdf(4,notes.p4||[],epreuves,pMax);const p5=calcMoyPdf(5,notes.p5||[],epreuves,pMax);const p6=calcMoyPdf(6,notes.p6||[],epreuves,pMax);const exam1=notes.exam1||0;const exam2=notes.exam2||0;const exam3=notes.exam3||0;const total1=p1+p2+exam1;const total2=p3+p4+exam2;const total3=p5+p6+exam3;const total=total1+total2+total3;const row=[idx+1,getNomComplet(e),e.sexe||'M',...p1Notes,...p2Notes,exam1,total1,...p3Notes,...p4Notes,exam2,total2,...p5Notes,...p6Notes,exam3,total3,total];body.push(row);});const maxRow=['MAX','',''];eps1.forEach(ep=>{maxRow.push(ep.max||pMax);});eps2.forEach(ep=>{maxRow.push(ep.max||pMax);});maxRow.push(pMax*2,pMax*4);eps3.forEach(ep=>{maxRow.push(ep.max||pMax);});eps4.forEach(ep=>{maxRow.push(ep.max||pMax);});maxRow.push(pMax*2,pMax*4);eps5.forEach(ep=>{maxRow.push(ep.max||pMax);});eps6.forEach(ep=>{maxRow.push(ep.max||pMax);});maxRow.push(pMax*2,pMax*4);maxRow.push(pMax*12);body.push(maxRow);pdf.autoTable({head:[headers],body:body,startY:77,theme:'grid',styles:{fontSize:7,cellPadding:2},headStyles:{fillColor:[26,35,50],textColor:[255,255,255],fontStyle:'bold'},alternateRowStyles:{fillColor:[245,247,250]},didDrawCell:function(data){if(data.section==='body'&&data.row.index===body.length-1){data.cell.styles.fillColor=[200,220,240];data.cell.styles.fontStyle='bold';}}});const pageCount=pdf.internal.getNumberOfPages();for(let i=1;i<=pageCount;i++){pdf.setPage(i);pdf.setFontSize(7);pdf.setTextColor(150,150,150);pdf.text('Généré le '+new Date().toLocaleDateString('fr-FR'),14,pdf.internal.pageSize.getHeight()-8);pdf.text('Page '+i+'/'+pageCount,pageWidth-20,pdf.internal.pageSize.getHeight()-8,{align:'right'});}pdf.save('Cahier_'+data.matiere+'_'+data.classe+'.pdf');toast('✅ PDF exporté avec succès');}catch(e){console.error(e);toast('❌ '+e.message,'error');}};
-window.exporterBulletinPDF=async function(){const cahierId=document.getElementById('exportReleveCahier').value;const eleveIdx=document.getElementById('exportEleve').value;if(!cahierId){toast('⚠️ Sélectionnez un cahier','error');return;}if(eleveIdx===''){toast('⚠️ Sélectionnez un élève','error');return;}try{const snap=await getDoc(doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId));if(!snap.exists()){toast('Cahier non trouvé','error');return;}const data=snap.data();const eleve=data.eleves[parseInt(eleveIdx)];if(!eleve){toast('Élève non trouvé','error');return;}const epreuves=data.epreuves||{};const pMax=data.pMax||20;const {jsPDF}=window.jspdf;const pdf=new jsPDF('landscape','mm','a4');const pageWidth=pdf.internal.pageSize.getWidth();const schoolName='COMPLEXE SCOLAIRE '+schoolDisplay;pdf.setFillColor(26,35,50);pdf.rect(0,0,pageWidth,35,"F");pdf.setFontSize(16);pdf.setFont('helvetica','bold');pdf.setTextColor(255,255,255);pdf.text(schoolName,pageWidth/2,14,{align:'center'});pdf.setFontSize(12);pdf.setFont('helvetica','normal');pdf.setTextColor(200,200,200);pdf.text('EXTRAIT DU BULLETIN',pageWidth/2,24,{align:'center'});const nom=getNomComplet(eleve);pdf.setFontSize(9);pdf.setTextColor(80,80,80);pdf.text('Élève: '+nom,14,42);pdf.text('Classe: '+data.classe,14,49);pdf.text('Matière: '+data.matiere,14,56);pdf.text('Enseignant: '+(data.enseignantNom||''),14,63);pdf.text('Année scolaire: 2026-2027',14,70);function calcMoyPdf(periode,notes,eps,pM){const list=eps[periode]||[];if(!list.length||!notes||!notes.length)return 0;let sumN=0,sumM=0;for(let i=0;i<list.length;i++){sumN+=(notes[i]||0);sumM+=(list[i].max||1);}if(sumM===0)return 0;return Math.min(pM,Math.round((sumN/sumM)*pM));}const notes=eleve.notes||{};const eps1=epreuves[1]||[];const eps2=epreuves[2]||[];const eps3=epreuves[3]||[];const eps4=epreuves[4]||[];const eps5=epreuves[5]||[];const eps6=epreuves[6]||[];const p1Notes=[];eps1.forEach((ep,i)=>{p1Notes.push(notes.p1?.[i]||0);});const p2Notes=[];eps2.forEach((ep,i)=>{p2Notes.push(notes.p2?.[i]||0);});const p3Notes=[];eps3.forEach((ep,i)=>{p3Notes.push(notes.p3?.[i]||0);});const p4Notes=[];eps4.forEach((ep,i)=>{p4Notes.push(notes.p4?.[i]||0);});const p5Notes=[];eps5.forEach((ep,i)=>{p5Notes.push(notes.p5?.[i]||0);});const p6Notes=[];eps6.forEach((ep,i)=>{p6Notes.push(notes.p6?.[i]||0);});const exam1=notes.exam1||0;const exam2=notes.exam2||0;const exam3=notes.exam3||0;const total1=notes.p1Total||0;const total2=notes.p2Total||0;const total3=notes.p3Total||0;const total=total1+total2+total3;const headers=['BRANCHES','MAX'];eps1.forEach(ep=>{headers.push(ep.nom||'P1');});eps2.forEach(ep=>{headers.push(ep.nom||'P2');});headers.push('EXAM T1','TOT T1');eps3.forEach(ep=>{headers.push(ep.nom||'P3');});eps4.forEach(ep=>{headers.push(ep.nom||'P4');});headers.push('EXAM T2','TOT T2');eps5.forEach(ep=>{headers.push(ep.nom||'P5');});eps6.forEach(ep=>{headers.push(ep.nom||'P6');});headers.push('EXAM T3','TOT T3');headers.push('TOTAL','MAX');const row=[data.matiere,pMax,...p1Notes,...p2Notes,exam1,total1,...p3Notes,...p4Notes,exam2,total2,...p5Notes,...p6Notes,exam3,total3,total,pMax*12];const body=[row];const maxRow=['MAX',''];eps1.forEach(ep=>{maxRow.push(ep.max||pMax);});eps2.forEach(ep=>{maxRow.push(ep.max||pMax);});maxRow.push(pMax*2,pMax*4);eps3.forEach(ep=>{maxRow.push(ep.max||pMax);});eps4.forEach(ep=>{maxRow.push(ep.max||pMax);});maxRow.push(pMax*2,pMax*4);eps5.forEach(ep=>{maxRow.push(ep.max||pMax);});eps6.forEach(ep=>{maxRow.push(ep.max||pMax);});maxRow.push(pMax*2,pMax*4);maxRow.push(pMax*12,'');body.push(maxRow);pdf.autoTable({head:[headers],body:body,startY:77,theme:'grid',styles:{fontSize:8,cellPadding:3},headStyles:{fillColor:[26,35,50],textColor:[255,255,255],fontStyle:'bold'},alternateRowStyles:{fillColor:[245,247,250]},didDrawCell:function(data){if(data.section==='body'&&data.row.index===body.length-1){data.cell.styles.fillColor=[200,220,240];data.cell.styles.fontStyle='bold';}}});const pageCount=pdf.internal.getNumberOfPages();for(let i=1;i<=pageCount;i++){pdf.setPage(i);pdf.setFontSize(7);pdf.setTextColor(150,150,150);pdf.text('Généré le '+new Date().toLocaleDateString('fr-FR'),14,pdf.internal.pageSize.getHeight()-8);pdf.text('Page '+i+'/'+pageCount,pageWidth-20,pdf.internal.pageSize.getHeight()-8,{align:'right'});}pdf.save('Extrait_Bulletin_'+nom.replace(/\s/g,'_')+'.pdf');toast('✅ Extrait du bulletin exporté avec succès');}catch(e){console.error(e);toast('❌ '+e.message,'error');}};
+
+window.chargerElevesExport=async function(){const cahierId=document.getElementById('exportReleveCahier').value;const select=document.getElementById('exportEleve');if(!cahierId){select.innerHTML='<option value="">-- Sélectionner --</option>';return;}try{const snap=await getDoc(doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId));if(!snap.exists()){select.innerHTML='<option value="">-- Sélectionner --</option>';return;}const data=snap.data();const eleves=Array.isArray(data.eleves)?data.eleves:[];let html='<option value="">-- Sélectionner --</option>';eleves.forEach((e,i)=>{const nom=getNomComplet(e);html+=`<option value="${i}">${nom}</option>`;});select.innerHTML=html;}catch(e){console.error(e);}}
+
+window.exporterCahierPDF=async function(){
+const cahierId=document.getElementById('exportCahier').value;
+if(!cahierId){toast('⚠️ Sélectionnez un cahier','error');return;}
+try{
+const snap=await getDoc(doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId));
+if(!snap.exists()){toast('Cahier non trouvé','error');return;}
+const data=snap.data();
+const epreuves=data.epreuves||{};
+const eleves=Array.isArray(data.eleves)?data.eleves:[];
+const pMax=data.pMax||20;
+if(eleves.length===0){toast('⚠️ Aucun élève à exporter','warning');return;}
+const {jsPDF}=window.jspdf;
+const pdf=new jsPDF('landscape','mm','a4');
+const pageWidth=pdf.internal.pageSize.getWidth();
+const schoolName='COMPLEXE SCOLAIRE '+schoolDisplay;
+pdf.setFillColor(26,35,50);
+pdf.rect(0,0,pageWidth,35,"F");
+pdf.setFontSize(16);
+pdf.setFont('helvetica','bold');
+pdf.setTextColor(255,255,255);
+pdf.text(schoolName,pageWidth/2,14,{align:'center'});
+pdf.setFontSize(12);
+pdf.setFont('helvetica','normal');
+pdf.setTextColor(200,200,200);
+pdf.text('CAHIER DE COTATION - PRIMAIRE',pageWidth/2,24,{align:'center'});
+pdf.setFontSize(9);
+pdf.setTextColor(80,80,80);
+pdf.text('Année scolaire: 2026-2027',14,42);
+pdf.text('Matière: '+data.matiere,14,49);
+pdf.text('Classe: '+data.classe,14,56);
+pdf.text('Enseignant: '+(data.enseignantNom||''),14,63);
+pdf.text('Note max: '+(data.pMax||20)+' pts',14,70);
+const headers=['N°','ÉLÈVE','SEXE'];
+const eps1=epreuves[1]||[];eps1.forEach(ep=>{headers.push(ep.nom||'Épreuve 1');});
+const eps2=epreuves[2]||[];eps2.forEach(ep=>{headers.push(ep.nom||'Épreuve 2');});
+headers.push('Examen T1','TOT T1');
+const eps3=epreuves[3]||[];eps3.forEach(ep=>{headers.push(ep.nom||'Épreuve 3');});
+const eps4=epreuves[4]||[];eps4.forEach(ep=>{headers.push(ep.nom||'Épreuve 4');});
+headers.push('Examen T2','TOT T2');
+const eps5=epreuves[5]||[];eps5.forEach(ep=>{headers.push(ep.nom||'Épreuve 5');});
+const eps6=epreuves[6]||[];eps6.forEach(ep=>{headers.push(ep.nom||'Épreuve 6');});
+headers.push('Examen T3','TOT T3');
+headers.push('TOTAL');
+const body=[];
+eleves.forEach((e,idx)=>{
+const notes=e.notes||{};
+const p1Notes=getNotesPeriode(1,notes.p1,epreuves);
+const p2Notes=getNotesPeriode(2,notes.p2,epreuves);
+const p3Notes=getNotesPeriode(3,notes.p3,epreuves);
+const p4Notes=getNotesPeriode(4,notes.p4,epreuves);
+const p5Notes=getNotesPeriode(5,notes.p5,epreuves);
+const p6Notes=getNotesPeriode(6,notes.p6,epreuves);
+const p1=calcMoyPdf(1,notes.p1||[],epreuves,pMax);
+const p2=calcMoyPdf(2,notes.p2||[],epreuves,pMax);
+const p3=calcMoyPdf(3,notes.p3||[],epreuves,pMax);
+const p4=calcMoyPdf(4,notes.p4||[],epreuves,pMax);
+const p5=calcMoyPdf(5,notes.p5||[],epreuves,pMax);
+const p6=calcMoyPdf(6,notes.p6||[],epreuves,pMax);
+const exam1=notes.exam1||0;
+const exam2=notes.exam2||0;
+const exam3=notes.exam3||0;
+const total1=p1+p2+exam1;
+const total2=p3+p4+exam2;
+const total3=p5+p6+exam3;
+const total=total1+total2+total3;
+const row=[idx+1,getNomComplet(e),e.sexe||'M',...p1Notes,...p2Notes,exam1,total1,...p3Notes,...p4Notes,exam2,total2,...p5Notes,...p6Notes,exam3,total3,total];
+body.push(row);
+});
+const maxRow=['MAX','',''];
+eps1.forEach(ep=>{maxRow.push(ep.max||pMax);});
+eps2.forEach(ep=>{maxRow.push(ep.max||pMax);});
+maxRow.push(pMax*2,pMax*4);
+eps3.forEach(ep=>{maxRow.push(ep.max||pMax);});
+eps4.forEach(ep=>{maxRow.push(ep.max||pMax);});
+maxRow.push(pMax*2,pMax*4);
+eps5.forEach(ep=>{maxRow.push(ep.max||pMax);});
+eps6.forEach(ep=>{maxRow.push(ep.max||pMax);});
+maxRow.push(pMax*2,pMax*4);
+maxRow.push(pMax*12);
+body.push(maxRow);
+pdf.autoTable({head:[headers],body:body,startY:77,theme:'grid',styles:{fontSize:7,cellPadding:2},headStyles:{fillColor:[26,35,50],textColor:[255,255,255],fontStyle:'bold'},alternateRowStyles:{fillColor:[245,247,250]},didDrawCell:function(data){if(data.section==='body'&&data.row.index===body.length-1){data.cell.styles.fillColor=[200,220,240];data.cell.styles.fontStyle='bold';}}});
+const pageCount=pdf.internal.getNumberOfPages();
+for(let i=1;i<=pageCount;i++){pdf.setPage(i);pdf.setFontSize(7);pdf.setTextColor(150,150,150);pdf.text('Généré le '+new Date().toLocaleDateString('fr-FR'),14,pdf.internal.pageSize.getHeight()-8);pdf.text('Page '+i+'/'+pageCount,pageWidth-20,pdf.internal.pageSize.getHeight()-8,{align:'right'});}
+pdf.save('Cahier_'+data.matiere+'_'+data.classe+'.pdf');
+toast('✅ PDF exporté avec succès');
+}catch(e){console.error(e);toast('❌ '+e.message,'error');}
+};
+
+window.exporterBulletinPDF=async function(){
+const cahierId=document.getElementById('exportReleveCahier').value;
+const eleveIdx=document.getElementById('exportEleve').value;
+if(!cahierId){toast('⚠️ Sélectionnez un cahier','error');return;}
+if(eleveIdx===''){toast('⚠️ Sélectionnez un élève','error');return;}
+try{
+const snap=await getDoc(doc(db,'ecoles',ECOLET_ID,'cahiers',cahierId));
+if(!snap.exists()){toast('Cahier non trouvé','error');return;}
+const data=snap.data();
+const eleves=Array.isArray(data.eleves)?data.eleves:[];
+const eleve=eleves[parseInt(eleveIdx)];
+if(!eleve){toast('Élève non trouvé','error');return;}
+const epreuves=data.epreuves||{};
+const pMax=data.pMax||20;
+const {jsPDF}=window.jspdf;
+const pdf=new jsPDF('landscape','mm','a4');
+const pageWidth=pdf.internal.pageSize.getWidth();
+const schoolName='COMPLEXE SCOLAIRE '+schoolDisplay;
+pdf.setFillColor(26,35,50);
+pdf.rect(0,0,pageWidth,35,"F");
+pdf.setFontSize(16);
+pdf.setFont('helvetica','bold');
+pdf.setTextColor(255,255,255);
+pdf.text(schoolName,pageWidth/2,14,{align:'center'});
+pdf.setFontSize(12);
+pdf.setFont('helvetica','normal');
+pdf.setTextColor(200,200,200);
+pdf.text('EXTRAIT DU BULLETIN',pageWidth/2,24,{align:'center'});
+const nom=getNomComplet(eleve);
+pdf.setFontSize(9);
+pdf.setTextColor(80,80,80);
+pdf.text('Élève: '+nom,14,42);
+pdf.text('Classe: '+data.classe,14,49);
+pdf.text('Matière: '+data.matiere,14,56);
+pdf.text('Enseignant: '+(data.enseignantNom||''),14,63);
+pdf.text('Année scolaire: 2026-2027',14,70);
+const notes=eleve.notes||{};
+const eps1=epreuves[1]||[];
+const eps2=epreuves[2]||[];
+const eps3=epreuves[3]||[];
+const eps4=epreuves[4]||[];
+const eps5=epreuves[5]||[];
+const eps6=epreuves[6]||[];
+const p1Notes=[];eps1.forEach((ep,i)=>{p1Notes.push(notes.p1?.[i]||0);});
+const p2Notes=[];eps2.forEach((ep,i)=>{p2Notes.push(notes.p2?.[i]||0);});
+const p3Notes=[];eps3.forEach((ep,i)=>{p3Notes.push(notes.p3?.[i]||0);});
+const p4Notes=[];eps4.forEach((ep,i)=>{p4Notes.push(notes.p4?.[i]||0);});
+const p5Notes=[];eps5.forEach((ep,i)=>{p5Notes.push(notes.p5?.[i]||0);});
+const p6Notes=[];eps6.forEach((ep,i)=>{p6Notes.push(notes.p6?.[i]||0);});
+const exam1=notes.exam1||0;
+const exam2=notes.exam2||0;
+const exam3=notes.exam3||0;
+const p1=calcMoyPdf(1,notes.p1||[],epreuves,pMax);
+const p2=calcMoyPdf(2,notes.p2||[],epreuves,pMax);
+const p3=calcMoyPdf(3,notes.p3||[],epreuves,pMax);
+const p4=calcMoyPdf(4,notes.p4||[],epreuves,pMax);
+const p5=calcMoyPdf(5,notes.p5||[],epreuves,pMax);
+const p6=calcMoyPdf(6,notes.p6||[],epreuves,pMax);
+const total1=p1+p2+exam1;
+const total2=p3+p4+exam2;
+const total3=p5+p6+exam3;
+const total=total1+total2+total3;
+const headers=['BRANCHES','MAX'];
+eps1.forEach(ep=>{headers.push(ep.nom||'P1');});
+eps2.forEach(ep=>{headers.push(ep.nom||'P2');});
+headers.push('EXAM T1','TOT T1');
+eps3.forEach(ep=>{headers.push(ep.nom||'P3');});
+eps4.forEach(ep=>{headers.push(ep.nom||'P4');});
+headers.push('EXAM T2','TOT T2');
+eps5.forEach(ep=>{headers.push(ep.nom||'P5');});
+eps6.forEach(ep=>{headers.push(ep.nom||'P6');});
+headers.push('EXAM T3','TOT T3');
+headers.push('TOTAL','MAX');
+const row=[data.matiere,pMax,...p1Notes,...p2Notes,exam1,total1,...p3Notes,...p4Notes,exam2,total2,...p5Notes,...p6Notes,exam3,total3,total,pMax*12];
+const body=[row];
+const maxRow=['MAX',''];
+eps1.forEach(ep=>{maxRow.push(ep.max||pMax);});
+eps2.forEach(ep=>{maxRow.push(ep.max||pMax);});
+maxRow.push(pMax*2,pMax*4);
+eps3.forEach(ep=>{maxRow.push(ep.max||pMax);});
+eps4.forEach(ep=>{maxRow.push(ep.max||pMax);});
+maxRow.push(pMax*2,pMax*4);
+eps5.forEach(ep=>{maxRow.push(ep.max||pMax);});
+eps6.forEach(ep=>{maxRow.push(ep.max||pMax);});
+maxRow.push(pMax*2,pMax*4);
+maxRow.push(pMax*12,'');
+body.push(maxRow);
+pdf.autoTable({head:[headers],body:body,startY:77,theme:'grid',styles:{fontSize:8,cellPadding:3},headStyles:{fillColor:[26,35,50],textColor:[255,255,255],fontStyle:'bold'},alternateRowStyles:{fillColor:[245,247,250]},didDrawCell:function(data){if(data.section==='body'&&data.row.index===body.length-1){data.cell.styles.fillColor=[200,220,240];data.cell.styles.fontStyle='bold';}}});
+const pageCount=pdf.internal.getNumberOfPages();
+for(let i=1;i<=pageCount;i++){pdf.setPage(i);pdf.setFontSize(7);pdf.setTextColor(150,150,150);pdf.text('Généré le '+new Date().toLocaleDateString('fr-FR'),14,pdf.internal.pageSize.getHeight()-8);pdf.text('Page '+i+'/'+pageCount,pageWidth-20,pdf.internal.pageSize.getHeight()-8,{align:'right'});}
+pdf.save('Extrait_Bulletin_'+nom.replace(/\s/g,'_')+'.pdf');
+toast('✅ Extrait du bulletin exporté avec succès');
+}catch(e){console.error(e);toast('❌ '+e.message,'error');}
+};
+
+// ===== ONGLETS =====
 document.querySelectorAll('.tab').forEach(tab=>{tab.onclick=function(){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));this.classList.add('active');document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));document.getElementById(this.dataset.tab).classList.add('active');if(this.dataset.tab==='tabEpreuves'){chargerSelectEpreuves();chargerEpreuves();}if(this.dataset.tab==='tabExports')chargerSelectExport();if(this.dataset.tab==='tabCotation'){chargerCotationSelect();chargerCotation();}};});
+
+// ===== INIT =====
 chargerEnseignants();
 </script>
 </body>
