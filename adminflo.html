@@ -1,12 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="description" content="DIRECTION STRATÉGIQUE ET INNOVATION - NeTubeX Admin Dashboard" />
-<meta name="keywords" content="admin, dashboard, netubex, vibrant, colorful, cache, DSI" />
+<meta name="keywords" content="admin, dashboard, netubex, DSI, firebase" />
 <meta name="robots" content="index, follow" />
 <title>DIRECTION STRATÉGIQUE ET INNOVATION · NeTubeX</title>
+<script type="importmap">
+{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js","firebase/storage":"https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js"}}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -17,133 +20,269 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:rgba(255,255,255,0.02)}
 ::-webkit-scrollbar-thumb{background:var(--pink);border-radius:4px}
-.topbar{background:linear-gradient(135deg,#1a0a2e 0%,#2d1b69 50%,#0a1628 100%);border-bottom:2px solid rgba(236,72,153,0.2);padding:12px 28px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;flex-wrap:wrap;gap:10px;box-shadow:0 4px 30px rgba(236,72,153,0.1)}
+#loginOverlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:999999;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center, #0d0d2b 0%, #0a0a0a 100%);transition:opacity 0.8s cubic-bezier(0.34,1.56,0.64,1),transform 0.8s cubic-bezier(0.34,1.56,0.64,1)}
+#loginOverlay.hidden{opacity:0;pointer-events:none;transform:scale(0.95)}
+.login-card{background:rgba(255,255,255,0.04);backdrop-filter:blur(60px);-webkit-backdrop-filter:blur(60px);border-radius:40px;padding:48px 44px;max-width:440px;width:100%;border:1px solid rgba(255,255,255,0.08);box-shadow:0 60px 120px rgba(0,0,0,0.6),inset 0 1px 0 rgba(255,255,255,0.05);position:relative;overflow:hidden}
+.login-card::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(ellipse at 30% 20%, rgba(236,72,153,0.05) 0%, transparent 50%),radial-gradient(ellipse at 70% 80%, rgba(139,92,246,0.05) 0%, transparent 50%);pointer-events:none}
+.login-card .logo{text-align:center;margin-bottom:24px;position:relative}
+.login-card .logo .icon{background:linear-gradient(135deg,#EC4899,#8B5CF6);width:80px;height:80px;border-radius:24px;display:flex;align-items:center;justify-content:center;margin:0 auto;color:#fff;font-weight:900;font-size:32px;box-shadow:0 0 60px rgba(236,72,153,0.25),0 20px 60px rgba(0,0,0,0.3);transition:var(--transition);position:relative}
+.login-card .logo .icon:hover{transform:scale(1.05) rotate(-2deg);box-shadow:0 0 80px rgba(236,72,153,0.35),0 20px 60px rgba(0,0,0,0.3)}
+.login-card .logo .icon::after{content:'';position:absolute;inset:-3px;border-radius:27px;background:linear-gradient(135deg,#EC4899,#8B5CF6,#EC4899);background-size:300% 300%;opacity:0;transition:var(--transition);z-index:-1;animation:gradientBorder 4s ease infinite}
+.login-card .logo .icon:hover::after{opacity:1}
+@keyframes gradientBorder{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.login-card .logo .badge-dsi{display:inline-block;margin-top:10px;font-size:10px;font-weight:700;color:var(--text-muted);background:rgba(255,255,255,0.04);padding:4px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.04);letter-spacing:1px;text-transform:uppercase}
+.login-card h1{font-size:24px;font-weight:800;text-align:center;margin-bottom:2px;background:linear-gradient(135deg,#FFFFFF 30%,#EC4899 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;position:relative}
+.login-card .sub{color:rgba(255,255,255,0.35);font-size:13px;text-align:center;margin-bottom:28px;font-weight:400}
+.login-card .sub strong{background:linear-gradient(135deg,#EC4899,#8B5CF6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700}
+.sources-info{display:flex;gap:8px;justify-content:center;margin-bottom:28px}
+.sources-info .badge{padding:5px 16px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.3px;transition:var(--transition)}
+.sources-info .badge.a{background:rgba(59,130,246,0.10);color:#3B82F6;border:1px solid rgba(59,130,246,0.10)}
+.sources-info .badge.b{background:rgba(16,185,129,0.10);color:#10B981;border:1px solid rgba(16,185,129,0.10)}
+.sources-info .badge:hover{transform:translateY(-2px)}
+.form-group{margin-bottom:18px;position:relative}
+.form-group label{display:block;color:rgba(255,255,255,0.3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px}
+.form-group .input-wrapper{position:relative;display:flex;align-items:center;background:rgba(255,255,255,0.04);border:2px solid rgba(255,255,255,0.06);border-radius:14px;transition:all 0.3s ease}
+.form-group .input-wrapper:focus-within{border-color:#8B5CF6;background:rgba(255,255,255,0.06);box-shadow:0 0 0 4px rgba(139,92,246,0.06)}
+.form-group .input-wrapper .input-icon{position:absolute;left:16px;font-size:16px;color:rgba(255,255,255,0.15)}
+.form-group .input-wrapper input{width:100%;padding:14px 16px 14px 48px;background:transparent;border:none;color:#fff;font-size:15px;outline:none;font-weight:500}
+.form-group .input-wrapper input::placeholder{color:rgba(255,255,255,0.15);font-weight:400}
+.form-group .input-wrapper .toggle-password{position:absolute;right:16px;background:transparent;border:none;color:rgba(255,255,255,0.15);cursor:pointer;font-size:16px;transition:var(--transition);padding:4px}
+.form-group .input-wrapper .toggle-password:hover{color:rgba(255,255,255,0.4)}
+.form-group .input-wrapper .toggle-password.active{color:#8B5CF6}
+.status-box{background:rgba(255,255,255,0.03);border-radius:14px;padding:14px 18px;margin:16px 0;border:1px solid rgba(255,255,255,0.04)}
+.status-box .status-item{display:flex;justify-content:space-between;padding:3px 0;font-size:12px;color:rgba(255,255,255,0.4)}
+.status-box .status-item .check{font-weight:700;font-size:12px}
+.status-box .status-item .check.success{color:#10B981}
+.status-box .status-item .check.fail{color:#EC4899}
+.status-box .status-item .check.waiting{color:rgba(255,255,255,0.15)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 22px;border:none;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);position:relative;overflow:hidden}
+.btn-login{width:100%;padding:16px;border-radius:14px;background:linear-gradient(135deg,#EC4899,#8B5CF6);font-size:16px;font-weight:700;color:#fff;box-shadow:0 8px 30px rgba(236,72,153,0.25);position:relative}
+.btn-login::before{content:'';position:absolute;inset:0;border-radius:14px;background:linear-gradient(135deg,#8B5CF6,#EC4899);opacity:0;transition:var(--transition)}
+.btn-login:hover::before{opacity:1}
+.btn-login:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(236,72,153,0.35)}
+.btn-login:active{transform:translateY(0)}
+.btn-login .btn-text,.btn-login .spinner{position:relative;z-index:1}
+.btn .spinner{display:none;width:20px;height:20px;border:3px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto}
+.btn.loading .spinner{display:block}
+.btn.loading .btn-text{display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error{color:#EC4899;font-size:12px;text-align:center;min-height:18px;margin-top:8px;font-weight:500}
+.success{color:#10B981;font-size:12px;text-align:center;min-height:18px;margin-top:8px;font-weight:500}
+.login-info{color:rgba(255,255,255,0.12);font-size:10px;text-align:center;margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.03);letter-spacing:0.5px;text-transform:uppercase}
+.login-info span{color:rgba(255,255,255,0.2)}
+.login-divider{display:flex;align-items:center;gap:12px;margin:16px 0;color:rgba(255,255,255,0.06);font-size:10px;text-transform:uppercase;letter-spacing:1px}
+.login-divider::before,.login-divider::after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.04)}
+#dashboardContent{display:none;opacity:0;transition:opacity 0.5s ease}
+#dashboardContent.visible{display:block;opacity:1}
+.topbar{background:linear-gradient(135deg,#0a0a0a 0%,#1a0a2e 50%,#0a1628 100%);border-bottom:2px solid rgba(236,72,153,0.10);padding:12px 28px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;flex-wrap:wrap;gap:10px}
 .topbar .brand{display:flex;align-items:center;gap:12px}
-.topbar .brand .logo{width:40px;height:40px;background:linear-gradient(135deg,#EC4899,#8B5CF6);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#fff;box-shadow:0 0 30px rgba(236,72,153,0.3);transition:var(--transition)}
-.topbar .brand .logo:hover{transform:rotate(-5deg) scale(1.05);box-shadow:0 0 50px rgba(236,72,153,0.5)}
-.topbar .brand .title{font-size:16px;font-weight:800;color:#fff;letter-spacing:-0.3px}
+.topbar .brand .logo{width:40px;height:40px;background:linear-gradient(135deg,#EC4899,#8B5CF6);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#fff;box-shadow:0 0 30px rgba(236,72,153,0.2);transition:var(--transition)}
+.topbar .brand .logo:hover{transform:rotate(-5deg) scale(1.05);box-shadow:0 0 50px rgba(236,72,153,0.3)}
+.topbar .brand .title{font-size:15px;font-weight:800;color:#fff;letter-spacing:-0.3px}
 .topbar .brand .title span{background:linear-gradient(135deg,#EC4899,#FBBF24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.topbar .brand .sub{font-size:10px;font-weight:500;color:var(--text-secondary);background:rgba(255,255,255,0.05);padding:3px 12px;border-radius:16px;border:1px solid rgba(255,255,255,0.06)}
+.topbar .brand .sub{font-size:9px;font-weight:600;color:var(--text-muted);background:rgba(255,255,255,0.04);padding:3px 12px;border-radius:12px;border:1px solid rgba(255,255,255,0.04);text-transform:uppercase;letter-spacing:0.5px}
 .topbar .right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.topbar .right .source-badge{padding:5px 14px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:#3B82F6;display:flex;align-items:center;gap:5px}
+.topbar .right .source-badge{padding:5px 14px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.15);color:#3B82F6;display:flex;align-items:center;gap:5px}
 .topbar .right .source-badge .dot{width:7px;height:7px;border-radius:50%;display:inline-block;animation:pulse 2s infinite}
 .topbar .right .source-badge .dot.blue{background:#3B82F6}
 .topbar .right .source-badge .dot.green{background:#10B981}
 .topbar .right .source-badge .dot.gold{background:#FBBF24}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(0.8)}}
-.topbar .right .user-info{font-size:11px;color:var(--text-secondary);background:rgba(255,255,255,0.04);padding:4px 14px;border-radius:20px;border:1px solid var(--border-color)}
-.topbar .right .clear-cache-btn{background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);padding:5px 14px;border-radius:8px;cursor:pointer;color:#FBBF24;font-size:11px;font-weight:600;transition:var(--transition)}
-.topbar .right .clear-cache-btn:hover{background:rgba(251,191,36,0.2);border-color:rgba(251,191,36,0.5)}
-.topbar .right .logout-btn{background:rgba(236,72,153,0.1);border:1px solid rgba(236,72,153,0.2);padding:5px 14px;border-radius:8px;cursor:pointer;color:#EC4899;font-size:11px;font-weight:600;transition:var(--transition)}
-.topbar .right .logout-btn:hover{background:rgba(236,72,153,0.2);border-color:rgba(236,72,153,0.4)}
-.source-selector{background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border-color);padding:6px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.source-selector .label{font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px}
-.source-btn{padding:4px 16px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.3s ease;border:1px solid var(--border-color);background:transparent;color:var(--text-muted)}
-.source-btn:hover{background:rgba(255,255,255,0.05);color:var(--text-primary)}
-.source-btn[data-source="a"].active{background:rgba(59,130,246,0.15);border-color:#3B82F6;color:#3B82F6;box-shadow:0 0 20px rgba(59,130,246,0.15)}
-.source-btn[data-source="b"].active{background:rgba(16,185,129,0.15);border-color:#10B981;color:#10B981;box-shadow:0 0 20px rgba(16,185,129,0.15)}
-.source-btn[data-source="merged"].active{background:rgba(251,191,36,0.15);border-color:#FBBF24;color:#FBBF24;box-shadow:0 0 20px rgba(251,191,36,0.15)}
-#sourceStatus{font-size:10px;font-weight:600;margin-left:auto;padding:3px 14px;border-radius:20px;background:rgba(255,255,255,0.03)}
-#sourceStatus.a{color:#3B82F6;border:1px solid rgba(59,130,246,0.2)}
-#sourceStatus.b{color:#10B981;border:1px solid rgba(16,185,129,0.2)}
-#sourceStatus.merged{color:#FBBF24;border:1px solid rgba(251,191,36,0.2)}
+.topbar .right .user-info{font-size:11px;color:var(--text-secondary);background:rgba(255,255,255,0.03);padding:4px 14px;border-radius:20px;border:1px solid var(--border-color)}
+.topbar .right .clear-cache-btn{background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.12);padding:5px 14px;border-radius:8px;cursor:pointer;color:#FBBF24;font-size:10px;font-weight:600;transition:var(--transition)}
+.topbar .right .clear-cache-btn:hover{background:rgba(251,191,36,0.15);border-color:rgba(251,191,36,0.25)}
+.topbar .right .logout-btn{background:rgba(236,72,153,0.08);border:1px solid rgba(236,72,153,0.10);padding:5px 14px;border-radius:8px;cursor:pointer;color:#EC4899;font-size:10px;font-weight:600;transition:var(--transition)}
+.topbar .right .logout-btn:hover{background:rgba(236,72,153,0.15);border-color:rgba(236,72,153,0.2)}
+.source-selector{background:rgba(255,255,255,0.01);border-bottom:1px solid var(--border-color);padding:6px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.source-selector .label{font-size:9px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px}
+.source-btn{padding:4px 16px;border-radius:20px;font-size:10px;font-weight:700;cursor:pointer;transition:all 0.3s ease;border:1px solid var(--border-color);background:transparent;color:var(--text-muted)}
+.source-btn:hover{background:rgba(255,255,255,0.04);color:var(--text-primary)}
+.source-btn[data-source="a"].active{background:rgba(59,130,246,0.12);border-color:#3B82F6;color:#3B82F6;box-shadow:0 0 20px rgba(59,130,246,0.08)}
+.source-btn[data-source="b"].active{background:rgba(16,185,129,0.12);border-color:#10B981;color:#10B981;box-shadow:0 0 20px rgba(16,185,129,0.08)}
+.source-btn[data-source="merged"].active{background:rgba(251,191,36,0.12);border-color:#FBBF24;color:#FBBF24;box-shadow:0 0 20px rgba(251,191,36,0.08)}
+#sourceStatus{font-size:9px;font-weight:700;margin-left:auto;padding:3px 14px;border-radius:20px;background:rgba(255,255,255,0.02)}
+#sourceStatus.a{color:#3B82F6;border:1px solid rgba(59,130,246,0.10)}
+#sourceStatus.b{color:#10B981;border:1px solid rgba(16,185,129,0.10)}
+#sourceStatus.merged{color:#FBBF24;border:1px solid rgba(251,191,36,0.10)}
 .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:16px 20px 6px 20px}
-.kpi-card{background:rgba(255,255,255,0.03);border:1px solid var(--border-color);border-radius:var(--radius);padding:14px 18px;transition:var(--transition);position:relative;overflow:hidden}
+.kpi-card{background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:var(--radius);padding:14px 18px;transition:var(--transition);position:relative;overflow:hidden}
 .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
 .kpi-card:nth-child(1)::before{background:linear-gradient(90deg,#EC4899,#8B5CF6)}
 .kpi-card:nth-child(2)::before{background:linear-gradient(90deg,#3B82F6,#06B6D4)}
 .kpi-card:nth-child(3)::before{background:linear-gradient(90deg,#10B981,#34D399)}
 .kpi-card:nth-child(4)::before{background:linear-gradient(90deg,#FBBF24,#F97316)}
-.kpi-card:hover{background:rgba(255,255,255,0.05);transform:translateY(-2px)}
-.kpi-card .label{font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.3px}
+.kpi-card:hover{background:rgba(255,255,255,0.04);transform:translateY(-2px);border-color:rgba(255,255,255,0.08)}
+.kpi-card .label{font-size:9px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px}
 .kpi-card .value{font-size:26px;font-weight:900;color:#fff;margin-top:2px}
 .kpi-card .value.pink{color:#EC4899}
 .kpi-card .value.blue{color:#3B82F6}
 .kpi-card .value.green{color:#10B981}
 .kpi-card .value.gold{color:#FBBF24}
-.kpi-card .trend{font-size:11px;font-weight:600;margin-top:4px;display:inline-block;padding:1px 10px;border-radius:12px}
-.kpi-card .trend.up{color:#10B981;background:rgba(16,185,129,0.1)}
-.kpi-card .trend.down{color:#EC4899;background:rgba(236,72,153,0.1)}
+.kpi-card .trend{font-size:10px;font-weight:700;margin-top:4px;display:inline-block;padding:1px 10px;border-radius:12px}
+.kpi-card .trend.up{color:#10B981;background:rgba(16,185,129,0.08)}
+.kpi-card .trend.down{color:#EC4899;background:rgba(236,72,153,0.08)}
+.kpi-card .source-badge{font-size:8px;padding:1px 10px;border-radius:10px;margin-top:4px;display:inline-block;font-weight:700;background:rgba(255,255,255,0.04);color:var(--text-muted)}
 .grid-main{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:0 20px 12px 20px}
-.grid-main .card{background:rgba(255,255,255,0.03);border:1px solid var(--border-color);border-radius:var(--radius);overflow:hidden;transition:var(--transition)}
-.grid-main .card:hover{border-color:rgba(255,255,255,0.08)}
-.grid-main .card .card-header{padding:12px 16px;background:rgba(255,255,255,0.02);font-weight:700;font-size:13px;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px}
-.grid-main .card .card-header .count{font-weight:400;font-size:10px;color:var(--text-muted);background:rgba(255,255,255,0.04);padding:1px 10px;border-radius:12px}
+.grid-main .card{background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:var(--radius);overflow:hidden;transition:var(--transition)}
+.grid-main .card:hover{border-color:rgba(255,255,255,0.06)}
+.grid-main .card .card-header{padding:10px 16px;background:rgba(255,255,255,0.01);font-weight:700;font-size:12px;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;color:var(--text-secondary)}
+.grid-main .card .card-header .count{font-weight:400;font-size:9px;color:var(--text-muted);background:rgba(255,255,255,0.03);padding:1px 10px;border-radius:10px}
 .grid-main .card .card-body{padding:12px 14px}
 .grid-secondary{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:0 20px 12px 20px}
-.grid-secondary .card{background:rgba(255,255,255,0.03);border:1px solid var(--border-color);border-radius:var(--radius);overflow:hidden;transition:var(--transition)}
-.grid-secondary .card:hover{border-color:rgba(255,255,255,0.08)}
-.grid-secondary .card .card-header{padding:12px 16px;background:rgba(255,255,255,0.02);font-weight:700;font-size:13px;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px}
+.grid-secondary .card{background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:var(--radius);overflow:hidden;transition:var(--transition)}
+.grid-secondary .card:hover{border-color:rgba(255,255,255,0.06)}
+.grid-secondary .card .card-header{padding:10px 16px;background:rgba(255,255,255,0.01);font-weight:700;font-size:12px;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;color:var(--text-secondary)}
 .grid-secondary .card .card-body{padding:10px 14px}
-.badge{display:inline-block;padding:1px 10px;border-radius:12px;font-size:10px;font-weight:700}
-.badge-success{background:rgba(16,185,129,0.15);color:#10B981}
-.badge-danger{background:rgba(236,72,153,0.15);color:#EC4899}
-.badge-warning{background:rgba(251,191,36,0.15);color:#FBBF24}
-.badge-primary{background:rgba(59,130,246,0.15);color:#3B82F6}
-.badge-purple{background:rgba(139,92,246,0.15);color:#8B5CF6}
-.badge-pink{background:rgba(236,72,153,0.15);color:#EC4899}
-.badge-cyan{background:rgba(6,182,212,0.15);color:#06B6D4}
-.activity-item{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.03);font-size:12px}
-.activity-item .time{color:var(--text-muted);font-size:10px}
+.badge{display:inline-block;padding:1px 10px;border-radius:10px;font-size:9px;font-weight:700}
+.badge-success{background:rgba(16,185,129,0.10);color:#10B981}
+.badge-danger{background:rgba(236,72,153,0.10);color:#EC4899}
+.badge-warning{background:rgba(251,191,36,0.10);color:#FBBF24}
+.badge-primary{background:rgba(59,130,246,0.10);color:#3B82F6}
+.badge-purple{background:rgba(139,92,246,0.10);color:#8B5CF6}
+.badge-pink{background:rgba(236,72,153,0.10);color:#EC4899}
+.badge-cyan{background:rgba(6,182,212,0.10);color:#06B6D4}
+.empty-state{text-align:center;padding:24px 12px;color:var(--text-muted);font-size:12px}
+.school-item{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.03);font-size:11px;transition:var(--transition)}
+.school-item:hover{background:rgba(255,255,255,0.02);border-radius:6px}
+.school-item .name{font-weight:600;color:var(--text-primary)}
+.school-item .stats{display:flex;gap:8px;font-size:9px;color:var(--text-muted)}
+.school-item .stats span{background:rgba(255,255,255,0.03);padding:1px 8px;border-radius:8px}
+.activity-item{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.02);font-size:11px}
+.activity-item .time{color:var(--text-muted);font-size:9px}
 .activity-item .desc{color:var(--text-secondary)}
-.school-item{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.03);font-size:12px;transition:var(--transition)}
-.school-item:hover{background:rgba(255,255,255,0.03);border-radius:6px}
-.school-item .name{font-weight:600}
-.school-item .stats{display:flex;gap:10px;font-size:10px;color:var(--text-muted)}
-.school-item .stats span{background:rgba(255,255,255,0.04);padding:1px 8px;border-radius:10px}
-.chart-placeholder{height:100px;background:rgba(255,255,255,0.02);border-radius:8px;display:flex;align-items:flex-end;justify-content:space-around;padding:8px 4px;gap:4px}
-.chart-bar{width:100%;border-radius:4px 4px 0 0;transition:var(--transition);min-height:8px}
-.chart-bar:nth-child(1){height:65px;background:linear-gradient(180deg,#EC4899,#8B5CF6)}
-.chart-bar:nth-child(2){height:45px;background:linear-gradient(180deg,#3B82F6,#06B6D4)}
-.chart-bar:nth-child(3){height:80px;background:linear-gradient(180deg,#10B981,#34D399)}
-.chart-bar:nth-child(4){height:55px;background:linear-gradient(180deg,#FBBF24,#F97316)}
-.chart-bar:nth-child(5){height:70px;background:linear-gradient(180deg,#8B5CF6,#EC4899)}
-.chart-bar:nth-child(6){height:40px;background:linear-gradient(180deg,#06B6D4,#3B82F6)}
-.chart-bar:nth-child(7){height:90px;background:linear-gradient(180deg,#F97316,#FBBF24)}
-.chart-labels{display:flex;justify-content:space-around;font-size:8px;color:var(--text-muted);padding-top:4px}
-.tabs-bottom{display:flex;gap:4px;padding:8px 20px 4px 20px;flex-wrap:wrap;border-top:1px solid var(--border-color);margin-top:4px}
-.tab-btn{background:rgba(255,255,255,0.03);border:1px solid var(--border-color);padding:6px 14px;border-radius:8px;font-size:10px;font-weight:600;color:var(--text-muted);cursor:pointer;transition:var(--transition);display:flex;align-items:center;gap:4px}
-.tab-btn:hover{background:rgba(255,255,255,0.06);color:var(--text-secondary);border-color:rgba(255,255,255,0.1)}
+.chart-placeholder{height:80px;background:rgba(255,255,255,0.01);border-radius:8px;display:flex;align-items:flex-end;justify-content:space-around;padding:6px 2px;gap:3px}
+.chart-bar{width:100%;border-radius:3px 3px 0 0;transition:var(--transition);min-height:6px}
+.chart-bar:nth-child(1){height:55px;background:linear-gradient(180deg,#EC4899,#8B5CF6)}
+.chart-bar:nth-child(2){height:35px;background:linear-gradient(180deg,#3B82F6,#06B6D4)}
+.chart-bar:nth-child(3){height:70px;background:linear-gradient(180deg,#10B981,#34D399)}
+.chart-bar:nth-child(4){height:45px;background:linear-gradient(180deg,#FBBF24,#F97316)}
+.chart-bar:nth-child(5){height:60px;background:linear-gradient(180deg,#8B5CF6,#EC4899)}
+.chart-bar:nth-child(6){height:30px;background:linear-gradient(180deg,#06B6D4,#3B82F6)}
+.chart-bar:nth-child(7){height:80px;background:linear-gradient(180deg,#F97316,#FBBF24)}
+.chart-labels{display:flex;justify-content:space-around;font-size:7px;color:var(--text-muted);padding-top:4px}
+.tabs-bottom{display:flex;gap:3px;padding:8px 20px 4px 20px;flex-wrap:wrap;border-top:1px solid var(--border-color);margin-top:4px}
+.tab-btn{background:rgba(255,255,255,0.02);border:1px solid var(--border-color);padding:5px 12px;border-radius:8px;font-size:9px;font-weight:700;color:var(--text-muted);cursor:pointer;transition:var(--transition);display:flex;align-items:center;gap:4px}
+.tab-btn:hover{background:rgba(255,255,255,0.04);color:var(--text-secondary);border-color:rgba(255,255,255,0.06)}
 .tab-btn.active{background:linear-gradient(135deg,#EC4899,#8B5CF6);color:#fff;border-color:var(--pink);box-shadow:0 2px 12px var(--pink-glow)}
-.tab-btn .tab-count{font-size:9px;background:rgba(255,255,255,0.15);padding:0 6px;border-radius:10px;color:inherit}
+.tab-btn .tab-count{font-size:8px;background:rgba(255,255,255,0.12);padding:0 6px;border-radius:8px;color:inherit}
 .tab-panel{display:none;padding:12px 20px}
 .tab-panel.active{display:block}
-.empty-state{text-align:center;padding:24px 12px;color:var(--text-muted);font-size:13px}
+.card{background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;transition:var(--transition)}
+.card:hover{border-color:rgba(255,255,255,0.06)}
+.card-header{padding:10px 16px;background:rgba(255,255,255,0.01);font-weight:700;font-size:12px;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;color:var(--text-secondary)}
+.card-header .count{font-weight:400;font-size:9px;color:var(--text-muted);background:rgba(255,255,255,0.03);padding:1px 10px;border-radius:10px}
+.card-header-left{display:flex;align-items:center;gap:8px}
+.card-header-actions{display:flex;gap:6px;flex-wrap:wrap}
+.card-body{padding:12px 14px}
 .filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center}
-.filter-row input,.filter-row select{padding:6px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--border-color);border-radius:6px;color:#fff;font-size:12px;outline:none;transition:var(--transition)}
+.filter-row input,.filter-row select{padding:6px 12px;background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:6px;color:#fff;font-size:11px;outline:none;transition:var(--transition)}
 .filter-row input:focus,.filter-row select:focus{border-color:var(--pink)}
 .filter-row input::placeholder{color:var(--text-muted)}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:5px 14px;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;transition:var(--transition)}
+.filter-group{display:flex;align-items:center;gap:6px;flex:1;min-width:160px}
+.filter-group input,.filter-group select{padding:6px 12px;background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:6px;color:#fff;font-size:11px;outline:none;transition:var(--transition);width:100%}
+.filter-group input:focus,.filter-group select:focus{border-color:var(--pink)}
+.filter-group input::placeholder{color:var(--text-muted)}
+.filter-icon{font-size:12px;color:var(--text-muted)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:4px 12px;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;transition:var(--transition)}
 .btn-primary{background:linear-gradient(135deg,#EC4899,#8B5CF6);color:#fff;box-shadow:0 2px 8px var(--pink-glow)}
 .btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 16px var(--pink-glow)}
 .btn-outline{background:transparent;border:1px solid var(--border-color);color:var(--text-secondary)}
-.btn-outline:hover{background:rgba(255,255,255,0.05);color:#fff}
-.btn-sm{padding:3px 10px;font-size:10px;border-radius:4px}
-.btn-refresh{background:rgba(255,255,255,0.04);color:var(--text-secondary);border:1px solid var(--border-color)}
-.btn-refresh:hover{background:rgba(255,255,255,0.08);color:#fff}
-.btn-cache{background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.2);color:#FBBF24}
-.btn-cache:hover{background:rgba(251,191,36,0.2)}
-.table-wrapper{overflow-x:auto;border-radius:6px;border:1px solid var(--border-color);background:rgba(0,0,0,0.15)}
-.table-wrapper table{width:100%;border-collapse:collapse;font-size:12px}
-.table-wrapper th,.table-wrapper td{padding:6px 10px;text-align:left;border-bottom:1px solid var(--border-color);vertical-align:middle}
-.table-wrapper th{background:rgba(255,255,255,0.02);color:var(--pink);font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:0.3px}
-.table-wrapper tr:hover td{background:rgba(255,255,255,0.02)}
+.btn-outline:hover{background:rgba(255,255,255,0.04);color:#fff}
+.btn-sm{padding:3px 8px;font-size:9px;border-radius:4px}
+.btn-refresh{background:rgba(255,255,255,0.02);color:var(--text-secondary);border:1px solid var(--border-color)}
+.btn-refresh:hover{background:rgba(255,255,255,0.04);color:#fff}
+.btn-add{background:rgba(139,92,246,0.10);color:#8B5CF6;border:1px solid rgba(139,92,246,0.10)}
+.btn-add:hover{background:rgba(139,92,246,0.15)}
+.btn-success{background:rgba(16,185,129,0.10);color:#10B981;border:1px solid rgba(16,185,129,0.10)}
+.btn-success:hover{background:rgba(16,185,129,0.15)}
+.btn-danger{background:rgba(236,72,153,0.10);color:#EC4899;border:1px solid rgba(236,72,153,0.10)}
+.btn-danger:hover{background:rgba(236,72,153,0.15)}
+.table-wrapper{overflow-x:auto;border-radius:6px;border:1px solid var(--border-color);background:rgba(0,0,0,0.10)}
+.table-wrapper table{width:100%;border-collapse:collapse;font-size:11px}
+.table-wrapper th,.table-wrapper td{padding:5px 8px;text-align:left;border-bottom:1px solid var(--border-color);vertical-align:middle}
+.table-wrapper th{background:rgba(255,255,255,0.01);color:var(--pink);font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:0.5px}
+.table-wrapper tr:hover td{background:rgba(255,255,255,0.01)}
 .toast-container{position:fixed;top:12px;right:12px;z-index:9999;display:flex;flex-direction:column-reverse;gap:6px;max-width:90%;pointer-events:none}
-.toast{background:rgba(20,20,40,0.95);backdrop-filter:blur(20px);border-radius:10px;padding:12px 18px;box-shadow:0 12px 40px rgba(0,0,0,0.4);border-left:3px solid var(--pink);font-size:13px;color:#fff;pointer-events:auto;animation:toastIn 0.4s cubic-bezier(0.34,1.56,0.64,1);min-width:240px}
-.toast .toast-title{font-weight:700;font-size:13px;margin-bottom:1px}
-.toast .toast-msg{font-size:12px;opacity:0.9}
+.toast{background:rgba(20,20,40,0.95);backdrop-filter:blur(20px);border-radius:10px;padding:12px 18px;box-shadow:0 12px 40px rgba(0,0,0,0.4);border-left:3px solid var(--pink);font-size:12px;color:#fff;pointer-events:auto;animation:toastIn 0.4s cubic-bezier(0.34,1.56,0.64,1);min-width:220px}
+.toast .toast-title{font-weight:700;font-size:12px;margin-bottom:1px}
+.toast .toast-msg{font-size:11px;opacity:0.9}
 .toast.removing{animation:toastOut 0.4s ease forwards}
 .toast.error{border-left-color:#EC4899}
 .toast.warning{border-left-color:#FBBF24}
 .toast.success{border-left-color:#10B981}
 @keyframes toastIn{from{transform:translateY(-60px) scale(0.9);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
 @keyframes toastOut{from{transform:translateY(0) scale(1);opacity:1}to{transform:translateY(-60px) scale(0.9);opacity:0}}
-.cache-indicator{font-size:9px;color:var(--text-muted);background:rgba(255,255,255,0.03);padding:2px 10px;border-radius:12px;border:1px solid var(--border-color)}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(12px);z-index:999999;display:flex;align-items:center;justify-content:center;visibility:hidden;opacity:0;transition:opacity .3s ease}
+.modal-overlay.show{visibility:visible;opacity:1}
+.modal-card{background:rgba(20,20,40,0.98);backdrop-filter:blur(30px);border-radius:20px;border:1px solid var(--border-color);width:100%;max-width:440px;padding:28px 24px 32px;max-height:90vh;overflow-y:auto;transform:scale(0.9);box-shadow:0 30px 80px rgba(0,0,0,0.6);transition:transform .35s cubic-bezier(0.34,1.56,0.64,1)}
+.modal-overlay.show .modal-card{transform:scale(1)}
+.modal-card h3{font-size:18px;font-weight:800;margin-bottom:14px;text-align:center;color:#fff}
+.modal-card h3::after{content:'';display:block;width:32px;height:2px;background:var(--pink);margin:8px auto 0;border-radius:4px}
+.modal-buttons{display:flex;gap:10px;margin-top:16px;justify-content:center;flex-wrap:wrap}
+.modal-buttons .btn{flex:1;min-width:80px;font-size:12px}
+.code-input-group{display:flex;gap:10px;align-items:center;background:rgba(255,255,255,0.02);border-radius:10px;padding:12px 16px;border:1px solid var(--border-color);margin:10px 0}
+.code-input-group input{flex:1;padding:8px 12px;background:rgba(255,255,255,0.03);border:2px solid rgba(139,92,246,0.20);border-radius:8px;color:#fff;font-size:16px;text-align:center;letter-spacing:4px;font-family:monospace;outline:none;transition:var(--transition)}
+.code-input-group input:focus{border-color:#8B5CF6;box-shadow:0 0 0 4px rgba(139,92,246,0.08)}
+.code-input-group input::placeholder{color:var(--text-muted);letter-spacing:2px;font-size:12px;text-align:center}
+.pagination-container{display:flex;justify-content:space-between;align-items:center;padding:6px 2px;flex-wrap:wrap;gap:4px;border-top:1px solid var(--border-color)}
+.pagination-info{font-size:10px;color:var(--text-muted)}
+.pagination-buttons{display:flex;gap:2px;flex-wrap:wrap}
+.pagination-btn{background:rgba(255,255,255,0.02);border:1px solid var(--border-color);color:var(--text-muted);padding:2px 8px;border-radius:4px;font-size:9px;cursor:pointer;transition:var(--transition)}
+.pagination-btn:hover{background:rgba(255,255,255,0.04);color:#fff}
+.pagination-btn.active{background:var(--pink);color:#fff;border-color:var(--pink)}
+.form-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.form-group-db{margin-bottom:10px}
+.form-group-db label{display:block;font-size:10px;font-weight:700;color:var(--text-secondary);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.3px}
+.form-group-db input,.form-group-db select{width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:12px;background:rgba(255,255,255,0.02);color:#fff;outline:none;transition:var(--transition)}
+.form-group-db input:focus,.form-group-db select:focus{border-color:var(--pink);background:rgba(255,255,255,0.04)}
+.form-group-db input::placeholder{color:var(--text-muted)}
 @media(max-width:1024px){.kpi-row{grid-template-columns:repeat(2,1fr)}.grid-main{grid-template-columns:1fr 1fr}.grid-secondary{grid-template-columns:1fr}}
-@media(max-width:768px){.topbar{padding:10px 16px}.topbar .brand .sub{display:none}.kpi-row{padding:10px 12px 4px 12px;grid-template-columns:repeat(2,1fr)}.kpi-card{padding:10px 14px}.kpi-card .value{font-size:20px}.grid-main{grid-template-columns:1fr;padding:0 12px}.grid-secondary{grid-template-columns:1fr;padding:0 12px}.source-selector{padding:6px 12px;gap:6px}.source-btn{font-size:10px;padding:3px 12px}.tabs-bottom{padding:6px 12px;gap:3px}.tab-btn{font-size:9px;padding:4px 10px}.tab-panel{padding:8px 12px}.topbar .right .clear-cache-btn span{display:none}}
+@media(max-width:768px){.topbar{padding:10px 16px}.topbar .brand .sub{display:none}.kpi-row{padding:10px 12px 4px 12px;grid-template-columns:repeat(2,1fr)}.kpi-card{padding:10px 14px}.kpi-card .value{font-size:20px}.grid-main{grid-template-columns:1fr;padding:0 12px}.grid-secondary{grid-template-columns:1fr;padding:0 12px}.source-selector{padding:6px 12px;gap:6px}.source-btn{font-size:9px;padding:3px 12px}.tabs-bottom{padding:6px 12px;gap:3px}.tab-btn{font-size:8px;padding:4px 8px}.tab-panel{padding:8px 12px}.topbar .right .clear-cache-btn span{display:none}.login-card{padding:28px 20px;margin:16px}.form-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
+<div id="loginOverlay">
+<div class="login-card">
+<div class="logo">
+<div class="icon">N</div>
+<div class="badge-dsi">DIRECTION STRATÉGIQUE ET INNOVATION</div>
+</div>
+<h1>Accès Administrateur</h1>
+<p class="sub">Connectez-vous aux <strong>SOURCE A</strong> et <strong>SOURCE B</strong></p>
+<div class="sources-info">
+<span class="badge a">🔵 SOURCE A</span>
+<span class="badge b">🟢 SOURCE B</span>
+</div>
+<div class="form-group">
+<label>📧 Adresse email</label>
+<div class="input-wrapper">
+<span class="input-icon">✉️</span>
+<input type="email" id="loginEmail" placeholder="admin@netubex.com" />
+</div>
+</div>
+<div class="form-group">
+<label>🔑 Mot de passe</label>
+<div class="input-wrapper">
+<span class="input-icon">🔒</span>
+<input type="password" id="loginPassword" placeholder="••••••••" />
+<button class="toggle-password" id="togglePassword" type="button">👁️</button>
+</div>
+</div>
+<div class="status-box" id="statusBox" style="display:none;">
+<div class="status-item"><span>🔵 SOURCE A</span><span class="check waiting" id="statusA">⏳ Connexion...</span></div>
+<div class="status-item"><span>🟢 SOURCE B</span><span class="check waiting" id="statusB">⏳ Connexion...</span></div>
+</div>
+<button class="btn btn-login" id="loginBtn">
+<span class="spinner"></span>
+<span class="btn-text">🔓 SE CONNECTER</span>
+</button>
+<div id="loginError" class="error"></div>
+<div id="loginSuccess" class="success"></div>
+<div class="login-divider">Sécurisé</div>
+<div class="login-info"><span>🔐</span> Accès protégé · NeTubeX DSI</div>
+</div>
+</div>
+<div id="dashboardContent">
 <div class="topbar">
 <div class="brand">
 <div class="logo">N</div>
@@ -153,7 +292,7 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 <div class="right">
 <span class="source-badge"><span class="dot blue"></span> SOURCE A</span>
 <span class="user-info" id="userEmailDisplay">👤 admin@dsi.net</span>
-<button class="clear-cache-btn" id="clearCacheBtn">🗑️ <span>Clear Cache</span></button>
+<button class="clear-cache-btn" id="clearCacheBtn">🗑️ <span>Cache</span></button>
 <button class="logout-btn" id="logoutBtn">🚪 Logout</button>
 </div>
 </div>
@@ -163,7 +302,7 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 <button class="source-btn" data-source="b">🟢 SOURCE B</button>
 <button class="source-btn" data-source="merged">🟡 FUSIONNED</button>
 <span id="sourceStatus" class="a">🔵 SOURCE A · gesco-67c43</span>
-<span class="cache-indicator" id="cacheIndicator">⏳ Cache: Loading...</span>
+<span class="cache-indicator" id="cacheIndicator" style="font-size:8px;color:var(--text-muted);background:rgba(255,255,255,0.02);padding:2px 10px;border-radius:10px;border:1px solid var(--border-color)">💾 Cache: Loading...</span>
 </div>
 <div class="kpi-row">
 <div class="kpi-card"><div class="label">🏫 Schools</div><div class="value pink" id="hdrEcoles">0</div><div class="trend up" id="trend1">↑ 12%</div></div>
@@ -173,7 +312,7 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 </div>
 <div class="grid-main">
 <div class="card">
-<div class="card-header">📊 Monthly Activity <span class="count" id="activityCount">Last 7 days</span></div>
+<div class="card-header">📊 Monthly Activity <span class="count">Last 7 days</span></div>
 <div class="card-body">
 <div class="chart-placeholder">
 <div class="chart-bar"></div>
@@ -194,7 +333,7 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 </div>
 </div>
 <div class="card">
-<div class="card-header">📋 Recent Activity <span class="count" id="recentCount">Latest</span></div>
+<div class="card-header">📋 Recent Activity <span class="count">Latest</span></div>
 <div class="card-body" id="recentActivityContainer">
 <div class="empty-state">Loading...</div>
 </div>
@@ -205,9 +344,9 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 <div class="card-header">👥 Members Distribution <span class="count">By Section</span></div>
 <div class="card-body" id="distributionContainer">
 <div style="display:flex;gap:12px;justify-content:center;padding:8px 0">
-<div style="text-align:center"><div style="font-size:28px;font-weight:900;color:#8B5CF6" id="distA">0</div><div style="font-size:10px;color:var(--text-muted)">Secondary</div></div>
-<div style="text-align:center"><div style="font-size:28px;font-weight:900;color:#3B82F6" id="distB">0</div><div style="font-size:10px;color:var(--text-muted)">Primary</div></div>
-<div style="text-align:center"><div style="font-size:28px;font-weight:900;color:#10B981" id="distC">0</div><div style="font-size:10px;color:var(--text-muted)">Nursery</div></div>
+<div style="text-align:center"><div style="font-size:28px;font-weight:900;color:#8B5CF6" id="distA">0</div><div style="font-size:9px;color:var(--text-muted)">Secondary</div></div>
+<div style="text-align:center"><div style="font-size:28px;font-weight:900;color:#3B82F6" id="distB">0</div><div style="font-size:9px;color:var(--text-muted)">Primary</div></div>
+<div style="text-align:center"><div style="font-size:28px;font-weight:900;color:#10B981" id="distC">0</div><div style="font-size:9px;color:var(--text-muted)">Nursery</div></div>
 </div>
 </div>
 </div>
@@ -225,17 +364,42 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 <button class="tab-btn" data-tab="tab4">👥 Members C <span class="tab-count" id="tabCount4">0</span></button>
 <button class="tab-btn" data-tab="tab5">👨‍🏫 Teachers <span class="tab-count" id="tabCount5">0</span></button>
 <button class="tab-btn" data-tab="tab6">📄 Sheets <span class="tab-count" id="tabCount6">0</span></button>
-<button class="tab-btn" data-tab="tab7">🔐 Codes & Emails <span class="tab-count" id="tabCount7">0</span></button>
+<button class="tab-btn" data-tab="tab7">🔐 Codes <span class="tab-count" id="tabCount7">0</span></button>
 <button class="tab-btn" data-tab="tab10">🔑 Parent Codes <span class="tab-count" id="tabCount10">0</span></button>
 </div>
 <div id="tab1" class="tab-panel active">
 <div class="card">
-<div class="card-header">🏫 Schools Management <span class="count" id="schoolCountBadge">0</span></div>
+<div class="card-header">
+<div class="card-header-left">🏫 Schools Management</div>
+<div class="card-header-actions">
+<button class="btn btn-refresh btn-sm" id="refreshEcolesBtn">⟳</button>
+<button class="btn btn-add btn-sm" id="showAddSchool">+ Add</button>
+</div>
+</div>
+<div id="addSchoolForm" class="card-body" style="display:none;border-bottom:1px solid var(--border-color);background:rgba(139,92,246,0.02);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+<h3 style="font-size:14px;font-weight:700;color:var(--text-primary);">➕ New School</h3>
+<button class="btn btn-outline btn-sm" id="cancelSchoolBtn">✕</button>
+</div>
+<div class="form-grid">
+<div class="form-group-db"><label>Name *</label><input type="text" id="schoolName" placeholder="School name" /></div>
+<div class="form-group-db"><label>ID (auto)</label><input type="text" id="schoolId" readonly style="background:rgba(255,255,255,0.02);color:var(--pink);font-family:monospace;font-weight:600;" /></div>
+<div class="form-group-db"><label>Province</label><input type="text" id="schoolProvince" placeholder="Province" /></div>
+<div class="form-group-db"><label>City</label><input type="text" id="schoolCity" placeholder="City" /></div>
+<div class="form-group-db"><label>Phone</label><input type="text" id="schoolPhone" placeholder="+243..." /></div>
+<div class="form-group-db"><label>Director</label><input type="text" id="schoolDirector" placeholder="Director name" /></div>
+<div class="form-group-db" style="grid-column:1/-1;"><label>Address</label><input type="text" id="schoolAddress" placeholder="Full address" /></div>
+</div>
+<div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end;">
+<button class="btn btn-outline btn-sm" id="cancelSchoolBtn2">Cancel</button>
+<button class="btn btn-success btn-sm" id="saveSchoolBtn">💾 Create</button>
+</div>
+</div>
 <div class="card-body">
 <div class="filter-row">
-<input type="text" id="ecoleSearch" placeholder="Search school..." />
-<select id="ecoleStatutFilter"><option value="all">All</option><option value="actif">Active</option><option value="inactif">Inactive</option><option value="masque">Hidden</option></select>
-<span style="font-size:11px;color:var(--text-muted);margin-left:auto"><span id="filteredCount">0</span> schools</span>
+<div class="filter-group"><span class="filter-icon">🔍</span><input type="text" id="ecoleSearch" placeholder="Search..." /></div>
+<div class="filter-group"><span class="filter-icon">🏷️</span><select id="ecoleStatutFilter"><option value="all">All</option><option value="actif">Active</option><option value="inactif">Inactive</option><option value="masque">Hidden</option></select></div>
+<span style="font-size:10px;color:var(--text-muted);margin-left:auto;"><span id="filteredCount">0</span> schools</span>
 </div>
 <div class="school-list" id="ecolesContainer"><div class="empty-state">Loading...</div></div>
 </div>
@@ -246,10 +410,11 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 <div class="card-header">👥 Members A (Secondary) <span class="count" id="countA">0</span></div>
 <div class="card-body">
 <div class="filter-row">
-<input type="text" id="memberSearchA" placeholder="Search..." />
-<select id="memberEcoleFilterA"><option value="all">All Schools</option></select>
+<div class="filter-group"><span class="filter-icon">🔍</span><input type="text" id="memberSearchA" placeholder="Search..." /></div>
+<div class="filter-group"><span class="filter-icon">🏫</span><select id="memberEcoleFilterA"><option value="all">All Schools</option></select></div>
 </div>
 <div id="membersContainerA"><div class="empty-state">No members</div></div>
+<div class="pagination-container" id="membersPaginationA"><div class="pagination-info" id="membersPaginationInfoA">0 members</div><div class="pagination-buttons" id="membersPaginationButtonsA"></div></div>
 </div>
 </div>
 </div>
@@ -258,10 +423,11 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 <div class="card-header">👥 Members B (Primary) <span class="count" id="countB">0</span></div>
 <div class="card-body">
 <div class="filter-row">
-<input type="text" id="memberSearchB" placeholder="Search..." />
-<select id="memberEcoleFilterB"><option value="all">All Schools</option></select>
+<div class="filter-group"><span class="filter-icon">🔍</span><input type="text" id="memberSearchB" placeholder="Search..." /></div>
+<div class="filter-group"><span class="filter-icon">🏫</span><select id="memberEcoleFilterB"><option value="all">All Schools</option></select></div>
 </div>
 <div id="membersContainerB"><div class="empty-state">No members</div></div>
+<div class="pagination-container" id="membersPaginationB"><div class="pagination-info" id="membersPaginationInfoB">0 members</div><div class="pagination-buttons" id="membersPaginationButtonsB"></div></div>
 </div>
 </div>
 </div>
@@ -270,10 +436,11 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 <div class="card-header">👥 Members C (Nursery) <span class="count" id="countC">0</span></div>
 <div class="card-body">
 <div class="filter-row">
-<input type="text" id="memberSearchC" placeholder="Search..." />
-<select id="memberEcoleFilterC"><option value="all">All Schools</option></select>
+<div class="filter-group"><span class="filter-icon">🔍</span><input type="text" id="memberSearchC" placeholder="Search..." /></div>
+<div class="filter-group"><span class="filter-icon">🏫</span><select id="memberEcoleFilterC"><option value="all">All Schools</option></select></div>
 </div>
 <div id="membersContainerC"><div class="empty-state">No members</div></div>
+<div class="pagination-container" id="membersPaginationC"><div class="pagination-info" id="membersPaginationInfoC">0 members</div><div class="pagination-buttons" id="membersPaginationButtonsC"></div></div>
 </div>
 </div>
 </div>
@@ -282,8 +449,8 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 <div class="card-header">👨‍🏫 Teachers <span class="count" id="countTeachers">0</span></div>
 <div class="card-body">
 <div class="filter-row">
-<input type="text" id="teacherSearch" placeholder="Search..." />
-<select id="teacherEcoleFilter"><option value="all">All Schools</option></select>
+<div class="filter-group"><span class="filter-icon">🔍</span><input type="text" id="teacherSearch" placeholder="Search..." /></div>
+<div class="filter-group"><span class="filter-icon">🏫</span><select id="teacherEcoleFilter"><option value="all">All Schools</option></select></div>
 </div>
 <div id="teachersContainer"><div class="empty-state">No teachers</div></div>
 </div>
@@ -294,8 +461,8 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 <div class="card-header">📄 Sheets <span class="count" id="countSheets">0</span></div>
 <div class="card-body">
 <div class="filter-row">
-<input type="text" id="sheetSearch" placeholder="Search..." />
-<select id="sheetEcoleFilter"><option value="all">All Schools</option></select>
+<div class="filter-group"><span class="filter-icon">🔍</span><input type="text" id="sheetSearch" placeholder="Search..." /></div>
+<div class="filter-group"><span class="filter-icon">🏫</span><select id="sheetEcoleFilter"><option value="all">All Schools</option></select></div>
 </div>
 <div class="table-wrapper"><table><thead><tr><th>#</th><th>Subject</th><th>Class</th><th>Option</th><th>Teacher</th><th>School</th></tr></thead><tbody id="sheetsBody"></tbody></table></div>
 </div>
@@ -305,9 +472,7 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 <div class="card">
 <div class="card-header">🔐 Codes & Emails <span class="count" id="countCodes">0</span></div>
 <div class="card-body">
-<div class="filter-row">
-<select id="codesEmailsEcoleFilter"><option value="all">All Schools</option></select>
-</div>
+<div class="filter-row"><div class="filter-group"><span class="filter-icon">🏫</span><select id="codesEmailsEcoleFilter"><option value="all">All Schools</option></select></div></div>
 <div id="codesEmailsContainer"><div class="empty-state">No codes</div></div>
 </div>
 </div>
@@ -317,245 +482,712 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 <div class="card-header">🔑 Parent Codes <span class="count" id="countParentCodes">0</span></div>
 <div class="card-body">
 <div class="filter-row">
-<select id="codeEcoleSelect"><option value="all">All Schools</option></select>
-<input type="text" id="codeSearchInput" placeholder="Search by name..." />
+<div class="filter-group"><span class="filter-icon">🏫</span><select id="codeEcoleSelect"><option value="all">All Schools</option></select></div>
+<div class="filter-group"><span class="filter-icon">🔍</span><input type="text" id="codeSearchInput" placeholder="Search by name..." /></div>
 </div>
 <div id="codeResultsContainer"><div class="empty-state">Select a school</div></div>
 </div>
 </div>
 </div>
+</div>
 <div class="toast-container" id="toastContainer"></div>
-<script>
-(function(){
+<div class="modal-overlay" id="codeModal"><div class="modal-card"><h3>🔐 Verification</h3><p style="text-align:center;color:var(--text-muted);font-size:12px;margin-bottom:10px;">Enter access code</p>
+<div class="code-input-group"><input type="password" id="nxCodeInput" maxlength="8" placeholder="••••••••" style="letter-spacing:4px;font-size:18px;font-weight:700;" /><button class="btn btn-primary" id="nxCodeValidate">✅ Validate</button></div>
+<div id="codeError" style="color:var(--danger);font-size:11px;text-align:center;min-height:16px;"></div>
+<div class="modal-buttons"><button class="btn btn-outline" id="nxCodeCancel">Cancel</button></div>
+</div></div>
+<div class="modal-overlay" id="confirmModal"><div class="modal-card"><h3>⚠️ Confirm</h3><div id="confirmMessage" style="text-align:center;padding:12px;font-size:14px;color:var(--text-secondary);"></div>
+<div class="modal-buttons"><button class="btn btn-primary" id="confirmYes">Yes</button><button class="btn btn-outline" id="confirmNo">No</button></div>
+</div></div>
+<div class="modal-overlay" id="logoModal"><div class="modal-card"><h3>🖼️ Change Logo</h3><p style="text-align:center;color:var(--text-muted);font-size:12px;margin-bottom:10px;">Enter image URL</p>
+<div class="form-group-db"><label>Logo URL</label><input type="text" id="logoUrlInput" placeholder="https://example.com/logo.png" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:12px;background:rgba(255,255,255,0.02);color:#fff;outline:none;" /></div>
+<div id="logoPreviewContainer" style="text-align:center;margin:8px 0;display:none;"><img id="logoPreviewImg" src="" alt="Preview" style="max-width:80px;max-height:80px;border-radius:8px;border:2px solid var(--border-color);" /></div>
+<div class="modal-buttons"><button class="btn btn-success" id="logoValidateBtn">💾 Save</button><button class="btn btn-outline" id="logoCancelBtn">Cancel</button></div>
+</div></div>
+<script type="module">
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc } from "firebase/firestore";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+
+const firebaseConfigA = {apiKey: "AIzaSyDX430AIfzzgfq3o8tXHwQfIptgWOZ-K8c", authDomain: "gesco-67c43.firebaseapp.com", projectId: "gesco-67c43", storageBucket: "gesco-67c43.firebasestorage.app", messagingSenderId: "333004443566", appId: "1:333004443566:web:de41f60000e418dce9023f"};
+const firebaseConfigB = {apiKey: "AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw", authDomain: "gesco-2.firebaseapp.com", projectId: "gesco-2", storageBucket: "gesco-2.firebasestorage.app", messagingSenderId: "36319988765", appId: "1:36319988765:web:e8cd823804596495248af4"};
+
+const appA = initializeApp(firebaseConfigA, 'sourceA');
+const appB = initializeApp(firebaseConfigB, 'sourceB');
+const dbA = getFirestore(appA);
+const dbB = getFirestore(appB);
+const auth = getAuth(appA);
+
+const loginOverlay = document.getElementById('loginOverlay');
+const dashboardContent = document.getElementById('dashboardContent');
+const loginEmail = document.getElementById('loginEmail');
+const loginPassword = document.getElementById('loginPassword');
+const loginBtn = document.getElementById('loginBtn');
+const loginError = document.getElementById('loginError');
+const loginSuccess = document.getElementById('loginSuccess');
+const statusBox = document.getElementById('statusBox');
+const statusA = document.getElementById('statusA');
+const statusB = document.getElementById('statusB');
+const userEmailDisplay = document.getElementById('userEmailDisplay');
+const logoutBtn = document.getElementById('logoutBtn');
+const togglePassword = document.getElementById('togglePassword');
+
 const CACHE_KEY = 'netubex_dashboard_cache';
 const CACHE_TIME_KEY = 'netubex_cache_time';
 const CACHE_DURATION = 24 * 60 * 60 * 1000;
-let cachedData = null;
+const NX_CODE = "NXTheone";
+
+let activeSource = 'a';
 let allData = { schools: [], teachers: [], sheets: [], students: [], codes: [], parentCodes: [] };
 let membersA = [], membersB = [], membersC = [];
-let activeSource = 'a';
-function getCache(){try{const raw=localStorage.getItem(CACHE_KEY);if(!raw)return null;return JSON.parse(raw);}catch(e){return null;}}
-function setCache(data){try{localStorage.setItem(CACHE_KEY,JSON.stringify(data));localStorage.setItem(CACHE_TIME_KEY,Date.now().toString());}catch(e){}}
-function isCacheValid(){try{const time=localStorage.getItem(CACHE_TIME_KEY);if(!time)return false;return (Date.now()-parseInt(time))<CACHE_DURATION;}catch(e){return false;}}
-function clearCache(){try{localStorage.removeItem(CACHE_KEY);localStorage.removeItem(CACHE_TIME_KEY);cachedData=null;updateCacheIndicator('Cache cleared');toast('Cache cleared successfully','success');loadAllData();}catch(e){toast('Error clearing cache','error');}}
-function updateCacheIndicator(msg){const el=document.getElementById('cacheIndicator');if(el){const valid=isCacheValid();const time=localStorage.getItem(CACHE_TIME_KEY);if(valid && time){const age=Math.floor((Date.now()-parseInt(time))/3600000);el.textContent='💾 Cache: '+age+'h old';}else if(msg){el.textContent='💾 '+msg;}else{el.textContent='💾 Cache: expired';}}}
-function toast(msg,type){type=type||'success';const container=document.getElementById('toastContainer');if(!container)return;const titles={success:'✅ Success',error:'❌ Error',warning:'⚠️ Warning',info:'ℹ️ Info'};const el=document.createElement('div');el.className='toast '+type;el.innerHTML='<div class="toast-title">'+(titles[type]||'')+'</div><div class="toast-msg">'+msg+'</div>';container.appendChild(el);setTimeout(()=>{if(el.parentNode){el.classList.add('removing');setTimeout(()=>{if(el.parentNode)el.remove();},400);}},3500);}
-function escapeHtml(s){if(!s)return '';return String(s).replace(/[&<>]/g,m=>m==='&'?'&amp;':m==='<'?'&lt;':'>'?'&gt;':'');}
-function loadAllData(){
-const cached=getCache();
-if(cached && isCacheValid()){
-cachedData=cached;
-allData=cached.allData||{schools:[],teachers:[],sheets:[],students:[],codes:[],parentCodes:[]};
-membersA=cached.membersA||[];
-membersB=cached.membersB||[];
-membersC=cached.membersC||[];
-updateDashboard();
-updateCacheIndicator();
-toast('Data loaded from cache','info');
-return;
+let membersPageA = 1, membersPageB = 1, membersPageC = 1;
+const membersPerPage = 20;
+let currentUser = null;
+
+togglePassword?.addEventListener('click', function() {
+const input = document.getElementById('loginPassword');
+if (input.type === 'password') { input.type = 'text'; this.textContent = '🙈'; this.classList.add('active'); }
+else { input.type = 'password'; this.textContent = '👁️'; this.classList.remove('active'); }
+});
+
+function getDb() { return activeSource === 'a' ? dbA : activeSource === 'b' ? dbB : dbA; }
+function getSourceLabel() { return activeSource === 'a' ? 'SOURCE A' : activeSource === 'b' ? 'SOURCE B' : 'FUSIONNED'; }
+
+function toast(msg, type) {
+type = type || "success";
+const container = document.getElementById('toastContainer');
+if (!container) return;
+const titles = { success: "✅ Success", error: "❌ Error", warning: "⚠️ Warning", info: "ℹ️ Info" };
+const el = document.createElement("div");
+el.className = 'toast ' + type;
+el.innerHTML = '<div class="toast-title">' + (titles[type] || '') + '</div><div class="toast-msg">' + msg + '</div>';
+container.appendChild(el);
+setTimeout(() => { if (el.parentNode) { el.classList.add('removing'); setTimeout(() => { if (el.parentNode) el.remove(); }, 400); } }, 3500);
 }
-toast('Loading fresh data...','info');
-setTimeout(()=>{
-const mockSchools=[
-{id:'sch_001',nom:'Lycée Moderne de Kinshasa',province:'Kinshasa',ville:'Gombe',actif:true,masque:false,logoUrl:''},
-{id:'sch_002',nom:'École Primaire de la Paix',province:'Kinshasa',ville:'Lemba',actif:true,masque:false,logoUrl:''},
-{id:'sch_003',nom:'Complexe Scolaire Maternelle',province:'Kinshasa',ville:'Ngaliema',actif:true,masque:false,logoUrl:''},
-{id:'sch_004',nom:'Institut Technique de Lubumbashi',province:'Haut-Katanga',ville:'Lubumbashi',actif:true,masque:false,logoUrl:''},
-{id:'sch_005',nom:'Collège Saint Joseph',province:'Kinshasa',ville:'Kalamu',actif:false,masque:false,logoUrl:''},
-{id:'sch_006',nom:'École de la Réussite',province:'Kinshasa',ville:'Gombe',actif:true,masque:true,logoUrl:''}
-];
-const mockTeachers=[
-{id:'t1',ecoleId:'sch_001',ecoleNom:'Lycée Moderne de Kinshasa',nom:'Jean-Pierre Mukendi',code:'123456',email:'jp.mukendi@lycee.org',actif:true},
-{id:'t2',ecoleId:'sch_001',ecoleNom:'Lycée Moderne de Kinshasa',nom:'Marie-Claire Tshibola',code:'234567',email:'mc.tshibola@lycee.org',actif:true},
-{id:'t3',ecoleId:'sch_002',ecoleNom:'École Primaire de la Paix',nom:'Joseph Kabongo',code:'345678',email:'j.kabongo@primaire.org',actif:true},
-{id:'t4',ecoleId:'sch_003',ecoleNom:'Complexe Scolaire Maternelle',nom:'Louise Ntumba',code:'456789',email:'l.ntumba@maternelle.org',actif:true},
-{id:'t5',ecoleId:'sch_004',ecoleNom:'Institut Technique de Lubumbashi',nom:'David Kalala',code:'567890',email:'d.kalala@technique.org',actif:false}
-];
-const mockSheets=[
-{id:'s1',ecoleId:'sch_001',ecoleNom:'Lycée Moderne de Kinshasa',cours:'Mathématiques',classe:'6ème A',option:'Sciences',titulaire:'Jean-Pierre Mukendi'},
-{id:'s2',ecoleId:'sch_001',ecoleNom:'Lycée Moderne de Kinshasa',cours:'Physique',classe:'6ème B',option:'Sciences',titulaire:'Marie-Claire Tshibola'},
-{id:'s3',ecoleId:'sch_002',ecoleNom:'École Primaire de la Paix',cours:'Français',classe:'5ème',option:'',titulaire:'Joseph Kabongo'},
-{id:'s4',ecoleId:'sch_003',ecoleNom:'Complexe Scolaire Maternelle',cours:'Éveil',classe:'Maternelle',option:'',titulaire:'Louise Ntumba'}
-];
-const mockStudentsA=[
-{id:'a1',ecoleId:'sch_001',ecoleNom:'Lycée Moderne de Kinshasa',nom:'Mbuyi',prenom:'Jean',sexe:'M',classe:'6ème A',section:'secondary',parentCode:'PAR123'},
-{id:'a2',ecoleId:'sch_001',ecoleNom:'Lycée Moderne de Kinshasa',nom:'Kalonji',prenom:'Marie',sexe:'F',classe:'6ème B',section:'secondary',parentCode:'PAR456'},
-{id:'a3',ecoleId:'sch_004',ecoleNom:'Institut Technique de Lubumbashi',nom:'Tshisekedi',prenom:'Paul',sexe:'M',classe:'5ème',section:'secondary',parentCode:'PAR789'}
-];
-const mockStudentsB=[
-{id:'b1',ecoleId:'sch_002',ecoleNom:'École Primaire de la Paix',nom:'Kabila',prenom:'Joseph',sexe:'M',classe:'5ème',section:'primary',parentCode:'PRI123'},
-{id:'b2',ecoleId:'sch_002',ecoleNom:'École Primaire de la Paix',nom:'Lumumba',prenom:'Patrice',sexe:'M',classe:'4ème',section:'primary',parentCode:'PRI456'}
-];
-const mockStudentsC=[
-{id:'c1',ecoleId:'sch_003',ecoleNom:'Complexe Scolaire Maternelle',nom:'Mwamba',prenom:'Grace',sexe:'F',classe:'Maternelle',section:'nursery',parentCode:'NUR123'},
-{id:'c2',ecoleId:'sch_003',ecoleNom:'Complexe Scolaire Maternelle',nom:'Ilunga',prenom:'Ruth',sexe:'F',classe:'Maternelle',section:'nursery',parentCode:'NUR456'}
-];
-const mockCodes=[
-{ecoleId:'sch_001',ecoleNom:'Lycée Moderne de Kinshasa',codeDirection:'DIR001',codeComptabilite:'COM001',codePromoteur:'PRO001',emailDirection:'direction@lycee.org',emailComptabilite:'compta@lycee.org',emailPromoteur:'promo@lycee.org'},
-{ecoleId:'sch_002',ecoleNom:'École Primaire de la Paix',codeDirection:'DIR002',codeComptabilite:'COM002',codePromoteur:'PRO002',emailDirection:'direction@primaire.org',emailComptabilite:'compta@primaire.org',emailPromoteur:'promo@primaire.org'}
-];
-allData={schools:mockSchools,teachers:mockTeachers,sheets:mockSheets,students:[...mockStudentsA,...mockStudentsB,...mockStudentsC],codes:mockCodes,parentCodes:[...mockStudentsA,...mockStudentsB,...mockStudentsC].filter(s=>s.parentCode).map(s=>({id:s.id,ecole:s.ecoleId,ecoleNom:s.ecoleNom,nom:s.nom,prenom:s.prenom,parentCode:s.parentCode,classe:s.classe,section:s.section}))};
-membersA=mockStudentsA;membersB=mockStudentsB;membersC=mockStudentsC;
-const cacheData={allData,membersA,membersB,membersC,timestamp:Date.now()};
-setCache(cacheData);
-cachedData=cacheData;
-updateDashboard();
-updateCacheIndicator();
-toast('Data loaded successfully','success');
-},500);
-}
-function updateDashboard(){
-updateCounters();
-updateSelectors();
-loadSchools();
-loadMembersGeneric('membersContainerA',membersA,'memberEcoleFilterA','memberSearchA');
-loadMembersGeneric('membersContainerB',membersB,'memberEcoleFilterB','memberSearchB');
-loadMembersGeneric('membersContainerC',membersC,'memberEcoleFilterC','memberSearchC');
-loadTeachers();
-loadSheets();
-loadCodesEmails();
-loadParentCodes();
-loadTopSchools();
-loadRecentActivity();
-loadDistribution();
-loadSecurityOverview();
-updateTabCounts();
-}
-function updateCounters(){
-document.getElementById('hdrEcoles').textContent=allData.schools.length;
-document.getElementById('hdrEnseignants').textContent=allData.teachers.length;
-document.getElementById('hdrFiches').textContent=allData.sheets.length;
-document.getElementById('hdrMembres').textContent=allData.students.length;
-document.getElementById('schoolCountBadge').textContent=allData.schools.length;
-document.getElementById('countTeachers').textContent=allData.teachers.length;
-document.getElementById('countSheets').textContent=allData.sheets.length;
-document.getElementById('countCodes').textContent=allData.codes.length;
-document.getElementById('countParentCodes').textContent=allData.parentCodes.length;
-document.getElementById('countA').textContent=membersA.length;
-document.getElementById('countB').textContent=membersB.length;
-document.getElementById('countC').textContent=membersC.length;
-}
-function updateSelectors(){
-['memberEcoleFilterA','memberEcoleFilterB','memberEcoleFilterC','teacherEcoleFilter','sheetEcoleFilter','codesEmailsEcoleFilter','codeEcoleSelect'].forEach(id=>{
-const el=document.getElementById(id);if(!el)return;const val=el.value;el.innerHTML='<option value="all">All Schools</option>';allData.schools.forEach(s=>{const opt=document.createElement('option');opt.value=s.id;opt.textContent=s.nom||s.id;el.appendChild(opt);});if(val&&el.querySelector('option[value="'+val+'"]'))el.value=val;
+
+function escapeHtml(s) { if (!s) return ""; return String(s).replace(/[&<>]/g, m => m === "&" ? "&amp;" : m === "<" ? "&lt;" : ">" ? "&gt;" : ""); }
+function genererCode6Chiffres() { return Math.floor(100000 + Math.random() * 900000).toString(); }
+
+function getCache(){ try { const raw = localStorage.getItem(CACHE_KEY); if (!raw) return null; return JSON.parse(raw); } catch(e) { return null; } }
+function setCache(data){ try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)); localStorage.setItem(CACHE_TIME_KEY, Date.now().toString()); } catch(e) {} }
+function isCacheValid(){ try { const time = localStorage.getItem(CACHE_TIME_KEY); if (!time) return false; return (Date.now() - parseInt(time)) < CACHE_DURATION; } catch(e) { return false; } }
+
+function clearCache(){ try { localStorage.removeItem(CACHE_KEY); localStorage.removeItem(CACHE_TIME_KEY); toast('Cache cleared', 'success'); loadAllData(); } catch(e) { toast('Error clearing cache', 'error'); } }
+
+function showCodeModal() {
+return new Promise((resolve) => {
+const modal = document.getElementById('codeModal');
+const input = document.getElementById('nxCodeInput');
+const error = document.getElementById('codeError');
+input.value = ''; error.textContent = '';
+modal.classList.add('show');
+setTimeout(() => input.focus(), 300);
+const validate = () => {
+const code = input.value.trim();
+if (code === NX_CODE) { modal.classList.remove('show'); resolve(true); }
+else { error.textContent = '❌ Incorrect code.'; input.value = ''; input.focus(); }
+};
+document.getElementById('nxCodeValidate').onclick = validate;
+document.getElementById('nxCodeCancel').onclick = () => { modal.classList.remove('show'); resolve(false); };
+input.onkeydown = (e) => { if (e.key === 'Enter') validate(); };
 });
 }
-function loadSchools(){
-const container=document.getElementById('ecolesContainer');if(!container)return;
-const search=document.getElementById('ecoleSearch')?.value?.toLowerCase()||'';
-const filter=document.getElementById('ecoleStatutFilter')?.value||'all';
-let schools=allData.schools;
-if(search)schools=schools.filter(s=>s.nom?.toLowerCase().includes(search));
-if(filter==='actif')schools=schools.filter(s=>s.actif!==false&&s.masque!==true);
-else if(filter==='inactif')schools=schools.filter(s=>s.actif===false);
-else if(filter==='masque')schools=schools.filter(s=>s.masque===true);
-document.getElementById('filteredCount').textContent=schools.length;
-if(!schools.length){container.innerHTML='<div class="empty-state">🏫 No schools found</div>';return;}
-let html='';schools.forEach(s=>{const estMasquee=s.masque===true;const estActive=s.actif!==false;html+='<div class="school-item"><span class="name">'+escapeHtml(s.nom)+'</span><span class="stats"><span>📍 '+escapeHtml(s.province||'-')+'</span>'+(estMasquee?'<span class="badge badge-warning">Hidden</span>':'')+(estActive?'<span class="badge badge-success">Active</span>':'<span class="badge badge-danger">Inactive</span>')+'</span></div>';});
-container.innerHTML=html;
+
+function showConfirm(msg) {
+return new Promise((resolve) => {
+const modal = document.getElementById('confirmModal');
+document.getElementById('confirmMessage').innerHTML = msg;
+modal.classList.add('show');
+document.getElementById('confirmYes').onclick = () => { modal.classList.remove('show'); resolve(true); };
+document.getElementById('confirmNo').onclick = () => { modal.classList.remove('show'); resolve(false); };
+});
 }
-function loadMembersGeneric(containerId,members,filterId,searchId){
-const container=document.getElementById(containerId);if(!container)return;
-const filterEcole=document.getElementById(filterId)?.value||'all';
-const search=document.getElementById(searchId)?.value?.toLowerCase()||'';
-let filtered=members;
-if(filterEcole!=='all')filtered=filtered.filter(m=>m.ecoleId===filterEcole);
-if(search)filtered=filtered.filter(m=>(m.nom+' '+(m.prenom||'')).toLowerCase().includes(search));
-if(!filtered.length){container.innerHTML='<div class="empty-state">👥 No members found</div>';return;}
-const grouped={};filtered.forEach(m=>{const key=m.ecoleId;if(!grouped[key])grouped[key]={school:m.ecoleNom,members:[]};grouped[key].members.push(m);});
-let html='';for(const [ecoleId,ecoleData] of Object.entries(grouped)){html+='<div style="background:rgba(255,255,255,0.02);border-radius:8px;margin-bottom:6px;border:1px solid var(--border-color);overflow:hidden;"><div style="padding:6px 12px;background:rgba(255,255,255,0.03);font-weight:700;font-size:12px;border-bottom:1px solid var(--border-color);">🏫 '+escapeHtml(ecoleData.school)+'</div><div style="padding:2px 6px;">';ecoleData.members.forEach(e=>{const nomComplet=(e.nom+' '+(e.prenom||'')).trim()||'Unknown';html+='<div style="display:flex;justify-content:space-between;padding:4px 8px;border-bottom:1px solid var(--border-color);font-size:12px;"><span>'+escapeHtml(nomComplet)+'</span><span style="font-family:monospace;background:rgba(139,92,246,0.1);padding:1px 10px;border-radius:4px;color:#8B5CF6;font-weight:700;font-size:11px;">'+(e.parentCode||'---')+'</span></div>';});html+='</div></div>';}
-container.innerHTML=html;
+
+async function loginAdmin(email, password) {
+let connectedA = false, connectedB = false, userA = null, userB = null;
+statusBox.style.display = 'block';
+statusA.textContent = '⏳ Connecting...'; statusA.className = 'check waiting';
+statusB.textContent = '⏳ Connecting...'; statusB.className = 'check waiting';
+try { const credA = await signInWithEmailAndPassword(getAuth(appA), email, password); userA = credA.user; connectedA = true; statusA.textContent = '✅ Connected'; statusA.className = 'check success'; } catch(e) { statusA.textContent = '❌ ' + e.message; statusA.className = 'check fail'; }
+try { const credB = await signInWithEmailAndPassword(getAuth(appB), email, password); userB = credB.user; connectedB = true; statusB.textContent = '✅ Connected'; statusB.className = 'check success'; } catch(e) { statusB.textContent = '❌ ' + e.message; statusB.className = 'check fail'; }
+if (connectedA && connectedB) return { success: true, message: '✅ Connected to BOTH projects', userA, userB, both: true };
+else if (connectedA) return { success: true, message: '⚠️ Connected ONLY to SOURCE A', userA, userB: null, both: false };
+else if (connectedB) return { success: true, message: '⚠️ Connected ONLY to SOURCE B', userA: null, userB, both: false };
+else return { success: false, message: '❌ No Admin account found' };
 }
-function loadTeachers(){
-const container=document.getElementById('teachersContainer');if(!container)return;
-const filter=document.getElementById('teacherEcoleFilter')?.value||'all';
-const search=document.getElementById('teacherSearch')?.value?.toLowerCase()||'';
-let teachers=allData.teachers;
-if(filter!=='all')teachers=teachers.filter(t=>t.ecoleId===filter);
-if(search)teachers=teachers.filter(t=>t.nom?.toLowerCase().includes(search));
-if(!teachers.length){container.innerHTML='<div class="empty-state">👨‍🏫 No teachers found</div>';return;}
-let html='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;">';teachers.forEach(t=>{html+='<div style="background:rgba(255,255,255,0.03);border:1px solid var(--border-color);border-radius:10px;padding:10px 14px;"><div style="font-weight:700;font-size:14px;color:#fff;">'+escapeHtml(t.nom)+'</div><div style="font-size:11px;color:var(--text-secondary);">📧 '+(t.email?escapeHtml(t.email):'<span style="color:var(--text-muted)">No email</span>')+'</div><div style="font-size:11px;color:var(--text-secondary);">🔑 <span style="font-family:monospace;color:#8B5CF6;">'+(t.code||'---')+'</span></div><div style="font-size:10px;color:var(--text-muted);">🏫 '+escapeHtml(t.ecoleNom)+'</div></div>';});html+='</div>';container.innerHTML=html;
+
+async function handleLogin() {
+const email = loginEmail.value.trim();
+const password = loginPassword.value.trim();
+loginError.textContent = ''; loginSuccess.textContent = ''; statusBox.style.display = 'none';
+if (!email || !password) { loginError.textContent = '❌ Please fill all fields'; return; }
+loginBtn.disabled = true; loginBtn.classList.add('loading');
+try {
+const result = await loginAdmin(email, password);
+if (result.success) {
+loginSuccess.textContent = result.message; loginError.textContent = '';
+currentUser = { email, userA: result.userA, userB: result.userB, both: result.both };
+sessionStorage.setItem('adminSession', JSON.stringify({ email, timestamp: Date.now() }));
+showDashboard(email);
+} else { loginError.textContent = result.message; loginSuccess.textContent = ''; }
+} catch(error) { loginError.textContent = '❌ Error: ' + error.message; }
+finally { loginBtn.disabled = false; loginBtn.classList.remove('loading'); }
 }
-function loadSheets(){
-const container=document.getElementById('sheetsBody');if(!container)return;
-const filter=document.getElementById('sheetEcoleFilter')?.value||'all';
-const search=document.getElementById('sheetSearch')?.value?.toLowerCase()||'';
-let sheets=allData.sheets;
-if(filter!=='all')sheets=sheets.filter(s=>s.ecoleId===filter);
-if(search)sheets=sheets.filter(s=>s.cours?.toLowerCase().includes(search)||s.titulaire?.toLowerCase().includes(search));
-if(!sheets.length){container.innerHTML='<tr><td colspan="6" class="empty-state">📄 No sheets found</td></tr>';return;}
-let html='';sheets.forEach((s,i)=>{html+='<tr><td>'+ (i+1)+'</td><td><strong>'+escapeHtml(s.cours)+'</strong></td><td>'+escapeHtml(s.classe||'-')+'</td><td>'+escapeHtml(s.option||'-')+'</td><td>'+escapeHtml(s.titulaire||'-')+'</td><td>'+escapeHtml(s.ecoleNom)+'</td></tr>';});
-container.innerHTML=html;
-}
-function loadCodesEmails(){
-const container=document.getElementById('codesEmailsContainer');if(!container)return;
-const filter=document.getElementById('codesEmailsEcoleFilter')?.value||'all';
-let schools=allData.schools;
-if(filter!=='all')schools=schools.filter(s=>s.id===filter);
-if(!schools.length){container.innerHTML='<div class="empty-state">🔐 No codes found</div>';return;}
-let html='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;">';
-for(const s of schools){let codeDir='Not set',codeCompta='Not set',codePromo='Not set';let emailDir='direction.'+s.id+'@gmail.com';let emailCompta='compta.'+s.id+'@gmail.com';let emailPromo='promoteur.'+s.id+'@gmail.com';const code=allData.codes.find(c=>c.ecoleId===s.id);if(code){codeDir=code.codeDirection;codeCompta=code.codeComptabilite;codePromoteur=code.codePromoteur;if(code.emailDirection)emailDir=code.emailDirection;if(code.emailComptabilite)emailCompta=code.emailComptabilite;if(code.emailPromoteur)emailPromo=code.emailPromoteur;}
-html+='<div style="background:rgba(255,255,255,0.03);border:1px solid var(--border-color);border-radius:10px;padding:12px 14px;"><div style="font-weight:700;font-size:14px;color:#fff;margin-bottom:4px;">'+escapeHtml(s.nom)+'</div><div style="font-size:11px;display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid var(--border-color);"><span style="color:var(--text-muted)">👔 Director</span><span style="font-family:monospace;color:#8B5CF6;">'+escapeHtml(codeDir)+'</span></div><div style="font-size:11px;display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid var(--border-color);"><span style="color:var(--text-muted)">📧 Email</span><span style="color:#3B82F6;">'+escapeHtml(emailDir)+'</span></div><div style="font-size:11px;display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid var(--border-color);"><span style="color:var(--text-muted)">💰 Accounting</span><span style="font-family:monospace;color:#10B981;">'+escapeHtml(codeCompta)+'</span></div><div style="font-size:11px;display:flex;justify-content:space-between;padding:2px 0;"><span style="color:var(--text-muted)">👔 Promoter</span><span style="font-family:monospace;color:#FBBF24;">'+escapeHtml(codePromo)+'</span></div></div>';}
-html+='</div>';container.innerHTML=html;
-}
-function loadParentCodes(){
-const select=document.getElementById('codeEcoleSelect');const ecoleId=select?.value;const searchTerm=document.getElementById('codeSearchInput')?.value?.toLowerCase()||'';let codes=allData.parentCodes;if(ecoleId&&ecoleId!=='all'&&ecoleId!=='')codes=codes.filter(c=>c.ecole===ecoleId);if(searchTerm)codes=codes.filter(c=>(c.nom+' '+(c.prenom||'')).toLowerCase().includes(searchTerm));const container=document.getElementById('codeResultsContainer');if(!codes.length){container.innerHTML='<div class="empty-state">📭 No parent codes found</div>';return;}const groupedByEcole={};codes.forEach(c=>{const key=c.ecole;if(!groupedByEcole[key])groupedByEcole[key]=[];groupedByEcole[key].push(c);});let html='';for(const [ecoleId,eleves] of Object.entries(groupedByEcole)){const ecoleNom=allData.schools.find(s=>s.id===ecoleId)?.nom||ecoleId;html+='<div style="background:rgba(255,255,255,0.02);border-radius:8px;margin-bottom:6px;border:1px solid var(--border-color);overflow:hidden;"><div style="padding:6px 12px;background:rgba(255,255,255,0.03);font-weight:700;font-size:12px;border-bottom:1px solid var(--border-color);">🏫 '+escapeHtml(ecoleNom)+'</div><div style="padding:2px 6px;">';eleves.forEach(e=>{const nomComplet=(e.nom+' '+(e.prenom||'')).trim()||'Unknown';html+='<div style="display:flex;justify-content:space-between;padding:4px 8px;border-bottom:1px solid var(--border-color);font-size:12px;"><span>'+escapeHtml(nomComplet)+'</span><span style="font-family:monospace;background:rgba(139,92,246,0.1);padding:1px 10px;border-radius:4px;color:#8B5CF6;font-weight:700;">'+escapeHtml(e.parentCode)+'</span></div>';});html+='</div></div>';}container.innerHTML=html;
-}
-function loadTopSchools(){
-const container=document.getElementById('topSchoolsContainer');if(!container)return;
-const schools=allData.schools.slice(0,5);
-if(!schools.length){container.innerHTML='<div class="empty-state">No schools</div>';return;}
-let html='';schools.forEach(s=>{const count=allData.students.filter(st=>st.ecoleId===s.id).length;html+='<div class="school-item"><span class="name">'+escapeHtml(s.nom)+'</span><span class="stats"><span>👥 '+count+'</span></span></div>';});
-container.innerHTML=html;
-}
-function loadRecentActivity(){
-const container=document.getElementById('recentActivityContainer');if(!container)return;
-const activities=[
-{desc:'New school added: Lycée Moderne',time:'2 min ago'},
-{desc:'Teacher registered: Jean-Pierre Mukendi',time:'15 min ago'},
-{desc:'Member joined: Mbuyi Jean',time:'1 hour ago'},
-{desc:'Sheet created: Mathématiques 6ème A',time:'3 hours ago'},
-{desc:'Code generated for École Primaire',time:'5 hours ago'}
-];
-let html='';activities.forEach(a=>{html+='<div class="activity-item"><span class="desc">'+a.desc+'</span><span class="time">'+a.time+'</span></div>';});
-container.innerHTML=html;
-}
-function loadDistribution(){
-document.getElementById('distA').textContent=membersA.length;
-document.getElementById('distB').textContent=membersB.length;
-document.getElementById('distC').textContent=membersC.length;
-}
-function loadSecurityOverview(){
-const container=document.getElementById('securityContainer');if(!container)return;
-const total=allData.codes.length;const active=allData.schools.filter(s=>s.actif!==false).length;
-container.innerHTML='<div style="display:flex;gap:16px;justify-content:center;padding:4px 0"><div style="text-align:center"><div style="font-size:24px;font-weight:900;color:#10B981">'+active+'</div><div style="font-size:10px;color:var(--text-muted)">Active Schools</div></div><div style="text-align:center"><div style="font-size:24px;font-weight:900;color:#8B5CF6">'+total+'</div><div style="font-size:10px;color:var(--text-muted)">Code Sets</div></div><div style="text-align:center"><div style="font-size:24px;font-weight:900;color:#FBBF24">'+allData.parentCodes.length+'</div><div style="font-size:10px;color:var(--text-muted)">Parent Codes</div></div></div>';
-}
-function updateTabCounts(){
-document.getElementById('tabCount1').textContent=allData.schools.length;
-document.getElementById('tabCount2').textContent=membersA.length;
-document.getElementById('tabCount3').textContent=membersB.length;
-document.getElementById('tabCount4').textContent=membersC.length;
-document.getElementById('tabCount5').textContent=allData.teachers.length;
-document.getElementById('tabCount6').textContent=allData.sheets.length;
-document.getElementById('tabCount7').textContent=allData.codes.length;
-document.getElementById('tabCount10').textContent=allData.parentCodes.length;
-}
-document.querySelectorAll('.tab-btn').forEach(btn=>{btn.onclick=function(){document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active');document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));document.getElementById(this.dataset.tab).classList.add('active');};});
-document.querySelectorAll('.source-btn').forEach(btn=>{btn.addEventListener('click',function(){document.querySelectorAll('.source-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active');activeSource=this.dataset.source;document.body.className='source-'+activeSource;const labels={a:'🔵 SOURCE A · gesco-67c43',b:'🟢 SOURCE B · gesco-2',merged:'🟡 FUSIONNED · SOURCE A + B'};const classes={a:'a',b:'b',merged:'merged'};document.getElementById('sourceStatus').className=classes[activeSource];document.getElementById('sourceStatus').textContent=labels[activeSource];toast('Switched to '+this.textContent.trim(),'info');});});
-document.getElementById('clearCacheBtn')?.addEventListener('click',clearCache);
-document.getElementById('logoutBtn')?.addEventListener('click',function(){toast('👋 Logged out','warning');});
-['ecoleSearch','ecoleStatutFilter'].forEach(id=>{document.getElementById(id)?.addEventListener('input',loadSchools);document.getElementById(id)?.addEventListener('change',loadSchools);});
-['memberEcoleFilterA','memberSearchA'].forEach(id=>{document.getElementById(id)?.addEventListener('change',()=>loadMembersGeneric('membersContainerA',membersA,'memberEcoleFilterA','memberSearchA'));document.getElementById(id)?.addEventListener('input',()=>loadMembersGeneric('membersContainerA',membersA,'memberEcoleFilterA','memberSearchA'));});
-['memberEcoleFilterB','memberSearchB'].forEach(id=>{document.getElementById(id)?.addEventListener('change',()=>loadMembersGeneric('membersContainerB',membersB,'memberEcoleFilterB','memberSearchB'));document.getElementById(id)?.addEventListener('input',()=>loadMembersGeneric('membersContainerB',membersB,'memberEcoleFilterB','memberSearchB'));});
-['memberEcoleFilterC','memberSearchC'].forEach(id=>{document.getElementById(id)?.addEventListener('change',()=>loadMembersGeneric('membersContainerC',membersC,'memberEcoleFilterC','memberSearchC'));document.getElementById(id)?.addEventListener('input',()=>loadMembersGeneric('membersContainerC',membersC,'memberEcoleFilterC','memberSearchC'));});
-['teacherEcoleFilter','teacherSearch'].forEach(id=>{document.getElementById(id)?.addEventListener('change',loadTeachers);document.getElementById(id)?.addEventListener('input',loadTeachers);});
-['sheetEcoleFilter','sheetSearch'].forEach(id=>{document.getElementById(id)?.addEventListener('change',loadSheets);document.getElementById(id)?.addEventListener('input',loadSheets);});
-document.getElementById('codesEmailsEcoleFilter')?.addEventListener('change',loadCodesEmails);
-document.getElementById('codeEcoleSelect')?.addEventListener('change',loadParentCodes);
-document.getElementById('codeSearchInput')?.addEventListener('input',loadParentCodes);
-document.getElementById('recentCount')?.addEventListener('click',function(){toast('Recent activities loaded','info');});
+
+function showDashboard(email) {
+loginOverlay.classList.add('hidden');
+dashboardContent.classList.add('visible');
+userEmailDisplay.textContent = '👤 ' + email;
 loadAllData();
-})();
+}
+
+function logout() {
+currentUser = null; sessionStorage.removeItem('adminSession');
+dashboardContent.classList.remove('visible');
+loginOverlay.classList.remove('hidden');
+loginEmail.value = ''; loginPassword.value = ''; loginError.textContent = ''; loginSuccess.textContent = ''; statusBox.style.display = 'none';
+toast('👋 Logged out', 'warning');
+}
+
+async function loadAllData() {
+try {
+const cached = getCache();
+if (cached && isCacheValid()) {
+allData = cached.allData || { schools: [], teachers: [], sheets: [], students: [], codes: [], parentCodes: [] };
+membersA = cached.membersA || [];
+membersB = cached.membersB || [];
+membersC = cached.membersC || [];
+updateDashboard();
+updateCacheIndicator('Cache: ' + Math.floor((Date.now() - parseInt(localStorage.getItem(CACHE_TIME_KEY))) / 3600000) + 'h old');
+toast('Data from cache', 'info');
+return;
+}
+const db = getDb();
+const snap = await getDocs(collection(db, "ecoles"));
+allData = { schools: [], teachers: [], sheets: [], students: [], codes: [], parentCodes: [] };
+membersA = []; membersB = []; membersC = [];
+const seenMembers = new Set(), seenTeachers = new Set(), seenSheets = new Set(), seenCodes = new Set();
+for (const ds of snap.docs) {
+const id = ds.id, ecoleData = ds.data();
+if (ecoleData.masque === true) continue;
+allData.schools.push({ id, ...ecoleData });
+const collections = [{ name: "compta_eleves", section: 'secondary', arr: membersA }, { name: "prima_eleves", section: 'primary', arr: membersB }, { name: "mater_eleves", section: 'nursery', arr: membersC }];
+for (const { name, section, arr } of collections) {
+try {
+const mSnap = await getDocs(collection(db, "ecoles", id, name));
+mSnap.forEach(d => {
+const data = d.data();
+if (data.nom && !data.abandon) {
+const key = name + '_' + d.id + '_' + id;
+if (!seenMembers.has(key)) {
+seenMembers.add(key);
+const m = { id: d.id, ecoleId: id, ecoleNom: ecoleData.nom || id, nom: data.nom, prenom: data.prenom || '', sexe: data.sexe || 'M', classe: data.classe || '', section: section, parentCode: data.parentCode || null };
+arr.push(m); allData.students.push(m);
+}
+}
+if (data.parentCode) {
+const key = 'pc_' + name + '_' + d.id + '_' + id;
+if (!seenCodes.has(key)) {
+seenCodes.add(key);
+allData.parentCodes.push({ id: d.id, ecole: id, ecoleNom: ecoleData.nom || id, nom: data.nom, prenom: data.prenom || '', parentCode: data.parentCode, classe: data.classe || '', section: section });
+}
+}
+});
+} catch(e) {}
+}
+try {
+const pSnap = await getDocs(collection(db, "ecoles", id, "professeurs"));
+pSnap.forEach(d => {
+const data = d.data();
+if (data._type === "prof") {
+const key = d.id + '_' + id;
+if (!seenTeachers.has(key)) {
+seenTeachers.add(key);
+allData.teachers.push({ id: d.id, ecoleId: id, ecoleNom: ecoleData.nom || id, nom: data.nom || "Unknown", code: data.code || null, email: data.email || data.emailProf || null, actif: data.actif !== false });
+}
+}
+});
+} catch(e) {}
+try {
+const fSnap = await getDocs(collection(db, "ecoles", id, "fiches"));
+fSnap.forEach(d => {
+const data = d.data();
+if (!data._type) {
+const key = d.id + '_' + id;
+if (!seenSheets.has(key)) {
+seenSheets.add(key);
+allData.sheets.push({ id: d.id, ecoleId: id, ecoleNom: ecoleData.nom || id, cours: data.cours || "No subject", classe: data.classe || "", option: data.option || "", titulaire: data.titulaire || "" });
+}
+}
+});
+} catch(e) {}
+try {
+const settingsSnap = await getDoc(doc(db, "ecoles", id, "settings", "data"));
+if (settingsSnap.exists()) {
+const s = settingsSnap.data();
+allData.codes.push({ ecoleId: id, ecoleNom: ecoleData.nom || id, codeDirection: s.codeDirection || 'Not set', codeComptabilite: s.codeComptabilite || 'Not set', codePromoteur: s.codePromoteur || 'Not set', emailDirection: s.emailDirection || null, emailComptabilite: s.emailComptabilite || null, emailPromoteur: s.emailPromoteur || null });
+}
+} catch(e) {}
+}
+const cacheData = { allData, membersA, membersB, membersC };
+setCache(cacheData);
+updateDashboard();
+updateCacheIndicator('Cache: Fresh');
+toast('✅ Data loaded from ' + getSourceLabel(), 'success');
+} catch(e) { toast('❌ Error: ' + e.message, 'error'); }
+}
+
+function updateCacheIndicator(msg) {
+const el = document.getElementById('cacheIndicator');
+if (el) el.textContent = '💾 ' + msg;
+}
+
+function updateDashboard() {
+updateCounters(); updateSelectors();
+loadSchools(); loadMembersA(); loadMembersB(); loadMembersC(); loadTeachers(); loadSheets(); loadCodesEmails(); loadParentCodes(); loadTopSchools(); loadRecentActivity(); loadDistribution(); loadSecurityOverview(); updateTabCounts();
+}
+
+function updateCounters() {
+document.getElementById('hdrEcoles').textContent = allData.schools.length;
+document.getElementById('hdrEnseignants').textContent = allData.teachers.length;
+document.getElementById('hdrFiches').textContent = allData.sheets.length;
+document.getElementById('hdrMembres').textContent = allData.students.length;
+document.getElementById('schoolCountBadge').textContent = allData.schools.length;
+document.getElementById('countTeachers').textContent = allData.teachers.length;
+document.getElementById('countSheets').textContent = allData.sheets.length;
+document.getElementById('countCodes').textContent = allData.codes.length;
+document.getElementById('countParentCodes').textContent = allData.parentCodes.length;
+document.getElementById('countA').textContent = membersA.length;
+document.getElementById('countB').textContent = membersB.length;
+document.getElementById('countC').textContent = membersC.length;
+}
+
+function updateSelectors() {
+['memberEcoleFilterA','memberEcoleFilterB','memberEcoleFilterC','teacherEcoleFilter','sheetEcoleFilter','codesEmailsEcoleFilter','codeEcoleSelect'].forEach(id => {
+const el = document.getElementById(id); if (!el) return;
+const val = el.value;
+el.innerHTML = '<option value="all">All Schools</option>';
+allData.schools.forEach(s => {
+const opt = document.createElement('option');
+opt.value = s.id; opt.textContent = s.nom || s.id;
+el.appendChild(opt);
+});
+if (val && el.querySelector('option[value="' + val + '"]')) el.value = val;
+});
+}
+
+function loadSchools() {
+const container = document.getElementById('ecolesContainer');
+if (!container) return;
+const search = document.getElementById('ecoleSearch')?.value?.toLowerCase() || '';
+const filter = document.getElementById('ecoleStatutFilter')?.value || 'all';
+let schools = allData.schools;
+if (search) schools = schools.filter(s => s.nom?.toLowerCase().includes(search));
+if (filter === 'actif') schools = schools.filter(s => s.actif !== false && s.masque !== true);
+else if (filter === 'inactif') schools = schools.filter(s => s.actif === false);
+else if (filter === 'masque') schools = schools.filter(s => s.masque === true);
+document.getElementById('filteredCount').textContent = schools.length;
+if (!schools.length) { container.innerHTML = '<div class="empty-state">🏫 No schools found</div>'; return; }
+let html = '';
+schools.forEach(s => {
+const estMasquee = s.masque === true, estActive = s.actif !== false;
+const teacherCount = allData.teachers.filter(t => t.ecoleId === s.id).length;
+const sheetCount = allData.sheets.filter(f => f.ecoleId === s.id).length;
+html += `<div class="school-item" data-school-id="${s.id}">
+<div class="school-left" style="flex:1;min-width:160px;">
+<div class="school-name" style="font-size:13px;font-weight:700;color:var(--text-primary);">${escapeHtml(s.nom)} <span style="font-size:9px;color:var(--text-muted);font-family:monospace;background:rgba(255,255,255,0.02);padding:1px 6px;border-radius:4px;margin-left:6px;">🆔 ${escapeHtml(s.id)}</span></div>
+<div style="font-size:10px;color:var(--text-muted);margin-top:2px;"><span>📍 ${escapeHtml(s.province || '-')}</span> <span>🏙️ ${escapeHtml(s.ville || '-')}</span></div>
+<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:3px;">
+${estMasquee ? '<span class="badge badge-warning">Hidden</span>' : ''}
+${estActive ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Inactive</span>'}
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:3px;">
+<span style="font-size:9px;font-weight:600;color:var(--text-secondary);background:rgba(255,255,255,0.02);padding:1px 8px;border-radius:4px;">👨‍🏫 ${teacherCount}</span>
+<span style="font-size:9px;font-weight:600;color:var(--text-secondary);background:rgba(255,255,255,0.02);padding:1px 8px;border-radius:4px;">📄 ${sheetCount}</span>
+</div>
+</div>
+<div style="flex-shrink:0;width:48px;height:48px;border-radius:10px;overflow:hidden;background:rgba(255,255,255,0.02);border:2px solid var(--border-color);display:flex;align-items:center;justify-content:center;transition:var(--transition);">
+${s.logoUrl ? `<img src="${escapeHtml(s.logoUrl)}" alt="${escapeHtml(s.nom)}" style="width:100%;height:100%;object-fit:cover;" />` : `<span style="font-size:20px;">🏫</span>`}
+</div>
+<div style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:auto;">
+<button class="btn btn-outline btn-sm btn-action" data-school-id="${s.id}">⚡ Actions</button>
+</div>
+</div>`;
+});
+container.innerHTML = html;
+container.querySelectorAll('.btn-action').forEach(btn => {
+btn.addEventListener('click', function(e) {
+e.stopPropagation();
+const schoolId = this.dataset.schoolId;
+const school = allData.schools.find(s => s.id === schoolId);
+if (!school) return;
+const overlay = document.getElementById('actionDropdownOverlay');
+const items = document.getElementById('actionDropdownItems');
+const estMasquee = school.masque === true;
+const estActive = school.actif !== false;
+items.innerHTML = `
+<button class="action-dropdown-item" data-action="logo" data-school="${schoolId}"><span class="icon">🖼️</span> Change logo</button>
+<div class="action-dropdown-divider"></div>
+<button class="action-dropdown-item" data-action="masquer" data-school="${schoolId}"><span class="icon">👻</span> ${estMasquee ? '👁️ Show' : '👻 Hide'}</button>
+<button class="action-dropdown-item" data-action="activer" data-school="${schoolId}"><span class="icon">${estActive ? '⛔' : '✅'}</span> ${estActive ? 'Deactivate' : 'Activate'}</button>
+<div class="action-dropdown-divider"></div>
+<button class="action-dropdown-item danger" data-action="supprimer" data-school="${schoolId}"><span class="icon">🗑️</span> Delete</button>
+`;
+overlay.classList.add('show');
+document.getElementById('actionDropdownClose').onclick = () => overlay.classList.remove('show');
+overlay.onclick = function(e) { if (e.target === this) this.classList.remove('show'); };
+items.querySelectorAll('.action-dropdown-item').forEach(item => {
+item.addEventListener('click', async function() {
+overlay.classList.remove('show');
+const action = this.dataset.action;
+const schoolId2 = this.dataset.school;
+switch(action) {
+case 'logo': await handleLogoChange(schoolId2); break;
+case 'masquer': await handleToggleMasquer(schoolId2); break;
+case 'activer': await handleToggleActif(schoolId2); break;
+case 'supprimer': await handleDeleteSchool(schoolId2); break;
+}
+});
+});
+});
+});
+}
+
+async function handleToggleMasquer(schoolId) {
+const school = allData.schools.find(s => s.id === schoolId);
+if (!school) return;
+if (!await showCodeModal()) return;
+if (!await showConfirm('Hide/show <strong>' + escapeHtml(school.nom) + '</strong>?')) return;
+try { await updateDoc(doc(getDb(), "ecoles", schoolId), { masque: school.masque !== true }); toast('✅ School ' + (school.masque === true ? 'shown' : 'hidden'), 'success'); await loadAllData(); } catch(e) { toast("Error: " + e.message, "error"); }
+}
+
+async function handleToggleActif(schoolId) {
+const school = allData.schools.find(s => s.id === schoolId);
+if (!school) return;
+if (!await showCodeModal()) return;
+if (!await showConfirm((school.actif !== false ? 'Deactivate' : 'Activate') + ' <strong>' + escapeHtml(school.nom) + '</strong>?')) return;
+try { await updateDoc(doc(getDb(), "ecoles", schoolId), { actif: school.actif !== false ? false : true }); toast('✅ School ' + (school.actif !== false ? 'deactivated' : 'activated'), 'success'); await loadAllData(); } catch(e) { toast("Error: " + e.message, "error"); }
+}
+
+async function handleDeleteSchool(schoolId) {
+const school = allData.schools.find(s => s.id === schoolId);
+if (!school) return;
+if (!await showCodeModal()) return;
+if (!await showConfirm('⚠️ Permanently delete <strong>' + escapeHtml(school.nom) + '</strong>?')) return;
+try {
+const db = getDb();
+const subs = ['professeurs','fiches','compta_eleves','eleves','punitions','presences','horaires','corbeille','compteur','config','alertes_admin','communiques','settings','prima_eleves','mater_eleves'];
+for (const sub of subs) { try { const snap = await getDocs(collection(db, "ecoles", schoolId, sub)); for (const d of snap.docs) { await deleteDoc(d.ref); } } catch(e) {} }
+await deleteDoc(doc(db, "ecoles", schoolId));
+toast("🗑️ School deleted", "success");
+await loadAllData();
+} catch(e) { toast("Error: " + e.message, "error"); }
+}
+
+async function handleLogoChange(schoolId) {
+if (!await showCodeModal()) return;
+const modal = document.getElementById('logoModal');
+modal.classList.add('show');
+modal.dataset.schoolId = schoolId;
+document.getElementById('logoUrlInput').value = '';
+document.getElementById('logoPreviewContainer').style.display = 'none';
+document.getElementById('logoUrlInput').addEventListener('input', function() {
+const url = this.value.trim();
+if (url) { document.getElementById('logoPreviewImg').src = url; document.getElementById('logoPreviewContainer').style.display = 'block'; }
+else { document.getElementById('logoPreviewContainer').style.display = 'none'; }
+});
+document.getElementById('logoValidateBtn').onclick = async function() {
+const url = document.getElementById('logoUrlInput').value.trim();
+if (!url) { toast('Please enter a URL', 'warning'); return; }
+try { await updateDoc(doc(getDb(), "ecoles", schoolId), { logoUrl: url }); document.getElementById('logoModal').classList.remove('show'); toast('✅ Logo updated', 'success'); await loadAllData(); } catch(e) { toast('Error: ' + e.message, 'error'); }
+};
+document.getElementById('logoCancelBtn').onclick = () => { document.getElementById('logoModal').classList.remove('show'); };
+}
+
+function loadMembersGeneric(containerId, members, paginationId, paginationInfoId, paginationButtonsId, pageVar, setPage, filterEcoleId, searchId) {
+const container = document.getElementById(containerId);
+if (!container) return;
+const filterEcole = document.getElementById(filterEcoleId)?.value || "all";
+const search = document.getElementById(searchId)?.value?.toLowerCase() || "";
+let filtered = members;
+if (filterEcole !== "all") filtered = filtered.filter(m => m.ecoleId === filterEcole);
+if (search) filtered = filtered.filter(m => (m.nom + ' ' + (m.prenom||'')).toLowerCase().includes(search));
+const totalPages = Math.ceil(filtered.length / membersPerPage);
+let currentPage = pageVar;
+if (currentPage > totalPages) currentPage = 1;
+if (currentPage < 1) currentPage = 1;
+setPage(currentPage);
+const start = (currentPage - 1) * membersPerPage;
+const pageMembers = filtered.slice(start, start + membersPerPage);
+if (filtered.length === 0) { container.innerHTML = '<div class="empty-state">👥 No members found</div>'; document.getElementById(paginationId).style.display = 'none'; return; }
+const grouped = {};
+pageMembers.forEach(m => { const key = m.ecoleId; if (!grouped[key]) grouped[key] = { school: m.ecoleNom, members: [] }; grouped[key].members.push(m); });
+let html = '';
+for (const [ecoleId, ecoleData] of Object.entries(grouped)) {
+html += '<div style="background:rgba(255,255,255,0.01);border-radius:8px;margin-bottom:6px;border:1px solid var(--border-color);overflow:hidden;"><div style="padding:5px 12px;background:rgba(255,255,255,0.01);font-weight:700;font-size:11px;border-bottom:1px solid var(--border-color);">🏫 ' + escapeHtml(ecoleData.school) + '</div><div style="padding:2px 6px;">';
+ecoleData.members.forEach(e => {
+const nomComplet = (e.nom + ' ' + (e.prenom || '')).trim() || "Unknown";
+html += '<div style="display:flex;justify-content:space-between;padding:4px 8px;border-bottom:1px solid var(--border-color);font-size:11px;"><span style="font-weight:500;">' + escapeHtml(nomComplet) + '</span><span style="font-family:monospace;background:rgba(139,92,246,0.08);padding:1px 8px;border-radius:4px;color:#8B5CF6;font-weight:700;font-size:10px;">' + (e.parentCode || '---') + '</span></div>';
+});
+html += '</div></div>';
+}
+container.innerHTML = html;
+const paginationContainer = document.getElementById(paginationId);
+const paginationInfo = document.getElementById(paginationInfoId);
+const paginationButtons = document.getElementById(paginationButtonsId);
+if (totalPages > 1) {
+paginationContainer.style.display = 'flex';
+paginationInfo.textContent = 'Page ' + currentPage + '/' + totalPages + ' · ' + filtered.length + ' members';
+let btns = '';
+if (currentPage > 1) btns += '<button class="pagination-btn" data-page="' + (currentPage - 1) + '">◀</button>';
+for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+btns += '<button class="pagination-btn ' + (i === currentPage ? 'active' : '') + '" data-page="' + i + '">' + i + '</button>';
+}
+if (currentPage < totalPages) btns += '<button class="pagination-btn" data-page="' + (currentPage + 1) + '">▶</button>';
+paginationButtons.innerHTML = btns;
+paginationButtons.querySelectorAll('.pagination-btn').forEach(btn => {
+btn.addEventListener('click', function() {
+const newPage = parseInt(this.dataset.page);
+setPage(newPage);
+loadMembersGeneric(containerId, members, paginationId, paginationInfoId, paginationButtonsId, newPage, setPage, filterEcoleId, searchId);
+});
+});
+} else { paginationContainer.style.display = 'none'; }
+}
+
+function loadMembersA() { loadMembersGeneric('membersContainerA', membersA, 'membersPaginationA', 'membersPaginationInfoA', 'membersPaginationButtonsA', membersPageA, (p) => { membersPageA = p; }, 'memberEcoleFilterA', 'memberSearchA'); }
+function loadMembersB() { loadMembersGeneric('membersContainerB', membersB, 'membersPaginationB', 'membersPaginationInfoB', 'membersPaginationButtonsB', membersPageB, (p) => { membersPageB = p; }, 'memberEcoleFilterB', 'memberSearchB'); }
+function loadMembersC() { loadMembersGeneric('membersContainerC', membersC, 'membersPaginationC', 'membersPaginationInfoC', 'membersPaginationButtonsC', membersPageC, (p) => { membersPageC = p; }, 'memberEcoleFilterC', 'memberSearchC'); }
+
+function loadTeachers() {
+const container = document.getElementById('teachersContainer');
+if (!container) return;
+const filter = document.getElementById('teacherEcoleFilter')?.value || "all";
+const search = document.getElementById('teacherSearch')?.value?.toLowerCase() || "";
+let teachers = allData.teachers;
+if (filter !== "all") teachers = teachers.filter(t => t.ecoleId === filter);
+if (search) teachers = teachers.filter(t => t.nom?.toLowerCase().includes(search));
+if (!teachers.length) { container.innerHTML = '<div class="empty-state">👨‍🏫 No teachers found</div>'; return; }
+let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;">';
+teachers.forEach(t => {
+const emailValid = t.email && t.email.includes('@');
+html += `<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:8px;padding:10px 12px;">
+<div style="font-weight:700;font-size:13px;color:var(--text-primary);">${escapeHtml(t.nom)}</div>
+<div style="font-size:10px;color:var(--text-secondary);">📧 ${t.email ? escapeHtml(t.email) : '<span style="color:var(--text-muted)">No email</span>'}</div>
+<div style="font-size:10px;color:var(--text-secondary);">🔑 <span style="font-family:monospace;color:#8B5CF6;">${t.code || '---'}</span></div>
+<div style="font-size:9px;color:var(--text-muted);">🏫 ${escapeHtml(t.ecoleNom)}</div>
+</div>`;
+});
+html += '</div>';
+container.innerHTML = html;
+}
+
+function loadSheets() {
+const container = document.getElementById('sheetsBody');
+if (!container) return;
+const filter = document.getElementById('sheetEcoleFilter')?.value || 'all';
+const search = document.getElementById('sheetSearch')?.value?.toLowerCase() || '';
+let sheets = allData.sheets;
+if (filter !== 'all') sheets = sheets.filter(s => s.ecoleId === filter);
+if (search) sheets = sheets.filter(s => s.cours?.toLowerCase().includes(search) || s.titulaire?.toLowerCase().includes(search));
+if (!sheets.length) { container.innerHTML = '<tr><td colspan="6" class="empty-state">📄 No sheets found</td></tr>'; return; }
+let html = '';
+sheets.forEach((s, i) => {
+html += `<tr><td>${i+1}</td><td><strong>${escapeHtml(s.cours)}</strong></td><td>${escapeHtml(s.classe||'-')}</td><td>${escapeHtml(s.option||'-')}</td><td>${escapeHtml(s.titulaire||'-')}</td><td>${escapeHtml(s.ecoleNom)}</td></tr>`;
+});
+container.innerHTML = html;
+}
+
+function loadCodesEmails() {
+const container = document.getElementById('codesEmailsContainer');
+if (!container) return;
+const filter = document.getElementById('codesEmailsEcoleFilter')?.value || 'all';
+let schools = allData.schools;
+if (filter !== 'all') schools = schools.filter(s => s.id === filter);
+if (!schools.length) { container.innerHTML = '<div class="empty-state">🔐 No codes found</div>'; return; }
+let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;">';
+for (const s of schools) {
+let codeDir = 'Not set', codeCompta = 'Not set', codePromo = 'Not set';
+let emailDir = 'direction.' + s.id + '@gmail.com';
+let emailCompta = 'compta.' + s.id + '@gmail.com';
+let emailPromo = 'promoteur.' + s.id + '@gmail.com';
+const code = allData.codes.find(c => c.ecoleId === s.id);
+if (code) { codeDir = code.codeDirection; codeCompta = code.codeComptabilite; codePromo = code.codePromoteur; if (code.emailDirection) emailDir = code.emailDirection; if (code.emailComptabilite) emailCompta = code.emailComptabilite; if (code.emailPromoteur) emailPromo = code.emailPromoteur; }
+html += `<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:8px;padding:10px 12px;">
+<div style="font-weight:700;font-size:12px;color:var(--text-primary);margin-bottom:4px;">${escapeHtml(s.nom)}</div>
+<div style="font-size:10px;display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid var(--border-color);"><span style="color:var(--text-muted)">👔 Director</span><span style="font-family:monospace;color:#8B5CF6;">${escapeHtml(codeDir)}</span></div>
+<div style="font-size:10px;display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid var(--border-color);"><span style="color:var(--text-muted)">💰 Accounting</span><span style="font-family:monospace;color:#10B981;">${escapeHtml(codeCompta)}</span></div>
+<div style="font-size:10px;display:flex;justify-content:space-between;padding:2px 0;"><span style="color:var(--text-muted)">👔 Promoter</span><span style="font-family:monospace;color:#FBBF24;">${escapeHtml(codePromo)}</span></div>
+</div>`;
+}
+html += '</div>';
+container.innerHTML = html;
+}
+
+function loadParentCodes() {
+const select = document.getElementById('codeEcoleSelect');
+const ecoleId = select?.value;
+const searchTerm = document.getElementById('codeSearchInput')?.value?.toLowerCase() || '';
+let codes = allData.parentCodes;
+if (ecoleId && ecoleId !== 'all' && ecoleId !== '') codes = codes.filter(c => c.ecole === ecoleId);
+if (searchTerm) codes = codes.filter(c => (c.nom + ' ' + (c.prenom || '')).toLowerCase().includes(searchTerm));
+const container = document.getElementById('codeResultsContainer');
+if (!codes.length) { container.innerHTML = '<div class="empty-state">📭 No parent codes found</div>'; return; }
+const groupedByEcole = {};
+codes.forEach(c => { const key = c.ecole; if (!groupedByEcole[key]) groupedByEcole[key] = []; groupedByEcole[key].push(c); });
+let html = '';
+for (const [ecoleId, eleves] of Object.entries(groupedByEcole)) {
+const ecoleNom = allData.schools.find(s => s.id === ecoleId)?.nom || ecoleId;
+html += '<div style="background:rgba(255,255,255,0.01);border-radius:8px;margin-bottom:6px;border:1px solid var(--border-color);overflow:hidden;"><div style="padding:5px 12px;background:rgba(255,255,255,0.01);font-weight:700;font-size:11px;border-bottom:1px solid var(--border-color);">🏫 ' + escapeHtml(ecoleNom) + '</div><div style="padding:2px 6px;">';
+eleves.forEach(e => {
+const nomComplet = (e.nom + ' ' + (e.prenom || '')).trim() || 'Unknown';
+html += '<div style="display:flex;justify-content:space-between;padding:4px 8px;border-bottom:1px solid var(--border-color);font-size:11px;"><span style="font-weight:500;">' + escapeHtml(nomComplet) + '</span><span style="font-family:monospace;background:rgba(139,92,246,0.08);padding:1px 8px;border-radius:4px;color:#8B5CF6;font-weight:700;font-size:10px;">' + escapeHtml(e.parentCode) + '</span></div>';
+});
+html += '</div></div>';
+}
+container.innerHTML = html;
+}
+
+function loadTopSchools() {
+const container = document.getElementById('topSchoolsContainer');
+if (!container) return;
+const schools = allData.schools.slice(0, 5);
+if (!schools.length) { container.innerHTML = '<div class="empty-state">No schools</div>'; return; }
+let html = '';
+schools.forEach(s => {
+const count = allData.students.filter(st => st.ecoleId === s.id).length;
+html += '<div class="school-item"><span class="name">' + escapeHtml(s.nom) + '</span><span class="stats"><span>👥 ' + count + '</span></span></div>';
+});
+container.innerHTML = html;
+}
+
+function loadRecentActivity() {
+const container = document.getElementById('recentActivityContainer');
+if (!container) return;
+const activities = [
+{desc: 'School added: ' + (allData.schools[0]?.nom || 'N/A'), time: '2 min ago'},
+{desc: 'Teacher registered: ' + (allData.teachers[0]?.nom || 'N/A'), time: '15 min ago'},
+{desc: 'Member joined: ' + (allData.students[0]?.nom || 'N/A'), time: '1 hour ago'},
+{desc: 'Sheet created: ' + (allData.sheets[0]?.cours || 'N/A'), time: '3 hours ago'},
+{desc: 'Code generated for school', time: '5 hours ago'}
+];
+let html = '';
+activities.forEach(a => { html += '<div class="activity-item"><span class="desc">' + a.desc + '</span><span class="time">' + a.time + '</span></div>'; });
+container.innerHTML = html;
+}
+
+function loadDistribution() {
+document.getElementById('distA').textContent = membersA.length;
+document.getElementById('distB').textContent = membersB.length;
+document.getElementById('distC').textContent = membersC.length;
+}
+
+function loadSecurityOverview() {
+const container = document.getElementById('securityContainer');
+if (!container) return;
+const total = allData.codes.length;
+const active = allData.schools.filter(s => s.actif !== false).length;
+container.innerHTML = '<div style="display:flex;gap:16px;justify-content:center;padding:4px 0"><div style="text-align:center"><div style="font-size:22px;font-weight:900;color:#10B981;">' + active + '</div><div style="font-size:9px;color:var(--text-muted)">Active Schools</div></div><div style="text-align:center"><div style="font-size:22px;font-weight:900;color:#8B5CF6;">' + total + '</div><div style="font-size:9px;color:var(--text-muted)">Code Sets</div></div><div style="text-align:center"><div style="font-size:22px;font-weight:900;color:#FBBF24;">' + allData.parentCodes.length + '</div><div style="font-size:9px;color:var(--text-muted)">Parent Codes</div></div></div>';
+}
+
+function updateTabCounts() {
+document.getElementById('tabCount1').textContent = allData.schools.length;
+document.getElementById('tabCount2').textContent = membersA.length;
+document.getElementById('tabCount3').textContent = membersB.length;
+document.getElementById('tabCount4').textContent = membersC.length;
+document.getElementById('tabCount5').textContent = allData.teachers.length;
+document.getElementById('tabCount6').textContent = allData.sheets.length;
+document.getElementById('tabCount7').textContent = allData.codes.length;
+document.getElementById('tabCount10').textContent = allData.parentCodes.length;
+}
+
+document.getElementById('showAddSchool')?.addEventListener('click', function() { document.getElementById('addSchoolForm').style.display = 'block'; });
+document.getElementById('cancelSchoolBtn')?.addEventListener('click', function() { document.getElementById('addSchoolForm').style.display = 'none'; });
+document.getElementById('cancelSchoolBtn2')?.addEventListener('click', function() { document.getElementById('addSchoolForm').style.display = 'none'; });
+document.getElementById('schoolName')?.addEventListener('input', function() {
+const val = this.value.trim().toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+document.getElementById('schoolId').value = val || 'auto-' + Date.now().toString().slice(-6);
+});
+document.getElementById('saveSchoolBtn')?.addEventListener('click', async function() {
+const nom = document.getElementById('schoolName').value.trim();
+const id = document.getElementById('schoolId').value.trim();
+if (!nom || !id) { toast('Name and ID required', 'error'); return; }
+if (!await showCodeModal()) return;
+try {
+const existing = await getDoc(doc(getDb(), 'ecoles', id));
+if (existing.exists()) { toast('ID already used', 'error'); return; }
+const codeDirection = genererCode6Chiffres();
+await setDoc(doc(getDb(), 'ecoles', id), { nom, id, province: document.getElementById('schoolProvince').value, ville: document.getElementById('schoolCity').value.trim(), telephone: document.getElementById('schoolPhone').value.trim(), directeur: document.getElementById('schoolDirector').value.trim(), adresse: document.getElementById('schoolAddress').value.trim(), actif: true, inscriptionActive: false, masque: false, dateCreation: new Date().toISOString() });
+await setDoc(doc(getDb(), 'ecoles', id, 'settings', 'data'), { codeDirection: codeDirection, codeComptabilite: genererCode6Chiffres(), codePromoteur: genererCode6Chiffres(), emailDirection: 'direction.' + id + '@gmail.com', emailComptabilite: 'compta.' + id + '@gmail.com', emailPromoteur: 'promoteur.' + id + '@gmail.com', updatedAt: new Date().toISOString() });
+toast('✅ School created', 'success');
+document.getElementById('addSchoolForm').style.display = 'none';
+loadAllData();
+} catch(e) { toast('Error: ' + e.message, 'error'); }
+});
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+btn.onclick = function() {
+document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+this.classList.add('active');
+document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+document.getElementById(this.dataset.tab).classList.add('active');
+const tabMap = { 'tab1': loadSchools, 'tab2': loadMembersA, 'tab3': loadMembersB, 'tab4': loadMembersC, 'tab5': loadTeachers, 'tab6': loadSheets, 'tab7': loadCodesEmails, 'tab10': loadParentCodes };
+if (tabMap[this.dataset.tab]) tabMap[this.dataset.tab]();
+};
+});
+
+document.querySelectorAll('.source-btn').forEach(btn => {
+btn.addEventListener('click', function() {
+document.querySelectorAll('.source-btn').forEach(b => b.classList.remove('active'));
+this.classList.add('active');
+activeSource = this.dataset.source;
+document.body.className = 'source-' + activeSource;
+const labels = { a: '🔵 SOURCE A · gesco-67c43', b: '🟢 SOURCE B · gesco-2', merged: '🟡 FUSIONNED · SOURCE A + B' };
+const classes = { a: 'a', b: 'b', merged: 'merged' };
+document.getElementById('sourceStatus').className = classes[activeSource];
+document.getElementById('sourceStatus').textContent = labels[activeSource];
+document.querySelectorAll('.source-badge .dot').forEach(el => {
+el.className = 'dot ' + (activeSource === 'a' ? 'blue' : activeSource === 'b' ? 'green' : 'gold');
+});
+loadAllData();
+});
+});
+
+['refreshEcolesBtn','refreshMembersA','refreshMembersB','refreshMembersC','refreshTeachersBtn','refreshSheetsBtn','refreshCodesEmailsBtn','refreshCodesBtn'].forEach(id => {
+document.getElementById(id)?.addEventListener('click', loadAllData);
+});
+
+['ecoleSearch','ecoleStatutFilter'].forEach(id => {
+document.getElementById(id)?.addEventListener('input', loadSchools);
+document.getElementById(id)?.addEventListener('change', loadSchools);
+});
+
+['memberEcoleFilterA','memberSearchA'].forEach(id => { document.getElementById(id)?.addEventListener('change', loadMembersA); document.getElementById(id)?.addEventListener('input', loadMembersA); });
+['memberEcoleFilterB','memberSearchB'].forEach(id => { document.getElementById(id)?.addEventListener('change', loadMembersB); document.getElementById(id)?.addEventListener('input', loadMembersB); });
+['memberEcoleFilterC','memberSearchC'].forEach(id => { document.getElementById(id)?.addEventListener('change', loadMembersC); document.getElementById(id)?.addEventListener('input', loadMembersC); });
+['teacherEcoleFilter','teacherSearch'].forEach(id => { document.getElementById(id)?.addEventListener('change', loadTeachers); document.getElementById(id)?.addEventListener('input', loadTeachers); });
+['sheetEcoleFilter','sheetSearch'].forEach(id => { document.getElementById(id)?.addEventListener('change', loadSheets); document.getElementById(id)?.addEventListener('input', loadSheets); });
+document.getElementById('codesEmailsEcoleFilter')?.addEventListener('change', loadCodesEmails);
+document.getElementById('codeEcoleSelect')?.addEventListener('change', loadParentCodes);
+document.getElementById('codeSearchInput')?.addEventListener('input', loadParentCodes);
+document.getElementById('clearCacheBtn')?.addEventListener('click', clearCache);
+
+loginBtn.addEventListener('click', handleLogin);
+loginPassword.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleLogin(); });
+loginEmail.addEventListener('keydown', (e) => { if (e.key === 'Enter') loginPassword.focus(); });
+logoutBtn.addEventListener('click', logout);
+
+const savedSession = sessionStorage.getItem('adminSession');
+if (savedSession) {
+try {
+const session = JSON.parse(savedSession);
+if (session.email && session.timestamp > Date.now() - 3600000) {
+currentUser = { email: session.email };
+showDashboard(session.email);
+}
+} catch(e) {}
+}
+document.body.className = 'source-a';
 </script>
 </body>
 </html>
