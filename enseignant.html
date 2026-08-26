@@ -35,7 +35,6 @@ body{overscroll-behavior:none;-webkit-overscroll-behavior:none;}
 .main-nav-btn{flex:1;padding:14px 20px;border-radius:16px;border:none;font-size:15px;font-weight:700;cursor:pointer;transition:all 0.3s ease;background:transparent;color:#94a3b8;font-family:'Inter',sans-serif;text-align:center;}
 .main-nav-btn:hover{background:rgba(59,130,246,0.1);}
 .main-nav-btn.active{background:linear-gradient(135deg,#1e3a5f,#0f2b44);color:#fff;box-shadow:0 4px 15px rgba(59,130,246,0.3);}
-/* Styles selon le cycle */
 body.cycle-primaire .main-nav-btn.active{background:linear-gradient(135deg,#b45309,#d97706);box-shadow:0 4px 15px rgba(245,158,11,0.4);}
 body.cycle-primaire .tab.active{background:#b45309;color:#fff;}
 body.cycle-primaire .card-header{background:linear-gradient(135deg,#b45309,#d97706);}
@@ -531,15 +530,12 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// --- Récupération de l'école depuis l'URL ---
 const urlParams = new URLSearchParams(window.location.search);
 const ECOLET_ID = urlParams.get('school') || "odari";
 
-// --- Mise à jour du nom de l'école dans l'interface ---
 const schoolNameDisplay = ECOLET_ID.toUpperCase().replace(/_/g, ' ');
 let prefix = 'COMPLEXE SCOLAIRE ';
 const firstLetter = schoolNameDisplay.charAt(0).toUpperCase();
-// Si le nom commence par T, ajouter "LE"
 if (firstLetter === 'T') {
     prefix = 'COMPLEXE SCOLAIRE LE ';
 }
@@ -562,11 +558,9 @@ let saisieActive = false;
 let toastQueue = [];
 let isToastProcessing = false;
 
-// Classes disponibles
 const classesPrimaire = ["1ère A", "1ère B", "2ème A", "2ème B", "3ème A", "3ème B", "4ème A", "4ème B", "5ème A", "5ème B", "6ème A", "6ème B"];
 const classesMaternelle = ["Niveau 1", "Niveau 2", "Niveau 3"];
 
-// Collection élèves selon cycle
 function getCollectionEleves(cycle) {
   return cycle === "primaire" ? "prima_eleves" : "mater_eleves";
 }
@@ -711,22 +705,31 @@ async function restaurerSession() {
       currentEnseignant = { id: ens.id, nom: ens.nom, code: ens.code, cycle: ens.cycle, classes: ens.classes };
       document.getElementById('mainApp').style.display = 'block';
       appliquerThemeCycle(ens.cycle);
+      
+      const classeSelect = document.getElementById('classeSelect');
+      classeSelect.innerHTML = '';
+      const classesEnseignant = ens.classes || [];
+      if (classesEnseignant.length > 0) {
+        classesEnseignant.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c;
+          opt.textContent = c;
+          classeSelect.appendChild(opt);
+        });
+      } else {
+        const classes = ens.cycle === 'primaire' ? classesPrimaire : classesMaternelle;
+        classes.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c;
+          opt.textContent = c;
+          classeSelect.appendChild(opt);
+        });
+      }
+      
       toutesFiches = await loadAllFiches();
       if (toutesFiches.length) await selectFiche(toutesFiches[0].id);
       await refreshSelectors();
       await getAllEleves();
-      
-      // Sélectionner automatiquement la classe de l'enseignant
-      const classeSelect = document.getElementById('classeSelect');
-      if (ens.classes && ens.classes.length > 0) {
-        for (let i = 0; i < classeSelect.options.length; i++) {
-          if (classeSelect.options[i].value === ens.classes[0]) {
-            classeSelect.selectedIndex = i;
-            break;
-          }
-        }
-      }
-      
       toast("Bienvenue " + currentEnseignant.nom, 'success');
       return true;
     } catch (e) { console.log(e); }
@@ -762,7 +765,6 @@ async function getAllEleves() {
       const d = ds.data();
       if (d._type === 'config' || d._type === 'settings') continue;
       if (!d.nom) continue;
-      // Filtrer par les classes de l'enseignant
       if (classesEnseignant.length > 0 && !classesEnseignant.includes(d.classe)) continue;
       localEleves.push({
         id: d.eleveId || ds.id,
@@ -1444,26 +1446,23 @@ async function showLogin() {
       appliquerThemeCycle(ens.cycle);
       
       const classeSelect = document.getElementById('classeSelect');
-      classeSelect.innerHTML = '<option value="">-- Sélectionner --</option>';
-      const classes = ens.cycle === 'primaire' ? classesPrimaire : classesMaternelle;
+      classeSelect.innerHTML = '';
       const classesEnseignant = ens.classes || [];
-      classes.forEach(c => {
-        if (classesEnseignant.length === 0 || classesEnseignant.includes(c)) {
-          const opt = document.createElement('option');
-          opt.value = c;
-          opt.textContent = c;
-          classeSelect.appendChild(opt);
-        }
-      });
-      
-      // Sélectionner automatiquement la classe de l'enseignant
       if (classesEnseignant.length > 0) {
-        for (let i = 0; i < classeSelect.options.length; i++) {
-          if (classeSelect.options[i].value === classesEnseignant[0]) {
-            classeSelect.selectedIndex = i;
-            break;
-          }
-        }
+        classesEnseignant.forEach(cl => {
+          const opt = document.createElement('option');
+          opt.value = cl;
+          opt.textContent = cl;
+          classeSelect.appendChild(opt);
+        });
+      } else {
+        const classes = ens.cycle === 'primaire' ? classesPrimaire : classesMaternelle;
+        classes.forEach(cl => {
+          const opt = document.createElement('option');
+          opt.value = cl;
+          opt.textContent = cl;
+          classeSelect.appendChild(opt);
+        });
       }
       
       toutesFiches = await loadAllFiches();
@@ -1515,8 +1514,6 @@ async function refreshTeachersList() {
     }
   }
 }
-
-// --- Événements ---
 
 document.getElementById('logoutBtnParam').addEventListener('click', function() {
   showStyledConfirm("Déconnexion", "Êtes-vous sûr de vouloir vous déconnecter ?",
@@ -1747,7 +1744,6 @@ document.getElementById('rechargerElevesBtn').onclick = async function() {
   toast(`✅ ${elevesAAjouter.length} nouvel(le)s élève(s) ajouté(s)`, 'success');
 };
 
-// Événements des onglets
 document.querySelectorAll('.main-nav-btn').forEach(btn => {
   btn.addEventListener('click', function() {
     document.querySelectorAll('.main-nav-btn').forEach(b => b.classList.remove('active'));
@@ -1768,7 +1764,6 @@ document.querySelectorAll('#tabsEnseignant .tab').forEach(tab => {
   });
 });
 
-// Boutons épreuves (6 périodes)
 document.getElementById('addEpreuve1').onclick = function() { addEpreuve(1); };
 document.getElementById('addEpreuve2').onclick = function() { addEpreuve(2); };
 document.getElementById('addEpreuve3').onclick = function() { addEpreuve(3); };
@@ -1776,7 +1771,6 @@ document.getElementById('addEpreuve4').onclick = function() { addEpreuve(4); };
 document.getElementById('addEpreuve5').onclick = function() { addEpreuve(5); };
 document.getElementById('addEpreuve6').onclick = function() { addEpreuve(6); };
 
-// Correction manuelle
 document.getElementById('correctionManuelBtn').addEventListener('click', function() {
   const container = document.getElementById('saisieManuelleContainer');
   if (!saisieActive) {
@@ -2076,7 +2070,6 @@ document.getElementById('exportEleveNotesBtn').onclick = async function() {
   } catch (e) { toast("Erreur lors de la génération du PDF", 'error'); console.error(e); }
 };
 
-// --- Thème clair/sombre ---
 function toggleLightMode() {
   document.body.classList.toggle('light-mode');
   const isLight = document.body.classList.contains('light-mode');
@@ -2107,7 +2100,6 @@ function initTheme() {
 initTheme();
 document.getElementById('lightModeToggle').addEventListener('click', toggleLightMode);
 
-// --- Initialisation ---
 let sessionRestored = await restaurerSession();
 if (!sessionRestored) showLogin();
 else {
