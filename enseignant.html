@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>📚 Gestion Scolaire</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script type="importmap">
+{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"}}
+</script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#0a0e1a;font-family:'Inter',sans-serif;color:#fff;min-height:100vh;}
+.container{max-width:1100px;margin:0 auto;padding:12px;}
+.header{background:linear-gradient(135deg,#0f2b44,#071a2c);border-radius:14px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;}
+.header-left{display:flex;align-items:center;gap:10px;}
+.header-left h1{font-size:18px;font-weight:700;}
+.header-left p{font-size:10px;color:#94a3b8;}
+.header-actions{display:flex;gap:6px;flex-wrap:wrap;}
+.btn-sm{padding:5px 14px;border-radius:30px;border:none;font-weight:600;font-size:10px;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.2s;}
+.btn-sm:hover{transform:scale(0.97);}
+.btn-outline{background:transparent;border:1px solid #334155;color:#94a3b8;}
+.btn-outline:hover{background:rgba(255,255,255,0.05);}
+.btn-danger{background:#7f1d1d;color:#fff;}
+.btn-danger:hover{background:#991b1b;}
+.btn-success{background:#14532d;color:#fff;}
+.btn-success:hover{background:#166534;}
+.btn-primary{background:#1e3a5f;color:#fff;}
+.btn-primary:hover{background:#0f2b44;}
+.btn-warning{background:#b45309;color:#fff;}
+.btn-warning:hover{background:#c2410c;}
+.tabs{display:flex;gap:5px;margin-bottom:12px;overflow-x:auto;padding:2px 0;}
+.tab{background:transparent;border:1px solid #334155;padding:6px 14px;border-radius:30px;font-size:11px;font-weight:600;cursor:pointer;color:#94a3b8;transition:all 0.2s;white-space:nowrap;font-family:'Inter',sans-serif;}
+.tab:hover{background:rgba(59,130,246,0.1);border-color:#3b82f6;}
+.tab.active{background:#1e3a5f;color:#fff;border-color:transparent;}
+.tab-content{display:none;animation:fadeIn 0.2s;}
+.tab-content.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.card{background:rgba(18,18,31,0.95);border-radius:14px;padding:14px;border:1px solid rgba(59,130,246,0.1);margin-bottom:12px;}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px;}
+.card-header h3{font-size:13px;font-weight:600;color:#60a5fa;display:flex;align-items:center;gap:6px;}
+.card-header .badge{font-size:9px;padding:2px 10px;border-radius:30px;font-weight:600;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.form-group{display:flex;flex-direction:column;gap:3px;}
+.form-group label{font-size:9px;font-weight:600;color:#94a3b8;}
+.form-group input,.form-group select{padding:8px 12px;border-radius:8px;background:#1a2332;border:1px solid #334155;color:#fff;font-size:12px;outline:none;font-family:'Inter',sans-serif;}
+.form-group input:focus,.form-group select:focus{border-color:#3b82f6;}
+.form-group input[readonly]{opacity:0.6;cursor:not-allowed;}
+.classes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:3px;max-height:120px;overflow-y:auto;padding:5px;background:rgba(0,0,0,0.2);border-radius:8px;border:1px solid #1a2332;}
+.class-item{display:flex;align-items:center;gap:4px;padding:2px 5px;border-radius:5px;cursor:pointer;}
+.class-item:hover{background:rgba(59,130,246,0.06);}
+.class-item input[type="checkbox"]{width:13px;height:13px;accent-color:#3b82f6;cursor:pointer;margin:0;}
+.class-item label{font-size:10px;color:#cbd5e1;cursor:pointer;margin:0;}
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:11px;}
+th{background:#0f172a;padding:6px 8px;text-align:left;color:#94a3b8;font-weight:600;font-size:9px;border-bottom:1px solid #1a2332;}
+td{padding:6px 8px;border-bottom:1px solid #1a2332;color:#e2e8f0;}
+.badge-p{background:rgba(59,130,246,0.2);color:#60a5fa;padding:1px 8px;border-radius:30px;font-size:8px;font-weight:600;}
+.badge-m{background:rgba(16,185,129,0.2);color:#34d399;padding:1px 8px;border-radius:30px;font-size:8px;font-weight:600;}
+.badge-actif{background:rgba(16,185,129,0.2);color:#34d399;padding:1px 8px;border-radius:30px;font-size:8px;font-weight:600;}
+.badge-inactif{background:rgba(239,68,68,0.2);color:#ef4444;padding:1px 8px;border-radius:30px;font-size:8px;font-weight:600;}
+.code{font-family:monospace;font-weight:700;color:#fbbf24;letter-spacing:1px;}
+.empty{text-align:center;padding:20px;color:#4a5568;font-size:12px;}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;}
+.stat-card{background:#0f172a;border-radius:10px;padding:12px;text-align:center;border:1px solid #1a2332;}
+.stat-card .num{font-size:20px;font-weight:800;color:#60a5fa;}
+.stat-card .label{font-size:9px;color:#94a3b8;margin-top:2px;}
+.toast{position:fixed;bottom:20px;right:20px;background:rgba(18,25,45,0.95);border-radius:10px;padding:10px 18px;border-left:4px solid #10b981;transform:translateY(100px);opacity:0;transition:all 0.3s;z-index:999;max-width:90%;font-size:13px;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.error{border-left-color:#ef4444;}
+.toast.warning{border-left-color:#f59e0b;}
+.modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:1000;visibility:hidden;opacity:0;transition:all 0.3s;}
+.modal.show{visibility:visible;opacity:1;}
+.modal-box{background:rgba(18,18,31,0.98);border-radius:16px;padding:20px;max-width:380px;width:90%;border:1px solid rgba(59,130,246,0.2);text-align:center;}
+.modal-box .big{font-size:40px;margin-bottom:6px;}
+.modal-box .code-display{background:#0a0e1a;border-radius:10px;padding:12px;margin:10px 0;border:2px solid #10b981;}
+.modal-box .code-display .num{font-size:28px;font-weight:800;letter-spacing:6px;color:#10b981;font-family:monospace;}
+.modal-box .btn{width:auto;padding:8px 28px;border-radius:30px;border:none;font-weight:700;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif;background:#10b981;color:#fff;}
+.modal-box .btn:hover{opacity:0.9;}
+@media(max-width:600px){.form-row{grid-template-columns:1fr;}.classes-grid{grid-template-columns:repeat(4,1fr);}.header{flex-direction:column;text-align:center;}.header-actions{justify-content:center;}.stats-grid{grid-template-columns:repeat(2,1fr);}.tab{padding:4px 10px;font-size:9px;}}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <div class="header-left">
+      <span style="font-size:24px;">📚</span>
+      <div>
+        <h1 id="schoolName">COMPLEXE SCOLAIRE</h1>
+        <p id="schoolSub">Primaire &amp; Maternelle · 2026-2027</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn-sm btn-outline" onclick="changerEspace('direction')">🏫 Direction</button>
+      <button class="btn-sm btn-outline" onclick="changerEspace('enseignant')">👨‍🏫 Enseignant</button>
+      <button class="btn-sm btn-danger" onclick="deconnexion()">🚪</button>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabsContainer">
+    <button class="tab active" data-tab="tabEnseignants">👨‍🏫 Enseignants</button>
+    <button class="tab" data-tab="tabClasses">📚 Classes</button>
+    <button class="tab" data-tab="tabStats">📊 Stats</button>
+    <button class="tab" data-tab="tabCahier">📓 Cahier</button>
+    <button class="tab" data-tab="tabNotes">✏️ Notes</button>
+  </div>
+
+  <div id="tabEnseignants" class="tab-content active">
+    <div class="card">
+      <div class="card-header">
+        <h3>👤 Ajouter un enseignant</h3>
+        <span class="badge badge-p" id="cycleBadge">📚 PRIMAIRE</span>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nom complet</label>
+          <input type="text" id="ensNom" placeholder="Ex: KASONGO Jean">
+        </div>
+        <div class="form-group">
+          <label>Cycle</label>
+          <select id="ensCycle" onchange="changerCycle()">
+            <option value="primaire">📚 Primaire</option>
+            <option value="maternelle">🧸 Maternelle</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:6px;">
+        <label>Classes</label>
+        <div class="classes-grid" id="classesGrid"></div>
+      </div>
+      <div class="form-row" style="margin-top:6px;">
+        <div class="form-group">
+          <label>🔑 Code</label>
+          <input type="text" id="ensCode" readonly style="font-family:monospace;font-size:16px;letter-spacing:4px;color:#fbbf24;">
+        </div>
+        <div class="form-group" style="justify-content:flex-end;">
+          <button class="btn-sm btn-success" onclick="ajouterEnseignant()" style="padding:10px;width:100%;font-size:13px;">➕ AJOUTER</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>📋 Liste des enseignants</h3>
+        <span id="ensCompteur" style="font-size:11px;color:#94a3b8;">0</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Nom</th><th>Cycle</th><th>Classes</th><th>Code</th><th>Statut</th><th></th></tr></thead>
+          <tbody id="ensListe"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="tabClasses" class="tab-content">
+    <div class="card">
+      <div class="card-header"><h3>📚 Classes par cycle</h3></div>
+      <div id="classesContainer"></div>
+    </div>
+  </div>
+
+  <div id="tabStats" class="tab-content">
+    <div class="card">
+      <div class="card-header"><h3>📊 Statistiques</h3></div>
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card"><div class="num" id="statEnseignants">0</div><div class="label">👨‍🏫 Enseignants</div></div>
+        <div class="stat-card"><div class="num" id="statEleves">0</div><div class="label">👨‍🎓 Élèves</div></div>
+        <div class="stat-card"><div class="num" id="statClasses">0</div><div class="label">📚 Classes</div></div>
+        <div class="stat-card"><div class="num" id="statCahiers">0</div><div class="label">📓 Cahiers</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tabCahier" class="tab-content">
+    <div class="card">
+      <div class="card-header"><h3>📓 Cahier de cotation</h3></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Classe</label>
+          <select id="cahierClasse"><option value="">-- Sélectionner --</option></select>
+        </div>
+        <div class="form-group">
+          <label>Matière</label>
+          <input type="text" id="cahierMatiere" placeholder="Ex: Français">
+        </div>
+      </div>
+      <button class="btn-sm btn-primary" onclick="creerCahier()" style="width:100%;padding:10px;font-size:13px;">📓 CRÉER LE CAHIER</button>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>📋 Mes cahiers</h3></div>
+      <div id="cahierListe"></div>
+    </div>
+  </div>
+
+  <div id="tabNotes" class="tab-content">
+    <div class="card">
+      <div class="card-header"><h3>✏️ Saisie des notes</h3></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cahier</label>
+          <select id="notesCahier" onchange="chargerElevesNotes()"><option value="">-- Sélectionner --</option></select>
+        </div>
+        <div class="form-group">
+          <label>Période</label>
+          <select id="notesPeriode"><option value="1">Période 1</option><option value="2">Période 2</option><option value="3">Période 3</option><option value="4">Période 4</option></select>
+        </div>
+      </div>
+      <div id="notesContainer"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastMsg">✅ Succès</span></div>
+
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <div class="big">✅</div>
+    <h3 id="modalNom" style="color:#60a5fa;font-size:17px;">Enseignant</h3>
+    <p style="color:#94a3b8;font-size:12px;margin:4px 0;">Code d'accès :</p>
+    <div class="code-display"><div class="num" id="modalCode">123456</div></div>
+    <p style="color:#94a3b8;font-size:10px;">⚠️ Transmettez ce code à l'enseignant</p>
+    <br>
+    <button class="btn" onclick="fermerModal()">OK</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, query, where } from "firebase/firestore";
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDX430AIfzzgfq3o8tXHwQfIptgWOZ-K8c",
+  authDomain: "gesco-67c43.firebaseapp.com",
+  projectId: "gesco-67c43",
+  storageBucket: "gesco-67c43.firebasestorage.app",
+  messagingSenderId: "333004443566",
+  appId: "1:333004443566:web:de41f60000e418dce9023f"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+const urlParams = new URLSearchParams(window.location.search);
+const schoolId = urlParams.get('ecole') || 'mon_ecole';
+const ECOLET_ID = schoolId.replace(/[^a-zA-Z0-9]/g, '_');
+document.getElementById('schoolName').textContent = 'COMPLEXE SCOLAIRE ' + schoolId.toUpperCase();
+
+let cycleActuel = 'primaire';
+
+const classesPrimaire = ['1ère A','1ère B','2ème A','2ème B','3ème A','3ème B','4ème A','4ème B','5ème A','5ème B','6ème A','6ème B'];
+const classesMaternelle = ['Niveau 1','Niveau 2','Niveau 3'];
+
+function toast(msg, type='success'){
+  const el = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  el.className = 'toast ' + type;
+  setTimeout(() => el.classList.add('show'), 10);
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function genererCode(){
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function afficherClasses(){
+  const grid = document.getElementById('classesGrid');
+  const classes = cycleActuel === 'primaire' ? classesPrimaire : classesMaternelle;
+  grid.innerHTML = '';
+  classes.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'class-item';
+    div.innerHTML = `<input type="checkbox" id="cls_${c}" value="${c}"><label for="cls_${c}">${c}</label>`;
+    grid.appendChild(div);
+  });
+  document.getElementById('ensCode').value = genererCode();
+  document.getElementById('cycleBadge').textContent = cycleActuel === 'primaire' ? '📚 PRIMAIRE' : '🧸 MATERNELLE';
+  document.getElementById('cycleBadge').className = 'badge ' + (cycleActuel === 'primaire' ? 'badge-p' : 'badge-m');
+}
+
+window.changerCycle = function(){
+  cycleActuel = document.getElementById('ensCycle').value;
+  afficherClasses();
+};
+
+function getClassesSelectionnees(){
+  const classes = [];
+  document.querySelectorAll('#classesGrid input[type="checkbox"]:checked').forEach(cb => classes.push(cb.value));
+  return classes;
+}
+
+async function ajouterEnseignant(){
+  const nom = document.getElementById('ensNom').value.trim();
+  const code = document.getElementById('ensCode').value.trim();
+  const classes = getClassesSelectionnees();
+
+  if(!nom){ toast('⚠️ Entrez un nom', 'error'); return; }
+  if(classes.length === 0){ toast('⚠️ Sélectionnez au moins une classe', 'error'); return; }
+
+  const email = 'ens.' + nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z\s]/g,'').replace(/\s+/g,'.') + '.' + ECOLET_ID + '@gmail.com';
+  const ensId = 'ens_' + Date.now();
+
+  try {
+    await createUserWithEmailAndPassword(auth, email, code).catch(() => {});
+    await setDoc(doc(db, 'ecoles', ECOLET_ID, 'enseignants', ensId), {
+      _type: 'enseignant', id: ensId, ensId: ensId, nom, cycle: cycleActuel,
+      classes, code, email, actif: true, createdAt: Date.now(), school: ECOLET_ID
+    });
+    ouvrirModal(nom, code);
+    document.getElementById('ensNom').value = '';
+    document.getElementById('ensCode').value = genererCode();
+    document.querySelectorAll('#classesGrid input[type="checkbox"]').forEach(cb => cb.checked = false);
+    chargerEnseignants();
+    chargerStats();
+    toast('✅ ' + nom + ' ajouté');
+  } catch(e){ toast('❌ ' + e.message, 'error'); }
+}
+
+function ouvrirModal(nom, code){
+  document.getElementById('modalNom').textContent = nom;
+  document.getElementById('modalCode').textContent = code;
+  document.getElementById('modal').classList.add('show');
+}
+
+window.fermerModal = function(){
+  document.getElementById('modal').classList.remove('show');
+};
+
+async function chargerEnseignants(){
+  try {
+    const snap = await getDocs(query(collection(db, 'ecoles', ECOLET_ID, 'enseignants'), where('_type','==','enseignant')));
+    const ens = [];
+    snap.forEach(ds => ens.push({id: ds.id, ...ds.data()}));
+    ens.sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+    document.getElementById('ensCompteur').textContent = ens.length;
+    if(ens.length === 0){
+      document.getElementById('ensListe').innerHTML = '<tr><td colspan="7" class="empty">📭 Aucun enseignant</td></tr>';
+      return;
+    }
+    document.getElementById('ensListe').innerHTML = ens.map((p,i) => `
+      <tr>
+        <td>${i+1}</td>
+        <td><strong>${p.nom||'?'}</strong></td>
+        <td><span class="${p.cycle==='maternelle'?'badge-m':'badge-p'}">${p.cycle==='maternelle'?'🧸 MAT':'📚 PRIM'}</span></td>
+        <td style="font-size:10px;">${(p.classes||[]).join(', ')}</td>
+        <td class="code">${p.code||'---'}</td>
+        <td><span class="${p.actif!==false?'badge-actif':'badge-inactif'}">${p.actif!==false?'ACTIF':'INACTIF'}</span></td>
+        <td>
+          <button class="btn-sm btn-outline" onclick="basculerStatut('${p.id}')" style="padding:2px 8px;font-size:9px;">${p.actif!==false?'🔒':'🔓'}</button>
+          <button class="btn-sm btn-danger" onclick="supprimerEns('${p.id}','${p.nom}')" style="padding:2px 8px;font-size:9px;">✕</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch(e){ console.error(e); }
+}
+
+window.basculerStatut = async function(id){
+  try {
+    const ref = doc(db, 'ecoles', ECOLET_ID, 'enseignants', id);
+    const snap = await getDoc(ref);
+    if(!snap.exists()) return;
+    const actuel = snap.data().actif !== false;
+    await updateDoc(ref, { actif: !actuel });
+    toast('✅ Statut modifié');
+    chargerEnseignants();
+  } catch(e){ toast('❌ Erreur', 'error'); }
+};
+
+window.supprimerEns = function(id, nom){
+  if(!confirm(`Supprimer ${nom} ?`)) return;
+  deleteDoc(doc(db, 'ecoles', ECOLET_ID, 'enseignants', id))
+    .then(() => { toast('🗑️ Supprimé', 'warning'); chargerEnseignants(); chargerStats(); })
+    .catch(() => toast('❌ Erreur', 'error'));
+};
+
+async function chargerStats(){
+  try {
+    const ensSnap = await getDocs(query(collection(db, 'ecoles', ECOLET_ID, 'enseignants'), where('_type','==','enseignant')));
+    document.getElementById('statEnseignants').textContent = ensSnap.size;
+    const classesSet = new Set();
+    ensSnap.forEach(ds => { const d = ds.data(); if(d.classes) d.classes.forEach(c => classesSet.add(c)); });
+    document.getElementById('statClasses').textContent = classesSet.size;
+    const elevesSnap = await getDocs(collection(db, 'ecoles', ECOLET_ID, 'prima_eleves'));
+    const elevesSnap2 = await getDocs(collection(db, 'ecoles', ECOLET_ID, 'mater_eleves'));
+    document.getElementById('statEleves').textContent = elevesSnap.size + elevesSnap2.size;
+    const cahiersSnap = await getDocs(collection(db, 'ecoles', ECOLET_ID, 'cahiers'));
+    document.getElementById('statCahiers').textContent = cahiersSnap.size;
+  } catch(e){ console.error(e); }
+}
+
+async function chargerClasses(){
+  const container = document.getElementById('classesContainer');
+  try {
+    const snap = await getDocs(collection(db, 'ecoles', ECOLET_ID, 'prima_eleves'));
+    const classes = {};
+    snap.forEach(ds => {
+      const d = ds.data();
+      if(d.classe) classes[d.classe] = (classes[d.classe] || 0) + 1;
+    });
+    const snap2 = await getDocs(collection(db, 'ecoles', ECOLET_ID, 'mater_eleves'));
+    snap2.forEach(ds => {
+      const d = ds.data();
+      if(d.classe) classes[d.classe] = (classes[d.classe] || 0) + 1;
+    });
+    const sorted = Object.keys(classes).sort();
+    if(sorted.length === 0){
+      container.innerHTML = '<div class="empty">📭 Aucune classe avec élèves</div>';
+      return;
+    }
+    let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;">';
+    sorted.forEach(c => {
+      const estMaternelle = c.includes('Niveau');
+      html += `<div style="background:#0f172a;border-radius:10px;padding:12px;border:1px solid #1a2332;text-align:center;">
+        <div style="font-weight:600;font-size:14px;color:#60a5fa;">${c}</div>
+        <div style="font-size:11px;color:#94a3b8;">${classes[c]} élèves</div>
+        <div style="font-size:9px;color:#4a5568;margin-top:3px;">${estMaternelle ? '🧸 Maternelle' : '📚 Primaire'}</div>
+      </div>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  } catch(e){ container.innerHTML = '<div class="empty">❌ Erreur de chargement</div>'; }
+}
+
+async function chargerCahiers(){
+  const container = document.getElementById('cahierListe');
+  try {
+    const snap = await getDocs(collection(db, 'ecoles', ECOLET_ID, 'cahiers'));
+    const cahiers = [];
+    snap.forEach(ds => cahiers.push({id: ds.id, ...ds.data()}));
+    if(cahiers.length === 0){
+      container.innerHTML = '<div class="empty">📭 Aucun cahier créé</div>';
+      return;
+    }
+    let html = '<div style="display:flex;flex-direction:column;gap:8px;">';
+    cahiers.forEach(c => {
+      html += `<div style="background:#0f172a;border-radius:10px;padding:10px 14px;border:1px solid #1a2332;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+        <div><strong style="color:#60a5fa;">${c.matiere||'?'}</strong> <span style="color:#94a3b8;font-size:11px;">${c.classe||'?'}</span></div>
+        <div style="font-size:10px;color:#94a3b8;">${(c.eleves||[]).length} élèves</div>
+        <button class="btn-sm btn-danger" onclick="supprimerCahier('${c.id}')" style="padding:2px 10px;">✕</button>
+      </div>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  } catch(e){ console.error(e); }
+}
+
+async function creerCahier(){
+  const classe = document.getElementById('cahierClasse').value;
+  const matiere = document.getElementById('cahierMatiere').value.trim();
+  if(!classe){ toast('⚠️ Sélectionnez une classe', 'error'); return; }
+  if(!matiere){ toast('⚠️ Entrez une matière', 'error'); return; }
+  try {
+    const eleves = [];
+    const snap = await getDocs(query(collection(db, 'ecoles', ECOLET_ID, 'prima_eleves'), where('classe','==',classe)));
+    snap.forEach(ds => {
+      const d = ds.data();
+      eleves.push({id: ds.id, nom: d.nom||'', prenom: d.prenom||'', sexe: d.sexe||'M', notes: {}});
+    });
+    const snap2 = await getDocs(query(collection(db, 'ecoles', ECOLET_ID, 'mater_eleves'), where('classe','==',classe)));
+    snap2.forEach(ds => {
+      const d = ds.data();
+      eleves.push({id: ds.id, nom: d.nom||'', prenom: d.prenom||'', sexe: d.sexe||'F', notes: {}});
+    });
+    if(eleves.length === 0){ toast('⚠️ Aucun élève dans cette classe', 'error'); return; }
+    const cahierId = 'cahier_' + Date.now();
+    await setDoc(doc(db, 'ecoles', ECOLET_ID, 'cahiers', cahierId), {
+      classe, matiere, eleves, epreuves: {1:[],2:[],3:[],4:[]},
+      createdBy: 'direction', createdAt: Date.now(), school: ECOLET_ID
+    });
+    toast('✅ Cahier créé avec ' + eleves.length + ' élèves');
+    chargerCahiers();
+    chargerStats();
+    document.getElementById('cahierMatiere').value = '';
+    await chargerSelectCahiers();
+  } catch(e){ toast('❌ ' + e.message, 'error'); }
+}
+
+async function chargerSelectCahiers(){
+  const select = document.getElementById('notesCahier');
+  try {
+    const snap = await getDocs(collection(db, 'ecoles', ECOLET_ID, 'cahiers'));
+    select.innerHTML = '<option value="">-- Sélectionner --</option>';
+    snap.forEach(ds => {
+      const d = ds.data();
+      const opt = document.createElement('option');
+      opt.value = ds.id;
+      opt.textContent = d.matiere + ' - ' + d.classe;
+      select.appendChild(opt);
+    });
+  } catch(e){ console.error(e); }
+}
+
+async function chargerElevesNotes(){
+  const cahierId = document.getElementById('notesCahier').value;
+  const periode = document.getElementById('notesPeriode').value;
+  const container = document.getElementById('notesContainer');
+  if(!cahierId){ container.innerHTML = ''; return; }
+  try {
+    const snap = await getDoc(doc(db, 'ecoles', ECOLET_ID, 'cahiers', cahierId));
+    if(!snap.exists()){ container.innerHTML = ''; return; }
+    const data = snap.data();
+    const eleves = data.eleves || [];
+    if(eleves.length === 0){ container.innerHTML = '<div class="empty">📭 Aucun élève</div>'; return; }
+    let html = `<div style="margin-top:10px;max-height:400px;overflow-y:auto;">
+      <div style="display:grid;grid-template-columns:40px 1fr 80px;gap:6px;padding:6px 0;font-weight:600;font-size:10px;color:#94a3b8;border-bottom:1px solid #1a2332;">
+        <span>#</span><span>Élève</span><span>Note</span>
+      </div>`;
+    eleves.forEach((e, i) => {
+      const note = e.notes?.['p'+periode] || '';
+      const nomComplet = (e.nom||'') + ' ' + (e.prenom||'');
+      html += `<div style="display:grid;grid-template-columns:40px 1fr 80px;gap:6px;padding:6px 0;border-bottom:1px solid #0f172a;align-items:center;">
+        <span style="color:#4a5568;font-size:11px;">${i+1}</span>
+        <span style="font-size:12px;">${nomComplet || 'Élève'}</span>
+        <input type="number" step="0.5" min="0" max="20" value="${note}" 
+          onchange="sauverNote('${cahierId}',${i},${periode},this.value)" 
+          style="width:60px;padding:4px 6px;border-radius:6px;background:#1a2332;border:1px solid #334155;color:#fff;text-align:center;">
+      </div>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  } catch(e){ container.innerHTML = '<div class="empty">❌ Erreur</div>'; }
+}
+
+window.sauverNote = async function(cahierId, index, periode, valeur){
+  const val = parseFloat(valeur) || 0;
+  try {
+    const ref = doc(db, 'ecoles', ECOLET_ID, 'cahiers', cahierId);
+    const snap = await getDoc(ref);
+    if(!snap.exists()) return;
+    const data = snap.data();
+    if(!data.eleves[index]) return;
+    if(!data.eleves[index].notes) data.eleves[index].notes = {};
+    data.eleves[index].notes['p'+periode] = val;
+    await updateDoc(ref, { eleves: data.eleves });
+    toast('✅ Note sauvegardée');
+  } catch(e){ toast('❌ Erreur', 'error'); }
+};
+
+function changerEspace(espace){
+  espaceActuel = espace;
+  document.querySelectorAll('.tabs').forEach(t => t.style.display = espace === 'direction' ? 'flex' : 'none');
+  if(espace === 'enseignant'){
+    document.querySelectorAll('.tab').forEach(t => {
+      if(t.dataset.tab !== 'tabCahier' && t.dataset.tab !== 'tabNotes') t.style.display = 'none';
+    });
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelector('[data-tab="tabCahier"]').classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tabCahier').classList.add('active');
+    chargerSelectCahiers();
+  } else {
+    document.querySelectorAll('.tab').forEach(t => t.style.display = '');
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelector('[data-tab="tabEnseignants"]').classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tabEnseignants').classList.add('active');
+  }
+}
+
+function deconnexion(){
+  if(confirm('Se déconnecter ?')){
+    localStorage.clear();
+    window.location.href = 'https://www.netubex.com/login.html?ecole=' + schoolId;
+  }
+}
+
+window.supprimerCahier = function(id){
+  if(!confirm('Supprimer ce cahier ?')) return;
+  deleteDoc(doc(db, 'ecoles', ECOLET_ID, 'cahiers', id))
+    .then(() => { toast('🗑️ Cahier supprimé'); chargerCahiers(); chargerStats(); })
+    .catch(() => toast('❌ Erreur', 'error'));
+};
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.onclick = function(){
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    this.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById(this.dataset.tab).classList.add('active');
+    if(this.dataset.tab === 'tabClasses') chargerClasses();
+    if(this.dataset.tab === 'tabStats') chargerStats();
+    if(this.dataset.tab === 'tabCahier') { chargerCahiers(); chargerSelectCahiers(); chargerClassesPourCahier(); }
+    if(this.dataset.tab === 'tabNotes') chargerSelectCahiers();
+  };
+});
+
+async function chargerClassesPourCahier(){
+  const select = document.getElementById('cahierClasse');
+  try {
+    const classes = new Set();
+    const snap = await getDocs(collection(db, 'ecoles', ECOLET_ID, 'prima_eleves'));
+    snap.forEach(ds => { const d = ds.data(); if(d.classe) classes.add(d.classe); });
+    const snap2 = await getDocs(collection(db, 'ecoles', ECOLET_ID, 'mater_eleves'));
+    snap2.forEach(ds => { const d = ds.data(); if(d.classe) classes.add(d.classe); });
+    select.innerHTML = '<option value="">-- Sélectionner --</option>';
+    Array.from(classes).sort().forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c;
+      select.appendChild(opt);
+    });
+  } catch(e){ console.error(e); }
+}
+
+afficherClasses();
+chargerEnseignants();
+chargerStats();
+chargerClasses();
+chargerCahiers();
+chargerClassesPourCahier();
+chargerSelectCahiers();
+</script>
+</body>
+</html>
