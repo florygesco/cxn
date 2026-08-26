@@ -126,6 +126,8 @@ body.light-mode .header .mode-toggle .sun{color:#94a3b8;}
 .btn-primary:hover{box-shadow:0 8px 24px rgba(59,130,246,0.35);}
 .btn-danger{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;box-shadow:0 4px 16px rgba(239,68,68,0.25);}
 .btn-danger:hover{box-shadow:0 8px 24px rgba(239,68,68,0.35);}
+.btn-pdf{background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;box-shadow:0 4px 16px rgba(220,38,38,0.25);}
+.btn-pdf:hover{box-shadow:0 8px 24px rgba(220,38,38,0.35);}
 .btn-block{width:100%;padding:14px;}
 
 .table-wrap{overflow-x:auto;border-radius:12px;border:1px solid rgba(255,255,255,0.04);}
@@ -198,7 +200,7 @@ td.note-cell{font-weight:500;}
 .cahier-card .cahier-infos .info-value{color:#e2e8f0;font-weight:600;}
 .cahier-card .cahier-right{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 
-@media(max-width:600px){.form-row{grid-template-columns:1fr;}.header{flex-direction:column;text-align:center;}.header .right{justify-content:center;}.tab{padding:8px 16px;font-size:12px;}.btn{padding:12px 20px;font-size:13px;}.modal-confirm-box{padding:24px;}}
+@media(max-width:600px){.form-row{grid-template-columns:1fr;}.header{flex-direction:column;text-align:center;}.header .right{justify-content:center;}.tab{padding:8px 16px;font-size:12px;}.btn{padding:12px 20px;font-size:13px;}.modal-confirm-box{padding:24px;}.cahier-layout{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
@@ -251,7 +253,6 @@ td.note-cell{font-weight:500;}
     <!-- ===== TAB 1: CAHIER ===== -->
     <div id="tabCahier" class="tab-content active">
       <div class="cahier-layout">
-        <!-- GAUCHE : CRÉER UN CAHIER -->
         <div>
           <div class="card">
             <div class="card-header"><h3>📓 CRÉER UN CAHIER</h3><span class="badge">Nouveau</span></div>
@@ -268,8 +269,6 @@ td.note-cell{font-weight:500;}
             <p style="font-size:11px;color:rgba(255,255,255,0.12);margin-top:8px;text-align:center;">✅ Les élèves sont importés depuis la comptabilité</p>
           </div>
         </div>
-
-        <!-- DROITE : MES CAHIERS -->
         <div>
           <div class="card" style="height:100%;">
             <div class="card-header"><h3>📋 MES CAHIERS</h3><span class="badge" id="cahierCompteur">0</span></div>
@@ -365,19 +364,6 @@ td.note-cell{font-weight:500;}
     <div class="modal-buttons">
       <button class="btn btn-outline" id="confirmCancel">Annuler</button>
       <button class="btn btn-success" id="confirmOk">✅ Créer</button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== MODALE DE SUPPRESSION ===== -->
-<div class="modal-overlay" id="deleteModal">
-  <div class="modal-confirm-box">
-    <h3>🗑️ Supprimer le cahier</h3>
-    <p class="sub">Voulez-vous vraiment supprimer ce cahier ?</p>
-    <p style="text-align:center;color:#94a3b8;font-size:13px;margin-bottom:16px;" id="deleteInfo">-</p>
-    <div class="modal-buttons">
-      <button class="btn btn-outline" id="deleteCancel">Annuler</button>
-      <button class="btn btn-danger" id="deleteOk">🗑️ Supprimer</button>
     </div>
   </div>
 </div>
@@ -614,7 +600,6 @@ window.preparerCreationCahier = async function(){
   if(!classe){ toast('⚠️ Sélectionnez une classe', 'error'); return; }
   if(!matiere){ toast('⚠️ Entrez une matière', 'error'); return; }
   
-  // Vérifier les doublons
   try {
     const snap = await getDocs(query(
       collection(db, 'ecoles', ECOLET_ID, 'cahiers'),
@@ -622,14 +607,12 @@ window.preparerCreationCahier = async function(){
       where('matiere', '==', matiere),
       where('classe', '==', classe)
     ));
-    
     if(!snap.empty){
       toast('⚠️ Un cahier "' + matiere + '" existe déjà pour la classe ' + classe, 'error');
       return;
     }
   } catch(e){ toast('❌ Erreur de vérification', 'error'); return; }
   
-  // Compter les élèves
   let nbEleves = 0;
   try {
     const snap = await getDocs(query(collection(db, 'ecoles', ECOLET_ID, 'prima_eleves'), where('classe','==',classe), where('abandon','==',false)));
@@ -640,7 +623,6 @@ window.preparerCreationCahier = async function(){
   
   if(nbEleves === 0){ toast('⚠️ Aucun élève dans cette classe', 'error'); return; }
   
-  // Remplir la modale
   document.getElementById('confirmClasse').textContent = classe;
   document.getElementById('confirmMatiere').textContent = matiere;
   document.getElementById('confirmNoteMax').textContent = pMax + ' pts';
@@ -648,9 +630,7 @@ window.preparerCreationCahier = async function(){
   document.getElementById('confirmSemestres').textContent = configEnseignant.nbSemestres + ' semestre(s)';
   document.getElementById('confirmEleves').textContent = nbEleves + ' élèves';
   
-  // Stocker les données pour la création
   cahierEnCreation = { classe, matiere, pMax, nbEleves };
-  
   document.getElementById('confirmModal').classList.add('show');
 };
 
@@ -751,7 +731,10 @@ window.supprimerCahier = async function(id, matiere){
   }
 };
 
-// ===== ÉPREUVES, COTATION, NOTES, EXPORTS (fonctions simplifiées) =====
+// ================================================================
+// ===== TAB 2: ÉPREUVES =====
+// ================================================================
+
 async function chargerSelectEpreuves(){
   const select = document.getElementById('epreuveCahier');
   try {
@@ -761,10 +744,83 @@ async function chargerSelectEpreuves(){
   } catch(e){ console.error(e); }
 }
 
-window.chargerEpreuves = async function(){ /* ... */ };
-window.ajouterEpreuve = async function(){ /* ... */ };
-window.modifierEpreuve = async function(){ /* ... */ };
-window.supprimerEpreuve = async function(){ /* ... */ };
+window.chargerEpreuves = async function(){
+  const cahierId = document.getElementById('epreuveCahier').value;
+  const periode = parseInt(document.getElementById('epreuvePeriode').value);
+  const container = document.getElementById('epreuvesContainer');
+  if(!cahierId){ container.innerHTML = '<div class="empty">📭 Sélectionnez un cahier</div>'; return; }
+  try {
+    const snap = await getDoc(doc(db, 'ecoles', ECOLET_ID, 'cahiers', cahierId));
+    if(!snap.exists()){ container.innerHTML = ''; return; }
+    const data = snap.data();
+    const epreuves = data.epreuves?.[periode] || [];
+    if(epreuves.length === 0){ container.innerHTML = '<div class="empty">📭 Aucune épreuve pour cette période</div>'; return; }
+    let html = '';
+    epreuves.forEach((ep, i) => {
+      html += `<div class="epreuve-item">
+        <span style="color:rgba(255,255,255,0.25);font-size:12px;min-width:30px;">${i+1}</span>
+        <input type="text" value="${ep.nom||'Épreuve'}" onchange="modifierEpreuve('${cahierId}',${periode},${i},'nom',this.value)" placeholder="Nom" style="flex:1;min-width:100px;">
+        <span style="color:rgba(255,255,255,0.25);font-size:12px;">/</span>
+        <input type="number" value="${ep.max||20}" onchange="modifierEpreuve('${cahierId}',${periode},${i},'max',this.value)" class="epreuve-max">
+        <button class="btn-sm btn-danger-sm" onclick="supprimerEpreuve('${cahierId}',${periode},${i})" style="padding:4px 12px;">✕</button>
+      </div>`;
+    });
+    container.innerHTML = html;
+  } catch(e){ container.innerHTML = '<div class="empty">❌ Erreur</div>'; }
+};
+
+window.ajouterEpreuve = async function(){
+  const cahierId = document.getElementById('epreuveCahier').value;
+  const periode = parseInt(document.getElementById('epreuvePeriode').value);
+  if(!cahierId){ toast('⚠️ Sélectionnez un cahier', 'error'); return; }
+  try {
+    const ref = doc(db, 'ecoles', ECOLET_ID, 'cahiers', cahierId);
+    const snap = await getDoc(ref);
+    if(!snap.exists()) return;
+    const data = snap.data();
+    if(!data.epreuves) data.epreuves = {};
+    if(!data.epreuves[periode]) data.epreuves[periode] = [];
+    const num = data.epreuves[periode].length + 1;
+    data.epreuves[periode].push({ nom: 'Épreuve ' + num, max: data.pMax || 20 });
+    await updateDoc(ref, { epreuves: data.epreuves });
+    toast('✅ Épreuve ajoutée');
+    chargerEpreuves();
+  } catch(e){ toast('❌ ' + e.message, 'error'); }
+};
+
+window.modifierEpreuve = async function(cahierId, periode, index, champ, valeur){
+  try {
+    const ref = doc(db, 'ecoles', ECOLET_ID, 'cahiers', cahierId);
+    const snap = await getDoc(ref);
+    if(!snap.exists()) return;
+    const data = snap.data();
+    if(!data.epreuves?.[periode]?.[index]) return;
+    if(champ === 'max') valeur = parseFloat(valeur) || 1;
+    if(valeur < 1) valeur = 1;
+    data.epreuves[periode][index][champ] = valeur;
+    await updateDoc(ref, { epreuves: data.epreuves });
+  } catch(e){ toast('❌ Erreur', 'error'); }
+};
+
+window.supprimerEpreuve = async function(cahierId, periode, index){
+  const confirmed = await showModal('🗑️ Supprimer l\'épreuve', 'Voulez-vous vraiment supprimer cette épreuve ?', '🗑️ Supprimer', 'Annuler');
+  if(confirmed){
+    try {
+      const ref = doc(db, 'ecoles', ECOLET_ID, 'cahiers', cahierId);
+      const snap = await getDoc(ref);
+      if(!snap.exists()) return;
+      const data = snap.data();
+      data.epreuves[periode].splice(index, 1);
+      await updateDoc(ref, { epreuves: data.epreuves });
+      toast('🗑️ Épreuve supprimée');
+      chargerEpreuves();
+    } catch(e){ toast('❌ ' + e.message, 'error'); }
+  }
+};
+
+// ================================================================
+// ===== TAB 3: COTATION =====
+// ================================================================
 
 async function chargerCotationSelect(){
   const select = document.getElementById('cotationCahier');
@@ -775,7 +831,109 @@ async function chargerCotationSelect(){
   } catch(e){ console.error(e); }
 }
 
-window.chargerCotation = async function(){ /* ... */ };
+window.chargerCotation = async function(){
+  const cahierId = document.getElementById('cotationCahier').value;
+  const container = document.getElementById('cotationContainer');
+  if(!cahierId){ container.innerHTML = '<div class="empty">📭 Sélectionnez un cahier</div>'; return; }
+  try {
+    const snap = await getDoc(doc(db, 'ecoles', ECOLET_ID, 'cahiers', cahierId));
+    if(!snap.exists()){ container.innerHTML = ''; return; }
+    const data = snap.data();
+    const eleves = data.eleves || [];
+    const pMax = data.pMax || 20;
+    const nbPeriodes = data.nbPeriodes || 4;
+    const nbSemestres = data.nbSemestres || 2;
+    
+    document.getElementById('cotationInfo').textContent = data.matiere + ' - ' + data.classe + ' (' + nbPeriodes + ' périodes)';
+    
+    if(eleves.length === 0){ container.innerHTML = '<div class="empty">📭 Aucun élève</div>'; return; }
+    
+    let html = '<div class="table-wrap"><table>';
+    html += '<thead><tr><th>N°</th><th>ÉLÈVE</th><th>SEXE</th>';
+    
+    const periodesParSemestre = Math.ceil(nbPeriodes / nbSemestres);
+    for(let p=1; p<=nbPeriodes; p++){
+      const eps = data.epreuves?.[p] || [];
+      if(eps.length > 0){
+        eps.forEach(ep => { html += `<th>${ep.nom}<br>P${p}/${ep.max||pMax}</th>`; });
+      }
+      html += `<th>MOY P${p}<br>/${pMax}</th>`;
+    }
+    
+    for(let s=1; s<=nbSemestres; s++){
+      const debut = (s-1) * periodesParSemestre + 1;
+      const fin = Math.min(s * periodesParSemestre, nbPeriodes);
+      const nbP = fin - debut + 1;
+      const examMax = nbP * pMax;
+      const totalMax = nbP * pMax + examMax;
+      const cls = s === 1 ? 'total-s1' : s === 2 ? 'total-s2' : s === 3 ? 'total-s3' : 'total-s4';
+      html += `<th>EXAM S${s}<br>/${examMax}</th>`;
+      html += `<th class="${cls}">TOT S${s}<br>/${totalMax}</th>`;
+    }
+    
+    const totalMaxAnnuel = nbPeriodes * pMax * 2;
+    html += `<th>TOTAL<br>/${totalMaxAnnuel}</th>`;
+    html += '</tr></thead><tbody>';
+    
+    function calcMoy(periode, notes, eps, pMax){
+      const list = eps[periode] || [];
+      if(!list.length || !notes || !notes.length) return 0;
+      let sumN = 0, sumM = 0;
+      for(let i=0; i<list.length; i++){
+        sumN += (notes[i] || 0);
+        sumM += (list[i].max || 1);
+      }
+      if(sumM === 0) return 0;
+      return Math.min(pMax, Math.round((sumN / sumM) * pMax));
+    }
+    
+    eleves.forEach((e, i) => {
+      const nom = getNomComplet(e);
+      html += `<tr><td>${String(i+1).padStart(2,'0')}</td><td class="left">${nom}</td><td>${e.sexe||'M'}</td>`;
+      
+      for(let p=1; p<=nbPeriodes; p++){
+        const eps = data.epreuves?.[p] || [];
+        if(eps.length > 0){
+          eps.forEach((ep, idx) => {
+            const val = e.notes?.['p'+p]?.[idx] || 0;
+            html += `<td class="note-cell">${val}</td>`;
+          });
+        }
+        const moy = calcMoy(p, e.notes?.['p'+p] || [], data.epreuves, pMax);
+        html += `<td class="total">${moy}</td>`;
+      }
+      
+      let totalAnnuel = 0;
+      for(let s=1; s<=nbSemestres; s++){
+        const debut = (s-1) * periodesParSemestre + 1;
+        const fin = Math.min(s * periodesParSemestre, nbPeriodes);
+        let sommePeriodes = 0;
+        for(let p=debut; p<=fin; p++){
+          sommePeriodes += calcMoy(p, e.notes?.['p'+p] || [], data.epreuves, pMax);
+        }
+        const exam = e.notes?.['exam'+s] || 0;
+        const totalSemestre = sommePeriodes + exam;
+        totalAnnuel += totalSemestre;
+        const cls = s === 1 ? 'total-s1' : s === 2 ? 'total-s2' : s === 3 ? 'total-s3' : 'total-s4';
+        html += `<td class="exam-cell">${exam}</td>`;
+        html += `<td class="${cls}">${totalSemestre}</td>`;
+      }
+      
+      html += `<td class="total-final">${totalAnnuel}</td>`;
+      html += '</tr>';
+    });
+    
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+  } catch(e){ 
+    console.error(e);
+    container.innerHTML = '<div class="empty">❌ Erreur: ' + e.message + '</div>'; 
+  }
+};
+
+// ================================================================
+// ===== TAB 4: NOTES =====
+// ================================================================
 
 async function chargerSelectCahiers(){
   const select = document.getElementById('notesCahier');
@@ -786,8 +944,54 @@ async function chargerSelectCahiers(){
   } catch(e){ console.error(e); }
 }
 
-window.chargerElevesNotes = async function(){ /* ... */ };
-window.sauverNote = async function(){ /* ... */ };
+window.chargerElevesNotes = async function(){
+  const cahierId = document.getElementById('notesCahier').value;
+  const periode = parseInt(document.getElementById('notesPeriode').value);
+  const container = document.getElementById('notesContainer');
+  if(!cahierId){ container.innerHTML = ''; return; }
+  try {
+    const snap = await getDoc(doc(db, 'ecoles', ECOLET_ID, 'cahiers', cahierId));
+    if(!snap.exists()){ container.innerHTML = ''; return; }
+    const data = snap.data();
+    const eleves = data.eleves || [];
+    if(eleves.length === 0){ container.innerHTML = '<div class="empty">📭 Aucun élève</div>'; return; }
+    let html = `<div style="margin-top:10px;max-height:450px;overflow-y:auto;">
+      <div style="display:grid;grid-template-columns:35px 1fr 70px;gap:8px;padding:8px 0;font-weight:600;font-size:11px;color:#94a3b8;border-bottom:1px solid rgba(255,255,255,0.04);">
+        <span>#</span><span>Élève</span><span>Note / ${data.pMax||20}</span>
+      </div>`;
+    eleves.forEach((e, i) => {
+      const note = e.notes?.['p'+periode] || '';
+      const nom = getNomComplet(e);
+      html += `<div style="display:grid;grid-template-columns:35px 1fr 70px;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.02);align-items:center;">
+        <span style="color:rgba(255,255,255,0.25);font-size:12px;">${i+1}</span>
+        <span style="font-size:13px;font-weight:500;">${nom}</span>
+        <input type="number" step="0.5" min="0" max="${data.pMax||20}" value="${note}" 
+          onchange="sauverNote('${cahierId}',${i},${periode},this.value)" 
+          class="note-input">
+      </div>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  } catch(e){ container.innerHTML = '<div class="empty">❌ Erreur</div>'; }
+};
+
+window.sauverNote = async function(cahierId, index, periode, valeur){
+  const val = parseFloat(valeur) || 0;
+  try {
+    const ref = doc(db, 'ecoles', ECOLET_ID, 'cahiers', cahierId);
+    const snap = await getDoc(ref);
+    if(!snap.exists()) return;
+    const data = snap.data();
+    if(!data.eleves[index]) return;
+    if(!data.eleves[index].notes) data.eleves[index].notes = {};
+    data.eleves[index].notes['p'+periode] = val;
+    await updateDoc(ref, { eleves: data.eleves });
+  } catch(e){ toast('❌ Erreur sauvegarde', 'error'); }
+};
+
+// ================================================================
+// ===== TAB 5: EXPORTS =====
+// ================================================================
 
 async function chargerSelectExport(){
   const select = document.getElementById('exportCahier');
@@ -801,11 +1005,263 @@ async function chargerSelectExport(){
   } catch(e){ console.error(e); }
 }
 
-window.chargerElevesExport = async function(){ /* ... */ };
-window.exporterCahierPDF = async function(){ /* ... */ };
-window.exporterRelevePDF = async function(){ /* ... */ };
+window.chargerElevesExport = async function(){
+  const cahierId = document.getElementById('exportReleveCahier').value;
+  const select = document.getElementById('exportEleve');
+  if(!cahierId){ select.innerHTML = '<option value="">-- Sélectionner --</option>'; return; }
+  try {
+    const snap = await getDoc(doc(db, 'ecoles', ECOLET_ID, 'cahiers', cahierId));
+    if(!snap.exists()){ select.innerHTML = '<option value="">-- Sélectionner --</option>'; return; }
+    const data = snap.data();
+    const eleves = data.eleves || [];
+    let html = '<option value="">-- Sélectionner --</option>';
+    eleves.forEach((e, i) => { const nom = getNomComplet(e); html += `<option value="${i}">${nom}</option>`; });
+    select.innerHTML = html;
+  } catch(e){ console.error(e); }
+};
 
+window.exporterCahierPDF = async function(){
+  const cahierId = document.getElementById('exportCahier').value;
+  if(!cahierId){ toast('⚠️ Sélectionnez un cahier', 'error'); return; }
+  try {
+    const snap = await getDoc(doc(db, 'ecoles', ECOLET_ID, 'cahiers', cahierId));
+    if(!snap.exists()){ toast('Cahier non trouvé', 'error'); return; }
+    const data = snap.data();
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('landscape', 'mm', 'a4');
+    
+    // EN-TÊTE
+    const schoolName = 'COMPLEXE SCOLAIRE ' + schoolDisplay;
+    pdf.setFillColor(26, 35, 50);
+    pdf.rect(0, 0, 297, 35, "F");
+    pdf.setFontSize(16);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(255, 255, 255);
+    pdf.text(schoolName, 148, 14, { align: 'center' });
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(200, 200, 200);
+    pdf.text('CAHIER DE COTATION', 148, 24, { align: 'center' });
+    
+    pdf.setFontSize(9);
+    pdf.setTextColor(80, 80, 80);
+    pdf.text('Année scolaire: 2026-2027', 14, 42);
+    pdf.text('Matière: ' + data.matiere, 14, 49);
+    pdf.text('Classe: ' + data.classe, 14, 56);
+    pdf.text('Enseignant: ' + (data.enseignantNom || ''), 14, 63);
+    pdf.text('Note max: ' + (data.pMax || 20) + ' pts', 14, 70);
+    
+    // CONSTRUCTION DU TABLEAU
+    const eleves = data.eleves || [];
+    const pMax = data.pMax || 20;
+    const nbPeriodes = data.nbPeriodes || 4;
+    const nbSemestres = data.nbSemestres || 2;
+    
+    // En-têtes
+    const headers = ['N°', 'ÉLÈVE', 'SEXE'];
+    for(let p=1; p<=nbPeriodes; p++){
+      const eps = data.epreuves?.[p] || [];
+      if(eps.length > 0){
+        eps.forEach(ep => { headers.push('P' + p + ' /' + (ep.max||pMax)); });
+      }
+      headers.push('MOY P' + p);
+    }
+    for(let s=1; s<=nbSemestres; s++){
+      headers.push('EXAM S' + s);
+      headers.push('TOT S' + s);
+    }
+    headers.push('TOTAL');
+    
+    // Corps
+    const body = [];
+    const periodesParSemestre = Math.ceil(nbPeriodes / nbSemestres);
+    
+    function calcMoyPdf(periode, notes, eps, pMax){
+      const list = eps[periode] || [];
+      if(!list.length || !notes || !notes.length) return 0;
+      let sumN = 0, sumM = 0;
+      for(let i=0; i<list.length; i++){
+        sumN += (notes[i] || 0);
+        sumM += (list[i].max || 1);
+      }
+      if(sumM === 0) return 0;
+      return Math.min(pMax, Math.round((sumN / sumM) * pMax));
+    }
+    
+    eleves.forEach((e, idx) => {
+      const row = [idx + 1, getNomComplet(e), e.sexe || 'M'];
+      
+      for(let p=1; p<=nbPeriodes; p++){
+        const eps = data.epreuves?.[p] || [];
+        if(eps.length > 0){
+          eps.forEach((ep, epIdx) => {
+            row.push(e.notes?.['p'+p]?.[epIdx] || 0);
+          });
+        }
+        row.push(calcMoyPdf(p, e.notes?.['p'+p] || [], data.epreuves, pMax));
+      }
+      
+      let totalAnnuel = 0;
+      for(let s=1; s<=nbSemestres; s++){
+        const debut = (s-1) * periodesParSemestre + 1;
+        const fin = Math.min(s * periodesParSemestre, nbPeriodes);
+        let sommePeriodes = 0;
+        for(let p=debut; p<=fin; p++){
+          sommePeriodes += calcMoyPdf(p, e.notes?.['p'+p] || [], data.epreuves, pMax);
+        }
+        const exam = e.notes?.['exam'+s] || 0;
+        const totalSemestre = sommePeriodes + exam;
+        totalAnnuel += totalSemestre;
+        row.push(exam);
+        row.push(totalSemestre);
+      }
+      row.push(totalAnnuel);
+      body.push(row);
+    });
+    
+    pdf.autoTable({
+      head: [headers],
+      body: body,
+      startY: 77,
+      theme: 'grid',
+      styles: { fontSize: 7, cellPadding: 2 },
+      headStyles: { fillColor: [26, 35, 50], textColor: [255, 255, 255], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [245, 247, 250] }
+    });
+    
+    // Pied de page
+    const pageCount = pdf.internal.getNumberOfPages();
+    for(let i=1; i<=pageCount; i++){
+      pdf.setPage(i);
+      pdf.setFontSize(7);
+      pdf.setTextColor(150, 150, 150);
+      pdf.text('Généré le ' + new Date().toLocaleDateString('fr-FR'), 14, pdf.internal.pageSize.getHeight() - 8);
+      pdf.text('Page ' + i + '/' + pageCount, 283, pdf.internal.pageSize.getHeight() - 8, { align: 'right' });
+    }
+    
+    pdf.save('Cahier_' + data.matiere + '_' + data.classe + '.pdf');
+    toast('✅ PDF exporté avec succès');
+  } catch(e){ 
+    console.error(e);
+    toast('❌ ' + e.message, 'error'); 
+  }
+};
+
+window.exporterRelevePDF = async function(){
+  const cahierId = document.getElementById('exportReleveCahier').value;
+  const eleveIdx = document.getElementById('exportEleve').value;
+  if(!cahierId){ toast('⚠️ Sélectionnez un cahier', 'error'); return; }
+  if(eleveIdx === ''){ toast('⚠️ Sélectionnez un élève', 'error'); return; }
+  try {
+    const snap = await getDoc(doc(db, 'ecoles', ECOLET_ID, 'cahiers', cahierId));
+    if(!snap.exists()){ toast('Cahier non trouvé', 'error'); return; }
+    const data = snap.data();
+    const eleve = data.eleves[parseInt(eleveIdx)];
+    if(!eleve){ toast('Élève non trouvé', 'error'); return; }
+    
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('portrait', 'mm', 'a4');
+    
+    // EN-TÊTE
+    const schoolName = 'COMPLEXE SCOLAIRE ' + schoolDisplay;
+    pdf.setFillColor(26, 35, 50);
+    pdf.rect(0, 0, 210, 35, "F");
+    pdf.setFontSize(16);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(255, 255, 255);
+    pdf.text(schoolName, 105, 14, { align: 'center' });
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(200, 200, 200);
+    pdf.text('RELEVÉ DE NOTES', 105, 24, { align: 'center' });
+    
+    const nom = getNomComplet(eleve);
+    const pMax = data.pMax || 20;
+    const nbPeriodes = data.nbPeriodes || 4;
+    const nbSemestres = data.nbSemestres || 2;
+    
+    pdf.setFontSize(9);
+    pdf.setTextColor(80, 80, 80);
+    pdf.text('Élève: ' + nom, 14, 42);
+    pdf.text('Classe: ' + data.classe, 14, 49);
+    pdf.text('Matière: ' + data.matiere, 14, 56);
+    pdf.text('Enseignant: ' + (data.enseignantNom || ''), 14, 63);
+    
+    // TABLEAU DES NOTES
+    const periodesParSemestre = Math.ceil(nbPeriodes / nbSemestres);
+    const body = [];
+    const headers = ['Période / Semestre', 'Note'];
+    
+    function calcMoyPdf(periode, notes, eps, pMax){
+      const list = eps[periode] || [];
+      if(!list.length || !notes || !notes.length) return 0;
+      let sumN = 0, sumM = 0;
+      for(let i=0; i<list.length; i++){
+        sumN += (notes[i] || 0);
+        sumM += (list[i].max || 1);
+      }
+      if(sumM === 0) return 0;
+      return Math.min(pMax, Math.round((sumN / sumM) * pMax));
+    }
+    
+    for(let p=1; p<=nbPeriodes; p++){
+      const moy = calcMoyPdf(p, eleve.notes?.['p'+p] || [], data.epreuves, pMax);
+      body.push(['Période ' + p, moy + ' / ' + pMax]);
+    }
+    
+    for(let s=1; s<=nbSemestres; s++){
+      const debut = (s-1) * periodesParSemestre + 1;
+      const fin = Math.min(s * periodesParSemestre, nbPeriodes);
+      let sommePeriodes = 0;
+      for(let p=debut; p<=fin; p++){
+        sommePeriodes += calcMoyPdf(p, eleve.notes?.['p'+p] || [], data.epreuves, pMax);
+      }
+      const exam = eleve.notes?.['exam'+s] || 0;
+      const totalSemestre = sommePeriodes + exam;
+      body.push(['Examen S' + s, exam + ' / ' + (sommePeriodes !== 0 ? nbPeriodes * pMax / nbSemestres : 0)]);
+      body.push(['Total S' + s, totalSemestre + ' / ' + (sommePeriodes !== 0 ? nbPeriodes * pMax / nbSemestres + exam : 0)]);
+    }
+    
+    let totalAnnuel = 0;
+    for(let s=1; s<=nbSemestres; s++){
+      const debut = (s-1) * periodesParSemestre + 1;
+      const fin = Math.min(s * periodesParSemestre, nbPeriodes);
+      let sommePeriodes = 0;
+      for(let p=debut; p<=fin; p++){
+        sommePeriodes += calcMoyPdf(p, eleve.notes?.['p'+p] || [], data.epreuves, pMax);
+      }
+      const exam = eleve.notes?.['exam'+s] || 0;
+      totalAnnuel += sommePeriodes + exam;
+    }
+    body.push(['TOTAL ANNUEL', totalAnnuel + ' / ' + (nbPeriodes * pMax * 2)]);
+    
+    pdf.autoTable({
+      head: [headers],
+      body: body,
+      startY: 70,
+      theme: 'grid',
+      styles: { fontSize: 11, cellPadding: 6 },
+      headStyles: { fillColor: [26, 35, 50], textColor: [255, 255, 255], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [245, 247, 250] }
+    });
+    
+    // Pied de page
+    pdf.setFontSize(7);
+    pdf.setTextColor(150, 150, 150);
+    pdf.text('Généré le ' + new Date().toLocaleDateString('fr-FR'), 14, pdf.internal.pageSize.getHeight() - 8);
+    
+    pdf.save('Releve_' + nom.replace(/\s/g, '_') + '.pdf');
+    toast('✅ Relevé exporté avec succès');
+  } catch(e){ 
+    console.error(e);
+    toast('❌ ' + e.message, 'error'); 
+  }
+};
+
+// ================================================================
 // ===== ONGLETS =====
+// ================================================================
+
 document.querySelectorAll('.tab').forEach(tab => {
   tab.onclick = function(){
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -819,7 +1275,10 @@ document.querySelectorAll('.tab').forEach(tab => {
   };
 });
 
+// ================================================================
 // ===== INIT =====
+// ================================================================
+
 chargerEnseignants();
 </script>
 </body>
