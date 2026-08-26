@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>👨‍🏫 Enseignant</title>
+<title>👨‍🏫 Enseignant - odari</title>
 <script type="importmap">
 {"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"}}
 </script>
@@ -21,6 +21,7 @@ body{background:#0A0A0A;color:#fff;min-height:100vh;padding:16px;}
 .box select{width:100%;padding:14px;border-radius:12px;background:rgba(255,255,255,0.04);border:2px solid rgba(255,255,255,0.06);color:#fff;font-size:16px;outline:none;transition:all 0.3s;margin-bottom:14px;appearance:auto;cursor:pointer;}
 .box select:focus{border-color:#8B5CF6;background:rgba(255,255,255,0.06);box-shadow:0 0 0 4px rgba(139,92,246,0.06);}
 .box select option{background:#1a1a2e;color:#fff;}
+.box select optgroup{background:#1a1a2e;color:rgba(255,255,255,0.5);font-weight:700;}
 .box input{width:100%;padding:14px;border-radius:12px;background:rgba(255,255,255,0.04);border:2px solid rgba(255,255,255,0.06);color:#fff;font-size:20px;outline:none;transition:all 0.3s;text-align:center;letter-spacing:8px;font-family:monospace;margin-bottom:14px;}
 .box input:focus{border-color:#8B5CF6;background:rgba(255,255,255,0.06);box-shadow:0 0 0 4px rgba(139,92,246,0.06);}
 .box input::placeholder{letter-spacing:4px;font-size:14px;color:rgba(255,255,255,0.12);}
@@ -63,6 +64,8 @@ body{background:#0A0A0A;color:#fff;min-height:100vh;padding:16px;}
 .form-group label{font-size:9px;font-weight:600;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:0.5px;}
 .form-group input,.form-group select{padding:8px 12px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);color:#fff;font-size:12px;outline:none;transition:all 0.2s;}
 .form-group input:focus,.form-group select:focus{border-color:#8B5CF6;background:rgba(255,255,255,0.05);}
+.form-group select option{background:#1a1a2e;color:#fff;}
+.form-group select optgroup{background:#1a1a2e;color:rgba(255,255,255,0.5);font-weight:700;}
 .table-wrap{overflow-x:auto;}
 table{width:100%;border-collapse:collapse;font-size:10px;}
 th{background:rgba(255,255,255,0.02);padding:5px 8px;text-align:left;color:rgba(255,255,255,0.3);font-weight:600;font-size:8px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid rgba(255,255,255,0.04);}
@@ -118,10 +121,17 @@ td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,0.02);color:rgba(255
       <div class="card">
         <div class="card-header"><h3>📓 Créer un cahier</h3></div>
         <div class="form-row">
-          <div class="form-group"><label>Classe</label><select id="cahierClasse"><option value="">-- Sélectionner --</option></select></div>
-          <div class="form-group"><label>Matière</label><input type="text" id="cahierMatiere" placeholder="Ex: Français" /></div>
+          <div class="form-group">
+            <label>Classe</label>
+            <select id="cahierClasse"><option value="">-- Sélectionner --</option></select>
+          </div>
+          <div class="form-group">
+            <label>Matière</label>
+            <input type="text" id="cahierMatiere" placeholder="Ex: Français" />
+          </div>
         </div>
         <button class="btn btn-success" onclick="creerCahier()" style="width:100%;padding:10px;font-size:13px;">📓 CRÉER</button>
+        <p style="font-size:9px;color:rgba(255,255,255,0.15);margin-top:6px;text-align:center;">✅ Les élèves seront importés depuis la comptabilité</p>
       </div>
 
       <div class="card">
@@ -135,8 +145,19 @@ td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,0.02);color:rgba(255
       <div class="card">
         <div class="card-header"><h3>✏️ Saisie des notes</h3></div>
         <div class="form-row">
-          <div class="form-group"><label>Cahier</label><select id="notesCahier" onchange="chargerElevesNotes()"><option value="">-- Sélectionner --</option></select></div>
-          <div class="form-group"><label>Période</label><select id="notesPeriode" onchange="chargerElevesNotes()"><option value="1">Période 1</option><option value="2">Période 2</option><option value="3">Période 3</option><option value="4">Période 4</option></select></div>
+          <div class="form-group">
+            <label>Cahier</label>
+            <select id="notesCahier" onchange="chargerElevesNotes()"><option value="">-- Sélectionner --</option></select>
+          </div>
+          <div class="form-group">
+            <label>Période</label>
+            <select id="notesPeriode" onchange="chargerElevesNotes()">
+              <option value="1">Période 1</option>
+              <option value="2">Période 2</option>
+              <option value="3">Période 3</option>
+              <option value="4">Période 4</option>
+            </select>
+          </div>
         </div>
         <div id="notesContainer"></div>
       </div>
@@ -214,7 +235,7 @@ async function chargerEnseignants() {
     enseignants = [];
     snap.forEach(ds => {
       const data = ds.data();
-      enseignants.push({ id: ds.id, nom: data.nom, email: data.email, code: data.code });
+      enseignants.push({ id: ds.id, nom: data.nom, email: data.email, code: data.code, classes: data.classes || [] });
     });
     
     enseignants.sort((a, b) => a.nom.localeCompare(b.nom));
@@ -328,7 +349,7 @@ window.deconnexion = function(){
 };
 
 // ============================================
-// CAHIERS
+// CAHIERS - IMPORTATION DES ÉLÈVES DEPUIS LA COMPTABILITÉ
 // ============================================
 
 async function chargerClassesPourCahier(){
@@ -355,28 +376,65 @@ window.creerCahier = async function(){
   if(!matiere){ toast('⚠️ Entrez une matière', 'error'); return; }
   
   try {
+    // IMPORTATION DES ÉLÈVES DEPUIS LA COMPTABILITÉ
     const eleves = [];
-    const snap = await getDocs(query(collection(db, 'ecoles', ECOLET_ID, 'prima_eleves'), where('classe','==',classe)));
+    
+    // 1. Importer depuis prima_eleves (Primaire)
+    const snap = await getDocs(query(
+      collection(db, 'ecoles', ECOLET_ID, 'prima_eleves'),
+      where('classe','==',classe),
+      where('abandon','==',false)
+    ));
     snap.forEach(ds => {
       const d = ds.data();
-      eleves.push({id: ds.id, nom: d.nom||'', prenom: d.prenom||'', sexe: d.sexe||'M', notes: {}});
-    });
-    const snap2 = await getDocs(query(collection(db, 'ecoles', ECOLET_ID, 'mater_eleves'), where('classe','==',classe)));
-    snap2.forEach(ds => {
-      const d = ds.data();
-      eleves.push({id: ds.id, nom: d.nom||'', prenom: d.prenom||'', sexe: d.sexe||'F', notes: {}});
+      eleves.push({
+        id: ds.id,
+        nom: d.nom || '',
+        postnom: d.postnom || '',
+        prenom: d.prenom || '',
+        sexe: d.sexe || 'M',
+        notes: {}
+      });
     });
     
-    if(eleves.length === 0){ toast('⚠️ Aucun élève dans cette classe', 'error'); return; }
+    // 2. Importer depuis mater_eleves (Maternelle)
+    const snap2 = await getDocs(query(
+      collection(db, 'ecoles', ECOLET_ID, 'mater_eleves'),
+      where('classe','==',classe),
+      where('abandon','==',false)
+    ));
+    snap2.forEach(ds => {
+      const d = ds.data();
+      eleves.push({
+        id: ds.id,
+        nom: d.nom || '',
+        postnom: d.postnom || '',
+        prenom: d.prenom || '',
+        sexe: d.sexe || 'F',
+        notes: {}
+      });
+    });
+    
+    if(eleves.length === 0){ 
+      toast('⚠️ Aucun élève dans cette classe (vérifiez la comptabilité)', 'error'); 
+      return; 
+    }
     
     const cahierId = 'cahier_' + Date.now();
     await setDoc(doc(db, 'ecoles', ECOLET_ID, 'cahiers', cahierId), {
-      classe, matiere, eleves, epreuves: {1:[],2:[],3:[],4:[]},
-      enseignantId: enseignantActuel.id, enseignantNom: enseignantActuel.nom,
-      createdAt: Date.now(), school: ECOLET_ID
+      classe, 
+      matiere, 
+      eleves, 
+      epreuves: {1:[],2:[],3:[],4:[]},
+      enseignantId: enseignantActuel.id, 
+      enseignantNom: enseignantActuel.nom,
+      createdAt: Date.now(), 
+      school: ECOLET_ID,
+      source: 'comptabilite',
+      nbEleves: eleves.length
     });
     
-    toast('✅ Cahier créé avec ' + eleves.length + ' élèves');
+    toast('✅ Cahier créé avec ' + eleves.length + ' élèves importés de la comptabilité');
     chargerCahiers();
     chargerSelectCahiers();
     document.getElementById('cahierMatiere').value = '';
@@ -401,9 +459,10 @@ async function chargerCahiers(){
     
     let html = '<div style="display:flex;flex-direction:column;gap:6px;">';
     cahiers.forEach(c => {
+      const sourceLabel = c.source === 'comptabilite' ? '📊 Compta' : '📝 Manuel';
       html += `<div style="background:rgba(255,255,255,0.02);border-radius:10px;padding:10px 14px;border:1px solid rgba(255,255,255,0.04);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
         <div><strong style="color:#8B5CF6;">${c.matiere}</strong> <span style="color:rgba(255,255,255,0.4);font-size:11px;">${c.classe}</span></div>
-        <div style="font-size:10px;color:rgba(255,255,255,0.3);">${(c.eleves||[]).length} élèves</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.3);">${(c.eleves||[]).length} élèves · ${sourceLabel}</div>
         <button class="btn-sm btn-sm-danger" onclick="supprimerCahier('${c.id}')" style="padding:2px 10px;">✕</button>
       </div>`;
     });
@@ -435,7 +494,7 @@ async function chargerSelectCahiers(){
       const d = ds.data();
       const opt = document.createElement('option');
       opt.value = ds.id;
-      opt.textContent = d.matiere + ' - ' + d.classe;
+      opt.textContent = d.matiere + ' - ' + d.classe + ' (' + (d.eleves||[]).length + ' élèves)';
       select.appendChild(opt);
     });
   } catch(e){ console.error(e); }
