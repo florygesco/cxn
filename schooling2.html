@@ -2445,25 +2445,33 @@ epreuveSelect.onchange = () => { const idx = parseInt(epreuveSelect.value); if (
 document.getElementById('correctionPeriodeSelect')?.addEventListener('change', () => correctionUpdateEpreuveList());
 
 function correctionSaveCurrentNote() {
-let fiche = correctionFiche || currentFiche;
-if (!fiche) return;
-const eleves = fiche.eleves;
-if (!eleves[window.correctionMode.currentIndex]) return;
-const eleveNom = getNomComplet(eleves[window.correctionMode.currentIndex]);
-const mots = eleveNom.split(' ');
-const prenom = mots[mots.length - 1] || eleveNom;
-const noteValue = window.correctionMode.currentNote;
-if (!eleves[window.correctionMode.currentIndex].notes) eleves[window.correctionMode.currentIndex].notes = { p1: [], p2: [], p3: [], p4: [], exam1: 0, exam2: 0 };
-if (!eleves[window.correctionMode.currentIndex].notes['p' + window.correctionMode.periode]) eleves[window.correctionMode.currentIndex].notes['p' + window.correctionMode.periode] = [];
-eleves[window.correctionMode.currentIndex].notes['p' + window.correctionMode.periode][window.correctionMode.epreuveIdx] = noteValue;
-saveCurrentFiche();
-afficherCotation();
-speak(prenom + ' a obtenu ' + noteValue + ' sur ' + window.correctionMode.noteMax + '.', () => {
-setTimeout(() => {
-if (window.correctionMode && window.correctionMode.currentIndex + 1 < eleves.length) correctionNextStudent(true);
-else if (window.correctionMode) { toast("Tous les élèves ont été notés !", 'success'); speak("Félicitations. Tous les élèves ont été notés."); document.getElementById('saisieModal').classList.remove('show'); if (window.correctionMode?.hammer) window.correctionMode.hammer.destroy(); window.correctionMode = null; }
-}, 500);
-});
+    let fiche = correctionFiche || currentFiche;
+    if (!fiche) return;
+    const eleves = fiche.eleves;
+    if (!eleves[window.correctionMode.currentIndex]) return;
+    const eleveNom = getNomComplet(eleves[window.correctionMode.currentIndex]);
+    const mots = eleveNom.split(' ');
+    const prenom = mots[mots.length - 1] || eleveNom;
+    const noteValue = window.correctionMode.currentNote;
+    if (!eleves[window.correctionMode.currentIndex].notes) eleves[window.correctionMode.currentIndex].notes = { p1: [], p2: [], p3: [], p4: [], exam1: 0, exam2: 0 };
+    if (!eleves[window.correctionMode.currentIndex].notes['p' + window.correctionMode.periode]) eleves[window.correctionMode.currentIndex].notes['p' + window.correctionMode.periode] = [];
+    eleves[window.correctionMode.currentIndex].notes['p' + window.correctionMode.periode][window.correctionMode.epreuveIdx] = noteValue;
+    if (correctionFiche && currentFiche) {
+        const idx = currentFiche.eleves.findIndex(e => e.id === eleves[window.correctionMode.currentIndex].id);
+        if (idx !== -1) {
+            if (!currentFiche.eleves[idx].notes) currentFiche.eleves[idx].notes = { p1: [], p2: [], p3: [], p4: [], exam1: 0, exam2: 0 };
+            if (!currentFiche.eleves[idx].notes['p' + window.correctionMode.periode]) currentFiche.eleves[idx].notes['p' + window.correctionMode.periode] = [];
+            currentFiche.eleves[idx].notes['p' + window.correctionMode.periode][window.correctionMode.epreuveIdx] = noteValue;
+        }
+    }
+    saveCurrentFiche();
+    afficherCotation();
+    speak(prenom + ' a obtenu ' + noteValue + ' sur ' + window.correctionMode.noteMax + '.', () => {
+        setTimeout(() => {
+            if (window.correctionMode && window.correctionMode.currentIndex + 1 < eleves.length) correctionNextStudent(true);
+            else if (window.correctionMode) { toast("Tous les élèves ont été notés !", 'success'); speak("Félicitations. Tous les élèves ont été notés."); document.getElementById('saisieModal').classList.remove('show'); if (window.correctionMode?.hammer) window.correctionMode.hammer.destroy(); window.correctionMode = null; }
+        }, 500);
+    });
 }
 
 function correctionNextStudent(autoMode) {
@@ -3323,18 +3331,26 @@ mettreAJourStats();
 }
 
 function sauvegarderNote(input) {
-const fiche = correctionFiche || currentFiche;
-if (!fiche) return;
-const idx = parseInt(input.dataset.i);
-const p = parseInt(input.dataset.p);
-const e = parseInt(input.dataset.e);
-const val = parseFloat(input.value) || 0;
-if (!fiche.eleves[idx]) return;
-if (!fiche.eleves[idx].notes) fiche.eleves[idx].notes = { p1: [], p2: [], p3: [], p4: [], exam1: 0, exam2: 0 };
-if (!fiche.eleves[idx].notes['p' + p]) fiche.eleves[idx].notes['p' + p] = [];
-fiche.eleves[idx].notes['p' + p][e] = val;
-saveCurrentFiche();
-afficherCotation();
+    const fiche = correctionFiche || currentFiche;
+    if (!fiche) return;
+    const idx = parseInt(input.dataset.i);
+    const p = parseInt(input.dataset.p);
+    const e = parseInt(input.dataset.e);
+    const val = parseFloat(input.value) || 0;
+    if (!fiche.eleves[idx]) return;
+    if (!fiche.eleves[idx].notes) fiche.eleves[idx].notes = { p1: [], p2: [], p3: [], p4: [], exam1: 0, exam2: 0 };
+    if (!fiche.eleves[idx].notes['p' + p]) fiche.eleves[idx].notes['p' + p] = [];
+    fiche.eleves[idx].notes['p' + p][e] = val;
+    if (correctionFiche && currentFiche) {
+        const idxCurrent = currentFiche.eleves.findIndex(e2 => e2.id === fiche.eleves[idx].id);
+        if (idxCurrent !== -1) {
+            if (!currentFiche.eleves[idxCurrent].notes) currentFiche.eleves[idxCurrent].notes = { p1: [], p2: [], p3: [], p4: [], exam1: 0, exam2: 0 };
+            if (!currentFiche.eleves[idxCurrent].notes['p' + p]) currentFiche.eleves[idxCurrent].notes['p' + p] = [];
+            currentFiche.eleves[idxCurrent].notes['p' + p][e] = val;
+        }
+    }
+    saveCurrentFiche();
+    afficherCotation();
 }
 
 function mettreAJourStats() {
