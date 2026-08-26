@@ -126,7 +126,7 @@ td{padding:6px 8px;border-bottom:1px solid #1a2332;color:#e2e8f0;}
           <input type="text" id="ensCode" readonly style="font-family:monospace;font-size:16px;letter-spacing:4px;color:#fbbf24;">
         </div>
         <div class="form-group" style="justify-content:flex-end;">
-          <button class="btn-sm btn-success" onclick="ajouterEnseignant()" style="padding:10px;width:100%;font-size:13px;">➕ AJOUTER</button>
+          <button class="btn-sm btn-success" id="btnAjouter" style="padding:10px;width:100%;font-size:13px;">➕ AJOUTER</button>
         </div>
       </div>
     </div>
@@ -179,7 +179,7 @@ td{padding:6px 8px;border-bottom:1px solid #1a2332;color:#e2e8f0;}
   </div>
 </div>
 
-<script type="module">
+<script>
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, query, where } from "firebase/firestore";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
@@ -244,31 +244,46 @@ function getClassesSelectionnees(){
   return classes;
 }
 
-async function ajouterEnseignant(){
+window.ajouterEnseignant = async function(){
+  const btn = document.getElementById('btnAjouter');
+  btn.disabled = true;
+  btn.textContent = '⏳...';
+  
   const nom = document.getElementById('ensNom').value.trim();
   const code = document.getElementById('ensCode').value.trim();
   const classes = getClassesSelectionnees();
-  if(!nom){ toast('⚠️ Entrez un nom', 'error'); return; }
-  if(classes.length === 0){ toast('⚠️ Sélectionnez au moins une classe', 'error'); return; }
+  
+  if(!nom){ toast('⚠️ Entrez un nom', 'error'); btn.disabled = false; btn.textContent = '➕ AJOUTER'; return; }
+  if(classes.length === 0){ toast('⚠️ Sélectionnez au moins une classe', 'error'); btn.disabled = false; btn.textContent = '➕ AJOUTER'; return; }
+  
   const email = 'ens.' + nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z\s]/g,'').replace(/\s+/g,'.') + '.' + ECOLET_ID + '@gmail.com';
   const ensId = 'ens_' + Date.now();
+  
   try {
     await createUserWithEmailAndPassword(auth, email, code).catch(() => {});
     await setDoc(doc(db, 'ecoles', ECOLET_ID, 'enseignants', ensId), {
       _type: 'enseignant', id: ensId, ensId, nom, cycle: cycleActuel,
       classes, code, email, actif: true, createdAt: Date.now(), school: ECOLET_ID
     });
+    
     document.getElementById('modalNom').textContent = nom;
     document.getElementById('modalCode').textContent = code;
     document.getElementById('modal').classList.add('show');
+    
     document.getElementById('ensNom').value = '';
-    document.getElementById('ensCode').value = genererCode();
+    document.getElementById('ensCode').value = '••••••';
     document.querySelectorAll('#classesGrid input[type="checkbox"]').forEach(cb => cb.checked = false);
+    
     chargerEnseignants();
     chargerStats();
     toast('✅ ' + nom + ' ajouté');
-  } catch(e){ toast('❌ ' + e.message, 'error'); }
-}
+  } catch(e){ 
+    toast('❌ ' + e.message, 'error'); 
+  }
+  
+  btn.disabled = false;
+  btn.textContent = '➕ AJOUTER';
+};
 
 window.fermerModal = function(){
   document.getElementById('modal').classList.remove('show');
@@ -291,7 +306,7 @@ async function chargerEnseignants(){
         <td><strong>${p.nom||'?'}</strong></td>
         <td><span class="${p.cycle==='maternelle'?'badge-m':'badge-p'}">${p.cycle==='maternelle'?'🧸 MAT':'📚 PRIM'}</span></td>
         <td style="font-size:10px;">${(p.classes||[]).join(', ')}</td>
-        <td class="code">${p.code||'---'}</td>
+        <td class="code">••••••</td>
         <td><span class="${p.actif!==false?'badge-actif':'badge-inactif'}">${p.actif!==false?'ACTIF':'INACTIF'}</span></td>
         <td>
           <button class="btn-sm btn-outline" onclick="basculerStatut('${p.id}')" style="padding:2px 8px;font-size:9px;">${p.actif!==false?'🔒':'🔓'}</button>
@@ -377,6 +392,8 @@ document.querySelectorAll('.tab').forEach(tab => {
     if(this.dataset.tab === 'tabClasses') chargerClasses();
   };
 });
+
+document.getElementById('btnAjouter').addEventListener('click', window.ajouterEnseignant);
 
 afficherClasses();
 chargerEnseignants();
