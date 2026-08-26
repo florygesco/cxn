@@ -90,4 +90,240 @@ td{padding:6px 8px;border-bottom:1px solid #1a2332;color:#e2e8f0;}
 
     <div class="card">
       <div class="card-header">
-        <h3
+        <h3>📋 Mes cahiers</h3>
+        <span id="cahierCompteur" style="font-size:11px;color:#94a3b8;">0</span>
+      </div>
+      <div id="cahierListe"></div>
+    </div>
+  </div>
+
+  <div id="tabNotes" class="tab-content">
+    <div class="card">
+      <div class="card-header"><h3>✏️ Saisie des notes</h3></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cahier</label>
+          <select id="notesCahier" onchange="chargerElevesNotes()"><option value="">-- Sélectionner --</option></select>
+        </div>
+        <div class="form-group">
+          <label>Période</label>
+          <select id="notesPeriode" onchange="chargerElevesNotes()">
+            <option value="1">Période 1</option>
+            <option value="2">Période 2</option>
+            <option value="3">Période 3</option>
+            <option value="4">Période 4</option>
+          </select>
+        </div>
+      </div>
+      <div id="notesContainer"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastMsg">✅ Succès</span></div>
+
+<script type="module">
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, query, where } from "firebase/firestore";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDX430AIfzzgfq3o8tXHwQfIptgWOZ-K8c",
+  authDomain: "gesco-67c43.firebaseapp.com",
+  projectId: "gesco-67c43",
+  storageBucket: "gesco-67c43.firebasestorage.app",
+  messagingSenderId: "333004443566",
+  appId: "1:333004443566:web:de41f60000e418dce9023f"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+const urlParams = new URLSearchParams(window.location.search);
+const schoolId = urlParams.get('ecole') || 'mon_ecole';
+const ECOLET_ID = schoolId.replace(/[^a-zA-Z0-9]/g, '_');
+document.getElementById('schoolName').textContent = 'COMPLEXE SCOLAIRE ' + schoolId.toUpperCase();
+
+let enseignantActuel = null;
+
+function toast(msg, type='success'){
+  const el = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  el.className = 'toast ' + type;
+  setTimeout(() => el.classList.add('show'), 10);
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+onAuthStateChanged(auth, async (user) => {
+  if(user){
+    const snap = await getDocs(query(collection(db, 'ecoles', ECOLET_ID, 'enseignants'), where('email','==',user.email)));
+    snap.forEach(ds => {
+      enseignantActuel = {id: ds.id, ...ds.data()};
+      document.getElementById('ensNomDisplay').textContent = '👨‍🏫 ' + enseignantActuel.nom + ' · ' + (enseignantActuel.cycle === 'primaire' ? '📚 Primaire' : '🧸 Maternelle');
+    });
+    chargerClassesPourCahier();
+    chargerCahiers();
+    chargerSelectCahiers();
+  }
+});
+
+async function chargerClassesPourCahier(){
+  const select = document.getElementById('cahierClasse');
+  try {
+    const classes = new Set();
+    if(enseignantActuel && enseignantActuel.classes){
+      enseignantActuel.classes.forEach(c => classes.add(c));
+    }
+    select.innerHTML = '<option value="">-- Sélectionner --</option>';
+    Array.from(classes).sort().forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c;
+      select.appendChild(opt);
+    });
+  } catch(e){ console.error(e); }
+}
+
+async function creerCahier(){
+  const classe = document.getElementById('cahierClasse').value;
+  const matiere = document.getElementById('cahierMatiere').value.trim();
+  if(!classe){ toast('⚠️ Sélectionnez une classe', 'error'); return; }
+  if(!matiere){ toast('⚠️ Entrez une matière', 'error'); return; }
+  try {
+    const eleves = [];
+    const snap = await getDocs(query(collection(db, 'ecoles', ECOLET_ID, 'prima_eleves'), where('classe','==',classe)));
+    snap.forEach(ds => {
+      const d = ds.data();
+      eleves.push({id: ds.id, nom: d.nom||'', prenom: d.prenom||'', sexe: d.sexe||'M', notes: {}});
+    });
+    const snap2 = await getDocs(query(collection(db, 'ecoles', ECOLET_ID, 'mater_eleves'), where('classe','==',classe)));
+    snap2.forEach(ds => {
+      const d = ds.data();
+      eleves.push({id: ds.id, nom: d.nom||'', prenom: d.prenom||'', sexe: d.sexe||'F', notes: {}});
+    });
+    if(eleves.length === 0){ toast('⚠️ Aucun élève', 'error'); return; }
+    const cahierId = 'cahier_' + Date.now();
+    await setDoc(doc(db, 'ecoles', ECOLET_ID, 'cahiers', cahierId), {
+      classe, matiere, eleves, epreuves: {1:[],2:[],3:[],4:[]},
+      enseignantId: enseignantActuel.id, enseignantNom: enseignantActuel.nom,
+      createdAt: Date.now(), school: ECOLET_ID
+    });
+    toast('✅ Cahier créé avec ' + eleves.length + ' élèves');
+    chargerCahiers();
+    chargerSelectCahiers();
+    document.getElementById('cahierMatiere').value = '';
+  } catch(e){ toast('❌ ' + e.message, 'error'); }
+}
+
+async function chargerCahiers(){
+  const container = document.getElementById('cahierListe');
+  try {
+    const snap = await getDocs(query(collection(db, 'ecoles', ECOLET_ID, 'cahiers'), where('enseignantId','==',enseignantActuel?.id || '')));
+    const cahiers = [];
+    snap.forEach(ds => cahiers.push({id: ds.id, ...ds.data()}));
+    document.getElementById('cahierCompteur').textContent = cahiers.length;
+    if(cahiers.length === 0){
+      container.innerHTML = '<div class="empty">📭 Aucun cahier créé</div>';
+      return;
+    }
+    let html = '<div style="display:flex;flex-direction:column;gap:6px;">';
+    cahiers.forEach(c => {
+      html += `<div style="background:#0f172a;border-radius:10px;padding:10px 14px;border:1px solid #1a2332;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+        <div><strong style="color:#60a5fa;">${c.matiere}</strong> <span style="color:#94a3b8;font-size:11px;">${c.classe}</span></div>
+        <div style="font-size:10px;color:#94a3b8;">${(c.eleves||[]).length} élèves</div>
+        <button class="btn-sm btn-danger" onclick="supprimerCahier('${c.id}')" style="padding:2px 10px;">✕</button>
+      </div>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  } catch(e){ console.error(e); }
+}
+
+async function chargerSelectCahiers(){
+  const select = document.getElementById('notesCahier');
+  try {
+    const snap = await getDocs(query(collection(db, 'ecoles', ECOLET_ID, 'cahiers'), where('enseignantId','==',enseignantActuel?.id || '')));
+    select.innerHTML = '<option value="">-- Sélectionner --</option>';
+    snap.forEach(ds => {
+      const d = ds.data();
+      const opt = document.createElement('option');
+      opt.value = ds.id;
+      opt.textContent = d.matiere + ' - ' + d.classe;
+      select.appendChild(opt);
+    });
+  } catch(e){ console.error(e); }
+}
+
+async function chargerElevesNotes(){
+  const cahierId = document.getElementById('notesCahier').value;
+  const periode = document.getElementById('notesPeriode').value;
+  const container = document.getElementById('notesContainer');
+  if(!cahierId){ container.innerHTML = ''; return; }
+  try {
+    const snap = await getDoc(doc(db, 'ecoles', ECOLET_ID, 'cahiers', cahierId));
+    if(!snap.exists()){ container.innerHTML = ''; return; }
+    const data = snap.data();
+    const eleves = data.eleves || [];
+    if(eleves.length === 0){ container.innerHTML = '<div class="empty">📭 Aucun élève</div>'; return; }
+    let html = `<div style="margin-top:10px;max-height:450px;overflow-y:auto;">
+      <div style="display:grid;grid-template-columns:35px 1fr 70px;gap:6px;padding:6px 0;font-weight:600;font-size:10px;color:#94a3b8;border-bottom:1px solid #1a2332;">
+        <span>#</span><span>Élève</span><span>Note</span>
+      </div>`;
+    eleves.forEach((e, i) => {
+      const note = e.notes?.['p'+periode] || '';
+      const nomComplet = (e.nom||'') + ' ' + (e.prenom||'');
+      html += `<div style="display:grid;grid-template-columns:35px 1fr 70px;gap:6px;padding:6px 0;border-bottom:1px solid #0f172a;align-items:center;">
+        <span style="color:#4a5568;font-size:11px;">${i+1}</span>
+        <span style="font-size:12px;">${nomComplet || 'Élève'}</span>
+        <input type="number" step="0.5" min="0" max="20" value="${note}" 
+          onchange="sauverNote('${cahierId}',${i},${periode},this.value)" 
+          style="width:60px;padding:4px 6px;border-radius:6px;background:#1a2332;border:1px solid #334155;color:#fff;text-align:center;">
+      </div>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  } catch(e){ container.innerHTML = '<div class="empty">❌ Erreur</div>'; }
+}
+
+window.sauverNote = async function(cahierId, index, periode, valeur){
+  const val = parseFloat(valeur) || 0;
+  try {
+    const ref = doc(db, 'ecoles', ECOLET_ID, 'cahiers', cahierId);
+    const snap = await getDoc(ref);
+    if(!snap.exists()) return;
+    const data = snap.data();
+    if(!data.eleves[index]) return;
+    if(!data.eleves[index].notes) data.eleves[index].notes = {};
+    data.eleves[index].notes['p'+periode] = val;
+    await updateDoc(ref, { eleves: data.eleves });
+    toast('✅ Note sauvegardée');
+  } catch(e){ toast('❌ Erreur', 'error'); }
+};
+
+window.supprimerCahier = function(id){
+  if(!confirm('Supprimer ce cahier ?')) return;
+  deleteDoc(doc(db, 'ecoles', ECOLET_ID, 'cahiers', id))
+    .then(() => { toast('🗑️ Cahier supprimé'); chargerCahiers(); chargerSelectCahiers(); })
+    .catch(() => toast('❌ Erreur', 'error'));
+};
+
+function deconnexion(){
+  if(confirm('Se déconnecter ?')){
+    localStorage.clear();
+    window.location.href = 'https://www.netubex.com/login.html?ecole=' + schoolId;
+  }
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.onclick = function(){
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    this.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById(this.dataset.tab).classList.add('active');
+    if(this.dataset.tab === 'tabNotes') chargerSelectCahiers();
+  };
+});
+</script>
+</body>
+</html>
