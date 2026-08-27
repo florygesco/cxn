@@ -564,23 +564,6 @@
                 <div class="card-header"><div class="header-left"><span>⚙️ PARAMÈTRES</span></div></div>
                 <div style="padding:20px;display:flex;flex-direction:column;gap:20px;">
                     <div style="background:rgba(18,25,45,0.6);border-radius:16px;padding:20px;border:1px solid rgba(59,130,246,0.15);">
-                        <h3 style="color:#60a5fa;font-size:15px;margin-bottom:4px;">🔐 CHANGER LE CODE D'ACCÈS</h3>
-                        <p style="color:#94a3b8;font-size:12px;margin-bottom:16px;">Pour modifier votre code d'accès, contactez le support</p>
-                        <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:12px;padding:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-                            <div style="display:flex;align-items:center;gap:8px;">
-                                <span style="font-size:24px;">📞</span>
-                                <div>
-                                    <span style="color:#94a3b8;font-size:11px;">Appelez le</span>
-                                    <div style="color:#fbbf24;font-size:18px;font-weight:700;word-break:break-all;">+243845048412</div>
-                                </div>
-                            </div>
-                            <div style="flex:1;min-width:150px;background:rgba(0,0,0,0.2);border-radius:8px;padding:8px 14px;">
-                                <span style="color:#94a3b8;font-size:10px;">⚠️ Assistance</span>
-                                <div style="color:#fbbf24;font-size:12px;">Notre équipe vous assistera pour modifier votre code</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div style="background:rgba(18,25,45,0.6);border-radius:16px;padding:20px;border:1px solid rgba(59,130,246,0.15);">
                         <h3 style="color:#60a5fa;font-size:15px;margin-bottom:4px;">📅 CONFIGURATION HORAIRE</h3>
                         <p style="color:#94a3b8;font-size:12px;margin-bottom:16px;">Définissez votre emploi du temps</p>
                         <select id="configJourSelect" style="width:100%;padding:10px 14px;border-radius:12px;background:#1a2332;border:1px solid #334155;color:#fff;margin-bottom:12px;font-size:14px;">
@@ -2665,6 +2648,7 @@ ${onConfirm ? `<button id="styledConfirmOk" style="background:#dc2626;color:#fff
 </div>`;
     }
 
+    // Fonction PDF avec ligne MAX en ROUGE pour le secondaire
     async function generateFichePDFTitu(cours, classe, option, refNum, eleves, epreuves, pMax, titulaireNom) {
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF('landscape', 'mm', 'a4');
@@ -2709,7 +2693,8 @@ ${onConfirm ? `<button id="styledConfirmOk" style="background:#dc2626;color:#fff
         const headers = [['N°', 'NOMS COMPLETS', 'SEXE', 'P1', 'P2', 'EXAM S1', 'TOT S1', 'P3', 'P4', 'EXAM S2', 'TOT S2', 'TOTAL']];
         const body = [];
         function calcMoyPdf(periode, notes, eps, pM) { let e = eps[periode] || []; if (!e.length || !notes || !notes.length) return 0; let sn = 0, sm = 0; for (let i = 0; i < e.length; i++) { sn += (notes[i] || 0); sm += (e[i].max || 1); } return sm ? Math.min(pM, Math.round((sn / sm) * pM)) : 0; }
-        const maxRow = ['MAXIMA', '', '', pMax, pMax, pMax*2, pMax*4, pMax, pMax, pMax*2, pMax*4, pMax*8];
+        // Ligne MAX en ROUGE
+        const maxRow = ['MAX', '', '', pMax, pMax, pMax*2, pMax*4, pMax, pMax, pMax*2, pMax*4, pMax*8];
         body.push(maxRow);
         for (let i = 0; i < eleves.length; i++) {
             let e = eleves[i];
@@ -2722,7 +2707,18 @@ ${onConfirm ? `<button id="styledConfirmOk" style="background:#dc2626;color:#fff
             body.push([(i + 1).toString().padStart(2, '0'), nomComplet, e.sexe || '', p1, p2, exam1, p1 + p2 + exam1, p3, p4, exam2, p3 + p4 + exam2, p1 + p2 + exam1 + p3 + p4 + exam2]);
         }
         if (body.length === 1) body.push(['-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-']);
-        pdf.autoTable({ head: headers, body: body, startY: 85, theme: 'grid', styles: { fontSize: 8, cellPadding: 2, halign: 'center' }, headStyles: { fillColor: [0, 51, 102], textColor: [255, 255, 255], fontStyle: 'bold' }, alternateRowStyles: { fillColor: [245, 245, 245] } });
+        pdf.autoTable({
+            head: headers,
+            body: body,
+            startY: 85,
+            theme: 'grid',
+            styles: { fontSize: 8, cellPadding: 2, halign: 'center' },
+            headStyles: { fillColor: [0, 51, 102], textColor: [255, 255, 255], fontStyle: 'bold' },
+            rowStyles: {
+                0: { fillColor: [255, 200, 200], textColor: [255, 0, 0], fontStyle: 'bold' }
+            },
+            alternateRowStyles: { fillColor: [245, 245, 245] }
+        });
         return pdf;
     }
 
@@ -3836,69 +3832,90 @@ ${onConfirm ? `<button id="styledConfirmOk" style="background:#dc2626;color:#fff
 
     document.getElementById('p1MaxConfig').onchange = function() { if (isCreatingFiche) return; if (currentFiche && !isCreatingFiche && champsModifiables) { currentFiche.p1Max = parseFloat(this.value) || 20; afficherCotation(); } };
 
-    document.getElementById('exportCurrentBtn').onclick = async function() { if (!currentFiche) { toast("Aucune fiche sélectionnée", 'error'); return; } if (!currentFiche.eleves || currentFiche.eleves.length === 0) { toast("Aucun élève à exporter", 'error'); return; } try { const { jsPDF } = window.jspdf; const pdf = new jsPDF('landscape', 'mm', 'a4');
-        const logoUrl = getLogoUrlFromButton() || await getSchoolLogo(ECOLET_ID);
-        if (logoUrl) {
-            try {
-                const img = await fetch(logoUrl);
-                const blob = await img.blob();
-                const reader = new FileReader();
-                reader.onloadend = function() {
-                    const imgData = reader.result;
-                    pdf.addImage(imgData, 'JPEG', 10, 10, 30, 30);
-                };
-                reader.readAsDataURL(blob);
-            } catch (e) {
-                console.error("Erreur chargement logo PDF:", e);
+    // Fonction PDF avec ligne MAX en ROUGE pour l'export professeur
+    document.getElementById('exportCurrentBtn').onclick = async function() {
+        if (!currentFiche) { toast("Aucune fiche sélectionnée", 'error'); return; }
+        if (!currentFiche.eleves || currentFiche.eleves.length === 0) { toast("Aucun élève à exporter", 'error'); return; }
+        try {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('landscape', 'mm', 'a4');
+            const logoUrl = getLogoUrlFromButton() || await getSchoolLogo(ECOLET_ID);
+            if (logoUrl) {
+                try {
+                    const img = await fetch(logoUrl);
+                    const blob = await img.blob();
+                    const reader = new FileReader();
+                    reader.onloadend = function() {
+                        const imgData = reader.result;
+                        pdf.addImage(imgData, 'JPEG', 10, 10, 30, 30);
+                    };
+                    reader.readAsDataURL(blob);
+                } catch (e) {
+                    console.error("Erreur chargement logo PDF:", e);
+                }
             }
-        }
-        const rn = currentFiche.numeroRef ? formatNumero(currentFiche.numeroRef) : '???';
-        pdf.setFillColor(255, 255, 255);
-        pdf.rect(0, 0, 297, 210, 'F');
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(14);
-        pdf.setTextColor(0, 51, 102);
-        let schoolNameForPdf = schoolId ? schoolId.toUpperCase().replace(/-/g, ' ') : 'COMPLEXE SCOLAIRE';
-        pdf.text('COMPLEXE SCOLAIRE ' + schoolNameForPdf, 148, 20, { align: 'center' });
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(10);
-        pdf.setTextColor(80, 80, 80);
-        pdf.text('GESTION SCOLAIRE', 148, 27, { align: 'center' });
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(12);
-        pdf.setTextColor(0, 51, 102);
-        pdf.text('FICHE DE COTATION', 148, 37, { align: 'center' });
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(9);
-        pdf.setTextColor(0, 0, 0);
-        pdf.text("Année scolaire : " + (currentFiche.anneeScolaire || '2026-2027'), 14, 50);
-        pdf.text("Référence : " + rn, 14, 57);
-        pdf.text("Cours : " + (currentFiche.cours || ''), 14, 64);
-        pdf.text("Classe : " + (currentFiche.classe || ''), 14, 71);
-        let y = 78;
-        if (currentFiche.option && currentFiche.option !== '') {
-            pdf.text("Option : " + currentFiche.option, 14, y);
-            y += 7;
-        }
-        pdf.text("Titulaire : " + (currentProf ? currentProf.nom : ''), 14, y);
-        const eps = currentFiche.epreuvesParPeriode || { 1: [], 2: [], 3: [], 4: [] };
-        const p1m = getPeriodeMax(1), p2m = getPeriodeMax(2), p3m = getPeriodeMax(3), p4m = getPeriodeMax(4);
-        const e1m = getExamMax(1), e2m = getExamMax(2);
-        const ts1m = getTotalSemestreMax(1), ts2m = getTotalSemestreMax(2), tam = getTotalAnnuelMax();
-        const hd = [['N°', 'NOMS COMPLETS', 'SEXE', 'P1/' + p1m, 'P2/' + p2m, 'EXAM S1/' + e1m, 'TOT S1/' + ts1m, 'P3/' + p3m, 'P4/' + p4m, 'EXAM S2/' + e2m, 'TOT S2/' + ts2m, 'TOTAL/' + tam]];
-        const bd = [];
-        for (let i = 0; i < currentFiche.eleves.length; i++) {
-            const e = currentFiche.eleves[i];
-            const n = e.notes || {};
-            const p1 = calcMoy(1, n.p1), p2 = calcMoy(2, n.p2), p3 = calcMoy(3, n.p3), p4 = calcMoy(4, n.p4);
-            const ex1 = n.exam1 || 0, ex2 = n.exam2 || 0;
-            const nomComplet = getNomComplet(e).toUpperCase();
-            bd.push([(i + 1).toString(), nomComplet, e.sexe === 'F' ? 'F' : 'M', p1, p2, ex1, p1 + p2 + ex1, p3, p4, ex2, p3 + p4 + ex2, p1 + p2 + ex1 + p3 + p4 + ex2]);
-        }
-        pdf.autoTable({ head: hd, body: bd, startY: y + 10, theme: 'grid', styles: { fontSize: 8, cellPadding: 2, halign: 'center', valign: 'middle', textColor: [0, 0, 0] }, headStyles: { fillColor: [0, 51, 102], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' }, alternateRowStyles: { fillColor: [245, 245, 245] } });
-        pdf.save("Fiche_" + rn + "_" + (currentFiche.cours || 'cours') + ".pdf");
-        toast("PDF exporté", 'success');
-    } catch (e) { toast("Erreur lors de la génération du PDF", 'error'); console.error(e); } };
+            const rn = currentFiche.numeroRef ? formatNumero(currentFiche.numeroRef) : '???';
+            pdf.setFillColor(255, 255, 255);
+            pdf.rect(0, 0, 297, 210, 'F');
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(14);
+            pdf.setTextColor(0, 51, 102);
+            let schoolNameForPdf = schoolId ? schoolId.toUpperCase().replace(/-/g, ' ') : 'COMPLEXE SCOLAIRE';
+            pdf.text('COMPLEXE SCOLAIRE ' + schoolNameForPdf, 148, 20, { align: 'center' });
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(10);
+            pdf.setTextColor(80, 80, 80);
+            pdf.text('GESTION SCOLAIRE', 148, 27, { align: 'center' });
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(12);
+            pdf.setTextColor(0, 51, 102);
+            pdf.text('FICHE DE COTATION', 148, 37, { align: 'center' });
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(9);
+            pdf.setTextColor(0, 0, 0);
+            pdf.text("Année scolaire : " + (currentFiche.anneeScolaire || '2026-2027'), 14, 50);
+            pdf.text("Référence : " + rn, 14, 57);
+            pdf.text("Cours : " + (currentFiche.cours || ''), 14, 64);
+            pdf.text("Classe : " + (currentFiche.classe || ''), 14, 71);
+            let y = 78;
+            if (currentFiche.option && currentFiche.option !== '') {
+                pdf.text("Option : " + currentFiche.option, 14, y);
+                y += 7;
+            }
+            pdf.text("Titulaire : " + (currentProf ? currentProf.nom : ''), 14, y);
+            const eps = currentFiche.epreuvesParPeriode || { 1: [], 2: [], 3: [], 4: [] };
+            const p1m = getPeriodeMax(1), p2m = getPeriodeMax(2), p3m = getPeriodeMax(3), p4m = getPeriodeMax(4);
+            const e1m = getExamMax(1), e2m = getExamMax(2);
+            const ts1m = getTotalSemestreMax(1), ts2m = getTotalSemestreMax(2), tam = getTotalAnnuelMax();
+            const hd = [['N°', 'NOMS COMPLETS', 'SEXE', 'P1/' + p1m, 'P2/' + p2m, 'EXAM S1/' + e1m, 'TOT S1/' + ts1m, 'P3/' + p3m, 'P4/' + p4m, 'EXAM S2/' + e2m, 'TOT S2/' + ts2m, 'TOTAL/' + tam]];
+            const bd = [];
+            // Ligne MAX en ROUGE
+            const maxRow = ['MAX', '', '', p1m, p2m, e1m, ts1m, p3m, p4m, e2m, ts2m, tam];
+            bd.push(maxRow);
+            for (let i = 0; i < currentFiche.eleves.length; i++) {
+                const e = currentFiche.eleves[i];
+                const n = e.notes || {};
+                const p1 = calcMoy(1, n.p1), p2 = calcMoy(2, n.p2), p3 = calcMoy(3, n.p3), p4 = calcMoy(4, n.p4);
+                const ex1 = n.exam1 || 0, ex2 = n.exam2 || 0;
+                const nomComplet = getNomComplet(e).toUpperCase();
+                bd.push([(i + 1).toString(), nomComplet, e.sexe === 'F' ? 'F' : 'M', p1, p2, ex1, p1 + p2 + ex1, p3, p4, ex2, p3 + p4 + ex2, p1 + p2 + ex1 + p3 + p4 + ex2]);
+            }
+            pdf.autoTable({
+                head: hd,
+                body: bd,
+                startY: y + 10,
+                theme: 'grid',
+                styles: { fontSize: 8, cellPadding: 2, halign: 'center', valign: 'middle', textColor: [0, 0, 0] },
+                headStyles: { fillColor: [0, 51, 102], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
+                rowStyles: {
+                    0: { fillColor: [255, 200, 200], textColor: [255, 0, 0], fontStyle: 'bold' }
+                },
+                alternateRowStyles: { fillColor: [245, 245, 245] }
+            });
+            pdf.save("Fiche_" + rn + "_" + (currentFiche.cours || 'cours') + ".pdf");
+            toast("PDF exporté", 'success');
+        } catch (e) { toast("Erreur lors de la génération du PDF", 'error'); console.error(e); }
+    };
 
     document.getElementById('exportEleveNotesBtn').onclick = async function() { let idx = document.getElementById('eleveForExportSelect').value; if (idx === "") { toast("Veuillez sélectionner un élève", 'warning'); return; } let eleve = currentFiche.eleves[parseInt(idx)]; if (!eleve) { toast("Élève non trouvé", 'error'); return; } try { const { jsPDF } = window.jspdf; const pdf = new jsPDF('portrait', 'mm', 'a4');
         const logoUrl = getLogoUrlFromButton() || await getSchoolLogo(ECOLET_ID);
