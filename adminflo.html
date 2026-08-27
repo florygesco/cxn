@@ -365,6 +365,7 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 <button class="tab-btn" data-tab="tab6">📄 Sheets <span class="tab-count" id="tabCount6">0</span></button>
 <button class="tab-btn" data-tab="tab7">🔐 Codes <span class="tab-count" id="tabCount7">0</span></button>
 <button class="tab-btn" data-tab="tab10">🔑 Parent Codes <span class="tab-count" id="tabCount10">0</span></button>
+<button class="tab-btn" data-tab="tab11">🔍 Diagnostic <span class="tab-count" id="tabCount11">0</span></button>
 </div>
 <div id="tab1" class="tab-panel active">
 <div class="card">
@@ -488,6 +489,21 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 </div>
 </div>
 </div>
+<div id="tab11" class="tab-panel">
+<div class="card">
+<div class="card-header">
+<div class="card-header-left">🔍 Diagnostic des écoles</div>
+<div class="card-header-actions">
+<button class="btn btn-refresh btn-sm" id="refreshDiagnosticBtn">⟳</button>
+</div>
+</div>
+<div class="card-body">
+<div id="diagnosticContainer">
+<div class="empty-state">⏳ Chargement du diagnostic...</div>
+</div>
+</div>
+</div>
+</div>
 </div>
 <div class="toast-container" id="toastContainer"></div>
 <div class="modal-overlay" id="codeModal"><div class="modal-card"><h3>🔐 Verification</h3><p style="text-align:center;color:var(--text-muted);font-size:12px;margin-bottom:10px;">Enter access code</p>
@@ -517,6 +533,216 @@ const appB = initializeApp(firebaseConfigB, 'sourceB');
 const dbA = getFirestore(appA);
 const dbB = getFirestore(appB);
 const auth = getAuth(appA);
+
+// ============================================
+// DIAGNOSTIC - ONGLET SÉPARÉ
+// ============================================
+
+let diagnosticsCache = [];
+let diagnosticEnCours = false;
+
+async function chargerDiagnostic() {
+    if (diagnosticEnCours) return;
+    diagnosticEnCours = true;
+    
+    const container = document.getElementById('diagnosticContainer');
+    container.innerHTML = '<div class="empty-state">⏳ Analyse des écoles en cours...</div>';
+    
+    try {
+        const db = getDb();
+        const snap = await getDocs(collection(db, "ecoles"));
+        const ecoles = snap.docs.map(d => ({ id: d.id, data: d.data() }));
+        
+        diagnosticsCache = [];
+        let totalEleves = 0;
+        let totalTOUTES = 0;
+        let totalSains = 0;
+        let totalPartiels = 0;
+        let totalAffectes = 0;
+        let totalVides = 0;
+        
+        for (const ecole of ecoles) {
+            try {
+                const elevesSnap = await getDocs(collection(db, "ecoles", ecole.id, "compta_eleves"));
+                let total = 0;
+                let avecTOUTES = 0;
+                let valides = 0;
+                let en7eme8eme = 0;
+                
+                for (const el of elevesSnap.docs) {
+                    const d = el.data();
+                    if (d._type === 'config' || d._type === 'settings') continue;
+                    if (d.abandon) continue;
+                    
+                    if (d.classe === '7ème EB' || d.classe === '8ème EB') {
+                        en7eme8eme++;
+                        continue;
+                    }
+                    
+                    total++;
+                    if (d.option === 'TOUTES') {
+                        avecTOUTES++;
+                    } else if (d.option && d.option !== '') {
+                        valides++;
+                    }
+                }
+                
+                let statut = 'vide';
+                if (total === 0) {
+                    statut = 'vide';
+                    totalVides++;
+                } else if (avecTOUTES === 0) {
+                    statut = 'sain';
+                    totalSains++;
+                } else if (avecTOUTES === total) {
+                    statut = 'affecte';
+                    totalAffectes++;
+                } else {
+                    statut = 'partiel';
+                    totalPartiels++;
+                }
+                
+                totalEleves += total;
+                totalTOUTES += avecTOUTES;
+                
+                diagnosticsCache.push({
+                    ecole: ecole.id,
+                    nom: ecole.data.nom || ecole.id,
+                    total: total,
+                    avecTOUTES: avecTOUTES,
+                    valides: valides,
+                    en7eme8eme: en7eme8eme,
+                    statut: statut,
+                    pourcentage: total > 0 ? Math.round((avecTOUTES / total) * 100) : 0
+                });
+            } catch(e) {
+                // Ignorer les erreurs pour cette école
+            }
+        }
+        
+        // Trier par statut (affecté en premier)
+        const order = { affecte: 0, partiel: 1, sain: 2, vide: 3 };
+        diagnosticsCache.sort((a, b) => order[a.statut] - order[b.statut] || a.nom.localeCompare(b.nom));
+        
+        afficherDiagnostic();
+        
+        // Mettre à jour le compteur de l'onglet
+        document.getElementById('tabCount11').textContent = diagnosticsCache.filter(d => d.statut !== 'sain' && d.statut !== 'vide').length;
+        
+    } catch(error) {
+        container.innerHTML = '<div class="empty-state">❌ Erreur: ' + error.message + '</div>';
+    } finally {
+        diagnosticEnCours = false;
+    }
+}
+
+function afficherDiagnostic() {
+    const container = document.getElementById('diagnosticContainer');
+    
+    const total = diagnosticsCache.length;
+    const sains = diagnosticsCache.filter(d => d.statut === 'sain').length;
+    const partiels = diagnosticsCache.filter(d => d.statut === 'partiel').length;
+    const affectes = diagnosticsCache.filter(d => d.statut === 'affecte').length;
+    const vides = diagnosticsCache.filter(d => d.statut === 'vide').length;
+    
+    if (diagnosticsCache.length === 0) {
+        container.innerHTML = '<div class="empty-state">📭 Aucune école trouvée</div>';
+        return;
+    }
+    
+    let html = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px;">
+            <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:12px;padding:14px;text-align:center;">
+                <div style="font-size:28px;font-weight:900;color:#60a5fa;">${total}</div>
+                <div style="font-size:10px;color:var(--text-muted);">🏫 Total écoles</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:12px;padding:14px;text-align:center;">
+                <div style="font-size:28px;font-weight:900;color:#10b981;">${sains}</div>
+                <div style="font-size:10px;color:var(--text-muted);">✅ Saines</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:12px;padding:14px;text-align:center;">
+                <div style="font-size:28px;font-weight:900;color:#f59e0b;">${partiels}</div>
+                <div style="font-size:10px;color:var(--text-muted);">⚠️ Partielles</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:12px;padding:14px;text-align:center;">
+                <div style="font-size:28px;font-weight:900;color:#ef4444;">${affectes}</div>
+                <div style="font-size:10px;color:var(--text-muted);">❌ Affectées</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:12px;padding:14px;text-align:center;">
+                <div style="font-size:28px;font-weight:900;color:var(--text-muted);">${vides}</div>
+                <div style="font-size:10px;color:var(--text-muted);">📭 Vides</div>
+            </div>
+        </div>
+    `;
+    
+    html += '<div style="margin-bottom:12px;font-size:12px;color:var(--text-muted);">';
+    html += '🔍 ' + diagnosticsCache.filter(d => d.statut !== 'sain' && d.statut !== 'vide').length + ' école(s) à corriger';
+    html += '</div>';
+    
+    for (const d of diagnosticsCache) {
+        const statutClass = d.statut === 'affecte' ? 'danger' : (d.statut === 'partiel' ? 'warning' : '');
+        const badgeClass = d.statut === 'affecte' ? 'badge-danger' : (d.statut === 'partiel' ? 'badge-warning' : (d.statut === 'sain' ? 'badge-success' : 'badge-primary'));
+        const badgeText = d.statut === 'affecte' ? '❌ Affectée' : (d.statut === 'partiel' ? '⚠️ Partielle' : (d.statut === 'sain' ? '✅ Saine' : '📭 Vide'));
+        
+        html += `
+            <div class="diagnostic-item ${statutClass}" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(0,0,0,0.2);border-radius:10px;margin-bottom:6px;border-left:4px solid ${d.statut === 'affecte' ? '#ef4444' : d.statut === 'partiel' ? '#f59e0b' : '#10b981'};flex-wrap:wrap;gap:8px;">
+                <div style="flex:1;min-width:160px;">
+                    <div style="font-weight:600;font-size:14px;">${escapeHtml(d.nom)}</div>
+                    <div style="font-size:11px;color:var(--text-muted);">
+                        🆔 ${escapeHtml(d.ecole)} 
+                        | 👨‍🎓 ${d.total} élèves 
+                        ${d.avecTOUTES > 0 ? `| ❌ ${d.avecTOUTES} avec "TOUTES"` : ''}
+                        ${d.valides > 0 ? `| ✅ ${d.valides} valides` : ''}
+                        ${d.en7eme8eme > 0 ? `| 📚 ${d.en7eme8eme} en 7ème/8ème` : ''}
+                        ${d.pourcentage > 0 ? `| ${d.pourcentage}%` : ''}
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <span class="badge ${badgeClass}">${badgeText}</span>
+                    ${d.statut !== 'sain' && d.statut !== 'vide' ? `
+                        <button class="btn btn-danger btn-sm btn-corriger-ecole" data-ecole="${d.ecole}" style="padding:4px 12px;font-size:10px;">🛠️ Corriger</button>
+                    ` : ''}
+                    <button class="btn btn-outline btn-sm btn-voir-ecole" data-ecole="${d.ecole}" style="padding:4px 12px;font-size:10px;">👁️</button>
+                </div>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+    
+    // Événements pour les boutons
+    container.querySelectorAll('.btn-corriger-ecole').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const ecole = this.dataset.ecole;
+            const code = new URLSearchParams(window.location.search).get('code') || '';
+            const url = `correction.html?ecole=${ecole}${code ? '&code=' + code : ''}`;
+            window.location.href = url;
+        });
+    });
+    
+    container.querySelectorAll('.btn-voir-ecole').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const ecole = this.dataset.ecole;
+            const e = diagnosticsCache.find(d => d.ecole === ecole);
+            if (e) {
+                alert(
+                    `🏫 ${e.nom}\n` +
+                    `🆔 ${e.ecole}\n` +
+                    `\n📊 ÉLÈVES:\n` +
+                    `   Total: ${e.total}\n` +
+                    `   Avec "TOUTES": ${e.avecTOUTES}\n` +
+                    `   Options valides: ${e.valides}\n` +
+                    `   En 7ème/8ème EB: ${e.en7eme8eme}\n` +
+                    `   ${e.pourcentage > 0 ? `⚠️ ${e.pourcentage}% affecté` : '✅ Sain'}`
+                );
+            }
+        });
+    });
+}
+
+// ============================================
+// SUITE DU CODE EXISTANT
+// ============================================
 
 const loginOverlay = document.getElementById('loginOverlay');
 const dashboardContent = document.getElementById('dashboardContent');
@@ -639,6 +865,9 @@ loginOverlay.classList.add('hidden');
 dashboardContent.classList.add('visible');
 userEmailDisplay.textContent = '👤 ' + email;
 loadAllData();
+setTimeout(() => {
+chargerDiagnostic();
+}, 1000);
 }
 
 function logout() {
@@ -1135,7 +1364,7 @@ document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'))
 this.classList.add('active');
 document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
 document.getElementById(this.dataset.tab).classList.add('active');
-const tabMap = { 'tab1': loadSchools, 'tab2': loadMembersA, 'tab3': loadMembersB, 'tab4': loadMembersC, 'tab5': loadTeachers, 'tab6': loadSheets, 'tab7': loadCodesEmails, 'tab10': loadParentCodes };
+const tabMap = { 'tab1': loadSchools, 'tab2': loadMembersA, 'tab3': loadMembersB, 'tab4': loadMembersC, 'tab5': loadTeachers, 'tab6': loadSheets, 'tab7': loadCodesEmails, 'tab10': loadParentCodes, 'tab11': chargerDiagnostic };
 if (tabMap[this.dataset.tab]) tabMap[this.dataset.tab]();
 };
 });
@@ -1154,12 +1383,11 @@ document.querySelectorAll('.source-badge .dot').forEach(el => {
 el.className = 'dot ' + (activeSource === 'a' ? 'blue' : activeSource === 'b' ? 'green' : 'gold');
 });
 loadAllData();
+setTimeout(() => chargerDiagnostic(), 1500);
 });
 });
 
-['refreshEcolesBtn','refreshMembersA','refreshMembersB','refreshMembersC','refreshTeachersBtn','refreshSheetsBtn','refreshCodesEmailsBtn','refreshCodesBtn'].forEach(id => {
-document.getElementById(id)?.addEventListener('click', loadAllData);
-});
+document.getElementById('refreshDiagnosticBtn')?.addEventListener('click', chargerDiagnostic);
 
 ['ecoleSearch','ecoleStatutFilter'].forEach(id => {
 document.getElementById(id)?.addEventListener('input', loadSchools);
