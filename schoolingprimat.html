@@ -2391,16 +2391,27 @@ document.getElementById('exportCurrentBtn').onclick = async function() {
     const examMax = pMax * 2;
     
     const hd = [['N°', 'NOMS COMPLETS', 'SEXE']];
+    const maxRow = ['MAX', '', ''];
+    
     for (let t = 1; t <= 3; t++) {
       let p1 = (t - 1) * 2 + 1;
       let p2 = (t - 1) * 2 + 2;
-      if (!estPeriodeMasquee(p1)) hd[0].push('T' + t + ' P' + p1);
-      if (!estPeriodeMasquee(p2)) hd[0].push('T' + t + ' P' + p2);
+      if (!estPeriodeMasquee(p1)) {
+        hd[0].push('T' + t + ' P' + p1);
+        maxRow.push(pMax);
+      }
+      if (!estPeriodeMasquee(p2)) {
+        hd[0].push('T' + t + ' P' + p2);
+        maxRow.push(pMax);
+      }
       hd[0].push('EXAM T' + t, 'TOT T' + t);
+      maxRow.push(examMax, '');
     }
     hd[0].push('TOTAL ANNÉE');
+    maxRow.push('');
     
-    const bd = [];
+    const bd = [maxRow];
+    
     for (let i = 0; i < currentFiche.eleves.length; i++) {
       const e = currentFiche.eleves[i];
       const row = [(i + 1).toString(), getNomComplet(e).toUpperCase(), e.sexe === 'F' ? 'F' : 'M'];
@@ -2430,7 +2441,23 @@ document.getElementById('exportCurrentBtn').onclick = async function() {
       row.push(totalAnnuel);
       bd.push(row);
     }
-    pdf.autoTable({ head: hd, body: bd, startY: 85, theme: 'grid', styles: { fontSize: 7, cellPadding: 2, halign: 'center' }, headStyles: { fillColor: [0, 51, 102], textColor: [255, 255, 255], fontStyle: 'bold' }, alternateRowStyles: { fillColor: [245, 245, 245] } });
+    
+    pdf.autoTable({ 
+      head: hd, 
+      body: bd, 
+      startY: 85, 
+      theme: 'grid', 
+      styles: { fontSize: 7, cellPadding: 2, halign: 'center' }, 
+      headStyles: { fillColor: [0, 51, 102], textColor: [255, 255, 255], fontStyle: 'bold' },
+      didDrawCell: function(data) {
+        if (data.section === 'body' && data.row.index === 0) {
+          data.cell.styles.fillColor = [255, 240, 240];
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.textColor = [255, 0, 0];
+        }
+      },
+      alternateRowStyles: { fillColor: [245, 245, 245] } 
+    });
     pdf.save("Cahier_" + rn + "_" + (currentFiche.cours || 'cours') + ".pdf");
     toast("PDF exporté", 'success');
   } catch (e) { toast("Erreur lors de la génération du PDF", 'error'); console.error(e); }
