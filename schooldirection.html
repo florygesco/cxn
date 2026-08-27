@@ -2,7 +2,6 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0f172a">
@@ -55,7 +54,7 @@ body{min-height:100vh;padding:0;margin:0;overflow-y:auto!important;overflow-x:hi
 .tabs-container{overflow-x:auto;margin-bottom:16px;white-space:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;-ms-overflow-style:none;padding:4px 0;outline:none}
 .tabs-container::-webkit-scrollbar{display:none}
 .tabs{display:inline-flex;gap:6px;padding:0 2px}
-.tab{background:var(--bg-card);border:1px solid var(--border-color);padding:8px 14px;border-radius:30px;font-size:11px;font-weight:600;cursor:pointer;color:var(--text-secondary);transition:all .3s;box-shadow:var(--shadow);display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border-color);}
+.tab{background:var(--bg-card);border:1px solid var(--border-color);padding:8px 14px;border-radius:30px;font-size:11px;font-weight:600;cursor:pointer;color:var(--text-secondary);transition:all .3s;box-shadow:var(--shadow);display:inline-flex;align-items:center;gap:6px}
 .tab:hover{background:#f8fafc;color:var(--text-primary);border-color:#cbd5e1;transform:translateY(-2px);box-shadow:var(--shadow-hover)}
 .tab.active{background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;border-color:#0f172a;box-shadow:0 4px 16px rgba(15,23,42,0.2);transform:translateY(-2px)}
 .tab i{font-size:11px}
@@ -888,28 +887,42 @@ async function chargerEleves(filtreClasse='',searchTerm=''){const container=docu
 async function updateStats(){try{const profsSnap=await getDocs(collection(db,"ecoles",ECOLET_ID,SC.PROFESSEURS));let totalProfs=0;profsSnap.forEach(ds=>{const d=ds.data();if(d._type==='prof'&&d.actif!==false)totalProfs++;});document.getElementById('statTotalProfs').textContent=totalProfs;const fichesSnap=await getDocs(collection(db,"ecoles",ECOLET_ID,SC.FICHES));let totalFiches=0;fichesSnap.forEach(()=>totalFiches++);document.getElementById('statTotalFiches').textContent=totalFiches;const corbeilleSnap=await getDocs(collection(db,"ecoles",ECOLET_ID,SC.CORBEILLE));let totalCorbeille=0;corbeilleSnap.forEach(ds=>{const d=ds.data();if(d.dateExpiration&&new Date(d.dateExpiration)>new Date()){totalCorbeille++;}});document.getElementById('statTotalCorbeille').textContent=totalCorbeille;}catch(e){}}
 function initGestionEleves(){document.getElementById('inscriptionStatusBadge').innerHTML='<i class="fas fa-lock"></i> DÉSACTIVÉ';document.getElementById('inscriptionStatusBadge').style.background='var(--red-bg)';document.getElementById('inscriptionStatusBadge').style.color='var(--red)';}
 
-function ouvrirModalMoyenne(nom,presences){
+function ouvrirModalMoyenne(nom,id,type){
   document.getElementById('moyenneProfNom').textContent=nom;
   let totalJours=0;
   let joursPrestes=0;
   let detailsHtml='';
-  const jours=Object.keys(presences||{}).sort();
-  jours.forEach(j=>{
-    totalJours++;
-    const p=presences[j];
-    const statut=p?.statut||'absent';
-    const statutClass=statut==='present'?'present':statut==='retard'?'retard':'absent';
-    const statutLabel=statut==='present'?'✅ PRÉSENT':statut==='retard'?'⏰ RETARD':'❌ ABSENT';
-    if(statut==='present'||statut==='retard')joursPrestes++;
-    const dateFormatee=new Date(j).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
-    detailsHtml+='<div class="detail-row"><span class="day">'+dateFormatee+'</span><span class="status '+statutClass+'">'+statutLabel+'</span></div>';
-  });
-  const taux=totalJours>0?Math.round((joursPrestes/totalJours)*100):0;
-  document.getElementById('moyenneJoursPrestes').textContent=joursPrestes+'/'+totalJours;
-  document.getElementById('moyenneTaux').textContent=taux+'%';
-  document.getElementById('moyenneDetails').innerHTML=detailsHtml||'<p style="color:var(--text-muted);font-size:13px;">Aucune donnée disponible</p>';
-  document.getElementById('modalMoyenne').classList.add('show');
+  try{
+    const docRef=doc(db,"ecoles",ECOLET_ID,type==='prof'?SC.PROFESSEURS:SC.ENSEIGNANTS,id);
+    getDoc(docRef).then(snap=>{
+      if(snap.exists()){
+        const data=snap.data();
+        const presences=data.presences||{};
+        const jours=Object.keys(presences).sort();
+        jours.forEach(j=>{
+          totalJours++;
+          const p=presences[j];
+          const statut=p?.statut||'absent';
+          const statutClass=statut==='present'?'present':statut==='retard'?'retard':'absent';
+          const statutLabel=statut==='present'?'✅ PRÉSENT':statut==='retard'?'⏰ RETARD':'❌ ABSENT';
+          if(statut==='present'||statut==='retard')joursPrestes++;
+          const dateFormatee=new Date(j).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
+          detailsHtml+='<div class="detail-row"><span class="day">'+dateFormatee+'</span><span class="status '+statutClass+'">'+statutLabel+'</span></div>';
+        });
+        const taux=totalJours>0?Math.round((joursPrestes/totalJours)*100):0;
+        document.getElementById('moyenneJoursPrestes').textContent=joursPrestes+'/'+totalJours;
+        document.getElementById('moyenneTaux').textContent=taux+'%';
+        document.getElementById('moyenneDetails').innerHTML=detailsHtml||'<p style="color:var(--text-muted);font-size:13px;">Aucune donnée disponible</p>';
+        document.getElementById('modalMoyenne').classList.add('show');
+      }else{
+        toast('Aucune donnée de présence','warning');
+      }
+    });
+  }catch(e){
+    toast('Erreur: '+e.message,'error');
+  }
 }
+window.ouvrirModalMoyenne=ouvrirModalMoyenne;
 window.fermerModalMoyenne=function(){
   document.getElementById('modalMoyenne').classList.remove('show');
 };
@@ -991,23 +1004,23 @@ async function chargerPresences(){
             '<span class="statut-badge '+statutClass+'">'+statutIcon+' '+statutLabel+'</span>'+
           '</div>'+
           '<div class="card-actions">'+
-            '<button class="btn btn-sm btn-success" data-id="'+p.id+'" data-type="'+p.type+'" data-statut="present" onclick="pointerPresence(this.dataset.id,this.dataset.type,this.dataset.statut)"><i class="fas fa-check"></i> PRÉSENT</button>'+
-            '<button class="btn btn-sm btn-warning" data-id="'+p.id+'" data-type="'+p.type+'" data-statut="retard" onclick="pointerPresence(this.dataset.id,this.dataset.type,this.dataset.statut)"><i class="fas fa-clock"></i> RETARD</button>'+
-            '<button class="btn btn-sm btn-danger" data-id="'+p.id+'" data-type="'+p.type+'" data-statut="absent" onclick="pointerPresence(this.dataset.id,this.dataset.type,this.dataset.statut)"><i class="fas fa-times"></i> ABSENT</button>'+
+            '<button class="btn btn-sm btn-success" onclick="pointerPresence(\''+p.id+'\',\''+p.type+'\',\'present\')"><i class="fas fa-check"></i> PRÉSENT</button>'+
+            '<button class="btn btn-sm btn-warning" onclick="pointerPresence(\''+p.id+'\',\''+p.type+'\',\'retard\')"><i class="fas fa-clock"></i> RETARD</button>'+
+            '<button class="btn btn-sm btn-danger" onclick="pointerPresence(\''+p.id+'\',\''+p.type+'\',\'absent\')"><i class="fas fa-times"></i> ABSENT</button>'+
             '<button class="btn btn-sm btn-moyenne" onclick="ouvrirModalMoyenne(\''+escapeHtml(p.nom)+'\',\''+p.id+'\',\''+p.type+'\')"><i class="fas fa-chart-line"></i> VOIR MOYENNE</button>'+
           '</div>'+
         '</div>'+
         '<div class="card-details">'+
           '<div class="detail-item"><i class="fas fa-clock" style="color:var(--blue);"></i> Arrivée: <strong>'+(heureArrivee||'-')+'</strong></div>'+
-          '<div class="detail-item"><i class="fas fa-sign-out-alt" style="color:var(--blue);"></i> Sortie: <select class="heure-sortie-select" data-id="'+p.id+'" data-type="'+p.type+'" style="padding:2px 6px;border-radius:4px;border:1px solid var(--border-color);font-size:11px;background:#fff;">'+
+          '<div class="detail-item"><i class="fas fa-sign-out-alt" style="color:var(--blue);"></i> Sortie: <select class="heure-sortie-select" onchange="sauvegarderHeureSortie(this.dataset.id,this.dataset.type,this.value)" data-id="'+p.id+'" data-type="'+p.type+'" style="padding:2px 6px;border-radius:4px;border:1px solid var(--border-color);font-size:11px;background:#fff;">'+
             '<option value="">--</option>'+
             '<option value="17:20" '+(heureSortie==='17:20'?'selected':'')+'>17h20</option>'+
             '<option value="17:30" '+(heureSortie==='17:30'?'selected':'')+'>17h30</option>'+
             '<option value="autre" '+(heureSortie&&heureSortie!=='17:20'&&heureSortie!=='17:30'?'selected':'')+'>Autre</option>'+
           '</select>'+
-          '<input type="text" class="heure-sortie-other" data-id="'+p.id+'" data-type="'+p.type+'" placeholder="HH:MM" style="display:'+(heureSortie&&heureSortie!=='17:20'&&heureSortie!=='17:30'?'inline-block':'none')+';width:50px;padding:2px 6px;border-radius:4px;border:1px solid var(--border-color);font-size:11px;" value="'+(heureSortie&&heureSortie!=='17:20'&&heureSortie!=='17:30'?heureSortie:'')+'"></div>'+
-          '<div class="detail-item"><i class="fas fa-file-alt" style="color:var(--blue);"></i> Document: <button class="btn btn-sm '+(docPedago==='oui'?'btn-success':'btn-outline')+'" data-id="'+p.id+'" data-type="'+p.type+'" onclick="toggleDocPedagogique(this.dataset.id,this.dataset.type)" style="padding:1px 10px;font-size:9px;">'+(docPedago==='oui'?'<i class="fas fa-check"></i> OUI':'<i class="fas fa-times"></i> NON')+'</button></div>'+
-          '<div class="detail-item"><i class="fas fa-pen" style="color:var(--blue);"></i> Motif: <select class="motif-select" data-id="'+p.id+'" data-type="'+p.type+'" style="padding:2px 6px;border-radius:4px;border:1px solid var(--border-color);font-size:11px;background:#fff;">'+
+          '<input type="text" class="heure-sortie-other" onchange="sauvegarderHeureSortie(this.dataset.id,this.dataset.type,this.value)" onblur="sauvegarderHeureSortie(this.dataset.id,this.dataset.type,this.value)" data-id="'+p.id+'" data-type="'+p.type+'" placeholder="HH:MM" style="display:'+(heureSortie&&heureSortie!=='17:20'&&heureSortie!=='17:30'?'inline-block':'none')+';width:50px;padding:2px 6px;border-radius:4px;border:1px solid var(--border-color);font-size:11px;" value="'+(heureSortie&&heureSortie!=='17:20'&&heureSortie!=='17:30'?heureSortie:'')+'"></div>'+
+          '<div class="detail-item"><i class="fas fa-file-alt" style="color:var(--blue);"></i> Document: <button class="btn btn-sm '+(docPedago==='oui'?'btn-success':'btn-outline')+'" onclick="toggleDocPedagogique(\''+p.id+'\',\''+p.type+'\')" style="padding:1px 10px;font-size:9px;">'+(docPedago==='oui'?'<i class="fas fa-check"></i> OUI':'<i class="fas fa-times"></i> NON')+'</button></div>'+
+          '<div class="detail-item"><i class="fas fa-pen" style="color:var(--blue);"></i> Motif: <select class="motif-select" onchange="sauvegarderMotif(this.dataset.id,this.dataset.type,this.value)" data-id="'+p.id+'" data-type="'+p.type+'" style="padding:2px 6px;border-radius:4px;border:1px solid var(--border-color);font-size:11px;background:#fff;">'+
             '<option value="">--</option>'+
             '<option value="Absence justifiée" '+(motif==='Absence justifiée'?'selected':'')+'>Absence justifiée</option>'+
             '<option value="Absence non justifiée" '+(motif==='Absence non justifiée'?'selected':'')+'>Absence non justifiée</option>'+
@@ -1022,21 +1035,6 @@ async function chargerPresences(){
     document.getElementById('statPresenceTotal').textContent=toutesPersonnes.length;
     document.getElementById('presenceCount').textContent=toutesPersonnes.length+' personnes';
     container.innerHTML=html;
-    document.querySelectorAll('.heure-sortie-select').forEach(sel=>{
-      sel.addEventListener('change',function(){
-        const id=this.dataset.id;const type=this.dataset.type;
-        const otherInput=document.querySelector('.heure-sortie-other[data-id="'+id+'"][data-type="'+type+'"]');
-        if(this.value==='autre'){otherInput.style.display='inline-block';otherInput.focus();}
-        else{otherInput.style.display='none';sauvegarderHeureSortie(id,type,this.value);}
-      });
-    });
-    document.querySelectorAll('.heure-sortie-other').forEach(inp=>{
-      inp.addEventListener('change',function(){sauvegarderHeureSortie(this.dataset.id,this.dataset.type,this.value);});
-      inp.addEventListener('blur',function(){sauvegarderHeureSortie(this.dataset.id,this.dataset.type,this.value);});
-    });
-    document.querySelectorAll('.motif-select').forEach(sel=>{
-      sel.addEventListener('change',function(){sauvegarderMotif(this.dataset.id,this.dataset.type,this.value);});
-    });
   }catch(e){toast('Erreur chargement présences: '+e.message,'error');}
 }
 
@@ -1058,7 +1056,7 @@ window.pointerPresence=async function(id,type,statut){
   }catch(e){toast('Erreur: '+e.message,'error');}
 }
 
-async function sauvegarderHeureSortie(id,type,heureSortie){
+window.sauvegarderHeureSortie=async function(id,type,heureSortie){
   try{
     const collectionName=type==='prof'?SC.PROFESSEURS:SC.ENSEIGNANTS;
     const docRef=doc(db,"ecoles",ECOLET_ID,collectionName,id);
@@ -1072,7 +1070,7 @@ async function sauvegarderHeureSortie(id,type,heureSortie){
   }catch(e){console.error(e);}
 }
 
-async function sauvegarderMotif(id,type,motif){
+window.sauvegarderMotif=async function(id,type,motif){
   try{
     const collectionName=type==='prof'?SC.PROFESSEURS:SC.ENSEIGNANTS;
     const docRef=doc(db,"ecoles",ECOLET_ID,collectionName,id);
@@ -1086,7 +1084,7 @@ async function sauvegarderMotif(id,type,motif){
   }catch(e){console.error(e);}
 }
 
-async function toggleDocPedagogique(id,type){
+window.toggleDocPedagogique=async function(id,type){
   try{
     const collectionName=type==='prof'?SC.PROFESSEURS:SC.ENSEIGNANTS;
     const docRef=doc(db,"ecoles",ECOLET_ID,collectionName,id);
