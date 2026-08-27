@@ -84,6 +84,8 @@ body.cycle-maternelle .school-header{background:linear-gradient(135deg,#065f46,#
 .student-table input.note-moyen{color:#f59e0b;}
 .student-table input.note-bien{color:#22c55e;}
 .student-table input.note-excellent{color:#22c55e;}
+.student-table input[readonly]{cursor:default;opacity:0.85;}
+.student-table input[readonly]:hover{background:#2d3748;}
 .footer-note{text-align:center;padding:12px;font-size:11px;color:#4a5568;}
 .fiche-selector{background:rgba(18,18,31,0.9);margin:0;padding:12px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid rgba(59,130,246,0.2);}
 .fiche-selector label{color:#fff;}
@@ -728,48 +730,56 @@ function sauvegarderPeriodesMasquees() {
 }
 
 async function sauvegarderPeriodesMasqueesFirebase(enseignantId) {
-  if (!enseignantId || !navigator.onLine) {
+  if (!enseignantId) {
     sauvegarderPeriodesMasquees();
     return;
   }
-  try {
-    const ref = doc(db, "ecoles", ECOLET_ID, "enseignants", enseignantId);
-    await updateDoc(ref, { periodesMasquees: periodesMasquees });
-  } catch (e) {
-    sauvegarderPeriodesMasquees();
+  sauvegarderPeriodesMasquees();
+  if (navigator.onLine) {
+    try {
+      const ref = doc(db, "ecoles", ECOLET_ID, "enseignants", enseignantId);
+      await updateDoc(ref, { 
+        periodesMasquees: periodesMasquees,
+        lastUpdate: new Date().toISOString()
+      });
+    } catch (e) {
+      console.error("Erreur sauvegarde Firebase:", e);
+    }
   }
 }
 
 async function chargerPeriodesMasqueesFirebase(enseignantId) {
-  if (!enseignantId || !navigator.onLine) {
+  if (!enseignantId) {
     chargerPeriodesMasquees();
     return;
   }
-  try {
-    const ref = doc(db, "ecoles", ECOLET_ID, "enseignants", enseignantId);
-    const snap = await getDoc(ref);
-    if (snap.exists()) {
-      const data = snap.data();
-      if (data.periodesMasquees && Array.isArray(data.periodesMasquees)) {
-        periodesMasquees = data.periodesMasquees;
-        for (let p = 1; p <= 6; p++) {
-          const btn = document.getElementById('hideP' + p);
-          if (btn) {
-            if (periodesMasquees.includes(p)) {
-              btn.classList.add('active');
-            } else {
-              btn.classList.remove('active');
+  if (navigator.onLine) {
+    try {
+      const ref = doc(db, "ecoles", ECOLET_ID, "enseignants", enseignantId);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data.periodesMasquees && Array.isArray(data.periodesMasquees)) {
+          periodesMasquees = data.periodesMasquees;
+          for (let p = 1; p <= 6; p++) {
+            const btn = document.getElementById('hideP' + p);
+            if (btn) {
+              if (periodesMasquees.includes(p)) {
+                btn.classList.add('active');
+              } else {
+                btn.classList.remove('active');
+              }
             }
           }
+          sauvegarderPeriodesMasquees();
+          return;
         }
-        sauvegarderPeriodesMasquees();
-        return;
       }
+    } catch (e) {
+      console.error("Erreur chargement Firebase:", e);
     }
-    chargerPeriodesMasquees();
-  } catch (e) {
-    chargerPeriodesMasquees();
   }
+  chargerPeriodesMasquees();
 }
 
 window.toggleHidePeriode = function(p, btn) {
@@ -830,8 +840,6 @@ function calcMoy(p, notes) {
 }
 
 function getNoteClass(note, maxNote) { if (maxNote === 0) return ''; const ratio = note / maxNote; if (ratio >= 0.8) return 'note-excellent'; if (ratio >= 0.7) return 'note-bien'; if (ratio >= 0.5) return 'note-moyen'; return 'note-insuffisant'; }
-
-function getAppreciation(note, maxNote) { if (maxNote === 0) return { text: 'Non évalué', class: '' }; const ratio = note / maxNote; if (ratio >= 0.8) return { text: 'Excellent', class: 'appreciation-excellent' }; if (ratio >= 0.7) return { text: 'Très Bien', class: 'appreciation-tresbien' }; if (ratio >= 0.6) return { text: 'Bien', class: 'appreciation-bien' }; if (ratio >= 0.5) return { text: 'Assez Bien', class: 'appreciation-assezbien' }; if (ratio >= 0.4) return { text: 'Passable', class: 'appreciation-passable' }; return { text: 'Insuffisant', class: 'appreciation-insuffisant' }; }
 
 async function verifierCompteActif(ensId) {
   try {
@@ -1095,7 +1103,7 @@ async function selectFicheForCorrection(id) {
     correctionFicheId = id;
     document.getElementById('correctionFicheSelector').value = id;
     correctionUpdateEpreuveList();
-    toast("Cahier chargé pour la correction : " + (currentFiche.cours || '') + ' - ' + (currentFiche.classe || ''), 'success');
+    toast("Cahier chargé pour la correction", 'success');
     return;
   }
   if (navigator.onLine) {
@@ -1109,7 +1117,7 @@ async function selectFicheForCorrection(id) {
           correctionFicheId = id;
           document.getElementById('correctionFicheSelector').value = id;
           correctionUpdateEpreuveList();
-          toast("Cahier chargé pour la correction : " + (data.cours || '') + ' - ' + (data.classe || ''), 'success');
+          toast("Cahier chargé pour la correction", 'success');
         }
       }
     } catch (e) { toast("Erreur chargement cahier", 'error'); }
@@ -1439,6 +1447,7 @@ function afficherCotation() {
       } else {
         h.push(`<th style="background:#1e3a5f;color:#fbbf24;">T${t} - Période ${p1}</th>`);
       }
+      h.push(`<th style="background:#1e3a5f;color:#fbbf24;font-size:10px;">Moy P${p1}</th>`);
       totalTrimMax += pMax;
     }
     
@@ -1452,6 +1461,7 @@ function afficherCotation() {
       } else {
         h.push(`<th style="background:#1e3a5f;color:#fbbf24;">T${t} - Période ${p2}</th>`);
       }
+      h.push(`<th style="background:#1e3a5f;color:#fbbf24;font-size:10px;">Moy P${p2}</th>`);
       totalTrimMax += pMax;
     }
     
@@ -1493,9 +1503,11 @@ function afficherCotation() {
           let val = e.notes['p' + p1]?.[ei] || 0;
           let maxVal = eps[p1][ei]?.max || 20;
           let noteClass = getNoteClass(val, maxVal);
-          r += '<td><input type="number" step="0.5" min="0" max="' + maxVal + '" value="' + val + '" onchange="window.updNote(' + i + ',' + p1 + ',' + ei + ',this.value)" style="width:50px" class="' + noteClass + '"></td>';
+          r += '<td><input type="number" step="0.5" min="0" max="' + maxVal + '" value="' + val + '" style="width:50px" class="' + noteClass + '" readonly></td>';
         }
         let p1m = calcMoy(p1, e.notes['p' + p1] || []);
+        let p1Class = getNoteClass(p1m, pMax);
+        r += '<td style="font-weight:bold;background:rgba(59,130,246,0.1);" class="' + p1Class + '">' + p1m + '</td>';
         totalTrim += p1m;
       }
       
@@ -1504,9 +1516,11 @@ function afficherCotation() {
           let val = e.notes['p' + p2]?.[ei] || 0;
           let maxVal = eps[p2][ei]?.max || 20;
           let noteClass = getNoteClass(val, maxVal);
-          r += '<td><input type="number" step="0.5" min="0" max="' + maxVal + '" value="' + val + '" onchange="window.updNote(' + i + ',' + p2 + ',' + ei + ',this.value)" style="width:50px" class="' + noteClass + '"></td>';
+          r += '<td><input type="number" step="0.5" min="0" max="' + maxVal + '" value="' + val + '" style="width:50px" class="' + noteClass + '" readonly></td>';
         }
         let p2m = calcMoy(p2, e.notes['p' + p2] || []);
+        let p2Class = getNoteClass(p2m, pMax);
+        r += '<td style="font-weight:bold;background:rgba(59,130,246,0.1);" class="' + p2Class + '">' + p2m + '</td>';
         totalTrim += p2m;
       }
       
@@ -1549,6 +1563,7 @@ window.updNote = function(i, p, epi, v) {
   if (!currentFiche.eleves[i].notes) currentFiche.eleves[i].notes = { p1: [], p2: [], p3: [], p4: [], p5: [], p6: [], exam1: 0, exam2: 0, exam3: 0 };
   if (!currentFiche.eleves[i].notes['p' + p]) currentFiche.eleves[i].notes['p' + p] = [];
   currentFiche.eleves[i].notes['p' + p][epi] = va;
+  saveCurrentFiche();
   afficherCotation();
 };
 
@@ -1559,6 +1574,7 @@ window.updExam = function(i, t, v) {
   if (va < 0) va = 0;
   if (!currentFiche.eleves[i].notes) currentFiche.eleves[i].notes = { p1: [], p2: [], p3: [], p4: [], p5: [], p6: [], exam1: 0, exam2: 0, exam3: 0 };
   currentFiche.eleves[i].notes['exam' + t] = va;
+  saveCurrentFiche();
   afficherCotation();
 };
 
@@ -1903,6 +1919,11 @@ document.getElementById('creerFicheBtn').addEventListener('click', async functio
     updateExportSelect();
     refreshGroupes();
     mettreAJourStatsFiche();
+    
+    if (currentEnseignant && currentEnseignant.id) {
+      await sauvegarderPeriodesMasqueesFirebase(currentEnseignant.id);
+    }
+    
     toast(`✅ Cahier "${cours}" - ${classe} créé avec ${eleves.length} élève(s)`, 'success');
     mettreAJourBoutons();
   } catch (error) {
