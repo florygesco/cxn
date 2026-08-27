@@ -70,11 +70,11 @@ body.cycle-maternelle .school-header{background:linear-gradient(135deg,#065f46,#
 .btn-secondary:hover{background:#475569;}
 .btn-warning{background:#b45309;color:#fff;}
 .btn-warning:hover{background:#c2410c;}
-.btn-save-big{background:linear-gradient(135deg,#00d2ff,#3a7bd5);color:#fff;border:none;padding:14px 32px;border-radius:50px;font-size:18px;font-weight:800;cursor:pointer;transition:all .3s ease;box-shadow:0 0 30px rgba(0,210,255,0.4),0 8px 25px rgba(0,210,255,0.3);text-transform:uppercase;letter-spacing:1px;width:100%;display:flex;align-items:center;justify-content:center;gap:12px}
-.btn-save-big:hover{transform:translateY(-3px) scale(1.02);box-shadow:0 0 50px rgba(0,210,255,0.6),0 12px 35px rgba(0,210,255,0.4)}
-.btn-save-big:active{transform:scale(0.97)}
-.btn-save-big .icon{font-size:24px}
-.btn-save-big .badge{background:rgba(255,255,255,0.2);padding:2px 12px;border-radius:20px;font-size:12px;font-weight:600}
+.btn-save-clean{background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;border:none;padding:12px 28px;border-radius:50px;font-size:15px;font-weight:700;cursor:pointer;transition:all .3s ease;box-shadow:0 4px 20px rgba(59,130,246,0.3);width:100%;display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:0.5px;}
+.btn-save-clean:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(59,130,246,0.4);}
+.btn-save-clean:active{transform:scale(0.97);}
+.btn-save-clean .icon{font-size:20px;}
+.btn-save-clean .badge{background:rgba(255,255,255,0.15);padding:2px 12px;border-radius:20px;font-size:11px;font-weight:600;}
 .table-wrapper{overflow-x:auto;touch-action:pan-x pan-y;}
 .student-table{width:100%;border-collapse:collapse;font-size:12px;min-width:1400px;}
 .student-table th{background:#0f172a;padding:12px 6px;border-bottom:2px solid #334155;font-size:11px;color:#fff;}
@@ -472,15 +472,12 @@ body.light-mode #loginError{color:#b91c1c !important;}
 </div>
 </div>
 </div>
-
-<!-- 🌟 BOUTON DE SAUVEGARDE BLEU FLUO TRÈS VISIBLE -->
-<button class="btn-save-big" id="saisieManuelleSaveAll">
-  <span class="icon">💾</span>
-  SAUVEGARDER TOUTES LES NOTES
-  <span class="badge">🔥 ENREGISTRER</span>
+<button class="btn-save-clean" id="saisieManuelleSaveAll">
+<span class="icon">💾</span>
+SAUVEGARDER
+<span class="badge">TOUT</span>
 </button>
-<p style="text-align:center;color:#94a3b8;font-size:11px;margin-top:6px;">✓ Les notes sont automatiquement sauvegardées à chaque saisie</p>
-
+<p style="text-align:center;color:#94a3b8;font-size:11px;margin-top:6px;">Sauvegarde automatique à chaque saisie</p>
 </div>
 </div></div>
 <div id="tabCotation" class="tab-content"><div class="card"><div class="card-header">CAHIERS DE COTATION</div><div class="fiche-selector"><select id="cotationFicheSelector"></select></div><div style="display:flex;gap:8px;flex-wrap:wrap;padding:20px"><input type="text" id="searchInput" placeholder="Rechercher..." style="flex:1;padding:10px;border-radius:40px;background:#2d3748;border:1px solid #334155;color:#fff"><button class="btn-sm btn-outline" id="sortAlphaBtn" style="width:auto">Tri alphabétique</button></div><div class="table-wrapper"><table class="student-table" id="cotationTable"><thead id="cotationHeader"></thead><tbody id="cotationBody"></tbody></table></div></div></div>
@@ -558,7 +555,7 @@ body.light-mode #loginError{color:#b91c1c !important;}
 </script>
 <script type="module">
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where } from "firebase/firestore";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where, updateDoc } from "firebase/firestore";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 
 const firebaseConfig = {
@@ -741,15 +738,55 @@ function sauvegarderPeriodesMasquees() {
   localStorage.setItem('periodes_masquees_' + ECOLET_ID, JSON.stringify(periodesMasquees));
 }
 
+async function sauvegarderPeriodesMasqueesFirebase(enseignantId) {
+  if (!enseignantId || !navigator.onLine) {
+    sauvegarderPeriodesMasquees();
+    return;
+  }
+  try {
+    const ref = doc(db, "ecoles", ECOLET_ID, "enseignants", enseignantId);
+    await updateDoc(ref, { periodesMasquees: periodesMasquees });
+  } catch (e) {
+    sauvegarderPeriodesMasquees();
+  }
+}
+
+async function chargerPeriodesMasqueesFirebase(enseignantId) {
+  if (!enseignantId || !navigator.onLine) {
+    chargerPeriodesMasquees();
+    return;
+  }
+  try {
+    const ref = doc(db, "ecoles", ECOLET_ID, "enseignants", enseignantId);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const data = snap.data();
+      if (data.periodesMasquees && Array.isArray(data.periodesMasquees)) {
+        periodesMasquees = data.periodesMasquees;
+        for (let p = 1; p <= 6; p++) {
+          const cb = document.getElementById('hideP' + p);
+          if (cb) cb.checked = periodesMasquees.includes(p);
+        }
+        sauvegarderPeriodesMasquees();
+        return;
+      }
+    }
+    chargerPeriodesMasquees();
+  } catch (e) {
+    chargerPeriodesMasquees();
+  }
+}
+
 window.toggleHidePeriode = function(p, checked) {
   if (checked) {
-    if (!periodesMasquees.includes(p)) {
-      periodesMasquees.push(p);
-    }
+    if (!periodesMasquees.includes(p)) periodesMasquees.push(p);
   } else {
     periodesMasquees = periodesMasquees.filter(x => x !== p);
   }
   sauvegarderPeriodesMasquees();
+  if (currentEnseignant && currentEnseignant.id) {
+    sauvegarderPeriodesMasqueesFirebase(currentEnseignant.id);
+  }
   afficherCotation();
 };
 
@@ -760,6 +797,9 @@ window.masquerToutesPeriodes = function() {
     if (cb) cb.checked = true;
   }
   sauvegarderPeriodesMasquees();
+  if (currentEnseignant && currentEnseignant.id) {
+    sauvegarderPeriodesMasqueesFirebase(currentEnseignant.id);
+  }
   afficherCotation();
   toast("Toutes les périodes sont masquées", 'info');
 };
@@ -771,6 +811,9 @@ window.afficherToutesPeriodes = function() {
     if (cb) cb.checked = false;
   }
   sauvegarderPeriodesMasquees();
+  if (currentEnseignant && currentEnseignant.id) {
+    sauvegarderPeriodesMasqueesFirebase(currentEnseignant.id);
+  }
   afficherCotation();
   toast("Toutes les périodes sont affichées", 'info');
 };
@@ -804,7 +847,6 @@ async function verifierCompteActif(ensId) {
     }
     return true;
   } catch (e) {
-    console.error("Erreur vérification compte:", e);
     return true;
   }
 }
@@ -862,7 +904,7 @@ async function restaurerSession() {
         });
       }
       
-      chargerPeriodesMasquees();
+      await chargerPeriodesMasqueesFirebase(ens.id);
       toutesFiches = await loadAllFiches();
       if (toutesFiches.length) await selectFiche(toutesFiches[0].id);
       await refreshSelectors();
@@ -917,7 +959,6 @@ async function getAllEleves() {
     }
     return localEleves;
   } catch (error) {
-    console.error("Erreur importation élèves:", error);
     return [];
   }
 }
@@ -941,7 +982,6 @@ async function loadAllFiches() {
     fiches.sort((a, b) => (a.numeroRef || 999) - (b.numeroRef || 999));
     return fiches;
   } catch (e) {
-    console.error("Erreur chargement fiches:", e);
     return [];
   }
 }
@@ -954,7 +994,7 @@ async function getNextFicheNumero() {
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) { nv = (docSnap.data().valeur || 0) + 1; }
       await setDoc(docRef, { valeur: nv });
-    } catch (e) { console.error("Erreur incrément compteur:", e); nv = Date.now(); }
+    } catch (e) { nv = Date.now(); }
   } else { nv = Date.now(); }
   return nv;
 }
@@ -965,7 +1005,7 @@ async function saveCurrentFiche() {
   if (navigator.onLine) {
     try {
       await setDoc(doc(db, "ecoles", ECOLET_ID, "fiches", currentFicheId), currentFiche);
-    } catch (e) { console.error("Erreur sauvegarde fiche:", e); }
+    } catch (e) {}
   }
 }
 
@@ -1041,7 +1081,7 @@ async function selectFiche(id) {
         mettreAJourBoutons();
       } else { toast("Cahier invalide", 'error'); }
     }
-  } catch (e) { console.error("Erreur chargement cahier:", e); toast("Erreur chargement cahier", 'error'); }
+  } catch (e) { toast("Erreur chargement cahier", 'error'); }
 }
 
 async function selectFicheForCorrection(id) {
@@ -1164,15 +1204,17 @@ window.delEleve = function(i) {
   const estImporte = eleve.source === 'auto' || eleve.source === 'reload' || eleve.source === 'auto_refresh';
   if (estImporte) { toast("🔒 Impossible de supprimer un élève importé", 'error'); return; }
   let n = eleve.nom || 'Élève';
-  showConfirm("Supprimer " + n + " de la liste ?", function() {
-    currentFiche.eleves.splice(i, 1);
-    afficherEleves();
-    afficherCotation();
-    updateExportSelect();
-    refreshGroupes();
-    mettreAJourStatsFiche();
-    toast(n + " a été supprimé", 'warning');
-  });
+  showStyledConfirm("Supprimer " + n + " de la liste ?", "Confirmez-vous la suppression de " + n + " ?",
+    function() {
+      currentFiche.eleves.splice(i, 1);
+      afficherEleves();
+      afficherCotation();
+      updateExportSelect();
+      refreshGroupes();
+      mettreAJourStatsFiche();
+      toast(n + " a été supprimé", 'warning');
+    }
+  );
 };
 
 function afficherEpreuves() {
@@ -1326,11 +1368,50 @@ function afficherCotation() {
   
   let pMax = getPeriodeMax(1);
   let examMax = pMax * 2;
+  const isMaternelle = currentEnseignant?.cycle === 'maternelle';
   
-  let h = ['<th>N°</th><th>NOMS COMPLETS</th><th>SEXE</th>'];
+  let h = ['<th>N°</th><th>NOMS COMPLET</th><th>SEXE</th>'];
   let eps = {};
   for (let p = 1; p <= 6; p++) {
     eps[p] = currentFiche.epreuvesParPeriode?.[p] || [];
+  }
+  
+  if (isMaternelle) {
+    for (let t = 1; t <= 3; t++) {
+      h.push(`<th style="background:#1e3a5f;color:#fbbf24;">T${t}</th>`);
+    }
+    h.push(`<th style="background:#5c4a1a;">TOTAL ANNÉE /${pMax * 6}</th>`);
+    h.push('<th>APPRÉCIATION</th>');
+    th.innerHTML = h.join('');
+    tb.innerHTML = '';
+    
+    for (let i = 0; i < elevesFiltres.length; i++) {
+      let e = elevesFiltres[i];
+      if (!e.notes) e.notes = { p1: [], p2: [], p3: [], p4: [], p5: [], p6: [], exam1: 0, exam2: 0, exam3: 0 };
+      let r = '<tr>';
+      r += '<td style="text-align:center">' + String(i + 1).padStart(2, '0') + '</td>';
+      r += '<td style="text-align:left;font-weight:500;">' + escapeHtml(getNomComplet(e)) + '</td>';
+      r += '<td style="text-align:center;">' + (e.sexe || 'M') + '</td>';
+      
+      let totalAnnuel = 0;
+      for (let t = 1; t <= 3; t++) {
+        let note = e.notes['exam' + t] || 0;
+        let maxNote = pMax * 2;
+        let noteClass = getNoteClass(note, maxNote);
+        r += '<td><input type="number" step="0.5" min="0" max="' + maxNote + '" value="' + note + '" onchange="window.updExam(' + i + ',' + t + ',this.value)" style="width:60px" class="' + noteClass + '"></td>';
+        totalAnnuel += note;
+      }
+      
+      let totalAnnuelMax = pMax * 6;
+      let totAnnClass = getNoteClass(totalAnnuel, totalAnnuelMax);
+      r += '<td style="background:#5c4a1a" class="' + totAnnClass + '">' + totalAnnuel + '</td>';
+      
+      const appr = getAppreciation(totalAnnuel / 3, pMax);
+      r += '<td><span class="appreciation-badge ' + appr.class + '">' + appr.text + '</span></td>';
+      r += '</tr>';
+      tb.innerHTML += r;
+    }
+    return;
   }
   
   for (let t = 1; t <= 3; t++) {
@@ -1651,7 +1732,7 @@ async function showLogin() {
         });
       }
       
-      chargerPeriodesMasquees();
+      await chargerPeriodesMasqueesFirebase(ens.id);
       toutesFiches = await loadAllFiches();
       if (toutesFiches.length) await selectFiche(toutesFiches[0].id);
       await refreshSelectors();
@@ -1977,9 +2058,6 @@ document.getElementById('correctionManuelBtn').addEventListener('click', functio
   }
 });
 
-// ============================================
-// ⭐ FONCTION SAUVEGARDER NOTE - CORRIGÉE ⭐
-// ============================================
 function sauvegarderNote(input) {
   const fiche = correctionFiche || currentFiche;
   if (!fiche) {
@@ -1997,7 +2075,6 @@ function sauvegarderNote(input) {
     return;
   }
   
-  // Initialiser les notes si nécessaire
   if (!fiche.eleves[idx].notes) {
     fiche.eleves[idx].notes = { 
       p1: [], p2: [], p3: [], p4: [], p5: [], p6: [], 
@@ -2008,10 +2085,8 @@ function sauvegarderNote(input) {
     fiche.eleves[idx].notes['p' + p] = [];
   }
   
-  // Sauvegarder la note
   fiche.eleves[idx].notes['p' + p][e] = val;
   
-  // 🔥 SYNCHRONISER AVEC LE CAHIER PRINCIPAL 🔥
   if (correctionFiche && currentFiche && correctionFicheId !== currentFicheId) {
     const eleveId = fiche.eleves[idx].eleveId || fiche.eleves[idx].id;
     const idxCurrent = currentFiche.eleves.findIndex(e2 => (e2.eleveId || e2.id) === eleveId);
@@ -2030,18 +2105,13 @@ function sauvegarderNote(input) {
     }
   }
   
-  // Sauvegarder dans Firebase
   saveCurrentFiche();
-  
-  // 🔥 RAFRAÎCHIR LE CAHIER DE COTATION 🔥
   afficherCotation();
   
-  // Mettre à jour les stats de la saisie manuelle
   if (saisieActive) {
     mettreAJourStats();
   }
   
-  // Mettre à jour l'aperçu de la note dans la ligne
   const max = parseFloat(input.max) || 20;
   const note = val;
   let bg = '#1e293b';
@@ -2059,9 +2129,6 @@ function sauvegarderNote(input) {
   input.style.borderColor = border;
 }
 
-// ============================================
-// ⭐ SAUVEGARDER TOUTES LES NOTES ⭐
-// ============================================
 async function sauvegarderToutesLesNotes() {
   if (!currentFiche) {
     toast('❌ Aucun cahier sélectionné', 'error');
@@ -2069,31 +2136,23 @@ async function sauvegarderToutesLesNotes() {
   }
   
   try {
-    // Sauvegarder chaque note individuellement
     document.querySelectorAll('.saisie-note').forEach(input => {
       sauvegarderNote(input);
     });
     
-    // Sauvegarde finale
     await saveCurrentFiche();
     afficherCotation();
     
-    toast('✅ Toutes les notes ont été sauvegardées avec succès', 'success');
+    toast('✅ Toutes les notes ont été sauvegardées', 'success');
   } catch (e) {
     toast('❌ Erreur lors de la sauvegarde: ' + e.message, 'error');
   }
 }
 
-// ============================================
-// ⭐ BOUTON SAUVEGARDER TOUTES LES NOTES ⭐
-// ============================================
 document.getElementById('saisieManuelleSaveAll').addEventListener('click', function() {
   sauvegarderToutesLesNotes();
 });
 
-// ============================================
-// ⭐ FONCTION CHARGER SAISIE - CORRIGÉE ⭐
-// ============================================
 function chargerSaisie() {
   const fiche = correctionFiche || currentFiche;
   if (!fiche) {
