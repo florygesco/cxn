@@ -70,6 +70,11 @@ body.cycle-maternelle .school-header{background:linear-gradient(135deg,#065f46,#
 .btn-secondary:hover{background:#475569;}
 .btn-warning{background:#b45309;color:#fff;}
 .btn-warning:hover{background:#c2410c;}
+.btn-save-big{background:linear-gradient(135deg,#00d2ff,#3a7bd5);color:#fff;border:none;padding:14px 32px;border-radius:50px;font-size:18px;font-weight:800;cursor:pointer;transition:all .3s ease;box-shadow:0 0 30px rgba(0,210,255,0.4),0 8px 25px rgba(0,210,255,0.3);text-transform:uppercase;letter-spacing:1px;width:100%;display:flex;align-items:center;justify-content:center;gap:12px}
+.btn-save-big:hover{transform:translateY(-3px) scale(1.02);box-shadow:0 0 50px rgba(0,210,255,0.6),0 12px 35px rgba(0,210,255,0.4)}
+.btn-save-big:active{transform:scale(0.97)}
+.btn-save-big .icon{font-size:24px}
+.btn-save-big .badge{background:rgba(255,255,255,0.2);padding:2px 12px;border-radius:20px;font-size:12px;font-weight:600}
 .table-wrapper{overflow-x:auto;touch-action:pan-x pan-y;}
 .student-table{width:100%;border-collapse:collapse;font-size:12px;min-width:1400px;}
 .student-table th{background:#0f172a;padding:12px 6px;border-bottom:2px solid #334155;font-size:11px;color:#fff;}
@@ -467,6 +472,15 @@ body.light-mode #loginError{color:#b91c1c !important;}
 </div>
 </div>
 </div>
+
+<!-- 🌟 BOUTON DE SAUVEGARDE BLEU FLUO TRÈS VISIBLE -->
+<button class="btn-save-big" id="saisieManuelleSaveAll">
+  <span class="icon">💾</span>
+  SAUVEGARDER TOUTES LES NOTES
+  <span class="badge">🔥 ENREGISTRER</span>
+</button>
+<p style="text-align:center;color:#94a3b8;font-size:11px;margin-top:6px;">✓ Les notes sont automatiquement sauvegardées à chaque saisie</p>
+
 </div>
 </div></div>
 <div id="tabCotation" class="tab-content"><div class="card"><div class="card-header">CAHIERS DE COTATION</div><div class="fiche-selector"><select id="cotationFicheSelector"></select></div><div style="display:flex;gap:8px;flex-wrap:wrap;padding:20px"><input type="text" id="searchInput" placeholder="Rechercher..." style="flex:1;padding:10px;border-radius:40px;background:#2d3748;border:1px solid #334155;color:#fff"><button class="btn-sm btn-outline" id="sortAlphaBtn" style="width:auto">Tri alphabétique</button></div><div class="table-wrapper"><table class="student-table" id="cotationTable"><thead id="cotationHeader"></thead><tbody id="cotationBody"></tbody></table></div></div></div>
@@ -1963,37 +1977,182 @@ document.getElementById('correctionManuelBtn').addEventListener('click', functio
   }
 });
 
+// ============================================
+// ⭐ FONCTION SAUVEGARDER NOTE - CORRIGÉE ⭐
+// ============================================
+function sauvegarderNote(input) {
+  const fiche = correctionFiche || currentFiche;
+  if (!fiche) {
+    toast('❌ Aucun cahier sélectionné', 'error');
+    return;
+  }
+  
+  const idx = parseInt(input.dataset.i);
+  const p = parseInt(input.dataset.p);
+  const e = parseInt(input.dataset.e);
+  const val = parseFloat(input.value) || 0;
+  
+  if (!fiche.eleves || !fiche.eleves[idx]) {
+    toast('❌ Élève non trouvé', 'error');
+    return;
+  }
+  
+  // Initialiser les notes si nécessaire
+  if (!fiche.eleves[idx].notes) {
+    fiche.eleves[idx].notes = { 
+      p1: [], p2: [], p3: [], p4: [], p5: [], p6: [], 
+      exam1: 0, exam2: 0, exam3: 0 
+    };
+  }
+  if (!fiche.eleves[idx].notes['p' + p]) {
+    fiche.eleves[idx].notes['p' + p] = [];
+  }
+  
+  // Sauvegarder la note
+  fiche.eleves[idx].notes['p' + p][e] = val;
+  
+  // 🔥 SYNCHRONISER AVEC LE CAHIER PRINCIPAL 🔥
+  if (correctionFiche && currentFiche && correctionFicheId !== currentFicheId) {
+    const eleveId = fiche.eleves[idx].eleveId || fiche.eleves[idx].id;
+    const idxCurrent = currentFiche.eleves.findIndex(e2 => (e2.eleveId || e2.id) === eleveId);
+    
+    if (idxCurrent !== -1) {
+      if (!currentFiche.eleves[idxCurrent].notes) {
+        currentFiche.eleves[idxCurrent].notes = { 
+          p1: [], p2: [], p3: [], p4: [], p5: [], p6: [], 
+          exam1: 0, exam2: 0, exam3: 0 
+        };
+      }
+      if (!currentFiche.eleves[idxCurrent].notes['p' + p]) {
+        currentFiche.eleves[idxCurrent].notes['p' + p] = [];
+      }
+      currentFiche.eleves[idxCurrent].notes['p' + p][e] = val;
+    }
+  }
+  
+  // Sauvegarder dans Firebase
+  saveCurrentFiche();
+  
+  // 🔥 RAFRAÎCHIR LE CAHIER DE COTATION 🔥
+  afficherCotation();
+  
+  // Mettre à jour les stats de la saisie manuelle
+  if (saisieActive) {
+    mettreAJourStats();
+  }
+  
+  // Mettre à jour l'aperçu de la note dans la ligne
+  const max = parseFloat(input.max) || 20;
+  const note = val;
+  let bg = '#1e293b';
+  let border = '#334155';
+  if (note > 0) {
+    if (note >= max * 0.5) { 
+      bg = 'rgba(16,185,129,0.15)'; 
+      border = '#10b981'; 
+    } else { 
+      bg = 'rgba(239,68,68,0.15)'; 
+      border = '#ef4444'; 
+    }
+  }
+  input.style.background = bg;
+  input.style.borderColor = border;
+}
+
+// ============================================
+// ⭐ SAUVEGARDER TOUTES LES NOTES ⭐
+// ============================================
+async function sauvegarderToutesLesNotes() {
+  if (!currentFiche) {
+    toast('❌ Aucun cahier sélectionné', 'error');
+    return;
+  }
+  
+  try {
+    // Sauvegarder chaque note individuellement
+    document.querySelectorAll('.saisie-note').forEach(input => {
+      sauvegarderNote(input);
+    });
+    
+    // Sauvegarde finale
+    await saveCurrentFiche();
+    afficherCotation();
+    
+    toast('✅ Toutes les notes ont été sauvegardées avec succès', 'success');
+  } catch (e) {
+    toast('❌ Erreur lors de la sauvegarde: ' + e.message, 'error');
+  }
+}
+
+// ============================================
+// ⭐ BOUTON SAUVEGARDER TOUTES LES NOTES ⭐
+// ============================================
+document.getElementById('saisieManuelleSaveAll').addEventListener('click', function() {
+  sauvegarderToutesLesNotes();
+});
+
+// ============================================
+// ⭐ FONCTION CHARGER SAISIE - CORRIGÉE ⭐
+// ============================================
 function chargerSaisie() {
   const fiche = correctionFiche || currentFiche;
-  if (!fiche) return;
+  if (!fiche) {
+    toast('❌ Aucun cahier sélectionné', 'error');
+    return;
+  }
+  
   const trimestre = parseInt(document.getElementById('correctionTrimestreSelect').value);
   const periode = parseInt(document.getElementById('correctionPeriodeSelect').value);
   const p = (trimestre - 1) * 2 + periode;
   const epreuveIdx = parseInt(document.getElementById('correctionEpreuveSelect').value);
   const eps = fiche.epreuvesParPeriode?.[p] || [];
-  if (!eps[epreuveIdx]) { toast('❌ Sélectionnez une épreuve', 'error'); return; }
+  
+  if (!eps[epreuveIdx]) {
+    toast('❌ Sélectionnez une épreuve', 'error');
+    return;
+  }
+  
   const noteMax = eps[epreuveIdx].max || 20;
   const eleves = fiche.eleves || [];
+  
   document.getElementById('saisieManuelleInfo').textContent = '👥 ' + eleves.length + ' élèves';
   document.getElementById('saisieManuelleNoteMax').textContent = 'Barème: ' + noteMax;
-  let html = '';
+  
+  const liste = document.getElementById('saisieManuelleListe');
+  liste.innerHTML = '';
+  
   eleves.forEach((eleve, index) => {
-    const note = eleve.notes?.['p' + p]?.[epreuveIdx] || '';
+    let note = 0;
+    if (eleve.notes && eleve.notes['p' + p] && eleve.notes['p' + p][epreuveIdx] !== undefined) {
+      note = eleve.notes['p' + p][epreuveIdx];
+    }
+    
     const nom = getNomComplet(eleve) || 'Élève ' + (index + 1);
+    
     let bg = '#1e293b';
     let border = '#334155';
     if (note > 0) {
-      if (note >= noteMax * 0.5) { bg = 'rgba(16,185,129,0.15)'; border = '#10b981'; }
-      else { bg = 'rgba(239,68,68,0.15)'; border = '#ef4444'; }
+      if (note >= noteMax * 0.5) { 
+        bg = 'rgba(16,185,129,0.15)'; 
+        border = '#10b981'; 
+      } else { 
+        bg = 'rgba(239,68,68,0.15)'; 
+        border = '#ef4444'; 
+      }
     }
-    html += `
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;background:rgba(255,255,255,0.03);border-radius:8px;border:1px solid rgba(59,130,246,0.06);margin-bottom:4px;">
-    <span style="color:#94a3b8;font-size:11px;font-weight:600;min-width:28px;">#${String(index + 1).padStart(2, '0')}</span>
-    <span style="color:#e2e8f0;font-size:12px;font-weight:500;flex:1;">${escapeHtml(nom)}</span>
-    <input type="number" class="saisie-note" data-i="${index}" data-p="${p}" data-e="${epreuveIdx}" value="${note}" min="0" max="${noteMax}" step="0.5" style="width:60px;padding:4px 6px;border-radius:6px;background:${bg};border:1px solid ${border};color:#fff;text-align:center;font-size:13px;outline:none;">
-    </div>`;
+    
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;background:rgba(255,255,255,0.03);border-radius:8px;border:1px solid rgba(59,130,246,0.06);margin-bottom:4px;';
+    div.innerHTML = `
+      <span style="color:#94a3b8;font-size:11px;font-weight:600;min-width:28px;">#${String(index + 1).padStart(2, '0')}</span>
+      <span style="color:#e2e8f0;font-size:12px;font-weight:500;flex:1;">${escapeHtml(nom)}</span>
+      <input type="number" class="saisie-note" data-i="${index}" data-p="${p}" data-e="${epreuveIdx}" 
+             value="${note}" min="0" max="${noteMax}" step="0.5" 
+             style="width:60px;padding:4px 6px;border-radius:6px;background:${bg};border:1px solid ${border};color:#fff;text-align:center;font-size:13px;outline:none;">
+    `;
+    liste.appendChild(div);
   });
-  document.getElementById('saisieManuelleListe').innerHTML = html;
+  
   document.querySelectorAll('.saisie-note').forEach(input => {
     input.addEventListener('input', function() {
       const val = parseFloat(this.value);
@@ -2001,34 +2160,14 @@ function chargerSaisie() {
       if (!isNaN(val) && val > max) this.value = max;
       if (!isNaN(val) && val < 0) this.value = 0;
       sauvegarderNote(this);
-      mettreAJourStats();
     });
-    input.addEventListener('blur', function() { sauvegarderNote(this); });
+    
+    input.addEventListener('blur', function() {
+      sauvegarderNote(this);
+    });
   });
+  
   mettreAJourStats();
-}
-
-function sauvegarderNote(input) {
-  const fiche = correctionFiche || currentFiche;
-  if (!fiche) return;
-  const idx = parseInt(input.dataset.i);
-  const p = parseInt(input.dataset.p);
-  const e = parseInt(input.dataset.e);
-  const val = parseFloat(input.value) || 0;
-  if (!fiche.eleves[idx]) return;
-  if (!fiche.eleves[idx].notes) fiche.eleves[idx].notes = { p1: [], p2: [], p3: [], p4: [], p5: [], p6: [], exam1: 0, exam2: 0, exam3: 0 };
-  if (!fiche.eleves[idx].notes['p' + p]) fiche.eleves[idx].notes['p' + p] = [];
-  fiche.eleves[idx].notes['p' + p][e] = val;
-  if (correctionFiche && currentFiche) {
-    const idxCurrent = currentFiche.eleves.findIndex(e2 => e2.id === fiche.eleves[idx].id);
-    if (idxCurrent !== -1) {
-      if (!currentFiche.eleves[idxCurrent].notes) currentFiche.eleves[idxCurrent].notes = { p1: [], p2: [], p3: [], p4: [], p5: [], p6: [], exam1: 0, exam2: 0, exam3: 0 };
-      if (!currentFiche.eleves[idxCurrent].notes['p' + p]) currentFiche.eleves[idxCurrent].notes['p' + p] = [];
-      currentFiche.eleves[idxCurrent].notes['p' + p][e] = val;
-    }
-  }
-  saveCurrentFiche();
-  afficherCotation();
 }
 
 function mettreAJourStats() {
@@ -2056,9 +2195,7 @@ function mettreAJourStats() {
 }
 
 document.getElementById('saisieManuelleSave').addEventListener('click', function() {
-  saveCurrentFiche();
-  afficherCotation();
-  toast('✅ Notes sauvegardées', 'success');
+  sauvegarderToutesLesNotes();
 });
 
 document.getElementById('saisieManuelleReset').addEventListener('click', function() {
