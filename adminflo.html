@@ -86,7 +86,6 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 .topbar .right .source-badge .dot{width:7px;height:7px;border-radius:50%;display:inline-block;animation:pulse 2s infinite}
 .topbar .right .source-badge .dot.blue{background:#3B82F6}
 .topbar .right .source-badge .dot.green{background:#10B981}
-.topbar .right .source-badge .dot.gold{background:#FBBF24}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(0.8)}}
 .topbar .right .user-info{font-size:11px;color:var(--text-secondary);background:rgba(255,255,255,0.03);padding:4px 14px;border-radius:20px;border:1px solid var(--border-color)}
 .topbar .right .clear-cache-btn{background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.12);padding:5px 14px;border-radius:8px;cursor:pointer;color:#FBBF24;font-size:10px;font-weight:600;transition:var(--transition)}
@@ -99,11 +98,9 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 .source-btn:hover{background:rgba(255,255,255,0.04);color:var(--text-primary)}
 .source-btn[data-source="a"].active{background:rgba(59,130,246,0.12);border-color:#3B82F6;color:#3B82F6;box-shadow:0 0 20px rgba(59,130,246,0.08)}
 .source-btn[data-source="b"].active{background:rgba(16,185,129,0.12);border-color:#10B981;color:#10B981;box-shadow:0 0 20px rgba(16,185,129,0.08)}
-.source-btn[data-source="merged"].active{background:rgba(251,191,36,0.12);border-color:#FBBF24;color:#FBBF24;box-shadow:0 0 20px rgba(251,191,36,0.08)}
 #sourceStatus{font-size:9px;font-weight:700;margin-left:auto;padding:3px 14px;border-radius:20px;background:rgba(255,255,255,0.02)}
 #sourceStatus.a{color:#3B82F6;border:1px solid rgba(59,130,246,0.10)}
 #sourceStatus.b{color:#10B981;border:1px solid rgba(16,185,129,0.10)}
-#sourceStatus.merged{color:#FBBF24;border:1px solid rgba(251,191,36,0.10)}
 .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:16px 20px 6px 20px}
 .kpi-card{background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:var(--radius);padding:14px 18px;transition:var(--transition);position:relative;overflow:hidden}
 .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
@@ -299,7 +296,6 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 <span class="label">Source :</span>
 <button class="source-btn active" data-source="a">🔵 SOURCE A</button>
 <button class="source-btn" data-source="b">🟢 SOURCE B</button>
-<button class="source-btn" data-source="merged">🟡 FUSIONNED</button>
 <span id="sourceStatus" class="a">🔵 SOURCE A · gesco-67c43</span>
 <span class="cache-indicator" id="cacheIndicator" style="font-size:8px;color:var(--text-muted);background:rgba(255,255,255,0.02);padding:2px 10px;border-radius:10px;border:1px solid var(--border-color)">💾 Cache: Loading...</span>
 </div>
@@ -398,7 +394,12 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 <div class="card-body">
 <div class="filter-row">
 <div class="filter-group"><span class="filter-icon">🔍</span><input type="text" id="ecoleSearch" placeholder="Search..." /></div>
-<div class="filter-group"><span class="filter-icon">🏷️</span><select id="ecoleStatutFilter"><option value="all">All</option><option value="actif">Active</option><option value="inactif">Inactive</option><option value="masque">Hidden</option></select></div>
+<div class="filter-group"><span class="filter-icon">🏷️</span><select id="ecoleStatutFilter">
+<option value="all" selected>📋 Toutes</option>
+<option value="actif">✅ Actives</option>
+<option value="inactif">⛔ Inactives</option>
+<option value="masque">👻 Masquées</option>
+</select></div>
 <span style="font-size:10px;color:var(--text-muted);margin-left:auto;"><span id="filteredCount">0</span> schools</span>
 </div>
 <div class="school-list" id="ecolesContainer"><div class="empty-state">Loading...</div></div>
@@ -679,15 +680,24 @@ function afficherDiagnostic() {
     html += '🔍 ' + diagnosticsCache.filter(d => d.statut !== 'sain' && d.statut !== 'vide').length + ' école(s) à corriger';
     html += '</div>';
     
+    // Récupérer les écoles masquées pour les identifier
+    const schools = allData.schools || [];
+    const masqueesIds = schools.filter(s => s.masque === true).map(s => s.id);
+    
     for (const d of diagnosticsCache) {
+        const estMasquee = masqueesIds.includes(d.ecole);
         const statutClass = d.statut === 'affecte' ? 'danger' : (d.statut === 'partiel' ? 'warning' : '');
         const badgeClass = d.statut === 'affecte' ? 'badge-danger' : (d.statut === 'partiel' ? 'badge-warning' : (d.statut === 'sain' ? 'badge-success' : 'badge-primary'));
         const badgeText = d.statut === 'affecte' ? '❌ Affectée' : (d.statut === 'partiel' ? '⚠️ Partielle' : (d.statut === 'sain' ? '✅ Saine' : '📭 Vide'));
         
+        // Style pour les écoles masquées
+        const masqueStyle = estMasquee ? 'border-left-color: #f59e0b; opacity: 0.7; border: 1px dashed rgba(251,191,36,0.15);' : '';
+        const masqueBadge = estMasquee ? '👻 ' : '';
+        
         html += `
-            <div class="diagnostic-item ${statutClass}" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(0,0,0,0.2);border-radius:10px;margin-bottom:6px;border-left:4px solid ${d.statut === 'affecte' ? '#ef4444' : d.statut === 'partiel' ? '#f59e0b' : '#10b981'};flex-wrap:wrap;gap:8px;">
+            <div class="diagnostic-item ${statutClass}" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(0,0,0,0.2);border-radius:10px;margin-bottom:6px;border-left:4px solid ${d.statut === 'affecte' ? '#ef4444' : d.statut === 'partiel' ? '#f59e0b' : '#10b981'};${masqueStyle}flex-wrap:wrap;gap:8px;">
                 <div style="flex:1;min-width:160px;">
-                    <div style="font-weight:600;font-size:14px;">${escapeHtml(d.nom)}</div>
+                    <div style="font-weight:600;font-size:14px;">${masqueBadge}${escapeHtml(d.nom)}</div>
                     <div style="font-size:11px;color:var(--text-muted);">
                         🆔 ${escapeHtml(d.ecole)} 
                         | 👨‍🎓 ${d.total} élèves 
@@ -695,6 +705,7 @@ function afficherDiagnostic() {
                         ${d.valides > 0 ? `| ✅ ${d.valides} valides` : ''}
                         ${d.en7eme8eme > 0 ? `| 📚 ${d.en7eme8eme} en 7ème/8ème` : ''}
                         ${d.pourcentage > 0 ? `| ${d.pourcentage}%` : ''}
+                        ${estMasquee ? '| 👻 Masquée' : ''}
                     </div>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -898,7 +909,6 @@ membersA = []; membersB = []; membersC = [];
 const seenMembers = new Set(), seenTeachers = new Set(), seenSheets = new Set(), seenCodes = new Set();
 for (const ds of snap.docs) {
 const id = ds.id, ecoleData = ds.data();
-if (ecoleData.masque === true) continue;
 allData.schools.push({ id, ...ecoleData });
 const collections = [{ name: "compta_eleves", section: 'secondary', arr: membersA }, { name: "prima_eleves", section: 'primary', arr: membersB }, { name: "mater_eleves", section: 'nursery', arr: membersC }];
 for (const { name, section, arr } of collections) {
@@ -910,8 +920,20 @@ if (data.nom && !data.abandon) {
 const key = name + '_' + d.id + '_' + id;
 if (!seenMembers.has(key)) {
 seenMembers.add(key);
-const m = { id: d.id, ecoleId: id, ecoleNom: ecoleData.nom || id, nom: data.nom, prenom: data.prenom || '', sexe: data.sexe || 'M', classe: data.classe || '', section: section, parentCode: data.parentCode || null };
-arr.push(m); allData.students.push(m);
+const m = { 
+id: d.id, 
+ecoleId: id, 
+ecoleNom: ecoleData.nom || id, 
+nom: data.nom, 
+prenom: data.prenom || '', 
+sexe: data.sexe || 'M', 
+classe: data.classe || '', 
+option: data.option || 'Non définie',
+section: section, 
+parentCode: data.parentCode || null 
+};
+arr.push(m); 
+allData.students.push(m);
 }
 }
 if (data.parentCode) {
@@ -1005,80 +1027,119 @@ if (val && el.querySelector('option[value="' + val + '"]')) el.value = val;
 }
 
 function loadSchools() {
-const container = document.getElementById('ecolesContainer');
-if (!container) return;
-const search = document.getElementById('ecoleSearch')?.value?.toLowerCase() || '';
-const filter = document.getElementById('ecoleStatutFilter')?.value || 'all';
-let schools = allData.schools;
-if (search) schools = schools.filter(s => s.nom?.toLowerCase().includes(search));
-if (filter === 'actif') schools = schools.filter(s => s.actif !== false && s.masque !== true);
-else if (filter === 'inactif') schools = schools.filter(s => s.actif === false);
-else if (filter === 'masque') schools = schools.filter(s => s.masque === true);
-document.getElementById('filteredCount').textContent = schools.length;
-if (!schools.length) { container.innerHTML = '<div class="empty-state">🏫 No schools found</div>'; return; }
-let html = '';
-schools.forEach(s => {
-const estMasquee = s.masque === true, estActive = s.actif !== false;
-const teacherCount = allData.teachers.filter(t => t.ecoleId === s.id).length;
-const sheetCount = allData.sheets.filter(f => f.ecoleId === s.id).length;
-html += `<div class="school-item" data-school-id="${s.id}">
-<div class="school-left" style="flex:1;min-width:160px;">
-<div class="school-name" style="font-size:13px;font-weight:700;color:var(--text-primary);">${escapeHtml(s.nom)} <span style="font-size:9px;color:var(--text-muted);font-family:monospace;background:rgba(255,255,255,0.02);padding:1px 6px;border-radius:4px;margin-left:6px;">🆔 ${escapeHtml(s.id)}</span></div>
-<div style="font-size:10px;color:var(--text-muted);margin-top:2px;"><span>📍 ${escapeHtml(s.province || '-')}</span> <span>🏙️ ${escapeHtml(s.ville || '-')}</span></div>
-<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:3px;">
-${estMasquee ? '<span class="badge badge-warning">Hidden</span>' : ''}
-${estActive ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Inactive</span>'}
-</div>
-<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:3px;">
-<span style="font-size:9px;font-weight:600;color:var(--text-secondary);background:rgba(255,255,255,0.02);padding:1px 8px;border-radius:4px;">👨‍🏫 ${teacherCount}</span>
-<span style="font-size:9px;font-weight:600;color:var(--text-secondary);background:rgba(255,255,255,0.02);padding:1px 8px;border-radius:4px;">📄 ${sheetCount}</span>
-</div>
-</div>
-<div style="flex-shrink:0;width:48px;height:48px;border-radius:10px;overflow:hidden;background:rgba(255,255,255,0.02);border:2px solid var(--border-color);display:flex;align-items:center;justify-content:center;transition:var(--transition);">
-${s.logoUrl ? `<img src="${escapeHtml(s.logoUrl)}" alt="${escapeHtml(s.nom)}" style="width:100%;height:100%;object-fit:cover;" />` : `<span style="font-size:20px;">🏫</span>`}
-</div>
-<div style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:auto;">
-<button class="btn btn-outline btn-sm btn-action" data-school-id="${s.id}">⚡ Actions</button>
-</div>
-</div>`;
-});
-container.innerHTML = html;
-container.querySelectorAll('.btn-action').forEach(btn => {
-btn.addEventListener('click', function(e) {
-e.stopPropagation();
-const schoolId = this.dataset.schoolId;
-const school = allData.schools.find(s => s.id === schoolId);
-if (!school) return;
-const overlay = document.getElementById('actionDropdownOverlay');
-const items = document.getElementById('actionDropdownItems');
-const estMasquee = school.masque === true;
-const estActive = school.actif !== false;
-items.innerHTML = `
-<button class="action-dropdown-item" data-action="logo" data-school="${schoolId}"><span class="icon">🖼️</span> Change logo</button>
-<div class="action-dropdown-divider"></div>
-<button class="action-dropdown-item" data-action="masquer" data-school="${schoolId}"><span class="icon">👻</span> ${estMasquee ? '👁️ Show' : '👻 Hide'}</button>
-<button class="action-dropdown-item" data-action="activer" data-school="${schoolId}"><span class="icon">${estActive ? '⛔' : '✅'}</span> ${estActive ? 'Deactivate' : 'Activate'}</button>
-<div class="action-dropdown-divider"></div>
-<button class="action-dropdown-item danger" data-action="supprimer" data-school="${schoolId}"><span class="icon">🗑️</span> Delete</button>
-`;
-overlay.classList.add('show');
-document.getElementById('actionDropdownClose').onclick = () => overlay.classList.remove('show');
-overlay.onclick = function(e) { if (e.target === this) this.classList.remove('show'); };
-items.querySelectorAll('.action-dropdown-item').forEach(item => {
-item.addEventListener('click', async function() {
-overlay.classList.remove('show');
-const action = this.dataset.action;
-const schoolId2 = this.dataset.school;
-switch(action) {
-case 'logo': await handleLogoChange(schoolId2); break;
-case 'masquer': await handleToggleMasquer(schoolId2); break;
-case 'activer': await handleToggleActif(schoolId2); break;
-case 'supprimer': await handleDeleteSchool(schoolId2); break;
-}
-});
-});
-});
-});
+    const container = document.getElementById('ecolesContainer');
+    if (!container) return;
+    const search = document.getElementById('ecoleSearch')?.value?.toLowerCase() || '';
+    const filter = document.getElementById('ecoleStatutFilter')?.value || 'all';
+    
+    let schools = allData.schools;
+    
+    // Filtrage selon le statut
+    switch(filter) {
+        case 'actif':
+            schools = schools.filter(s => s.masque !== true && s.actif !== false);
+            break;
+        case 'inactif':
+            schools = schools.filter(s => s.masque !== true && s.actif === false);
+            break;
+        case 'masque':
+            schools = schools.filter(s => s.masque === true);
+            break;
+        case 'all':
+        default:
+            // TOUTES les écoles (y compris masquées)
+            schools = allData.schools;
+            break;
+    }
+    
+    if (search) schools = schools.filter(s => s.nom?.toLowerCase().includes(search));
+    
+    document.getElementById('filteredCount').textContent = schools.length;
+    
+    if (!schools.length) {
+        let msg = '🏫 Aucune école trouvée';
+        if (filter === 'masque') msg = '👻 Aucune école masquée';
+        else if (filter === 'actif') msg = '✅ Aucune école active';
+        else if (filter === 'inactif') msg = '⛔ Aucune école inactive';
+        container.innerHTML = `<div class="empty-state">${msg}</div>`;
+        return;
+    }
+    
+    let html = '';
+    schools.forEach(s => {
+        const estMasquee = s.masque === true;
+        const estActive = s.actif !== false;
+        const teacherCount = allData.teachers.filter(t => t.ecoleId === s.id).length;
+        const sheetCount = allData.sheets.filter(f => f.ecoleId === s.id).length;
+        
+        // Style pour les écoles masquées
+        const masqueStyle = estMasquee ? 'opacity:0.5;border-left:4px solid #f59e0b;border:1px dashed rgba(251,191,36,0.2);' : '';
+        
+        html += `<div class="school-item" data-school-id="${s.id}" style="${masqueStyle}">
+            <div class="school-left" style="flex:1;min-width:160px;">
+                <div class="school-name" style="font-size:13px;font-weight:700;color:var(--text-primary);">
+                    ${escapeHtml(s.nom)} 
+                    ${estMasquee ? '<span style="font-size:9px;color:#f59e0b;font-weight:600;">👻 MASQUÉE</span>' : ''}
+                    <span style="font-size:9px;color:var(--text-muted);font-family:monospace;background:rgba(255,255,255,0.02);padding:1px 6px;border-radius:4px;margin-left:6px;">🆔 ${escapeHtml(s.id)}</span>
+                </div>
+                <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">
+                    <span>📍 ${escapeHtml(s.province || '-')}</span> 
+                    <span>🏙️ ${escapeHtml(s.ville || '-')}</span>
+                </div>
+                <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:3px;">
+                    ${estMasquee ? '<span class="badge badge-warning">👻 Masquée</span>' : ''}
+                    ${estActive ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Inactive</span>'}
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:3px;">
+                    <span style="font-size:9px;font-weight:600;color:var(--text-secondary);background:rgba(255,255,255,0.02);padding:1px 8px;border-radius:4px;">👨‍🏫 ${teacherCount}</span>
+                    <span style="font-size:9px;font-weight:600;color:var(--text-secondary);background:rgba(255,255,255,0.02);padding:1px 8px;border-radius:4px;">📄 ${sheetCount}</span>
+                </div>
+            </div>
+            <div style="flex-shrink:0;width:48px;height:48px;border-radius:10px;overflow:hidden;background:rgba(255,255,255,0.02);border:2px solid var(--border-color);display:flex;align-items:center;justify-content:center;transition:var(--transition);">
+                ${s.logoUrl ? `<img src="${escapeHtml(s.logoUrl)}" alt="${escapeHtml(s.nom)}" style="width:100%;height:100%;object-fit:cover;" />` : `<span style="font-size:20px;">🏫</span>`}
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:auto;">
+                <button class="btn btn-outline btn-sm btn-action" data-school-id="${s.id}">⚡ Actions</button>
+            </div>
+        </div>`;
+    });
+    container.innerHTML = html;
+    container.querySelectorAll('.btn-action').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const schoolId = this.dataset.schoolId;
+            const school = allData.schools.find(s => s.id === schoolId);
+            if (!school) return;
+            const overlay = document.getElementById('actionDropdownOverlay');
+            const items = document.getElementById('actionDropdownItems');
+            const estMasquee = school.masque === true;
+            const estActive = school.actif !== false;
+            items.innerHTML = `
+                <button class="action-dropdown-item" data-action="logo" data-school="${schoolId}"><span class="icon">🖼️</span> Change logo</button>
+                <div class="action-dropdown-divider"></div>
+                <button class="action-dropdown-item" data-action="masquer" data-school="${schoolId}"><span class="icon">👻</span> ${estMasquee ? '👁️ Show' : '👻 Hide'}</button>
+                <button class="action-dropdown-item" data-action="activer" data-school="${schoolId}"><span class="icon">${estActive ? '⛔' : '✅'}</span> ${estActive ? 'Deactivate' : 'Activate'}</button>
+                <div class="action-dropdown-divider"></div>
+                <button class="action-dropdown-item danger" data-action="supprimer" data-school="${schoolId}"><span class="icon">🗑️</span> Delete</button>
+            `;
+            overlay.classList.add('show');
+            document.getElementById('actionDropdownClose').onclick = () => overlay.classList.remove('show');
+            overlay.onclick = function(e) { if (e.target === this) this.classList.remove('show'); };
+            items.querySelectorAll('.action-dropdown-item').forEach(item => {
+                item.addEventListener('click', async function() {
+                    overlay.classList.remove('show');
+                    const action = this.dataset.action;
+                    const schoolId2 = this.dataset.school;
+                    switch(action) {
+                        case 'logo': await handleLogoChange(schoolId2); break;
+                        case 'masquer': await handleToggleMasquer(schoolId2); break;
+                        case 'activer': await handleToggleActif(schoolId2); break;
+                        case 'supprimer': await handleDeleteSchool(schoolId2); break;
+                    }
+                });
+            });
+        });
+    });
 }
 
 async function handleToggleMasquer(schoolId) {
@@ -1138,54 +1199,77 @@ document.getElementById('logoCancelBtn').onclick = () => { document.getElementBy
 }
 
 function loadMembersGeneric(containerId, members, paginationId, paginationInfoId, paginationButtonsId, pageVar, setPage, filterEcoleId, searchId) {
-const container = document.getElementById(containerId);
-if (!container) return;
-const filterEcole = document.getElementById(filterEcoleId)?.value || "all";
-const search = document.getElementById(searchId)?.value?.toLowerCase() || "";
-let filtered = members;
-if (filterEcole !== "all") filtered = filtered.filter(m => m.ecoleId === filterEcole);
-if (search) filtered = filtered.filter(m => (m.nom + ' ' + (m.prenom||'')).toLowerCase().includes(search));
-const totalPages = Math.ceil(filtered.length / membersPerPage);
-let currentPage = pageVar;
-if (currentPage > totalPages) currentPage = 1;
-if (currentPage < 1) currentPage = 1;
-setPage(currentPage);
-const start = (currentPage - 1) * membersPerPage;
-const pageMembers = filtered.slice(start, start + membersPerPage);
-if (filtered.length === 0) { container.innerHTML = '<div class="empty-state">👥 No members found</div>'; document.getElementById(paginationId).style.display = 'none'; return; }
-const grouped = {};
-pageMembers.forEach(m => { const key = m.ecoleId; if (!grouped[key]) grouped[key] = { school: m.ecoleNom, members: [] }; grouped[key].members.push(m); });
-let html = '';
-for (const [ecoleId, ecoleData] of Object.entries(grouped)) {
-html += '<div style="background:rgba(255,255,255,0.01);border-radius:8px;margin-bottom:6px;border:1px solid var(--border-color);overflow:hidden;"><div style="padding:5px 12px;background:rgba(255,255,255,0.01);font-weight:700;font-size:11px;border-bottom:1px solid var(--border-color);">🏫 ' + escapeHtml(ecoleData.school) + '</div><div style="padding:2px 6px;">';
-ecoleData.members.forEach(e => {
-const nomComplet = (e.nom + ' ' + (e.prenom || '')).trim() || "Unknown";
-html += '<div style="display:flex;justify-content:space-between;padding:4px 8px;border-bottom:1px solid var(--border-color);font-size:11px;"><span style="font-weight:500;">' + escapeHtml(nomComplet) + '</span><span style="font-family:monospace;background:rgba(139,92,246,0.08);padding:1px 8px;border-radius:4px;color:#8B5CF6;font-weight:700;font-size:10px;">' + (e.parentCode || '---') + '</span></div>';
-});
-html += '</div></div>';
-}
-container.innerHTML = html;
-const paginationContainer = document.getElementById(paginationId);
-const paginationInfo = document.getElementById(paginationInfoId);
-const paginationButtons = document.getElementById(paginationButtonsId);
-if (totalPages > 1) {
-paginationContainer.style.display = 'flex';
-paginationInfo.textContent = 'Page ' + currentPage + '/' + totalPages + ' · ' + filtered.length + ' members';
-let btns = '';
-if (currentPage > 1) btns += '<button class="pagination-btn" data-page="' + (currentPage - 1) + '">◀</button>';
-for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
-btns += '<button class="pagination-btn ' + (i === currentPage ? 'active' : '') + '" data-page="' + i + '">' + i + '</button>';
-}
-if (currentPage < totalPages) btns += '<button class="pagination-btn" data-page="' + (currentPage + 1) + '">▶</button>';
-paginationButtons.innerHTML = btns;
-paginationButtons.querySelectorAll('.pagination-btn').forEach(btn => {
-btn.addEventListener('click', function() {
-const newPage = parseInt(this.dataset.page);
-setPage(newPage);
-loadMembersGeneric(containerId, members, paginationId, paginationInfoId, paginationButtonsId, newPage, setPage, filterEcoleId, searchId);
-});
-});
-} else { paginationContainer.style.display = 'none'; }
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const filterEcole = document.getElementById(filterEcoleId)?.value || "all";
+    const search = document.getElementById(searchId)?.value?.toLowerCase() || "";
+    let filtered = members;
+    if (filterEcole !== "all") filtered = filtered.filter(m => m.ecoleId === filterEcole);
+    if (search) filtered = filtered.filter(m => (m.nom + ' ' + (m.prenom||'')).toLowerCase().includes(search));
+    const totalPages = Math.ceil(filtered.length / membersPerPage);
+    let currentPage = pageVar;
+    if (currentPage > totalPages) currentPage = 1;
+    if (currentPage < 1) currentPage = 1;
+    setPage(currentPage);
+    const start = (currentPage - 1) * membersPerPage;
+    const pageMembers = filtered.slice(start, start + membersPerPage);
+    if (filtered.length === 0) { container.innerHTML = '<div class="empty-state">👥 No members found</div>'; document.getElementById(paginationId).style.display = 'none'; return; }
+    const grouped = {};
+    pageMembers.forEach(m => { const key = m.ecoleId; if (!grouped[key]) grouped[key] = { school: m.ecoleNom, members: [] }; grouped[key].members.push(m); });
+    let html = '';
+    for (const [ecoleId, ecoleData] of Object.entries(grouped)) {
+        html += `<div style="background:rgba(255,255,255,0.01);border-radius:8px;margin-bottom:6px;border:1px solid var(--border-color);overflow:hidden;">
+            <div style="padding:5px 12px;background:rgba(255,255,255,0.01);font-weight:700;font-size:11px;border-bottom:1px solid var(--border-color);">🏫 ${escapeHtml(ecoleData.school)}</div>
+            <div style="padding:2px 6px;">
+                <div style="display:grid;grid-template-columns:2.5fr 1.5fr 1.5fr 1.2fr;gap:4px;padding:4px 8px;font-size:9px;font-weight:700;color:var(--text-muted);border-bottom:1px solid var(--border-color);">
+                    <span>👤 ÉLÈVE</span>
+                    <span>📚 CLASSE</span>
+                    <span>🎯 OPTION</span>
+                    <span>🔑 CODE</span>
+                </div>`;
+        
+        ecoleData.members.forEach(e => {
+            const nomComplet = (e.nom + ' ' + (e.prenom || '')).trim() || "Unknown";
+            const classe = e.classe || '-';
+            const option = e.option || 'Non définie';
+            const parentCode = e.parentCode || '---';
+            
+            // Couleur pour l'option
+            let optionColor = '#94a3b8';
+            if (option === 'TOUTES') optionColor = '#ef4444';
+            else if (option !== 'Non définie' && option !== '-') optionColor = '#10b981';
+            
+            html += `<div style="display:grid;grid-template-columns:2.5fr 1.5fr 1.5fr 1.2fr;gap:4px;padding:4px 8px;border-bottom:1px solid var(--border-color);font-size:11px;align-items:center;">
+                <span style="font-weight:500;">${escapeHtml(nomComplet)}</span>
+                <span style="color:var(--text-muted);">${escapeHtml(classe)}</span>
+                <span style="color:${optionColor};font-weight:${option === 'TOUTES' ? '700' : '500'};">${escapeHtml(option)}</span>
+                <span style="font-family:monospace;background:rgba(139,92,246,0.08);padding:2px 8px;border-radius:4px;color:#8B5CF6;font-weight:700;font-size:10px;text-align:center;">${escapeHtml(parentCode)}</span>
+            </div>`;
+        });
+        html += '</div></div>';
+    }
+    container.innerHTML = html;
+    const paginationContainer = document.getElementById(paginationId);
+    const paginationInfo = document.getElementById(paginationInfoId);
+    const paginationButtons = document.getElementById(paginationButtonsId);
+    if (totalPages > 1) {
+        paginationContainer.style.display = 'flex';
+        paginationInfo.textContent = 'Page ' + currentPage + '/' + totalPages + ' · ' + filtered.length + ' members';
+        let btns = '';
+        if (currentPage > 1) btns += '<button class="pagination-btn" data-page="' + (currentPage - 1) + '">◀</button>';
+        for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+            btns += '<button class="pagination-btn ' + (i === currentPage ? 'active' : '') + '" data-page="' + i + '">' + i + '</button>';
+        }
+        if (currentPage < totalPages) btns += '<button class="pagination-btn" data-page="' + (currentPage + 1) + '">▶</button>';
+        paginationButtons.innerHTML = btns;
+        paginationButtons.querySelectorAll('.pagination-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const newPage = parseInt(this.dataset.page);
+                setPage(newPage);
+                loadMembersGeneric(containerId, members, paginationId, paginationInfoId, paginationButtonsId, newPage, setPage, filterEcoleId, searchId);
+            });
+        });
+    } else { paginationContainer.style.display = 'none'; }
 }
 
 function loadMembersA() { loadMembersGeneric('membersContainerA', membersA, 'membersPaginationA', 'membersPaginationInfoA', 'membersPaginationButtonsA', membersPageA, (p) => { membersPageA = p; }, 'memberEcoleFilterA', 'memberSearchA'); }
@@ -1375,12 +1459,15 @@ document.querySelectorAll('.source-btn').forEach(b => b.classList.remove('active
 this.classList.add('active');
 activeSource = this.dataset.source;
 document.body.className = 'source-' + activeSource;
-const labels = { a: '🔵 SOURCE A · gesco-67c43', b: '🟢 SOURCE B · gesco-2', merged: '🟡 FUSIONNED · SOURCE A + B' };
-const classes = { a: 'a', b: 'b', merged: 'merged' };
+const labels = { 
+a: '🔵 SOURCE A · gesco-67c43', 
+b: '🟢 SOURCE B · gesco-2'
+};
+const classes = { a: 'a', b: 'b' };
 document.getElementById('sourceStatus').className = classes[activeSource];
 document.getElementById('sourceStatus').textContent = labels[activeSource];
 document.querySelectorAll('.source-badge .dot').forEach(el => {
-el.className = 'dot ' + (activeSource === 'a' ? 'blue' : activeSource === 'b' ? 'green' : 'gold');
+el.className = 'dot ' + (activeSource === 'a' ? 'blue' : 'green');
 });
 loadAllData();
 setTimeout(() => chargerDiagnostic(), 1500);
