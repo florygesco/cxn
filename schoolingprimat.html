@@ -493,6 +493,34 @@ body.light-mode #loginError{color:#b91c1c !important;}
 </div>
 </div>
 <div style="background:rgba(18,25,45,0.6);border-radius:16px;padding:20px;border:1px solid rgba(59,130,246,0.15);">
+<h3 style="color:#60a5fa;font-size:15px;margin-bottom:4px;">👁️ MASQUER LES PÉRIODES</h3>
+<p style="color:#94a3b8;font-size:12px;margin-bottom:16px;">Cochez les périodes à masquer. Elles disparaîtront partout (cahier de cotation, exports PDF, relevés).</p>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+<label style="display:flex;align-items:center;gap:8px;color:#cbd5e1;font-size:13px;cursor:pointer;background:rgba(0,0,0,0.2);padding:8px 12px;border-radius:8px;">
+<input type="checkbox" id="hideP1" onchange="window.toggleHidePeriode(1,this.checked)"> Période 1
+</label>
+<label style="display:flex;align-items:center;gap:8px;color:#cbd5e1;font-size:13px;cursor:pointer;background:rgba(0,0,0,0.2);padding:8px 12px;border-radius:8px;">
+<input type="checkbox" id="hideP2" onchange="window.toggleHidePeriode(2,this.checked)"> Période 2
+</label>
+<label style="display:flex;align-items:center;gap:8px;color:#cbd5e1;font-size:13px;cursor:pointer;background:rgba(0,0,0,0.2);padding:8px 12px;border-radius:8px;">
+<input type="checkbox" id="hideP3" onchange="window.toggleHidePeriode(3,this.checked)"> Période 3
+</label>
+<label style="display:flex;align-items:center;gap:8px;color:#cbd5e1;font-size:13px;cursor:pointer;background:rgba(0,0,0,0.2);padding:8px 12px;border-radius:8px;">
+<input type="checkbox" id="hideP4" onchange="window.toggleHidePeriode(4,this.checked)"> Période 4
+</label>
+<label style="display:flex;align-items:center;gap:8px;color:#cbd5e1;font-size:13px;cursor:pointer;background:rgba(0,0,0,0.2);padding:8px 12px;border-radius:8px;">
+<input type="checkbox" id="hideP5" onchange="window.toggleHidePeriode(5,this.checked)"> Période 5
+</label>
+<label style="display:flex;align-items:center;gap:8px;color:#cbd5e1;font-size:13px;cursor:pointer;background:rgba(0,0,0,0.2);padding:8px 12px;border-radius:8px;">
+<input type="checkbox" id="hideP6" onchange="window.toggleHidePeriode(6,this.checked)"> Période 6
+</label>
+</div>
+<div style="margin-top:12px;display:flex;gap:10px;">
+<button class="btn btn-sm btn-secondary" onclick="window.masquerToutesPeriodes()">Masquer toutes</button>
+<button class="btn btn-sm btn-outline" onclick="window.afficherToutesPeriodes()">Afficher toutes</button>
+</div>
+</div>
+<div style="background:rgba(18,25,45,0.6);border-radius:16px;padding:20px;border:1px solid rgba(59,130,246,0.15);">
 <h3 style="color:#60a5fa;font-size:15px;margin-bottom:4px;">⚡ ACTIONS</h3>
 <p style="color:#94a3b8;font-size:12px;margin-bottom:16px;">Gérer votre session et vos préférences</p>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
@@ -559,6 +587,7 @@ let correctionFicheId = null;
 let saisieActive = false;
 let toastQueue = [];
 let isToastProcessing = false;
+let periodesMasquees = [];
 
 const classesPrimaire = ["1ère A", "1ère B", "2ème A", "2ème B", "3ème A", "3ème B", "4ème A", "4ème B", "5ème A", "5ème B", "6ème A", "6ème B"];
 const classesMaternelle = ["Niveau 1", "Niveau 2", "Niveau 3"];
@@ -638,12 +667,103 @@ function getPeriodeMax(p) { return currentFiche?.p1Max || 20; }
 
 function getExamMax(t) { return getPeriodeMax(1) * 2; }
 
-function getTotalTrimestreMax(t) { return getPeriodeMax(1) * 2 + getExamMax(t); }
+function getTotalTrimestreMax(t) { 
+  const p1 = (t - 1) * 2 + 1;
+  const p2 = (t - 1) * 2 + 2;
+  let total = 0;
+  if (!estPeriodeMasquee(p1)) total += getPeriodeMax(1);
+  if (!estPeriodeMasquee(p2)) total += getPeriodeMax(1);
+  total += getExamMax(t);
+  return total;
+}
 
-function getTotalAnnuelMax() { return getTotalTrimestreMax(1) + getTotalTrimestreMax(2) + getTotalTrimestreMax(3); }
+function getTotalAnnuelMax() { 
+  let total = 0;
+  for (let t = 1; t <= 3; t++) {
+    total += getTotalTrimestreMax(t);
+  }
+  return total;
+}
+
+function getPeriodesActives() {
+  const actives = [];
+  for (let p = 1; p <= 6; p++) {
+    if (!estPeriodeMasquee(p)) {
+      actives.push(p);
+    }
+  }
+  return actives;
+}
+
+function getTrimestrePeriodesActives(t) {
+  const p1 = (t - 1) * 2 + 1;
+  const p2 = (t - 1) * 2 + 2;
+  const actives = [];
+  if (!estPeriodeMasquee(p1)) actives.push(p1);
+  if (!estPeriodeMasquee(p2)) actives.push(p2);
+  return actives;
+}
+
+function estPeriodeMasquee(p) {
+  return periodesMasquees.includes(p);
+}
+
+function chargerPeriodesMasquees() {
+  try {
+    const saved = localStorage.getItem('periodes_masquees_' + ECOLET_ID);
+    if (saved) {
+      periodesMasquees = JSON.parse(saved);
+      for (let p = 1; p <= 6; p++) {
+        const cb = document.getElementById('hideP' + p);
+        if (cb) {
+          cb.checked = periodesMasquees.includes(p);
+        }
+      }
+    }
+  } catch (e) { periodesMasquees = []; }
+}
+
+function sauvegarderPeriodesMasquees() {
+  localStorage.setItem('periodes_masquees_' + ECOLET_ID, JSON.stringify(periodesMasquees));
+}
+
+window.toggleHidePeriode = function(p, checked) {
+  if (checked) {
+    if (!periodesMasquees.includes(p)) {
+      periodesMasquees.push(p);
+    }
+  } else {
+    periodesMasquees = periodesMasquees.filter(x => x !== p);
+  }
+  sauvegarderPeriodesMasquees();
+  afficherCotation();
+};
+
+window.masquerToutesPeriodes = function() {
+  periodesMasquees = [1, 2, 3, 4, 5, 6];
+  for (let p = 1; p <= 6; p++) {
+    const cb = document.getElementById('hideP' + p);
+    if (cb) cb.checked = true;
+  }
+  sauvegarderPeriodesMasquees();
+  afficherCotation();
+  toast("Toutes les périodes sont masquées", 'info');
+};
+
+window.afficherToutesPeriodes = function() {
+  periodesMasquees = [];
+  for (let p = 1; p <= 6; p++) {
+    const cb = document.getElementById('hideP' + p);
+    if (cb) cb.checked = false;
+  }
+  sauvegarderPeriodesMasquees();
+  afficherCotation();
+  toast("Toutes les périodes sont affichées", 'info');
+};
 
 function calcMoy(p, notes) {
   let eps = currentFiche?.epreuvesParPeriode?.[p] || [];
+  if (estPeriodeMasquee(p)) return 0;
   if (!eps.length || !notes?.length) return 0;
   let sommeNotes = 0, sommeMax = 0;
   for (let i = 0; i < eps.length; i++) {
@@ -728,6 +848,7 @@ async function restaurerSession() {
         });
       }
       
+      chargerPeriodesMasquees();
       toutesFiches = await loadAllFiches();
       if (toutesFiches.length) await selectFiche(toutesFiches[0].id);
       await refreshSelectors();
@@ -1191,8 +1312,6 @@ function afficherCotation() {
   
   let pMax = getPeriodeMax(1);
   let examMax = pMax * 2;
-  let totalTrimMax = pMax * 2 + examMax;
-  let totalAnnuelMax = totalTrimMax * 3;
   
   let h = ['<th>N°</th><th>NOMS COMPLETS</th><th>SEXE</th>'];
   let eps = {};
@@ -1203,10 +1322,31 @@ function afficherCotation() {
   for (let t = 1; t <= 3; t++) {
     let p1 = (t - 1) * 2 + 1;
     let p2 = (t - 1) * 2 + 2;
-    h.push(`<th colspan="${eps[p1].length}" style="background:#1e3a5f;color:#fbbf24;">T${t} - Période ${p1}</th>`);
-    h.push(`<th colspan="${eps[p2].length}" style="background:#1e3a5f;color:#fbbf24;">T${t} - Période ${p2}</th>`);
+    let totalTrimMax = 0;
+    let afficherP1 = !estPeriodeMasquee(p1);
+    let afficherP2 = !estPeriodeMasquee(p2);
+    
+    if (afficherP1) {
+      h.push(`<th colspan="${eps[p1].length}" style="background:#1e3a5f;color:#fbbf24;">T${t} - Période ${p1}</th>`);
+      totalTrimMax += pMax;
+    }
+    if (afficherP2) {
+      h.push(`<th colspan="${eps[p2].length}" style="background:#1e3a5f;color:#fbbf24;">T${t} - Période ${p2}</th>`);
+      totalTrimMax += pMax;
+    }
+    totalTrimMax += examMax;
     h.push(`<th style="background:#b45309;">EXAM T${t} /${examMax}</th>`);
     h.push(`<th style="background:#5c4a1a;">TOTAL T${t} /${totalTrimMax}</th>`);
+  }
+  let totalAnnuelMax = 0;
+  for (let t = 1; t <= 3; t++) {
+    let totalTrimMax = 0;
+    let p1 = (t - 1) * 2 + 1;
+    let p2 = (t - 1) * 2 + 2;
+    if (!estPeriodeMasquee(p1)) totalTrimMax += pMax;
+    if (!estPeriodeMasquee(p2)) totalTrimMax += pMax;
+    totalTrimMax += examMax;
+    totalAnnuelMax += totalTrimMax;
   }
   h.push(`<th style="background:#5c4a1a;">TOTAL ANNÉE /${totalAnnuelMax}</th>`);
   h.push('<th>📝 APPRÉCIATION</th>');
@@ -1225,32 +1365,62 @@ function afficherCotation() {
     for (let t = 1; t <= 3; t++) {
       let p1 = (t - 1) * 2 + 1;
       let p2 = (t - 1) * 2 + 2;
-      for (let ei = 0; ei < eps[p1].length; ei++) {
-        let val = e.notes['p' + p1]?.[ei] || 0;
-        let maxVal = eps[p1][ei]?.max || 20;
-        let noteClass = getNoteClass(val, maxVal);
-        r += '<td><input type="number" step="0.5" min="0" max="' + maxVal + '" value="' + val + '" onchange="window.updNote(' + i + ',' + p1 + ',' + ei + ',this.value)" style="width:50px" class="' + noteClass + '"></td>';
+      let totalTrim = 0;
+      
+      if (!estPeriodeMasquee(p1)) {
+        for (let ei = 0; ei < eps[p1].length; ei++) {
+          let val = e.notes['p' + p1]?.[ei] || 0;
+          let maxVal = eps[p1][ei]?.max || 20;
+          let noteClass = getNoteClass(val, maxVal);
+          r += '<td><input type="number" step="0.5" min="0" max="' + maxVal + '" value="' + val + '" onchange="window.updNote(' + i + ',' + p1 + ',' + ei + ',this.value)" style="width:50px" class="' + noteClass + '"></td>';
+        }
+        let p1m = calcMoy(p1, e.notes['p' + p1] || []);
+        totalTrim += p1m;
       }
-      for (let ei = 0; ei < eps[p2].length; ei++) {
-        let val = e.notes['p' + p2]?.[ei] || 0;
-        let maxVal = eps[p2][ei]?.max || 20;
-        let noteClass = getNoteClass(val, maxVal);
-        r += '<td><input type="number" step="0.5" min="0" max="' + maxVal + '" value="' + val + '" onchange="window.updNote(' + i + ',' + p2 + ',' + ei + ',this.value)" style="width:50px" class="' + noteClass + '"></td>';
+      
+      if (!estPeriodeMasquee(p2)) {
+        for (let ei = 0; ei < eps[p2].length; ei++) {
+          let val = e.notes['p' + p2]?.[ei] || 0;
+          let maxVal = eps[p2][ei]?.max || 20;
+          let noteClass = getNoteClass(val, maxVal);
+          r += '<td><input type="number" step="0.5" min="0" max="' + maxVal + '" value="' + val + '" onchange="window.updNote(' + i + ',' + p2 + ',' + ei + ',this.value)" style="width:50px" class="' + noteClass + '"></td>';
+        }
+        let p2m = calcMoy(p2, e.notes['p' + p2] || []);
+        totalTrim += p2m;
       }
+      
       let exVal = e.notes['exam' + t] || 0;
       let exClass = getNoteClass(exVal, examMax);
       r += '<td><input type="number" step="0.5" min="0" max="' + examMax + '" value="' + exVal + '" onchange="window.updExam(' + i + ',' + t + ',this.value)" style="width:50px" class="' + exClass + '"></td>';
-      let p1m = calcMoy(p1, e.notes['p' + p1] || []);
-      let p2m = calcMoy(p2, e.notes['p' + p2] || []);
-      let totalTrim = p1m + p2m + exVal;
+      totalTrim += exVal;
+      
+      let totalTrimMax = 0;
+      if (!estPeriodeMasquee(p1)) totalTrimMax += pMax;
+      if (!estPeriodeMasquee(p2)) totalTrimMax += pMax;
+      totalTrimMax += examMax;
+      
       totalAnnuel += totalTrim;
       let totClass = getNoteClass(totalTrim, totalTrimMax);
       r += '<td style="background:#5c4a1a" class="' + totClass + '">' + totalTrim + '</td>';
     }
+    
+    let totalAnnuelMax = 0;
+    for (let t = 1; t <= 3; t++) {
+      let p1 = (t - 1) * 2 + 1;
+      let p2 = (t - 1) * 2 + 2;
+      if (!estPeriodeMasquee(p1)) totalAnnuelMax += pMax;
+      if (!estPeriodeMasquee(p2)) totalAnnuelMax += pMax;
+      totalAnnuelMax += examMax;
+    }
+    
     let totAnnClass = getNoteClass(totalAnnuel, totalAnnuelMax);
     r += '<td style="background:#5c4a1a" class="' + totAnnClass + '">' + totalAnnuel + '</td>';
     
-    const appr = getAppreciation(totalAnnuel / 3, pMax);
+    let nbPeriodesActives = 0;
+    for (let p = 1; p <= 6; p++) {
+      if (!estPeriodeMasquee(p)) nbPeriodesActives++;
+    }
+    const appr = getAppreciation(nbPeriodesActives > 0 ? totalAnnuel / nbPeriodesActives : 0, pMax);
     r += '<td><span class="appreciation-badge ' + appr.class + '">' + appr.text + '</span></td>';
     r += '</tr>';
     tb.innerHTML += r;
@@ -1391,7 +1561,7 @@ async function showLogin() {
   <option value="">-- Choisir --</option>
   </select>
   </div>
-  <input type="password" id="loginCode" placeholder="🔑 Code d'accès">
+  <input type="password" id="loginCode" placeholder="🔑 Code d'accès (6 chiffres)">
   <div style="display:flex;gap:12px;margin-top:12px;width:100%;">
   <button id="loginBtn" style="flex:2;">Se connecter</button>
   <button id="refreshPageBtn" class="refresh-btn" style="flex:1;">🔄 Rafraîchir</button>
@@ -1467,6 +1637,7 @@ async function showLogin() {
         });
       }
       
+      chargerPeriodesMasquees();
       toutesFiches = await loadAllFiches();
       if (toutesFiches.length) await selectFiche(toutesFiches[0].id);
       await refreshSelectors();
@@ -1987,12 +2158,14 @@ document.getElementById('exportCurrentBtn').onclick = async function() {
     
     const pMax = getPeriodeMax(1);
     const examMax = pMax * 2;
-    const totalTrimMax = pMax * 2 + examMax;
-    const totalAnnuelMax = totalTrimMax * 3;
     
     const hd = [['N°', 'NOMS COMPLETS', 'SEXE']];
     for (let t = 1; t <= 3; t++) {
-      hd[0].push('T' + t + ' P1', 'T' + t + ' P2', 'EXAM T' + t, 'TOT T' + t);
+      let p1 = (t - 1) * 2 + 1;
+      let p2 = (t - 1) * 2 + 2;
+      if (!estPeriodeMasquee(p1)) hd[0].push('T' + t + ' P' + p1);
+      if (!estPeriodeMasquee(p2)) hd[0].push('T' + t + ' P' + p2);
+      hd[0].push('EXAM T' + t, 'TOT T' + t);
     }
     hd[0].push('TOTAL ANNÉE');
     
@@ -2004,12 +2177,24 @@ document.getElementById('exportCurrentBtn').onclick = async function() {
       for (let t = 1; t <= 3; t++) {
         let p1 = (t - 1) * 2 + 1;
         let p2 = (t - 1) * 2 + 2;
-        let p1m = calcMoy(p1, e.notes?.['p' + p1] || []);
-        let p2m = calcMoy(p2, e.notes?.['p' + p2] || []);
+        let totalTrim = 0;
+        
+        if (!estPeriodeMasquee(p1)) {
+          let p1m = calcMoy(p1, e.notes?.['p' + p1] || []);
+          row.push(p1m);
+          totalTrim += p1m;
+        }
+        if (!estPeriodeMasquee(p2)) {
+          let p2m = calcMoy(p2, e.notes?.['p' + p2] || []);
+          row.push(p2m);
+          totalTrim += p2m;
+        }
+        
         let ex = e.notes?.['exam' + t] || 0;
-        let totalTrim = p1m + p2m + ex;
+        row.push(ex);
+        totalTrim += ex;
+        row.push(totalTrim);
         totalAnnuel += totalTrim;
-        row.push(p1m, p2m, ex, totalTrim);
       }
       row.push(totalAnnuel);
       bd.push(row);
@@ -2053,6 +2238,7 @@ document.getElementById('exportEleveNotesBtn').onclick = async function() {
       bd.push(['', '', '', '']);
       bd.push(['TRIMESTRE ' + t, '', '', '']);
       for (let p = (t - 1) * 2 + 1; p <= (t - 1) * 2 + 2; p++) {
+        if (estPeriodeMasquee(p)) continue;
         for (let ei = 0; ei < (eps[p] || []).length; ei++) {
           let nt = (eleve.notes?.['p' + p] && eleve.notes['p' + p][ei]) ? eleve.notes['p' + p][ei] : 0;
           bd.push(["P" + p, eps[p][ei].nom, nt + " / " + eps[p][ei].max, Math.round((nt / eps[p][ei].max) * 20) + " / 20"]);
@@ -2060,11 +2246,16 @@ document.getElementById('exportEleveNotesBtn').onclick = async function() {
       }
       let p1 = (t - 1) * 2 + 1;
       let p2 = (t - 1) * 2 + 2;
-      let p1m = calcMoy(p1, eleve.notes?.['p' + p1] || []);
-      let p2m = calcMoy(p2, eleve.notes?.['p' + p2] || []);
+      let p1m = (!estPeriodeMasquee(p1)) ? calcMoy(p1, eleve.notes?.['p' + p1] || []) : 0;
+      let p2m = (!estPeriodeMasquee(p2)) ? calcMoy(p2, eleve.notes?.['p' + p2] || []) : 0;
       let ex = eleve.notes?.['exam' + t] || 0;
+      let totalTrim = p1m + p2m + ex;
+      let totalTrimMax = 0;
+      if (!estPeriodeMasquee(p1)) totalTrimMax += currentFiche.p1Max || 20;
+      if (!estPeriodeMasquee(p2)) totalTrimMax += currentFiche.p1Max || 20;
+      totalTrimMax += (currentFiche.p1Max || 20) * 2;
       bd.push(['', '', '', '']);
-      bd.push(['Total T' + t, '', (p1m + p2m + ex) + ' / 80', '']);
+      bd.push(['Total T' + t, '', totalTrim + ' / ' + totalTrimMax, '']);
     }
     pdf.autoTable({ head: [['Période', 'Épreuve', 'Note', 'Note / 20']], body: bd, startY: 66, theme: 'grid', styles: { fontSize: 8, cellPadding: 3 }, headStyles: { fillColor: [0, 51, 102], textColor: [255, 255, 255], fontStyle: 'bold' }, alternateRowStyles: { fillColor: [245, 245, 245] } });
     pdf.save("Releve_" + rn + "_" + (eleve.nom || 'eleve').replace(/\s/g, '_') + ".pdf");
