@@ -1072,29 +1072,7 @@ function mettreAJourSelectOptions(c) { let s = document.getElementById('optionSe
 
 function mettreAJourCompteurEleves() { const countSpan = document.getElementById('eleveCount'); if (countSpan && currentFiche) { const nb = currentFiche.eleves?.length || 0; countSpan.textContent = nb; } }
 
-function afficherEleves() {
-let c = document.getElementById('elevesListContainer');
-if (!c) return;
-if (!currentFiche) { c.innerHTML = '<div class="empty-state">Aucune fiche sélectionnée</div>'; return; }
-c.innerHTML = '';
-let ev = currentFiche.eleves || [];
-for (let i = 0; i < ev.length; i++) {
-let d = document.createElement('div');
-d.className = 'eleve-row';
-const nomComplet = getNomComplet(ev[i]);
-const numero = String(i + 1).padStart(2, '0');
-const estImporte = ev[i].source === 'auto' || ev[i].source === 'reload' || ev[i].source === 'auto_refresh' || ev[i].source === 'comptabilite';
-if (estImporte) {
-d.innerHTML = `<span style="color:#64748b;font-size:12px;font-weight:600;min-width:32px;">#${numero}</span><span style="flex:2;color:#e2e8f0;padding:8px;font-weight:500;">${escapeHtml(nomComplet)}</span><span style="color:#94a3b8;padding:8px;">${ev[i].sexe || 'M'}</span><span class="eleve-importe">🔒 Importé</span><span class="eleve-importe-lock" title="Impossible de modifier un élève importé de la comptabilité">🔒</span>`;
-} else {
-d.innerHTML = `<span style="color:#64748b;font-size:12px;font-weight:600;min-width:32px;">#${numero}</span><input type="text" value="${escapeHtml(nomComplet)}" placeholder="Nom complet" onchange="window.updEleve(${i},'nom',this.value)" style="flex:2"><select onchange="window.updEleve(${i},'sexe',this.value)"><option value="M" ${ev[i].sexe=='M'?'selected':''}>M</option><option value="F" ${ev[i].sexe=='F'?'selected':''}>F</option></select><span onclick="window.delEleve(${i})" style="cursor:pointer;color:#ef4444;padding:8px;">X</span>`;
-}
-c.appendChild(d);
-}
-if (ev.length === 0) c.innerHTML += '<div class="empty-state">Aucun élève inscrit</div>';
-updateExportSelect();
-mettreAJourCompteurEleves();
-}
+function afficherEleves() { let c = document.getElementById('elevesListContainer'); if (!c) return; if (!currentFiche) { c.innerHTML = '<div class="empty-state">Aucune fiche sélectionnée</div>'; return; } c.innerHTML = ''; let ev = currentFiche.eleves || []; for (let i = 0; i < ev.length; i++) { let d = document.createElement('div'); d.className = 'eleve-row'; const nomComplet = getNomComplet(ev[i]); const estImporte = ev[i].source === 'auto' || ev[i].source === 'reload' || ev[i].source === 'auto_refresh' || ev[i].source === 'comptabilite'; if (estImporte) { d.innerHTML = `<span style="flex:2;color:#e2e8f0;padding:8px;font-weight:500;">${escapeHtml(nomComplet)}</span><span style="color:#94a3b8;padding:8px;">${ev[i].sexe || 'M'}</span><span class="eleve-importe">🔒 Importé</span><span class="eleve-importe-lock" title="Impossible de modifier un élève importé de la comptabilité">🔒</span>`; } else { d.innerHTML = `<input type="text" value="${escapeHtml(nomComplet)}" placeholder="Nom complet" onchange="window.updEleve(${i},'nom',this.value)" style="flex:2"><select onchange="window.updEleve(${i},'sexe',this.value)"><option value="M" ${ev[i].sexe=='M'?'selected':''}>M</option><option value="F" ${ev[i].sexe=='F'?'selected':''}>F</option></select><span onclick="window.delEleve(${i})" style="cursor:pointer;color:#ef4444;padding:8px;">X</span>`; } c.appendChild(d); } if (ev.length === 0) c.innerHTML += '<div class="empty-state">Aucun élève inscrit</div>'; updateExportSelect(); mettreAJourCompteurEleves(); }
 
 window.updEleve = function(i, f, v) { let eleve = currentFiche.eleves[i]; if (!eleve) return; const estImporte = eleve.source === 'auto' || eleve.source === 'reload' || eleve.source === 'auto_refresh' || eleve.source === 'comptabilite'; if (estImporte) { toast("🔒 Impossible de modifier un élève importé de la comptabilité", 'error'); return; } if (f === 'nom' && (!v || v.trim() === '')) { toast("Le nom de l'élève ne peut pas être vide", 'error'); return; } currentFiche.eleves[i][f] = v; afficherEleves(); afficherCotation(); updateExportSelect(); refreshGroupes(); rafraichirGroupesPourCotation(); mettreAJourCompteurEleves(); mettreAJourStatsFiche(); toast("Élève modifié", 'success'); };
 
