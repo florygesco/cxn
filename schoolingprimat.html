@@ -420,12 +420,12 @@ body.light-mode #loginError{color:#b91c1c !important;}
 </div></div>
 <div id="tabEpreuves" class="tab-content"><div class="card"><div class="card-header">ÉPREUVES PAR TRIMESTRE</div><div class="fiche-selector"><select id="epreuveFicheSelector"></select></div><div id="epreuvesContainer"></div>
 <div class="btn-group" style="padding:0 20px 20px 20px;margin:0" id="epreuvesButtonsContainer">
-<button class="btn btn-sm" id="addEpreuve1">+ T1 P1</button>
-<button class="btn btn-sm" id="addEpreuve2">+ T1 P2</button>
-<button class="btn btn-sm" id="addEpreuve3">+ T2 P3</button>
-<button class="btn btn-sm" id="addEpreuve4">+ T2 P4</button>
-<button class="btn btn-sm" id="addEpreuve5">+ T3 P5</button>
-<button class="btn btn-sm" id="addEpreuve6">+ T3 P6</button>
+<button class="btn btn-sm" id="addEpreuve1">+ PÉRIODE 1</button>
+<button class="btn btn-sm" id="addEpreuve2">+ PÉRIODE 2</button>
+<button class="btn btn-sm" id="addEpreuve3">+ PÉRIODE 3</button>
+<button class="btn btn-sm" id="addEpreuve4">+ PÉRIODE 4</button>
+<button class="btn btn-sm" id="addEpreuve5">+ PÉRIODE 5</button>
+<button class="btn btn-sm" id="addEpreuve6">+ PÉRIODE 6</button>
 </div></div></div>
 <div id="tabCorrection" class="tab-content"><div class="card"><div class="card-header">📝 CORRECTION - MODE SAISIE MANUELLE</div>
 <div class="fiche-selector"><label>📁 Cahier à coter :</label><select id="correctionFicheSelector"></select></div>
@@ -1885,15 +1885,7 @@ document.getElementById('exportCurrentBtn').onclick = async function() {
       hd = [['N°', 'NOMS COMPLETS', 'SEXE']];
       const libellesTrimestres = ['PREMIER TRIMESTRE', 'DEUXIÈME TRIMESTRE', 'TROISIÈME TRIMESTRE'];
       for (let t = 1; t <= 3; t++) {
-        let eps = currentFiche.epreuvesParPeriode?.[t] || [];
-        if (eps.length > 0) {
-          for (let ei = 0; ei < eps.length; ei++) {
-            let ep = eps[ei];
-            hd[0].push(libellesTrimestres[t-1] + '\n' + (ep.nom || 'Éval'));
-          }
-        } else {
-          hd[0].push(libellesTrimestres[t-1]);
-        }
+        hd[0].push(libellesTrimestres[t-1]);
       }
       hd[0].push('TOTAL ANNÉE');
       
@@ -1908,9 +1900,9 @@ document.getElementById('exportCurrentBtn').onclick = async function() {
           if (eps.length > 0) {
             for (let ei = 0; ei < eps.length; ei++) {
               let val = (e.notes && e.notes['p' + t] && e.notes['p' + t][ei] !== undefined) ? e.notes['p' + t][ei] : 0;
-              row.push(val);
               totalTrim += val;
             }
+            row.push(totalTrim);
           } else {
             row.push('-');
           }
@@ -1921,29 +1913,22 @@ document.getElementById('exportCurrentBtn').onclick = async function() {
       }
     } else {
       hd = [['N°', 'NOMS COMPLETS', 'SEXE']];
-      for (let t = 1; t <= 3; t++) {
-        let p1 = (t - 1) * 2 + 1;
-        let p2 = (t - 1) * 2 + 2;
-        let epsP1 = currentFiche.epreuvesParPeriode?.[p1] || [];
-        let epsP2 = currentFiche.epreuvesParPeriode?.[p2] || [];
-        if (epsP1.length > 0) {
-          for (let ei = 0; ei < epsP1.length; ei++) {
-            hd[0].push('PÉRIODE ' + p1 + '\n' + (epsP1[ei].nom || 'Épreuve'));
-          }
-        } else {
-          hd[0].push('PÉRIODE ' + p1);
-        }
-        hd[0].push('MOYENNE P' + p1);
-        if (epsP2.length > 0) {
-          for (let ei = 0; ei < epsP2.length; ei++) {
-            hd[0].push('PÉRIODE ' + p2 + '\n' + (epsP2[ei].nom || 'Épreuve'));
-          }
-        } else {
-          hd[0].push('PÉRIODE ' + p2);
-        }
-        hd[0].push('MOYENNE P' + p2);
-        hd[0].push('EXAMEN T' + t, 'TOTAL T' + t);
-      }
+      
+      hd[0].push('1ère PÉRIODE');
+      hd[0].push('2ème PÉRIODE');
+      hd[0].push('EXAMEN');
+      hd[0].push('TOTAL 1er TRIMESTRE');
+      
+      hd[0].push('3ème PÉRIODE');
+      hd[0].push('4ème PÉRIODE');
+      hd[0].push('EXAMEN');
+      hd[0].push('TOTAL 2ème TRIMESTRE');
+      
+      hd[0].push('5ème PÉRIODE');
+      hd[0].push('6ème PÉRIODE');
+      hd[0].push('EXAMEN');
+      hd[0].push('TOTAL 3ème TRIMESTRE');
+      
       hd[0].push('TOTAL ANNÉE');
       
       bd = [];
@@ -1951,23 +1936,16 @@ document.getElementById('exportCurrentBtn').onclick = async function() {
         const e = currentFiche.eleves[i];
         const row = [(i + 1).toString(), getNomComplet(e).toUpperCase(), e.sexe === 'F' ? 'F' : 'M'];
         let totalAnnuel = 0;
+        
         for (let t = 1; t <= 3; t++) {
           let p1 = (t - 1) * 2 + 1;
           let p2 = (t - 1) * 2 + 2;
           let totalTrim = 0;
           
-          for (let ei = 0; ei < (currentFiche.epreuvesParPeriode?.[p1] || []).length; ei++) {
-            let val = e.notes?.['p' + p1]?.[ei] || 0;
-            row.push(val);
-          }
           let p1m = calcMoy(p1, e.notes?.['p' + p1] || []);
           row.push(p1m);
           totalTrim += p1m;
           
-          for (let ei = 0; ei < (currentFiche.epreuvesParPeriode?.[p2] || []).length; ei++) {
-            let val = e.notes?.['p' + p2]?.[ei] || 0;
-            row.push(val);
-          }
           let p2m = calcMoy(p2, e.notes?.['p' + p2] || []);
           row.push(p2m);
           totalTrim += p2m;
@@ -1975,9 +1953,11 @@ document.getElementById('exportCurrentBtn').onclick = async function() {
           let ex = e.notes?.['exam' + t] || 0;
           row.push(ex);
           totalTrim += ex;
+          
           row.push(totalTrim);
           totalAnnuel += totalTrim;
         }
+        
         row.push(totalAnnuel);
         bd.push(row);
       }
@@ -1987,20 +1967,16 @@ document.getElementById('exportCurrentBtn').onclick = async function() {
     
     if (!isMaternelle) {
       let maxRow = ['MAX', '', ''];
+      
       for (let t = 1; t <= 3; t++) {
         let p1 = (t - 1) * 2 + 1;
         let p2 = (t - 1) * 2 + 2;
-        let epsP1 = currentFiche.epreuvesParPeriode?.[p1] || [];
-        let epsP2 = currentFiche.epreuvesParPeriode?.[p2] || [];
-        for (let ei = 0; ei < epsP1.length; ei++) {
-          maxRow.push(epsP1[ei].max || 20);
-        }
+        let totalTrimMax = pMax + pMax + examMax;
+        
         maxRow.push(pMax);
-        for (let ei = 0; ei < epsP2.length; ei++) {
-          maxRow.push(epsP2[ei].max || 20);
-        }
         maxRow.push(pMax);
-        maxRow.push(examMax, '');
+        maxRow.push(examMax);
+        maxRow.push(totalTrimMax);
       }
       maxRow.push('');
       allData.push(maxRow);
