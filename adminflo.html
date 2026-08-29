@@ -374,18 +374,13 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 </div>
 <div id="tab5" class="tab-panel">
 <div class="card">
-<div class="card-header">
-<div class="card-header-left">👨‍🏫 Teachers Management</div>
-<div class="card-header-actions">
-<button class="btn btn-refresh btn-sm" id="refreshTeachersBtn">⟳</button>
-</div>
-</div>
+<div class="card-header">👨‍🏫 Teachers <span class="count" id="countTeachers">0</span></div>
 <div class="card-body">
 <div class="filter-row">
-<div class="filter-group"><span class="filter-icon">🔍</span><input type="text" id="teacherSearch" placeholder="Search by name..." /></div>
+<div class="filter-group"><span class="filter-icon">🔍</span><input type="text" id="teacherSearch" placeholder="Search..." /></div>
 <div class="filter-group"><span class="filter-icon">🏫</span><select id="teacherEcoleFilter"><option value="all">All Schools</option></select></div>
 </div>
-<div id="teachersContainer"><div class="empty-state">👨‍🏫 No teachers found</div></div>
+<div id="teachersContainer"><div class="empty-state">No teachers</div></div>
 </div>
 </div>
 </div>
@@ -484,11 +479,11 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 <div id="logoPreviewContainer" style="text-align:center;margin:8px 0;display:none;"><img id="logoPreviewImg" src="" alt="Preview" style="max-width:80px;max-height:80px;border-radius:8px;border:2px solid var(--border-color);" /></div>
 <div class="modal-buttons"><button class="btn btn-success" id="logoValidateBtn">💾 Save</button><button class="btn btn-outline" id="logoCancelBtn">Cancel</button></div>
 </div></div>
-<div class="modal-overlay" id="actionDropdownOverlay"><div class="action-dropdown-box" id="actionDropdownBox"><div style="position:relative;padding-right:30px;"><button class="close-btn" id="actionDropdownClose" style="position:absolute;top:-4px;right:-6px;background:transparent;border:none;color:var(--text-muted);font-size:22px;cursor:pointer;transition:var(--transition);">✕</button><div class="title">⚡ Actions</div></div><div id="actionDropdownItems"></div></div></div>
+<div class="action-dropdown-overlay" id="actionDropdownOverlay"><div class="action-dropdown-box" id="actionDropdownBox"><div style="position:relative;padding-right:30px;"><button class="close-btn" id="actionDropdownClose" style="position:absolute;top:-4px;right:-6px;background:transparent;border:none;color:var(--text-muted);font-size:22px;cursor:pointer;transition:var(--transition);">✕</button><div class="title">⚡ Actions</div></div><div id="actionDropdownItems"></div></div></div>
 <script type="module">
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc } from "firebase/firestore";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 
 const firebaseConfigA = {apiKey: "AIzaSyDX430AIfzzgfq3o8tXHwQfIptgWOZ-K8c", authDomain: "gesco-67c43.firebaseapp.com", projectId: "gesco-67c43", storageBucket: "gesco-67c43.firebasestorage.app", messagingSenderId: "333004443566", appId: "1:333004443566:web:de41f60000e418dce9023f"};
 const firebaseConfigB = {apiKey: "AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw", authDomain: "gesco-2.firebaseapp.com", projectId: "gesco-2", storageBucket: "gesco-2.firebasestorage.app", messagingSenderId: "36319988765", appId: "1:36319988765:web:e8cd823804596495248af4"};
@@ -500,7 +495,7 @@ const dbB = getFirestore(appB);
 const auth = getAuth(appA);
 
 // ============================================
-// DIAGNOSTIC
+// DIAGNOSTIC - ONGLET SÉPARÉ
 // ============================================
 
 let diagnosticsCache = [];
@@ -1035,32 +1030,40 @@ function loadSchools() {
     schools.forEach(s => {
         const estMasquee = s.masque === true;
         const estActive = s.actif !== false;
-        const code = allData.codes.find(c => c.ecoleId === s.id);
-        const codeDir = code?.codeDirection || 'Non défini';
+        const teacherCount = allData.teachers.filter(t => t.ecoleId === s.id).length;
+        const sheetCount = allData.sheets.filter(f => f.ecoleId === s.id).length;
         
-        const masqueStyle = estMasquee ? 'opacity:0.6;border-left:4px solid #f59e0b;' : '';
-        const masqueBadge = estMasquee ? '👻 ' : '';
+        const masqueStyle = estMasquee ? 'opacity:0.5;border-left:4px solid #f59e0b;border:1px dashed rgba(251,191,36,0.2);' : '';
         
-        html += `<div class="school-item" style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border-color);${masqueStyle}">
-            <div style="flex:1;">
-                <div style="font-weight:700;font-size:14px;color:var(--text-primary);">
-                    ${masqueBadge}${escapeHtml(s.nom)}
-                    ${estMasquee ? '<span style="font-size:9px;color:#f59e0b;font-weight:600;margin-left:8px;">MASQUÉE</span>' : ''}
-                    ${!estActive ? '<span style="font-size:9px;color:#ef4444;font-weight:600;margin-left:8px;">INACTIVE</span>' : ''}
+        html += `<div class="school-item" data-school-id="${s.id}" style="${masqueStyle}">
+            <div class="school-left" style="flex:1;min-width:160px;">
+                <div class="school-name" style="font-size:13px;font-weight:700;color:var(--text-primary);">
+                    ${escapeHtml(s.nom)} 
+                    ${estMasquee ? '<span style="font-size:9px;color:#f59e0b;font-weight:600;">👻 MASQUÉE</span>' : ''}
+                    <span style="font-size:9px;color:var(--text-muted);font-family:monospace;background:rgba(255,255,255,0.02);padding:1px 6px;border-radius:4px;margin-left:6px;">🆔 ${escapeHtml(s.id)}</span>
                 </div>
-                <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-top:2px;">🆔 ${escapeHtml(s.id)}</div>
+                <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">
+                    <span>📍 ${escapeHtml(s.province || '-')}</span> 
+                    <span>🏙️ ${escapeHtml(s.ville || '-')}</span>
+                </div>
+                <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:3px;">
+                    ${estMasquee ? '<span class="badge badge-warning">👻 Masquée</span>' : ''}
+                    ${estActive ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Inactive</span>'}
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:3px;">
+                    <span style="font-size:9px;font-weight:600;color:var(--text-secondary);background:rgba(255,255,255,0.02);padding:1px 8px;border-radius:4px;">👨‍🏫 ${teacherCount}</span>
+                    <span style="font-size:9px;font-weight:600;color:var(--text-secondary);background:rgba(255,255,255,0.02);padding:1px 8px;border-radius:4px;">📄 ${sheetCount}</span>
+                </div>
             </div>
-            <div style="display:flex;align-items:center;gap:16px;">
-                <div style="text-align:center;">
-                    <div style="font-size:10px;color:var(--text-muted);font-weight:600;">CODE</div>
-                    <div style="font-size:14px;font-weight:700;color:#8B5CF6;font-family:monospace;letter-spacing:2px;">${escapeHtml(codeDir)}</div>
-                </div>
-                <button class="btn btn-outline btn-sm btn-action" data-school-id="${s.id}" style="padding:6px 14px;font-size:10px;">⚡ Actions</button>
+            <div style="flex-shrink:0;width:48px;height:48px;border-radius:10px;overflow:hidden;background:rgba(255,255,255,0.02);border:2px solid var(--border-color);display:flex;align-items:center;justify-content:center;transition:var(--transition);">
+                ${s.logoUrl ? `<img src="${escapeHtml(s.logoUrl)}" alt="${escapeHtml(s.nom)}" style="width:100%;height:100%;object-fit:cover;" />` : `<span style="font-size:20px;">🏫</span>`}
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:auto;">
+                <button class="btn btn-outline btn-sm btn-action" data-school-id="${s.id}">⚡ Actions</button>
             </div>
         </div>`;
     });
     container.innerHTML = html;
-    
     container.querySelectorAll('.btn-action').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -1244,51 +1247,19 @@ const search = document.getElementById('teacherSearch')?.value?.toLowerCase() ||
 let teachers = allData.teachers;
 if (filter !== "all") teachers = teachers.filter(t => t.ecoleId === filter);
 if (search) teachers = teachers.filter(t => t.nom?.toLowerCase().includes(search));
-if (!teachers.length) { 
-    container.innerHTML = '<div class="empty-state">👨‍🏫 Aucun professeur trouvé</div>'; 
-    return; 
-}
-let html = '';
-teachers.forEach((t, index) => {
-    const emailValid = t.email && t.email.includes('@');
-    html += `
-    <div style="display:grid;grid-template-columns:auto 1fr auto auto auto;gap:8px;align-items:center;padding:10px 14px;background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:8px;margin-bottom:6px;transition:var(--transition);">
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);">#${index + 1}</div>
-        <div>
-            <div style="font-weight:700;font-size:14px;color:var(--text-primary);">${escapeHtml(t.nom)}</div>
-            <div style="font-size:10px;color:var(--text-muted);">🏫 ${escapeHtml(t.ecoleNom)}</div>
-        </div>
-        <div style="text-align:center;">
-            <div style="font-size:9px;color:var(--text-muted);font-weight:600;">EMAIL</div>
-            <div style="font-size:11px;color:${emailValid ? 'var(--green)' : 'var(--text-muted)'};">${t.email ? escapeHtml(t.email) : '—'}</div>
-        </div>
-        <div style="text-align:center;">
-            <div style="font-size:9px;color:var(--text-muted);font-weight:600;">CODE</div>
-            <div style="font-size:13px;font-weight:700;color:#8B5CF6;font-family:monospace;letter-spacing:1px;">${t.code || '—'}</div>
-        </div>
-        <div>
-            <button class="btn btn-danger btn-sm delete-teacher" data-teacher-id="${t.id}" style="padding:4px 10px;font-size:9px;">🗑️</button>
-        </div>
-    </div>
-    `;
+if (!teachers.length) { container.innerHTML = '<div class="empty-state">👨‍🏫 No teachers found</div>'; return; }
+let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;">';
+teachers.forEach(t => {
+const emailValid = t.email && t.email.includes('@');
+html += `<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:8px;padding:10px 12px;">
+<div style="font-weight:700;font-size:13px;color:var(--text-primary);">${escapeHtml(t.nom)}</div>
+<div style="font-size:10px;color:var(--text-secondary);">📧 ${t.email ? escapeHtml(t.email) : '<span style="color:var(--text-muted)">No email</span>'}</div>
+<div style="font-size:10px;color:var(--text-secondary);">🔑 <span style="font-family:monospace;color:#8B5CF6;">${t.code || '---'}</span></div>
+<div style="font-size:9px;color:var(--text-muted);">🏫 ${escapeHtml(t.ecoleNom)}</div>
+</div>`;
 });
+html += '</div>';
 container.innerHTML = html;
-
-container.querySelectorAll('.delete-teacher').forEach(btn => {
-    btn.addEventListener('click', async function() {
-        const teacherId = this.dataset.teacherId;
-        const teacher = allData.teachers.find(t => t.id === teacherId);
-        if (!teacher) return;
-        if (!await showCodeModal()) return;
-        if (!await showConfirm('⚠️ Supprimer <strong>' + escapeHtml(teacher.nom) + '</strong> définitivement ?')) return;
-        try {
-            const db = getDb();
-            await deleteDoc(doc(db, "ecoles", teacher.ecoleId, "professeurs", teacherId));
-            toast('🗑️ Professeur supprimé', 'success');
-            await loadAllData();
-        } catch(e) { toast('Erreur: ' + e.message, 'error'); }
-    });
-});
 }
 
 function loadSheets() {
@@ -1454,8 +1425,6 @@ document.getElementById('codesEmailsEcoleFilter')?.addEventListener('change', lo
 document.getElementById('codeEcoleSelect')?.addEventListener('change', loadParentCodes);
 document.getElementById('codeSearchInput')?.addEventListener('input', loadParentCodes);
 document.getElementById('clearCacheBtn')?.addEventListener('click', clearCache);
-document.getElementById('refreshTeachersBtn')?.addEventListener('click', loadTeachers);
-document.getElementById('refreshEcolesBtn')?.addEventListener('click', loadSchools);
 
 document.getElementById('totalMemberEcoleFilter')?.addEventListener('change', loadTotalMembers);
 document.getElementById('totalMemberSearch')?.addEventListener('input', loadTotalMembers);
