@@ -158,7 +158,6 @@ body{overscroll-behavior:none;-webkit-overscroll-behavior:none;}
 .horaire-list-container{background:#0f172a;border-radius:16px;overflow:hidden;}
 .horaire-item{display:flex;align-items:center;gap:12px;background:#0f172a;padding:14px 16px;border-bottom:1px solid #1e293b;cursor:pointer;transition:background 0.2s;}
 .horaire-item:last-child{border-bottom:none;}
-.horaire-item:hover{background:#1e293b;}
 .horaire-numero{font-weight:bold;color:#60a5fa;min-width:80px;font-size:14px;}
 .horaire-info-hidden{flex:1;color:#cbd5e1;font-size:13px;text-align:center;}
 .horaire-pause{opacity:0.6;cursor:default;}
@@ -2098,87 +2097,48 @@ async function traiterMessage(message) {
 const msg = message.toLowerCase().trim();
 const nomEcole = schoolId ? schoolId.toUpperCase().replace(/-/g, ' ') : 'COMPLEXE SCOLAIRE';
 
+const demandeNotesExplicite = /(ses notes|notes de cours|ses notes de cours|notes|note|bulletin|résultat|resultat|les notes|voir notes|afficher notes|montrer notes|la note|sa note)/i;
+const demandeFraisExplicite = /(frais|finance|situation financière|payer|minerval|argent|dette|scolarité|situation financiere|comptabilité|comptabilite|payé|impayé|reste|total|facture|mensualité|mensualite)/i;
+const demandePunitionsExplicite = /(punition|punitions|sanction|sanctions|comportement|discipline|puni|punie|exclusion|avertissement|retenue|blâme|conseil de discipline)/i;
+
+if (dernierEleveData) {
+    if (demandeNotesExplicite.test(message)) {
+        contexteConversation.dernierSujet = 'notes';
+        contexteConversation.dernierSujetDemande = 'notes';
+        contexteConversation.enAttenteConfirmation = false;
+        const reponse = await genererReponseNotes(dernierEleveData);
+        if (currentParentCode) await mettreAJourCompteurAffichage(currentParentCode);
+        return reponse;
+    }
+    
+    if (demandeFraisExplicite.test(message)) {
+        contexteConversation.dernierSujet = 'frais';
+        contexteConversation.dernierSujetDemande = 'frais';
+        contexteConversation.enAttenteConfirmation = false;
+        const reponse = await genererReponseFrais(dernierEleveData);
+        if (currentParentCode) await mettreAJourCompteurAffichage(currentParentCode);
+        return reponse;
+    }
+    
+    if (demandePunitionsExplicite.test(message)) {
+        const section = dernierEleveData.section;
+        if (section === "MATERNELLE" || section === "PRIMAIRE") {
+            const reponse = `Je suis désolé, les punitions ne sont pas disponibles pour la section ${section}. Voulez-vous voir ses notes ou sa situation financière ? Tapez "notes" ou "frais".`;
+            if (currentParentCode) await mettreAJourCompteurAffichage(currentParentCode);
+            return reponse;
+        }
+        contexteConversation.dernierSujet = 'punitions';
+        contexteConversation.dernierSujetDemande = 'punitions';
+        contexteConversation.enAttenteConfirmation = false;
+        const reponse = await genererReponsePunitions(dernierEleveData);
+        if (currentParentCode) await mettreAJourCompteurAffichage(currentParentCode);
+        return reponse;
+    }
+}
+
 const reponsesPositives = ['oui', 'o', 'ouais', 'ouep', 'oe', 'ok', 'okay', 'okey', 'oké', 'oki', 'd\'accord', 'd accord', 'dac', 'dak', 'vas-y', 'vas y', 'allez', 'allons-y', 'go', 'go!', 'c\'est bon', 'cest bon', 'ça marche', 'ca marche', 'ça me va', 'ca me va', 'ça va', 'ca va', 'yes', 'y', 'yep', 'yeah', 'yup', 'affirmatif', 'affirmative', 'absolument', 'certainement', 'assurément', 'avec plaisir', 'volontiers', 'bien sûr', 'bien sur', 'sans problème', 'sans souci', 'aucun problème', 'aucun souci', 'je confirme', 'je valide', 'je suis d\'accord', 'je suis ok', 'je suis partant', 'je veux', 'je le veux', 'je souhaite', 'je souhaite voir', 'je voudrais', 'je désire', 'je desire', 'pourquoi pas', 'faites-le', 'faites le', 'fais-le', 'fais le', 'continue', 'continuer', 'poursuivre', 'continuez', 'envoyer', 'envoie', 'montre', 'montrez', 'affiche', 'affichez', 'présente', 'presente', 'montrez-moi', 'montre-moi', 'oui bien sûr', 'oui bien sur', 'oui merci', 'oui svp', 'oui s\'il vous plaît', 'oui s il vous plait', 'oui stp', 'oui je confirme'];
 
 const reponsesNegatives = ['non', 'n', 'non non', 'nan', 'nope', 'no', 'nah', 'nop', 'pas question', 'pas du tout', 'jamais', 'non merci', 'pas maintenant', 'plus tard', 'attends', 'attendez', 'stop', 'non je ne souhaite pas', 'non je ne veux pas', 'je ne veux pas', 'je ne souhaite pas', 'je ne désire pas', 'je ne suis pas intéressé', 'pas intéressé', 'pas pour l\'instant', 'non je confirme pas', 'non je ne confirme pas', 'négatif', 'negative', 'rien', 'non rien', 'non c\'est non', 'non non et non', 'je refuse', 'refuse', 'refuser', 'pas d\'accord', 'pas d accord', 'pas ok', 'pas okay', 'pas okey', 'non ok'];
-
-const motsPunitions = [
-    'punition', 'punitions', 'sanction', 'sanctions', 
-    'puni', 'punie', 'comportement', 'discipline', 
-    'exclusion', 'avertissement', 'retenue', 'blâme', 
-    'conseil de discipline', 'mauvaise conduite',
-    'punution', 'punutions', 'punnition', 'punnitions',
-    'puniton', 'punitons', 'punituin', 'punituins',
-    'punision', 'punisions', 'punitione', 'punitiones',
-    'punitin', 'punitins', 'punutin', 'punutins',
-    'je veux voir les punutions', 'voir punutions',
-    'afficher punutions', 'montrer punutions', 'les punutions'
-];
-
-const motsFrais = [
-    'frais', 'finance', 'finances', 'argent', 'dette', 
-    'payer', 'minerval', 'paiement', 'cout', 'prix', 
-    'facture', 'scolarité', 'mensualité', 'reste', 
-    'impayé', 'payé', 'crédit', 'solde', 'montant', 
-    'total', 'annuel', 'mois', 'la finance', 
-    'situation financière', 'situation financiere', 
-    'comptabilité', 'comptabilite', 'financier', 
-    'financiere', 'bordereau', 'recu', 'reçu',
-    'finence', 'finanse', 'finense', 'financ', 
-    'financce', 'finnance', 'finnanse',
-    'frrais', 'fraix', 'frè', 'frès',
-    'minervale', 'minervalle',
-    'scolarite', 'scolaritée', 'scolarté',
-    'comptabilite', 'comptabilité',
-    'bordereaux', 'bordero',
-    'mensualite', 'mensualitée',
-    'financier', 'financiere',
-    'impaye', 'impayée', 'impayer',
-    'paye', 'payer', 'payée',
-    'reste a payer', 'reste à payer',
-    'credit', 'credite'
-];
-
-const motsNotes = [
-    'note', 'notes', 'résultat', 'résultats', 
-    'bulletin', 'point', 'points', 'epreuve', 
-    'epreuves', 'devoir', 'devoirs', 'interro', 
-    'interrogation', 'matière', 'matières', 'cours', 
-    'contrôle', 'évaluation', 'test', 'examen', 
-    'exercice', 'pratique', 'travaille pratique', 
-    'travail en groupe', 'noté', 'notation', 
-    'meilleure note', 'moyenne', 'classement', 
-    'rang', 'position', 'performance', 
-    'résultat scolaire', 'bulletin scolaire',
-    'note de cours', 'note d\'examen', 'note de devoir',
-    'notte', 'nottes', 'not', 'nots', 'notté',
-    'resultat', 'résulta', 'resulta', 'resultats',
-    'bullettin', 'buletin', 'bulitain', 'bulettin',
-    'poin', 'poins', 'pointe', 'pointes',
-    'épreuve', 'épreuves', 'epreuve', 'epreuves',
-    'devoire', 'devuere', 'devuers',
-    'interogation', 'interrog', 'interog',
-    'matiere', 'matieres', 'matiers',
-    'cour', 'contrôlle', 'controlee', 'contrôlée',
-    'evaluation', 'évaluation', 'evalution', 'évalution',
-    'teste', 'testes',
-    'examan', 'exanmen', 'examain', 'examein',
-    'exercisse', 'exersice', 'exersise',
-    'moyene', 'moienne', 'moiene',
-    'clasement', 'classemant', 'clasemant',
-    'performence', 'perfomance', 'performanse',
-    'voir les notes', 'afficher les notes', 'montrer les notes',
-    'je veux voir les notes', 'je veux les notes',
-    'donne moi les notes', 'donne-moi les notes',
-    'quelle note', 'quelles notes',
-    'combien il a eu', 'combien elle a eu',
-    'sa note', 'ses notes', 'le bulletin',
-    'afficher le bulletin', 'montrer le bulletin',
-    'résultat de', 'resultat de',
-    'note en', 'note de', 'point en', 'points en',
-    'évaluation de', 'evaluation de',
-    'test de', 'examen de', 'devoir de', 'interro de'
-];
 
 if (dernierEleveData && contexteConversation.enAttenteConfirmation) {
     const msgLower = message.toLowerCase().trim();
@@ -2521,6 +2481,38 @@ if (matchCombien) {
         return reponse;
     }
 }
+
+const motsFrais = [
+    'frais', 'finance', 'finances', 'argent', 'dette', 
+    'payer', 'minerval', 'paiement', 'cout', 'prix', 
+    'facture', 'scolarité', 'mensualité', 'reste', 
+    'impayé', 'payé', 'crédit', 'solde', 'montant', 
+    'total', 'annuel', 'mois', 'la finance', 
+    'situation financière', 'situation financiere', 
+    'comptabilité', 'comptabilite', 'financier', 
+    'financiere', 'bordereau', 'recu', 'reçu'
+];
+
+const motsNotes = [
+    'note', 'notes', 'résultat', 'résultats', 
+    'bulletin', 'point', 'points', 'epreuve', 
+    'epreuves', 'devoir', 'devoirs', 'interro', 
+    'interrogation', 'matière', 'matières', 'cours', 
+    'contrôle', 'évaluation', 'test', 'examen', 
+    'exercice', 'pratique', 'travaille pratique', 
+    'travail en groupe', 'noté', 'notation', 
+    'meilleure note', 'moyenne', 'classement', 
+    'rang', 'position', 'performance', 
+    'résultat scolaire', 'bulletin scolaire',
+    'note de cours', 'note d\'examen', 'note de devoir'
+];
+
+const motsPunitions = [
+    'punition', 'punitions', 'sanction', 'sanctions', 
+    'puni', 'punie', 'comportement', 'discipline', 
+    'exclusion', 'avertissement', 'retenue', 'blâme', 
+    'conseil de discipline', 'mauvaise conduite'
+];
 
 if (motsFrais.some(m => message.toLowerCase().includes(m))) {
 contexteConversation.dernierSujet = 'frais';
