@@ -2944,7 +2944,6 @@ ${onConfirm ? `<button id="styledConfirmOk" style="background:#dc2626;color:#fff
         }
     }
 
-    // ===== FONCTION RECHERCHE ÉLÈVE AVEC TOUTES LES MATIÈRES ET MAX PAR MATIÈRE =====
     function getMaxForPeriode(fiche, periode) {
         const eps = fiche.epreuvesParPeriode?.[periode] || [];
         let totalMax = 0;
@@ -2979,6 +2978,12 @@ ${onConfirm ? `<button id="styledConfirmOk" style="background:#dc2626;color:#fff
                     
                     const eleveData = eleveMap.get(key);
                     const notes = getNotesForEleveTitu(e, f);
+                    
+                    const totalNotes = notes.p1 + notes.p2 + notes.p3 + notes.p4 + notes.exam1 + notes.exam2;
+                    
+                    if (totalNotes === 0) {
+                        continue;
+                    }
                     
                     const p1Max = getMaxForPeriode(f, 1);
                     const p2Max = getMaxForPeriode(f, 2);
@@ -3017,14 +3022,21 @@ ${onConfirm ? `<button id="styledConfirmOk" style="background:#dc2626;color:#fff
         
         const resultats = [];
         for (const [key, data] of eleveMap) {
-            data.matieres.sort((a, b) => a.cours.localeCompare(b.cours));
-            resultats.push({
-                nomEleve: data.nomEleve,
-                sexe: data.sexe,
-                classe: data.classe,
-                option: data.option,
-                matieres: data.matieres
+            const matieresFiltrees = data.matieres.filter(m => {
+                const total = m.p1 + m.p2 + m.p3 + m.p4 + m.exam1 + m.exam2;
+                return total > 0;
             });
+            
+            if (matieresFiltrees.length > 0) {
+                matieresFiltrees.sort((a, b) => a.cours.localeCompare(b.cours));
+                resultats.push({
+                    nomEleve: data.nomEleve,
+                    sexe: data.sexe,
+                    classe: data.classe,
+                    option: data.option,
+                    matieres: matieresFiltrees
+                });
+            }
         }
         
         return resultats;
@@ -3053,7 +3065,6 @@ ${onConfirm ? `<button id="styledConfirmOk" style="background:#dc2626;color:#fff
 
     function prefillTitulaireNom() { if (currentProf && currentProf.nom) { const input = document.getElementById('titulaireNomInput'); if (input) { const savedConfig = localStorage.getItem('gloria_titulaire_config'); if (!savedConfig) input.value = currentProf.nom; } } }
 
-    // ===== BOUTON CONFIGURATION AVEC ANIMATION =====
     document.getElementById('saveTitulaireConfigBtn').onclick = async function() {
         const btn = this;
         btn.classList.add('saving');
@@ -3108,7 +3119,6 @@ ${onConfirm ? `<button id="styledConfirmOk" style="background:#dc2626;color:#fff
         );
     };
 
-    // ===== BOUTON RECHERCHE ÉLÈVE =====
     document.getElementById('titulaireSearchBtn')?.addEventListener('click', () => {
         const nom = document.getElementById('titulaireSearchNom').value;
         if (!nom.trim()) { toast("Veuillez entrer un nom d'élève", 'error'); return; }
@@ -3167,7 +3177,6 @@ ${onConfirm ? `<button id="styledConfirmOk" style="background:#dc2626;color:#fff
                 </tr>
             `;
             
-            // Ligne MAX en ROUGE pour chaque matière
             tableHTML += `
                 <tr style="background:rgba(255,200,200,0.3);font-weight:bold;color:#ef4444;">
                     <td style="color:#ef4444;">MAX</td>
@@ -3195,7 +3204,6 @@ ${onConfirm ? `<button id="styledConfirmOk" style="background:#dc2626;color:#fff
         window.optionEleveTitu = premier.option;
     });
 
-    // ===== BOUTON EXPORT PDF AVEC ANIMATION =====
     document.getElementById('exportTitulaireRelevePdfBtn')?.addEventListener('click', async function() {
         const btn = this;
         if (btn.classList.contains('exporting-pdf')) return;
@@ -3245,9 +3253,9 @@ ${onConfirm ? `<button id="styledConfirmOk" style="background:#dc2626;color:#fff
             pdf.text('GESTION DE SCOLARITÉ - Année 2026-2027', 148, 28, { align: 'center' });
             
             pdf.setFont('helvetica', 'bold');
-            pdf.setFontSize(12);
-            pdf.setTextColor(0, 51, 102);
-            pdf.text('RELEVE DE NOTES INDIVIDUEL', 148, 38, { align: 'center' });
+            pdf.setFontSize(14);
+            pdf.setTextColor(139, 69, 19);
+            pdf.text('EXTRAIT DU BULLETIN', 148, 38, { align: 'center' });
             
             pdf.setFont('helvetica', 'normal');
             pdf.setFontSize(9);
@@ -3260,13 +3268,13 @@ ${onConfirm ? `<button id="styledConfirmOk" style="background:#dc2626;color:#fff
             yPos += 7;
             pdf.text('CLASSE : ' + (window.classeEleveTitu || ''), 20, yPos);
             yPos += 7;
-            if (window.optionEleveTitu) {
-                pdf.text('OPTION : ' + window.optionEleveTitu, 20, yPos);
-                yPos += 7;
-            }
+            const optionDisplay = window.optionEleveTitu || 'Non spécifiée';
+            pdf.text('OPTION : ' + optionDisplay, 20, yPos);
+            yPos += 7;
             pdf.text('Année scolaire : 2026-2027', 20, yPos);
             yPos += 7;
-            pdf.text('Nombre de matières : ' + (window.derniersResultatsTitu?.length || 0), 20, yPos);
+            const nbMatieres = window.derniersResultatsTitu?.length || 0;
+            pdf.text('Nombre de matières : ' + nbMatieres, 20, yPos);
             yPos += 10;
             pdf.line(20, yPos, 190, yPos);
             yPos += 8;
@@ -3274,7 +3282,27 @@ ${onConfirm ? `<button id="styledConfirmOk" style="background:#dc2626;color:#fff
             const headers = [['MATIERE', 'P1', 'P2', 'EXAM S1', 'TOT S1', 'P3', 'P4', 'EXAM S2', 'TOT S2', 'TOTAL']];
             const body = [];
             
+            let totalP1 = 0, totalP2 = 0, totalP3 = 0, totalP4 = 0;
+            let totalExam1 = 0, totalExam2 = 0;
+            let totalTotS1 = 0, totalTotS2 = 0, totalGeneral = 0;
+            let totalMaxP1 = 0, totalMaxP2 = 0, totalMaxP3 = 0, totalMaxP4 = 0;
+            let totalMaxExam1 = 0, totalMaxExam2 = 0;
+            let totalMaxS1 = 0, totalMaxS2 = 0, totalMaxGeneral = 0;
+            
             for (const m of window.derniersResultatsTitu) {
+                body.push([
+                    { content: 'MAX', styles: { textColor: [183, 28, 28], fontStyle: 'bold', fillColor: [255, 220, 220] } },
+                    { content: m.p1Max, styles: { textColor: [183, 28, 28], fontStyle: 'bold', fillColor: [255, 220, 220] } },
+                    { content: m.p2Max, styles: { textColor: [183, 28, 28], fontStyle: 'bold', fillColor: [255, 220, 220] } },
+                    { content: m.exam1Max, styles: { textColor: [183, 28, 28], fontStyle: 'bold', fillColor: [255, 220, 220] } },
+                    { content: m.totalS1Max, styles: { textColor: [183, 28, 28], fontStyle: 'bold', fillColor: [255, 220, 220] } },
+                    { content: m.p3Max, styles: { textColor: [183, 28, 28], fontStyle: 'bold', fillColor: [255, 220, 220] } },
+                    { content: m.p4Max, styles: { textColor: [183, 28, 28], fontStyle: 'bold', fillColor: [255, 220, 220] } },
+                    { content: m.exam2Max, styles: { textColor: [183, 28, 28], fontStyle: 'bold', fillColor: [255, 220, 220] } },
+                    { content: m.totalS2Max, styles: { textColor: [183, 28, 28], fontStyle: 'bold', fillColor: [255, 220, 220] } },
+                    { content: m.totalMax, styles: { textColor: [183, 28, 28], fontStyle: 'bold', fillColor: [255, 220, 220] } }
+                ]);
+                
                 body.push([
                     { content: m.cours.toUpperCase(), styles: { fontStyle: 'bold' } },
                     { content: m.p1, styles: { fillColor: [240, 247, 255] } },
@@ -3288,20 +3316,52 @@ ${onConfirm ? `<button id="styledConfirmOk" style="background:#dc2626;color:#fff
                     { content: m.total, styles: { fillColor: [255, 253, 231], fontStyle: 'bold' } }
                 ]);
                 
-                // Ligne MAX
-                body.push([
-                    { content: 'MAX', styles: { textColor: [183, 28, 28], fontStyle: 'bold' } },
-                    { content: m.p1Max, styles: { textColor: [183, 28, 28], fontStyle: 'bold' } },
-                    { content: m.p2Max, styles: { textColor: [183, 28, 28], fontStyle: 'bold' } },
-                    { content: m.exam1Max, styles: { textColor: [183, 28, 28], fontStyle: 'bold' } },
-                    { content: m.totalS1Max, styles: { textColor: [183, 28, 28], fontStyle: 'bold' } },
-                    { content: m.p3Max, styles: { textColor: [183, 28, 28], fontStyle: 'bold' } },
-                    { content: m.p4Max, styles: { textColor: [183, 28, 28], fontStyle: 'bold' } },
-                    { content: m.exam2Max, styles: { textColor: [183, 28, 28], fontStyle: 'bold' } },
-                    { content: m.totalS2Max, styles: { textColor: [183, 28, 28], fontStyle: 'bold' } },
-                    { content: m.totalMax, styles: { textColor: [183, 28, 28], fontStyle: 'bold' } }
-                ]);
+                totalP1 += m.p1 || 0;
+                totalP2 += m.p2 || 0;
+                totalP3 += m.p3 || 0;
+                totalP4 += m.p4 || 0;
+                totalExam1 += m.exam1 || 0;
+                totalExam2 += m.exam2 || 0;
+                totalTotS1 += m.totalS1 || 0;
+                totalTotS2 += m.totalS2 || 0;
+                totalGeneral += m.total || 0;
+                
+                totalMaxP1 += m.p1Max || 0;
+                totalMaxP2 += m.p2Max || 0;
+                totalMaxP3 += m.p3Max || 0;
+                totalMaxP4 += m.p4Max || 0;
+                totalMaxExam1 += m.exam1Max || 0;
+                totalMaxExam2 += m.exam2Max || 0;
+                totalMaxS1 += m.totalS1Max || 0;
+                totalMaxS2 += m.totalS2Max || 0;
+                totalMaxGeneral += m.totalMax || 0;
             }
+            
+            body.push([
+                { content: 'POINTS TOTAUX', styles: { fillColor: [249, 168, 37], fontStyle: 'bold', textColor: [0, 0, 0] } },
+                { content: totalP1, styles: { fillColor: [249, 168, 37], fontStyle: 'bold', textColor: [0, 0, 0] } },
+                { content: totalP2, styles: { fillColor: [249, 168, 37], fontStyle: 'bold', textColor: [0, 0, 0] } },
+                { content: totalExam1, styles: { fillColor: [249, 168, 37], fontStyle: 'bold', textColor: [0, 0, 0] } },
+                { content: totalTotS1, styles: { fillColor: [249, 168, 37], fontStyle: 'bold', textColor: [0, 0, 0] } },
+                { content: totalP3, styles: { fillColor: [249, 168, 37], fontStyle: 'bold', textColor: [0, 0, 0] } },
+                { content: totalP4, styles: { fillColor: [249, 168, 37], fontStyle: 'bold', textColor: [0, 0, 0] } },
+                { content: totalExam2, styles: { fillColor: [249, 168, 37], fontStyle: 'bold', textColor: [0, 0, 0] } },
+                { content: totalTotS2, styles: { fillColor: [249, 168, 37], fontStyle: 'bold', textColor: [0, 0, 0] } },
+                { content: totalGeneral, styles: { fillColor: [249, 168, 37], fontStyle: 'bold', textColor: [0, 0, 0] } }
+            ]);
+            
+            body.push([
+                { content: 'MAX GENERAUX', styles: { fillColor: [200, 230, 255], fontStyle: 'bold', textColor: [0, 0, 0] } },
+                { content: totalMaxP1, styles: { fillColor: [200, 230, 255], fontStyle: 'bold', textColor: [0, 0, 0] } },
+                { content: totalMaxP2, styles: { fillColor: [200, 230, 255], fontStyle: 'bold', textColor: [0, 0, 0] } },
+                { content: totalMaxExam1, styles: { fillColor: [200, 230, 255], fontStyle: 'bold', textColor: [0, 0, 0] } },
+                { content: totalMaxS1, styles: { fillColor: [200, 230, 255], fontStyle: 'bold', textColor: [0, 0, 0] } },
+                { content: totalMaxP3, styles: { fillColor: [200, 230, 255], fontStyle: 'bold', textColor: [0, 0, 0] } },
+                { content: totalMaxP4, styles: { fillColor: [200, 230, 255], fontStyle: 'bold', textColor: [0, 0, 0] } },
+                { content: totalMaxExam2, styles: { fillColor: [200, 230, 255], fontStyle: 'bold', textColor: [0, 0, 0] } },
+                { content: totalMaxS2, styles: { fillColor: [200, 230, 255], fontStyle: 'bold', textColor: [0, 0, 0] } },
+                { content: totalMaxGeneral, styles: { fillColor: [200, 230, 255], fontStyle: 'bold', textColor: [0, 0, 0] } }
+            ]);
             
             pdf.autoTable({
                 head: headers,
@@ -3313,7 +3373,7 @@ ${onConfirm ? `<button id="styledConfirmOk" style="background:#dc2626;color:#fff
                 alternateRowStyles: { fillColor: [245, 245, 245] }
             });
             
-            pdf.save('Releve_' + (window.nomEleveRechercheTitu || 'eleve').replace(/\s/g, '_') + '.pdf');
+            pdf.save('Extrait_Bulletin_' + (window.nomEleveRechercheTitu || 'eleve').replace(/\s/g, '_') + '.pdf');
             
             btn.classList.remove('exporting-pdf');
             btn.classList.add('exported');
