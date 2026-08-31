@@ -2894,37 +2894,46 @@ ${onConfirm ? `<button id="styledConfirmOk" style="background:#dc2626;color:#fff
         const nomLower = nom.toLowerCase().trim();
         if (!nomLower) return [];
         const resultats = [];
+        
         for (const f of toutesFichesCompletTitu) {
             const pMax = f.p1Max || 20;
             const examMax = pMax * 2;
             const totalSMax = pMax * 4;
             const totalMax = pMax * 8;
+            
             for (const e of f.eleves) {
                 const nomComplet = getNomComplet(e).toLowerCase();
                 if (nomComplet.includes(nomLower)) {
                     const notes = getNotesForEleveTitu(e, f);
                     const identifiant = getNomComplet(e);
-                    const existe = resultats.some(r => r.nomEleve === identifiant && r.classe === f.classe);
-                    if (!existe) {
-                        resultats.push({
-                            nomEleve: identifiant,
-                            sexe: e.sexe,
-                            classe: f.classe,
-                            option: f.option || '',
-                            cours: f.cours,
-                            p1: notes.p1, p2: notes.p2, p3: notes.p3, p4: notes.p4,
-                            exam1: notes.exam1, exam2: notes.exam2,
-                            examMax: examMax,
-                            totalS1: notes.totalS1, totalS1Max: notes.totalS1Max,
-                            totalS2: notes.totalS2, totalS2Max: notes.totalS2Max,
-                            total: notes.total, totalMax: notes.totalMax,
-                            pMax: notes.pMax,
-                            _id: identifiant + '_' + f.id
-                        });
-                    }
+                    
+                    resultats.push({
+                        nomEleve: identifiant,
+                        sexe: e.sexe,
+                        cours: f.cours,
+                        classe: f.classe,
+                        option: f.option || '',
+                        p1: notes.p1,
+                        p2: notes.p2,
+                        p3: notes.p3,
+                        p4: notes.p4,
+                        exam1: notes.exam1,
+                        exam2: notes.exam2,
+                        examMax: examMax,
+                        totalS1: notes.totalS1,
+                        totalS1Max: notes.totalS1Max,
+                        totalS2: notes.totalS2,
+                        totalS2Max: notes.totalS2Max,
+                        total: notes.total,
+                        totalMax: notes.totalMax,
+                        pMax: notes.pMax,
+                        _id: identifiant + '_' + f.id + '_' + f.cours
+                    });
                 }
             }
         }
+        
+        resultats.sort((a, b) => (a.cours || '').localeCompare(b.cours || ''));
         return resultats;
     }
 
@@ -2994,7 +3003,7 @@ ${onConfirm ? `<button id="styledConfirmOk" style="background:#dc2626;color:#fff
         if (resultats.length === 0) { resultCard.classList.remove('show'); toast("Aucun élève trouvé", 'error'); return; }
         const premier = resultats[0];
         const classesUniques = [...new Set(resultats.map(r => `${r.classe}${r.option?` (${r.option})`:''}`))].join(', ');
-        document.getElementById('titulaireEleveInfo').innerHTML = `<div><span>👤 Élève:</span><span>${premier.nomEleve}</span></div><div><span>⚧ Sexe:</span><span>${premier.sexe==='M'?'Masculin':'Féminin'}</span></div><div><span>📚 Classe(s):</span><span>${classesUniques}</span></div>`;
+        document.getElementById('titulaireEleveInfo').innerHTML = `<div><span>👤 Élève:</span><span>${premier.nomEleve}</span></div><div><span>⚧ Sexe:</span><span>${premier.sexe==='M'?'Masculin':'Féminin'}</span></div><div><span>📚 Classe(s):</span><span>${classesUniques}</span></div><div><span>📊 Nombre de matières:</span><span>${resultats.length}</span></div>`;
         let tableHTML = '';
         for (const r of resultats) {
             tableHTML += `<tr><td style="text-align:left;font-weight:600">${r.cours}</td><td style="text-align:center">${r.classe}${r.option?` (${r.option})`:''}</td><td class="${r.p1<(r.pMax/2)?'failed':'passed'}">${r.p1}</td><td class="${r.p2<(r.pMax/2)?'failed':'passed'}">${r.p2}</td><td class="${r.exam1<(r.pMax/2)?'failed':'passed'}">${r.exam1}</td><td class="${r.totalS1<60?'failed':'passed'}">${r.totalS1}</td><td class="${r.p3<(r.pMax/2)?'failed':'passed'}">${r.p3}</td><td class="${r.p4<(r.pMax/2)?'failed':'passed'}">${r.p4}</td><td class="${r.exam2<(r.pMax/2)?'failed':'passed'}">${r.exam2}</td><td class="${r.totalS2<60?'failed':'passed'}">${r.totalS2}</td><td class="${r.total<120?'failed':'passed'}">${r.total}</td></tr>`;
