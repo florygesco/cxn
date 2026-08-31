@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Recouvrement - Export Excel</title>
+<title>Recouvrement - Fiche de Perception</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
@@ -103,7 +103,7 @@ tr:hover{background:rgba(255,255,255,0.02)}
 <button class="btn btn-outline" id="btnReset">✖ Réinitialiser</button>
 </div>
 <div class="filter-group" style="flex:0 0 auto">
-<button class="btn btn-excel" id="btnExcel">📊 Excel</button>
+<button class="btn btn-excel" id="btnExcel">📊 FICHE DE PERCEPTION</button>
 </div>
 <div class="filter-group" style="flex:0 0 auto">
 <button class="btn btn-pdf" id="btnPDF">📄 PDF</button>
@@ -355,7 +355,7 @@ h+=`</tbody></table>`;
 tableContainer.innerHTML=h;
 }
 
-// ----- EXPORT EXCEL (NOM DE FICHIER FIXE PAR SECTION) -----
+// ----- EXPORT EXCEL (FICHE DE PERCEPTION - DONNÉES RÉELLES) -----
 function genererExcel(){
 if(elevesFiltres.length===0){toast("Aucun élève à exporter","error");return;}
 
@@ -417,16 +417,15 @@ data.push([
 ""
 ]);
 
-// Ajouter les élèves
+// Ajouter les élèves avec les DONNÉES RÉELLES
 elevesFiltres.forEach((e, index) => {
 const nomComplet = `${e.nom} ${e.postnom||''} ${e.prenom||''}`.trim();
 const paiements = e.paiements || {};
-const minerval = e.minerval || getDefaultMinerval();
 
-// Pour chaque mois, récupérer le montant payé ou le minerval si non payé
+// POUR CHAQUE MOIS : MONTRER LE MONTANT RÉELLEMENT PAYÉ (0 si rien)
 const moisData = moisListe.map(m => {
 const pay = paiements[m]?.montant || 0;
-return pay > 0 ? `${formatNb(pay)}FC` : `${formatNb(minerval)}FC`;
+return pay > 0 ? `${formatNb(pay)}FC` : `0FC`;
 });
 
 // Ajouter la ligne de l'élève
@@ -486,15 +485,15 @@ ws['!merges'] = [
 const sheetName = classeFiltre.replace(/\s/g, '_').substring(0, 31);
 XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
-// NOM DE FICHIER FIXE PAR SECTION (écrase automatiquement l'ancien)
-const nomFichier = `Recouvrement_${espaceActif.toUpperCase()}.xlsx`;
+// Nom de fichier fixe par section (écrase automatiquement)
+const nomFichier = `Fiche_Perception_${espaceActif.toUpperCase()}.xlsx`;
 
-// Générer le fichier (écrase automatiquement s'il existe déjà)
+// Générer le fichier
 XLSX.writeFile(wb, nomFichier);
-toast(`✅ Excel ${espaceLabel} généré avec succès ! (fichier écrasé)`,`success`);
+toast(`✅ Fiche de perception ${espaceLabel} générée avec succès ! (fichier écrasé)`,`success`);
 }
 
-// ----- EXPORT PDF (NOM DE FICHIER FIXE PAR SECTION) -----
+// ----- EXPORT PDF -----
 function genererPDF(){
 if(elevesFiltres.length===0){toast("Aucun élève à exporter","error");return;}
 const{jsPDF}=window.jspdf;
@@ -568,7 +567,6 @@ doc.text(new Date().toLocaleString('fr-FR'),pw-15,doc.internal.pageSize.height-1
 }
 });
 
-// NOM DE FICHIER PDF FIXE PAR SECTION
 const nomFichierPDF = `Recouvrement_${espaceActif.toUpperCase()}.pdf`;
 doc.save(nomFichierPDF);
 toast(`✅ PDF ${espaceLabel} généré avec succès ! (fichier écrasé)`,`success`);
