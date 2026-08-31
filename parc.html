@@ -1,610 +1,324 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Recouvrement - Liste des élèves</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f0f4f8;
-      padding: 20px;
-      color: #1e293b;
-    }
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 8px 25px rgba(0,0,0,0.08);
-      padding: 20px 24px;
-    }
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 2px solid #e9edf4;
-      padding-bottom: 14px;
-      margin-bottom: 16px;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-    .header h1 { font-size: 20px; font-weight: 700; color: #0f2b44; }
-    .header h1 span { color: #2563eb; }
-    .school-info {
-      font-size: 13px;
-      color: #64748b;
-      background: #f1f5f9;
-      padding: 5px 14px;
-      border-radius: 30px;
-      font-weight: 500;
-    }
-
-    .filters {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      background: #f8fafc;
-      padding: 14px 18px;
-      border-radius: 10px;
-      border: 1px solid #e2e8f0;
-      margin-bottom: 16px;
-      align-items: flex-end;
-    }
-    .filter-group {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-      flex: 1 1 130px;
-      min-width: 110px;
-    }
-    .filter-group label {
-      font-size: 10px;
-      font-weight: 600;
-      color: #475569;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .filter-group select {
-      padding: 8px 12px;
-      border-radius: 8px;
-      border: 1px solid #cbd5e1;
-      background: white;
-      font-size: 13px;
-      color: #1e293b;
-      cursor: pointer;
-      transition: 0.2s;
-    }
-    .filter-group select:focus {
-      outline: none;
-      border-color: #2563eb;
-      box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
-    }
-    .btn {
-      padding: 8px 20px;
-      border: none;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      height: 38px;
-      white-space: nowrap;
-    }
-    .btn-primary {
-      background: #2563eb;
-      color: white;
-    }
-    .btn-primary:hover { background: #1d4ed8; }
-    .btn-success {
-      background: #059669;
-      color: white;
-    }
-    .btn-success:hover { background: #047857; }
-    .btn-outline {
-      background: transparent;
-      border: 1px solid #cbd5e1;
-      color: #475569;
-    }
-    .btn-outline:hover { background: #f1f5f9; }
-
-    .table-wrapper {
-      overflow-x: auto;
-      border-radius: 10px;
-      border: 1px solid #e2e8f0;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-    th {
-      background: #f1f5f9;
-      color: #1e293b;
-      font-weight: 600;
-      padding: 10px 14px;
-      text-align: left;
-      border-bottom: 2px solid #e2e8f0;
-      white-space: nowrap;
-    }
-    td {
-      padding: 9px 14px;
-      border-bottom: 1px solid #f1f5f9;
-      vertical-align: middle;
-    }
-    tr:hover { background: #f8fafc; }
-    .text-right { text-align: right; }
-    .text-center { text-align: center; }
-    .dette {
-      font-weight: 700;
-      color: #dc2626;
-    }
-    .paye {
-      font-weight: 700;
-      color: #059669;
-    }
-    .badge {
-      display: inline-block;
-      padding: 2px 12px;
-      border-radius: 30px;
-      font-size: 11px;
-      font-weight: 600;
-    }
-    .badge-success { background: #dcfce7; color: #15803d; }
-    .badge-danger { background: #fee2e2; color: #b91c1c; }
-
-    .empty-state {
-      text-align: center;
-      padding: 50px 20px;
-      color: #94a3b8;
-      font-size: 15px;
-    }
-    .empty-state .icon { font-size: 40px; display: block; margin-bottom: 10px; }
-
-    #toastContainer {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      max-width: 360px;
-    }
-    .toast {
-      background: #1e293b;
-      color: #f1f5f9;
-      padding: 12px 18px;
-      border-radius: 10px;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.2);
-      font-size: 13px;
-      font-weight: 500;
-      animation: slideIn 0.3s ease;
-      border-left: 4px solid #2563eb;
-    }
-    .toast.success { border-left-color: #059669; }
-    .toast.error { border-left-color: #dc2626; }
-    @keyframes slideIn {
-      from { transform: translateX(60px); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
-    }
-
-    .loading {
-      text-align: center;
-      padding: 40px;
-      color: #64748b;
-    }
-    .spinner {
-      display: inline-block;
-      width: 32px;
-      height: 32px;
-      border: 3px solid #e2e8f0;
-      border-top-color: #2563eb;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    @media (max-width: 768px) {
-      .container { padding: 14px; }
-      .filters { flex-direction: column; align-items: stretch; }
-      .filter-group { flex: 1 1 auto; }
-      .header { flex-direction: column; align-items: flex-start; }
-      th, td { padding: 8px 8px; font-size: 12px; }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recouvrement</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f0f4f8;padding:20px;color:#1e293b}
+.container{max-width:1200px;margin:0 auto;background:#fff;border-radius:12px;box-shadow:0 8px 25px rgba(0,0,0,0.08);padding:20px 24px}
+.header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #e9edf4;padding-bottom:14px;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.header h1{font-size:20px;font-weight:700;color:#0f2b44}
+.header h1 span{color:#2563eb}
+.school-info{font-size:13px;color:#64748b;background:#f1f5f9;padding:5px 14px;border-radius:30px;font-weight:500}
+.filters{display:flex;flex-wrap:wrap;gap:12px;background:#f8fafc;padding:14px 18px;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:16px;align-items:flex-end}
+.filter-group{display:flex;flex-direction:column;gap:3px;flex:1 1 130px;min-width:110px}
+.filter-group label{font-size:10px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.5px}
+.filter-group select,.filter-group input{padding:8px 12px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;font-size:13px;color:#1e293b;transition:.2s;width:100%}
+.filter-group select:focus,.filter-group input:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,0.12)}
+.btn{padding:8px 20px;border:none;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;height:38px;white-space:nowrap}
+.btn-primary{background:#2563eb;color:#fff}
+.btn-primary:hover{background:#1d4ed8}
+.btn-success{background:#059669;color:#fff}
+.btn-success:hover{background:#047857}
+.btn-outline{background:transparent;border:1px solid #cbd5e1;color:#475569}
+.btn-outline:hover{background:#f1f5f9}
+.btn-danger{background:#dc2626;color:#fff}
+.btn-danger:hover{background:#b91c1c}
+.table-wrapper{overflow-x:auto;border-radius:10px;border:1px solid #e2e8f0}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#f1f5f9;color:#1e293b;font-weight:600;padding:10px 14px;text-align:left;border-bottom:2px solid #e2e8f0;white-space:nowrap}
+td{padding:9px 14px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+tr:hover{background:#f8fafc}
+.text-right{text-align:right}
+.text-center{text-align:center}
+.dette{font-weight:700;color:#dc2626}
+.paye{font-weight:700;color:#059669}
+.badge{display:inline-block;padding:2px 12px;border-radius:30px;font-size:11px;font-weight:600}
+.badge-success{background:#dcfce7;color:#15803d}
+.badge-danger{background:#fee2e2;color:#b91c1c}
+.empty-state{text-align:center;padding:50px 20px;color:#94a3b8;font-size:15px}
+.empty-state .icon{font-size:40px;display:block;margin-bottom:10px}
+#toastContainer{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;max-width:360px}
+.toast{background:#1e293b;color:#f1f5f9;padding:12px 18px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.2);font-size:13px;font-weight:500;animation:slideIn .3s ease;border-left:4px solid #2563eb}
+.toast.success{border-left-color:#059669}
+.toast.error{border-left-color:#dc2626}
+@keyframes slideIn{from{transform:translateX(60px);opacity:0}to{transform:translateX(0);opacity:1}}
+.loading{text-align:center;padding:40px;color:#64748b}
+.spinner{display:inline-block;width:32px;height:32px;border:3px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:768px){.container{padding:14px}.filters{flex-direction:column;align-items:stretch}.filter-group{flex:1 1 auto}.header{flex-direction:column;align-items:flex-start}th,td{padding:8px 8px;font-size:12px}}
+</style>
 </head>
 <body>
 
 <div class="container">
-  <div class="header">
-    <h1>📊 <span>Recouvrement</span> Mensuel</h1>
-    <span class="school-info" id="schoolName">🏫 Chargement...</span>
-  </div>
+<div class="header">
+<h1>📊 <span>Recouvrement</span> Mensuel</h1>
+<span class="school-info" id="schoolName">🏫 Chargement...</span>
+</div>
 
-  <div class="filters">
-    <div class="filter-group">
-      <label>📅 Mois</label>
-      <select id="filterMois"></select>
-    </div>
-    <div class="filter-group">
-      <label>📚 Classe</label>
-      <select id="filterClasse">
-        <option value="">Toutes les classes</option>
-        <option value="7ème EB">7ème EB</option>
-        <option value="8ème EB">8ème EB</option>
-        <option value="1ère Année">1ère Année</option>
-        <option value="2ème Année">2ème Année</option>
-        <option value="3ème Année">3ème Année</option>
-        <option value="4ème Année">4ème Année</option>
-      </select>
-    </div>
-    <div class="filter-group">
-      <label>🎯 Option</label>
-      <select id="filterOption">
-        <option value="">Toutes les options</option>
-      </select>
-    </div>
-    <div class="filter-group">
-      <label>💰 Statut</label>
-      <select id="filterStatut">
-        <option value="tous">Tous</option>
-        <option value="impaye">⚠️ Impayés</option>
-        <option value="paye">✅ Payés</option>
-      </select>
-    </div>
-    <div class="filter-group" style="flex: 0 0 auto;">
-      <button class="btn btn-primary" id="btnAppliquer">🔍 Appliquer</button>
-    </div>
-    <div class="filter-group" style="flex: 0 0 auto;">
-      <button class="btn btn-outline" id="btnReset">✖ Réinitialiser</button>
-    </div>
-    <div class="filter-group" style="flex: 0 0 auto;">
-      <button class="btn btn-success" id="btnPDF">📄 PDF</button>
-    </div>
-  </div>
+<div class="filters">
+<div class="filter-group">
+<label>📅 Mois</label>
+<select id="filterMois"></select>
+</div>
+<div class="filter-group">
+<label>📚 Classe</label>
+<select id="filterClasse">
+<option value="">Toutes</option>
+<option value="7ème EB">7ème EB</option>
+<option value="8ème EB">8ème EB</option>
+<option value="1ère Année">1ère Année</option>
+<option value="2ème Année">2ème Année</option>
+<option value="3ème Année">3ème Année</option>
+<option value="4ème Année">4ème Année</option>
+</select>
+</div>
+<div class="filter-group">
+<label>🎯 Option</label>
+<select id="filterOption"><option value="">Toutes</option></select>
+</div>
+<div class="filter-group">
+<label>💰 Statut</label>
+<select id="filterStatut">
+<option value="tous">Tous</option>
+<option value="impaye">⚠️ Impayés</option>
+<option value="paye">✅ Payés</option>
+</select>
+</div>
+<div class="filter-group" style="flex:2 1 200px;min-width:150px">
+<label>🔍 Recherche (nom ou code parent)</label>
+<input type="text" id="filterSearch" placeholder="Nom ou code à 6 chiffres..." style="font-family:monospace;">
+</div>
+<div class="filter-group" style="flex:0 0 auto">
+<button class="btn btn-primary" id="btnAppliquer">🔍 Appliquer</button>
+</div>
+<div class="filter-group" style="flex:0 0 auto">
+<button class="btn btn-outline" id="btnReset">✖ Réinitialiser</button>
+</div>
+<div class="filter-group" style="flex:0 0 auto">
+<button class="btn btn-success" id="btnPDF">📄 PDF</button>
+</div>
+</div>
 
-  <div class="table-wrapper">
-    <div id="tableContainer">
-      <div class="loading">
-        <div class="spinner"></div>
-        <p style="margin-top:10px;">Chargement des données...</p>
-      </div>
-    </div>
-  </div>
+<div class="table-wrapper">
+<div id="tableContainer">
+<div class="loading"><div class="spinner"></div><p style="margin-top:10px;">Chargement des données...</p></div>
+</div>
+</div>
 </div>
 
 <div id="toastContainer"></div>
 
 <script type="importmap">
-{
-  "imports": {
-    "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
-    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
-  }
+{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"}}
+</script>
+
+<script>
+document.addEventListener('contextmenu',e=>e.preventDefault());
+document.addEventListener('keydown',e=>{
+if(e.key==='F12'||(e.ctrlKey&&e.shiftKey&&e.key==='I')||(e.ctrlKey&&e.shiftKey&&e.key==='J')||(e.ctrlKey&&e.key==='U')||(e.ctrlKey&&e.key==='S')){
+e.preventDefault();return false;
 }
+});
 </script>
 
 <script type="module">
-import { initializeApp } from "firebase/app";
-import { getFirestore, collection, getDocs } from "firebase/firestore";
+import{initializeApp}from"firebase/app";
+import{getFirestore,collection,getDocs}from"firebase/firestore";
 
-// ----- FIREBASE -----
-const firebaseConfig = {
-  apiKey: "AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",
-  authDomain: "gesco-2.firebaseapp.com",
-  projectId: "gesco-2",
-  storageBucket: "gesco-2.firebasestorage.app",
-  messagingSenderId: "36319988765",
-  appId: "1:36319988765:web:e8cd823804596495248af4"
+const firebaseConfig={
+apiKey:"AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",
+authDomain:"gesco-2.firebaseapp.com",
+projectId:"gesco-2",
+storageBucket:"gesco-2.firebasestorage.app",
+messagingSenderId:"36319988765",
+appId:"1:36319988765:web:e8cd823804596495248af4"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const app=initializeApp(firebaseConfig);
+const db=getFirestore(app);
 
-// ----- PARAMÈTRES -----
-const urlParams = new URLSearchParams(window.location.search);
-const schoolId = urlParams.get('ecole') || 'complexe_scolaire_kinshasa';
-const ECOLET_ID = schoolId.replace(/[^a-zA-Z0-9]/g, '_');
+const urlParams=new URLSearchParams(window.location.search);
+const schoolId=urlParams.get('ecole')||'complexe_scolaire_kinshasa';
+const ECOLET_ID=schoolId.replace(/[^a-zA-Z0-9]/g,'_');
 
-const moisListe = ["Septembre", "Octobre", "Novembre", "Decembre", "Janvier", "Fevrier", "Mars", "Avril", "Mai", "Juin"];
+const moisListe=["Septembre","Octobre","Novembre","Decembre","Janvier","Fevrier","Mars","Avril","Mai","Juin"];
 
-const dateRef = new Date();
-const moisActuelNum = dateRef.getMonth();
-let moisCourant = "Septembre";
-if (moisActuelNum >= 8) moisCourant = moisListe[moisActuelNum - 8];
-else if (moisActuelNum >= 0 && moisActuelNum <= 5) moisCourant = moisListe[moisActuelNum + 4];
+const dateRef=new Date();
+const moisActuelNum=dateRef.getMonth();
+let moisCourant="Septembre";
+if(moisActuelNum>=8)moisCourant=moisListe[moisActuelNum-8];
+else if(moisActuelNum>=0&&moisActuelNum<=5)moisCourant=moisListe[moisActuelNum+4];
 
-const optionsParClasse = {
-  "7ème EB": [],
-  "8ème EB": [],
-  "1ère Année": ["LATIN-PHILO", "SCIENCES", "PEDAGOGIE GENERALE", "COMMERCIALE ET GESTION", "ELECTRICITE", "MECANIQUE GENERALE", "COUPE ET COUTURE"],
-  "2ème Année": ["LATIN-PHILO", "SCIENCES", "PEDAGOGIE GENERALE", "COMMERCIALE ET GESTION", "ELECTRICITE", "MECANIQUE GENERALE", "COUPE ET COUTURE"],
-  "3ème Année": ["LATIN-PHILO", "SCIENCES", "PEDAGOGIE GENERALE", "COMMERCIALE ET GESTION", "ELECTRICITE", "MECANIQUE GENERALE", "COUPE ET COUTURE"],
-  "4ème Année": ["LATIN-PHILO", "SCIENCES", "PEDAGOGIE GENERALE", "COMMERCIALE ET GESTION", "ELECTRICITE", "MECANIQUE GENERALE", "COUPE ET COUTURE"]
+const optionsParClasse={
+"7ème EB":[],
+"8ème EB":[],
+"1ère Année":["LATIN-PHILO","SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","COUPE ET COUTURE"],
+"2ème Année":["LATIN-PHILO","SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","COUPE ET COUTURE"],
+"3ème Année":["LATIN-PHILO","SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","COUPE ET COUTURE"],
+"4ème Année":["LATIN-PHILO","SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","COUPE ET COUTURE"]
 };
 
-// ----- ÉTAT -----
-let tousLesEleves = [];
-let elevesFiltres = [];
-let moisSelectionne = moisCourant;
+let tousLesEleves=[],elevesFiltres=[],moisSelectionne=moisCourant;
 
-// ----- DOM -----
-const filterMois = document.getElementById('filterMois');
-const filterClasse = document.getElementById('filterClasse');
-const filterOption = document.getElementById('filterOption');
-const filterStatut = document.getElementById('filterStatut');
-const btnAppliquer = document.getElementById('btnAppliquer');
-const btnReset = document.getElementById('btnReset');
-const btnPDF = document.getElementById('btnPDF');
-const tableContainer = document.getElementById('tableContainer');
-const schoolName = document.getElementById('schoolName');
+const filterMois=document.getElementById('filterMois');
+const filterClasse=document.getElementById('filterClasse');
+const filterOption=document.getElementById('filterOption');
+const filterStatut=document.getElementById('filterStatut');
+const filterSearch=document.getElementById('filterSearch');
+const btnAppliquer=document.getElementById('btnAppliquer');
+const btnReset=document.getElementById('btnReset');
+const btnPDF=document.getElementById('btnPDF');
+const tableContainer=document.getElementById('tableContainer');
+const schoolName=document.getElementById('schoolName');
 
-// ----- TOAST -----
-function toast(msg, type = "info") {
-  const container = document.getElementById('toastContainer');
-  const el = document.createElement('div');
-  el.className = `toast ${type}`;
-  el.textContent = msg;
-  container.appendChild(el);
-  setTimeout(() => { el.remove(); }, 3500);
+function toast(msg,type='info'){
+const c=document.getElementById('toastContainer');
+const el=document.createElement('div');
+el.className=`toast ${type}`;
+el.textContent=msg;
+c.appendChild(el);
+setTimeout(()=>el.remove(),3500);
 }
 
-// ----- FORMAT -----
-function formatNb(n) {
-  if (!n || n === 0) return "0";
-  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-}
+function formatNb(n){if(!n||n===0)return"0";return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");}
 
-// ----- CHARGEMENT -----
-async function chargerEleves() {
-  try {
-    tableContainer.innerHTML = `<div class="loading"><div class="spinner"></div><p style="margin-top:10px;">Chargement des données...</p></div>`;
-
-    const snap = await getDocs(collection(db, "ecoles", ECOLET_ID, "compta_eleves"));
-
-    tousLesEleves = [];
-    snap.forEach(doc => {
-      const d = doc.data();
-      if (!d.nom) return;
-      if (d.abandon === true) return;
-      // Exonérés exclus
-      if (d.exonere === true) return;
-
-      tousLesEleves.push({
-        id: d.eleveId || doc.id,
-        nom: d.nom || "",
-        postnom: d.postnom || "",
-        prenom: d.prenom || "",
-        classe: d.classe || "",
-        option: d.option || "",
-        minerval: d.minerval || 45000,
-        phone: d.phone || "",
-        paiements: d.paiements || {},
-        moisBlancs: d.moisBlancs || []
-      });
-    });
-
-    mettreAJourOptions();
-    remplirMois();
-
-    moisSelectionne = filterMois.value;
-    appliquerFiltres();
-
-  } catch (error) {
-    console.error("Erreur:", error);
-    tableContainer.innerHTML = `<div class="empty-state"><span class="icon">❌</span>Erreur de chargement</div>`;
-    toast("Erreur de chargement des données", "error");
-  }
-}
-
-// ----- REMPLIR MOIS -----
-function remplirMois() {
-  let html = '';
-  moisListe.forEach(m => {
-    const selected = m === moisCourant ? 'selected' : '';
-    html += `<option value="${m}" ${selected}>${m}</option>`;
-  });
-  filterMois.innerHTML = html;
-}
-
-// ----- OPTIONS -----
-function mettreAJourOptions() {
-  const optionsUniques = new Set();
-  for (const opts of Object.values(optionsParClasse)) {
-    opts.forEach(o => optionsUniques.add(o));
-  }
-  let html = '<option value="">Toutes les options</option>';
-  [...optionsUniques].sort().forEach(opt => {
-    html += `<option value="${opt}">${opt}</option>`;
-  });
-  filterOption.innerHTML = html;
-}
-
-// ----- FILTRAGE -----
-function appliquerFiltres() {
-  const mois = filterMois.value;
-  const classe = filterClasse.value;
-  const option = filterOption.value;
-  const statut = filterStatut.value;
-
-  moisSelectionne = mois;
-
-  let resultats = tousLesEleves;
-
-  // Filtrer par classe
-  if (classe) {
-    resultats = resultats.filter(e => e.classe === classe);
-  }
-
-  // Filtrer par option
-  if (option) {
-    resultats = resultats.filter(e => e.option === option);
-  }
-
-  // Filtrer par statut (payé / impayé)
-  resultats = resultats.filter(e => {
-    const paiement = (e.paiements[mois] || {}).montant || 0;
-    const minerval = e.minerval || 45000;
-    const estBlanc = (e.moisBlancs || []).includes(mois);
-    const estPaye = estBlanc || paiement >= minerval;
-
-    if (statut === 'paye') return estPaye;
-    if (statut === 'impaye') return !estPaye;
-    return true; // 'tous'
-  });
-
-  // Tri alphabétique
-  resultats.sort((a, b) => a.nom.localeCompare(b.nom));
-
-  elevesFiltres = resultats;
-  afficherListe();
-}
-
-// ----- AFFICHAGE -----
-function afficherListe() {
-  if (elevesFiltres.length === 0) {
-    tableContainer.innerHTML = `<div class="empty-state"><span class="icon">📭</span>Aucun élève pour ces critères</div>`;
-    return;
-  }
-
-  let html = `<table>
-    <thead>
-      <tr>
-        <th>👤 Élève</th>
-        <th>📚 Classe</th>
-        <th>🎯 Option</th>
-        <th class="text-right">💰 Payé</th>
-        <th class="text-right">⚠️ Dette</th>
-        <th class="text-center">Statut</th>
-      </tr>
-    </thead>
-    <tbody>`;
-
-  elevesFiltres.forEach(e => {
-    const paiement = (e.paiements[moisSelectionne] || {}).montant || 0;
-    const minerval = e.minerval || 45000;
-    const estBlanc = (e.moisBlancs || []).includes(moisSelectionne);
-    const dette = estBlanc ? 0 : Math.max(0, minerval - paiement);
-    const estPaye = estBlanc || paiement >= minerval;
-    const nomComplet = `${e.nom} ${e.postnom || ''} ${e.prenom || ''}`.trim().toUpperCase();
-
-    const badge = estPaye 
-      ? `<span class="badge badge-success">✅ PAYÉ</span>`
-      : `<span class="badge badge-danger">⚠️ IMPAYÉ</span>`;
-
-    html += `<tr>
-      <td><strong>${nomComplet}</strong></td>
-      <td>${e.classe}</td>
-      <td>${e.option || '-'}</td>
-      <td class="text-right ${estPaye ? 'paye' : ''}">${formatNb(paiement)} FC</td>
-      <td class="text-right ${!estPaye ? 'dette' : ''}">${formatNb(dette)} FC</td>
-      <td class="text-center">${badge}</td>
-    </tr>`;
-  });
-
-  html += `</tbody></table>`;
-  tableContainer.innerHTML = html;
-}
-
-// ----- PDF -----
-function genererPDF() {
-  if (elevesFiltres.length === 0) {
-    toast("Aucun élève à exporter", "error");
-    return;
-  }
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF("portrait", "mm", "a4");
-  const pageWidth = doc.internal.pageSize.getWidth();
-
-  doc.setFontSize(16);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(15, 43, 68);
-  doc.text("RECOUVREMENT MENSUEL", 14, 20);
-
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(80, 80, 80);
-  const annee = new Date().getFullYear();
-  const classeFiltre = filterClasse.value || "Toutes";
-  const optionFiltre = filterOption.value || "Toutes";
-  const statutFiltre = filterStatut.value === 'paye' ? 'Payés' : filterStatut.value === 'impaye' ? 'Impayés' : 'Tous';
-  doc.text(`Mois: ${moisSelectionne} ${annee}  |  Classe: ${classeFiltre}  |  Option: ${optionFiltre}  |  Statut: ${statutFiltre}`, 14, 30);
-
-  doc.setFontSize(9);
-  doc.setTextColor(120, 120, 120);
-  doc.text(`Nombre d'élèves: ${elevesFiltres.length}`, 14, 38);
-
-  doc.setDrawColor(200, 200, 200);
-  doc.line(14, 42, pageWidth - 14, 42);
-
-  const body = elevesFiltres.map(e => {
-    const paiement = (e.paiements[moisSelectionne] || {}).montant || 0;
-    const minerval = e.minerval || 45000;
-    const estBlanc = (e.moisBlancs || []).includes(moisSelectionne);
-    const dette = estBlanc ? 0 : Math.max(0, minerval - paiement);
-    const nomComplet = `${e.nom} ${e.postnom || ''} ${e.prenom || ''}`.trim().toUpperCase();
-    const statut = (estBlanc || paiement >= minerval) ? 'PAYÉ' : 'IMPAYÉ';
-    return [nomComplet, e.classe, e.option || '-', formatNb(paiement) + ' FC', formatNb(dette) + ' FC', statut];
-  });
-
-  doc.autoTable({
-    startY: 46,
-    head: [["ÉLÈVE", "CLASSE", "OPTION", "PAYÉ", "DETTE", "STATUT"]],
-    body: body,
-    styles: { fontSize: 8, cellPadding: 3, textColor: [30, 30, 30] },
-    headStyles: { fillColor: [40, 80, 130], textColor: [255, 255, 255], fontSize: 9, fontStyle: "bold" },
-    alternateRowStyles: { fillColor: [245, 247, 250] },
-    columnStyles: {
-      0: { cellWidth: 40, fontStyle: "bold" },
-      1: { cellWidth: 25 },
-      2: { cellWidth: 30 },
-      3: { cellWidth: 25, halign: "right" },
-      4: { cellWidth: 25, halign: "right" },
-      5: { cellWidth: 20, halign: "center" }
-    },
-    margin: { left: 14, right: 14 },
-    didDrawPage: function(data) {
-      const pageNum = doc.internal.getCurrentPageInfo().pageNumber;
-      const totalPages = doc.internal.getNumberOfPages();
-      doc.setFontSize(8);
-      doc.setTextColor(150, 150, 150);
-      doc.text(`Page ${pageNum} / ${totalPages}`, pageWidth / 2, doc.internal.pageSize.height - 10, { align: "center" });
-      doc.text(new Date().toLocaleString('fr-FR'), pageWidth - 14, doc.internal.pageSize.height - 10, { align: "right" });
-    }
-  });
-
-  doc.save(`Recouvrement_${moisSelectionne}_${formatDateYMD()}.pdf`);
-  toast("PDF généré avec succès !", "success");
-}
-
-function formatDateYMD() {
-  const d = new Date();
-  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-}
-
-// ----- ÉVÉNEMENTS -----
-btnAppliquer.addEventListener('click', appliquerFiltres);
-btnReset.addEventListener('click', () => {
-  filterClasse.value = '';
-  filterOption.value = '';
-  filterStatut.value = 'tous';
-  filterMois.value = moisCourant;
-  appliquerFiltres();
+async function chargerEleves(){
+try{
+tableContainer.innerHTML=`<div class="loading"><div class="spinner"></div><p style="margin-top:10px;">Chargement des données...</p></div>`;
+const snap=await getDocs(collection(db,"ecoles",ECOLET_ID,"compta_eleves"));
+tousLesEleves=[];
+snap.forEach(d=>{
+const data=d.data();
+if(!data.nom||data.abandon===true||data.exonere===true)return;
+tousLesEleves.push({
+id:data.eleveId||d.id,
+nom:data.nom||"",
+postnom:data.postnom||"",
+prenom:data.prenom||"",
+classe:data.classe||"",
+option:data.option||"",
+minerval:data.minerval||45000,
+phone:data.phone||"",
+parentCode:data.parentCode||"",
+paiements:data.paiements||{},
+moisBlancs:data.moisBlancs||[]
 });
-btnPDF.addEventListener('click', genererPDF);
-filterMois.addEventListener('change', appliquerFiltres);
-filterStatut.addEventListener('change', appliquerFiltres);
+});
+mettreAJourOptions();
+remplirMois();
+moisSelectionne=filterMois.value;
+appliquerFiltres();
+}catch(e){
+console.error(e);
+tableContainer.innerHTML=`<div class="empty-state"><span class="icon">❌</span>Erreur de chargement</div>`;
+toast("Erreur de chargement","error");
+}
+}
 
-// ----- INIT -----
-schoolName.textContent = `🏫 ${schoolId.toUpperCase()}`;
+function remplirMois(){
+let h='';
+moisListe.forEach(m=>{const s=m===moisCourant?'selected':'';h+=`<option value="${m}" ${s}>${m}</option>`;});
+filterMois.innerHTML=h;
+}
+
+function mettreAJourOptions(){
+const u=new Set();
+for(const opts of Object.values(optionsParClasse))opts.forEach(o=>u.add(o));
+let h='<option value="">Toutes</option>';
+[...u].sort().forEach(o=>{h+=`<option value="${o}">${o}</option>`;});
+filterOption.innerHTML=h;
+}
+
+function appliquerFiltres(){
+const mois=filterMois.value,classe=filterClasse.value,option=filterOption.value,statut=filterStatut.value,search=filterSearch.value.trim().toLowerCase();
+moisSelectionne=mois;
+let r=tousLesEleves;
+if(classe)r=r.filter(e=>e.classe===classe);
+if(option)r=r.filter(e=>e.option===option);
+if(search){
+r=r.filter(e=>{
+const nomComplet=(e.nom+' '+(e.postnom||'')+' '+(e.prenom||'')).toLowerCase();
+const code=e.parentCode||'';
+return nomComplet.includes(search)||code.includes(search);
+});
+}
+r=r.filter(e=>{
+const paiement=(e.paiements[mois]||{}).montant||0;
+const minerval=e.minerval||45000;
+const estBlanc=(e.moisBlancs||[]).includes(mois);
+const estPaye=estBlanc||paiement>=minerval;
+if(statut==='paye')return estPaye;
+if(statut==='impaye')return !estPaye;
+return true;
+});
+r.sort((a,b)=>a.nom.localeCompare(b.nom));
+elevesFiltres=r;
+afficherListe();
+}
+
+function afficherListe(){
+if(elevesFiltres.length===0){
+tableContainer.innerHTML=`<div class="empty-state"><span class="icon">📭</span>Aucun élève pour ces critères</div>`;
+return;
+}
+let h=`<table><thead><tr><th>👤 Élève</th><th>📚 Classe</th><th>🎯 Option</th><th class="text-right">💰 Payé</th><th class="text-right">⚠️ Dette</th><th class="text-center">Statut</th><th class="text-center">🔑 Code</th></tr></thead><tbody>`;
+elevesFiltres.forEach(e=>{
+const paiement=(e.paiements[moisSelectionne]||{}).montant||0;
+const minerval=e.minerval||45000;
+const estBlanc=(e.moisBlancs||[]).includes(moisSelectionne);
+const dette=estBlanc?0:Math.max(0,minerval-paiement);
+const estPaye=estBlanc||paiement>=minerval;
+const nom=`${e.nom} ${e.postnom||''} ${e.prenom||''}`.trim().toUpperCase();
+const badge=estPaye?`<span class="badge badge-success">✅ PAYÉ</span>`:`<span class="badge badge-danger">⚠️ IMPAYÉ</span>`;
+const code=e.parentCode||'-';
+h+=`<tr><td><strong>${nom}</strong></td><td>${e.classe}</td><td>${e.option||'-'}</td><td class="text-right ${estPaye?'paye':''}">${formatNb(paiement)} FC</td><td class="text-right ${!estPaye?'dette':''}">${formatNb(dette)} FC</td><td class="text-center">${badge}</td><td class="text-center" style="font-family:monospace;font-size:12px;">${code}</td></tr>`;
+});
+h+=`</tbody></table>`;
+tableContainer.innerHTML=h;
+}
+
+function genererPDF(){
+if(elevesFiltres.length===0){toast("Aucun élève à exporter","error");return;}
+const{jsPDF}=window.jspdf;
+const doc=new jsPDF("portrait","mm","a4");
+const pw=doc.internal.pageSize.getWidth();
+doc.setFontSize(16);doc.setFont("helvetica","bold");doc.setTextColor(15,43,68);doc.text("RECOUVREMENT MENSUEL",14,20);
+doc.setFontSize(10);doc.setFont("helvetica","normal");doc.setTextColor(80,80,80);
+const annee=new Date().getFullYear();
+const cf=filterClasse.value||"Toutes";
+const of=filterOption.value||"Toutes";
+const sf=filterStatut.value==='paye'?'Payés':filterStatut.value==='impaye'?'Impayés':'Tous';
+const search=filterSearch.value.trim()||'Aucun';
+doc.text(`Mois: ${moisSelectionne} ${annee}  |  Classe: ${cf}  |  Option: ${of}  |  Statut: ${sf}  |  Recherche: ${search}`,14,30);
+doc.setFontSize(9);doc.setTextColor(120,120,120);doc.text(`Élèves: ${elevesFiltres.length}`,14,38);
+doc.setDrawColor(200,200,200);doc.line(14,42,pw-14,42);
+const body=elevesFiltres.map(e=>{
+const paiement=(e.paiements[moisSelectionne]||{}).montant||0;
+const minerval=e.minerval||45000;
+const estBlanc=(e.moisBlancs||[]).includes(moisSelectionne);
+const dette=estBlanc?0:Math.max(0,minerval-paiement);
+const nom=`${e.nom} ${e.postnom||''} ${e.prenom||''}`.trim().toUpperCase();
+const statut=(estBlanc||paiement>=minerval)?'PAYÉ':'IMPAYÉ';
+return[nom,e.classe,e.option||'-',formatNb(paiement)+' FC',formatNb(dette)+' FC',statut,e.parentCode||'-'];
+});
+doc.autoTable({startY:46,head:[["ÉLÈVE","CLASSE","OPTION","PAYÉ","DETTE","STATUT","CODE"]],body:body,styles:{fontSize:8,cellPadding:3,textColor:[30,30,30]},headStyles:{fillColor:[40,80,130],textColor:[255,255,255],fontSize:9,fontStyle:"bold"},alternateRowStyles:{fillColor:[245,247,250]},columnStyles:{0:{cellWidth:35,fontStyle:"bold"},1:{cellWidth:22},2:{cellWidth:25},3:{cellWidth:20,halign:"right"},4:{cellWidth:20,halign:"right"},5:{cellWidth:18,halign:"center"},6:{cellWidth:18,halign:"center"}},margin:{left:14,right:14},didDrawPage:function(d){const pn=doc.internal.getCurrentPageInfo().pageNumber;const tp=doc.internal.getNumberOfPages();doc.setFontSize(8);doc.setTextColor(150,150,150);doc.text(`Page ${pn}/${tp}`,pw/2,doc.internal.pageSize.height-10,{align:"center"});doc.text(new Date().toLocaleString('fr-FR'),pw-14,doc.internal.pageSize.height-10,{align:"right"});}});
+doc.save(`Recouvrement_${moisSelectionne}_${new Date().toISOString().slice(0,10)}.pdf`);
+toast("PDF généré avec succès !","success");
+}
+
+btnAppliquer.addEventListener('click',appliquerFiltres);
+btnReset.addEventListener('click',()=>{filterClasse.value='';filterOption.value='';filterStatut.value='tous';filterSearch.value='';filterMois.value=moisCourant;appliquerFiltres();});
+btnPDF.addEventListener('click',genererPDF);
+filterMois.addEventListener('change',appliquerFiltres);
+filterStatut.addEventListener('change',appliquerFiltres);
+filterSearch.addEventListener('input',appliquerFiltres);
+schoolName.textContent=`🏫 ${schoolId.toUpperCase()}`;
 chargerEleves();
 </script>
 </body>
