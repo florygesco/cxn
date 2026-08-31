@@ -832,11 +832,6 @@
         }
     }
 
-    document.addEventListener('click', function() { });
-    document.addEventListener('keydown', function() { });
-    document.addEventListener('scroll', function() { });
-    window.addEventListener('beforeunload', function() {});
-
     document.getElementById('logoutBtnParam').addEventListener('click', function() {
         showStyledConfirm("Déconnexion", "Êtes-vous sûr de vouloir vous déconnecter ?<br><br>Toutes les modifications non sauvegardées seront perdues.",
             async function() {
@@ -3804,38 +3799,97 @@ ${onConfirm ? `<button id="styledConfirmOk" style="background:#dc2626;color:#fff
         }
     });
 
+    // ============================================================
+    // BOUTON RECHARGER CORRIGÉ - REMPLACE COMPLÈTEMENT LES ÉLÈVES
+    // ============================================================
     document.getElementById('rechargerElevesBtn').onclick = async function() {
-        if (!currentFiche) { toast("Aucune fiche sélectionnée", 'error'); return; }
-        const classe = currentFiche.classe;
-        const option = currentFiche.option;
-        if (!classe) { toast("Veuillez d'abord configurer la classe", 'error'); return; }
-        await getAllComptaEleves();
-        const elevesCompta = localEleves || [];
-        let elevesFiltres = elevesCompta.filter(e => { if (e.abandon) return false; if (e.classe !== classe) return false; if (option === 'TOUTES') return true; if (option && e.option !== option) return false; return true; });
-        const nomsExistants = new Set((currentFiche.eleves || []).map(e => getNomComplet(e)));
-        const elevesAAjouter = elevesFiltres.filter(e => { const nomComplet = getNomComplet(e); return !nomsExistants.has(nomComplet); });
-        if (elevesAAjouter.length === 0) { toast("✅ Aucun nouvel élève à ajouter", 'info'); return; }
-        if (!currentFiche.eleves) currentFiche.eleves = [];
-        elevesAAjouter.forEach(e => { currentFiche.eleves.push({
-            id: e.id || Date.now() + Math.random(),
-            nom: e.nom || '',
-            postnom: e.postnom || '',
-            prenom: e.prenom || '',
-            nomComplet: [e.nom || '', e.postnom || '', e.prenom || ''].filter(p => p.trim() !== '').join(' '),
-            sexe: e.sexe || 'M',
-            notes: { p1: [], p2: [], p3: [], p4: [], exam1: 0, exam2: 0 },
-            parentCode: e.parentCode || '',
-            eleveId: e.id,
-            importeLe: new Date().toISOString(),
-            source: "reload"
-        }); });
-        await saveCurrentFiche();
-        afficherEleves();
-        afficherCotation();
-        refreshGroupes();
-        mettreAJourCompteurEleves();
-        mettreAJourStatsFiche();
-        toast(`✅ ${elevesAAjouter.length} nouvel(le)s élève(s) ajouté(s)`, 'success');
+        if (!currentFiche) { 
+            toast("Aucune fiche sélectionnée", 'error'); 
+            return; 
+        }
+        
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '⏳ SYNCHRONISATION...';
+        
+        try {
+            const classe = currentFiche.classe;
+            const option = currentFiche.option;
+            
+            if (!classe) { 
+                toast("Veuillez d'abord configurer la classe", 'error'); 
+                btn.disabled = false;
+                btn.innerHTML = '🔄 RECHARGER';
+                return; 
+            }
+            
+            await getAllComptaEleves();
+            const elevesCompta = localEleves || [];
+            
+            let elevesFiltres = elevesCompta.filter(e => { 
+                if (e.abandon) return false;
+                if (e.classe !== classe) return false; 
+                if (option === 'TOUTES') return true; 
+                if (option && e.option !== option) return false; 
+                return true; 
+            });
+            
+            const notesExistantes = {};
+            if (currentFiche.eleves) {
+                currentFiche.eleves.forEach(e => {
+                    if (e.id && e.notes) {
+                        notesExistantes[e.id] = e.notes;
+                    }
+                });
+            }
+            
+            const anciensIds = new Set(currentFiche.eleves.map(e => e.id));
+            const nouveauxIds = new Set(elevesFiltres.map(e => e.id));
+            
+            const ajoutes = elevesFiltres.filter(e => !anciensIds.has(e.id));
+            const supprimes = currentFiche.eleves.filter(e => !nouveauxIds.has(e.id));
+            
+            currentFiche.eleves = elevesFiltres.map(e => ({
+                id: e.id || Date.now() + Math.random(),
+                nom: e.nom || '',
+                postnom: e.postnom || '',
+                prenom: e.prenom || '',
+                nomComplet: [e.nom || '', e.postnom || '', e.prenom || ''].filter(p => p.trim() !== '').join(' '),
+                sexe: e.sexe || 'M',
+                notes: notesExistantes[e.id] || { p1: [], p2: [], p3: [], p4: [], exam1: 0, exam2: 0 },
+                parentCode: e.parentCode || '',
+                eleveId: e.id,
+                importeLe: new Date().toISOString(),
+                source: "reload"
+            }));
+            
+            await saveCurrentFiche();
+            
+            afficherEleves();
+            afficherCotation();
+            refreshGroupes();
+            mettreAJourCompteurEleves();
+            mettreAJourStatsFiche();
+            
+            let message = [];
+            if (ajoutes.length > 0) message.push(`${ajoutes.length} nouvel(s) élève(s) ajouté(s)`);
+            if (supprimes.length > 0) message.push(`${supprimes.length} élève(s) abandonné(s) supprimé(s)`);
+            
+            if (message.length > 0) {
+                toast(`✅ ${message.join(' et ')}`, 'success');
+            } else {
+                toast("✅ Aucun changement détecté", 'info');
+            }
+            
+            btn.disabled = false;
+            btn.innerHTML = '🔄 RECHARGER';
+            
+        } catch (error) {
+            toast("❌ Erreur lors de la synchronisation", 'error');
+            console.error(error);
+            btn.disabled = false;
+            btn.innerHTML = '🔄 RECHARGER';
+        }
     };
 
     function mettreAJourStatsFiche() { const container = document.getElementById('ficheStatsContent'); if (!container || !currentFiche) return; const eleves = currentFiche.eleves || []; container.innerHTML = `<div style="display:flex;gap:20px;flex-wrap:wrap;"><div><span style="color:#94a3b8;">👥 Total élèves :</span><span style="color:#fff;font-weight:600;">${eleves.length}</span></div><div><span style="color:#94a3b8;">📅 Importé le :</span><span style="color:#94a3b8;">${currentFiche.importAuto?.date?new Date(currentFiche.importAuto.date).toLocaleDateString():'N/A'}</span></div></div>`; }
