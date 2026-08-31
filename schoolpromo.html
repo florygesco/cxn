@@ -56,8 +56,6 @@ body{min-height:100vh;padding:0;margin:0;overflow-y:auto!important;overflow-x:hi
 .btn:hover{background:#334155;transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,0.10)}
 .btn:active{transform:scale(0.96)}
 .btn-sm{padding:4px 12px;font-size:10px}
-.btn-gold{background:linear-gradient(135deg,#d4af37,#f59e0b);color:#1a1a2e;box-shadow:0 2px 8px rgba(212,175,55,0.25)}
-.btn-gold:hover{background:linear-gradient(135deg,#c4a030,#e68a00);transform:translateY(-2px);box-shadow:0 4px 16px rgba(212,175,55,0.3);color:#1a1a2e}
 .btn-outline{background:transparent;border:2px solid #e2dcd2;color:#475569;box-shadow:none}
 .btn-outline:hover{background:#f8f6f2;border-color:#d4af37;color:#1a1a2e;transform:translateY(-2px)}
 .btn-success{background:#059669;color:#fff;box-shadow:0 2px 8px rgba(5,150,105,0.25)}
@@ -949,7 +947,7 @@ const reste=Math.max(0,minerval-paiement);
 const nomComplet=(e.nom+' '+(e.postnom||'')+' '+(e.prenom||'')).trim().toUpperCase();
 totalAttendu+=minerval;
 totalPaye+=paiement;
-const statutLabel=estPaye?'✅ PAYÉ':'⚠️ NON PAYÉ';
+const statutLabel=estPaye?'PAYÉ':'NON PAYÉ';
 const statutColor=estPaye?'#059669':'#dc2626';
 html+='<tr><td>'+(index+1)+'</td><td class="nom">'+escapeHtml(nomComplet)+'</td><td>'+escapeHtml(e.classe||'')+'</td><td>'+escapeHtml(e.option||'-')+'</td><td style="text-align:right;">'+formatNb(minerval)+' FC</td><td style="text-align:right;color:#059669;">'+formatNb(paiement)+' FC</td><td style="text-align:center;color:'+statutColor+';font-weight:600;">'+statutLabel+'</td><td style="text-align:right;color:#dc2626;">'+formatNb(reste)+' FC</td></tr>';
 });
@@ -984,6 +982,12 @@ if(section!=='toutes'){eleves=eleves.filter(e=>e.section===section);}
 if(classe){eleves=eleves.filter(e=>e.classe===classe);}
 if(option){eleves=eleves.filter(e=>e.option===option);}
 
+let colorSection='#3b82f6';
+let sectionLabel=section==='toutes'?'TOUTES SECTIONS':section.toUpperCase();
+if(section==='maternelle'){colorSection='#10b981';}
+else if(section==='primaire'){colorSection='#3b82f6';}
+else if(section==='secondaire'){colorSection='#8b5cf6';}
+
 const elevesFiltres=eleves.filter(e=>{
 const paiement=e.paiements?.[mois]?.montant||0;
 const minerval=e.exonere?0:(e.minerval||45000);
@@ -999,21 +1003,24 @@ const{jsPDF}=window.jspdf;
 const doc=new jsPDF('portrait','mm','a4');
 const pw=doc.internal.pageSize.getWidth();
 
-doc.setFillColor(26,26,46);
-doc.rect(0,0,pw,45,'F');
-doc.setFontSize(16);doc.setFont('helvetica','bold');doc.setTextColor(212,175,55);
-doc.text('COMPLEXE SCOLAIRE LE TREMPLIN',pw/2,15,{align:'center'});
-doc.setFontSize(10);doc.setFont('helvetica','normal');doc.setTextColor(255,255,255);
-doc.text('MUSOSHI-SODIMICO',pw/2,25,{align:'center'});
-doc.setFontSize(12);doc.setTextColor(255,255,255);
-doc.text(`RECOUVREMENT - ${mois.toUpperCase()} ${new Date().getFullYear()}`,pw/2,35,{align:'center'});
+doc.setFillColor(248,246,242);
+doc.rect(0,0,pw,40,'F');
+doc.setDrawColor(colorSection);
+doc.setLineWidth(2);
+doc.line(0,40,pw,40);
 
-doc.setFontSize(9);doc.setTextColor(80,80,80);
-const sectionLabel=section==='toutes'?'TOUTES SECTIONS':section.toUpperCase();
+doc.setFontSize(16);doc.setFont('helvetica','bold');doc.setTextColor(26,26,46);
+doc.text('COMPLEXE SCOLAIRE LE TREMPLIN',pw/2,12,{align:'center'});
+doc.setFontSize(10);doc.setFont('helvetica','normal');doc.setTextColor(80,80,80);
+doc.text('MUSOSHI-SODIMICO',pw/2,20,{align:'center'});
+doc.setFontSize(12);doc.setFont('helvetica','bold');doc.setTextColor(colorSection);
+doc.text(`RECOUVREMENT - ${mois.toUpperCase()} ${new Date().getFullYear()}`,pw/2,30,{align:'center'});
+
+doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(60,60,60);
+const statutLabel=statut==='paye'?'PAYÉ':statut==='non_paye'?'NON PAYÉ':'TOUS';
 const classeLabel=classe||'TOUTES CLASSES';
 const optionLabel=option||'TOUTES OPTIONS';
-const statutLabel=statut==='paye'?'PAYÉ':statut==='non_paye'?'NON PAYÉ':'TOUS';
-doc.text(`Section: ${sectionLabel} | Classe: ${classeLabel} | Option: ${optionLabel} | Statut: ${statutLabel}`,15,55);
+doc.text(`Section: ${sectionLabel} | Classe: ${classeLabel} | Option: ${optionLabel} | Statut: ${statutLabel}`,15,48);
 
 const total=elevesFiltres.length;
 const payes=elevesFiltres.filter(e=>{
@@ -1031,7 +1038,7 @@ totalAttendu+=minerval;
 totalPaye+=paiement;
 });
 doc.setFontSize(9);doc.setTextColor(60,60,60);
-doc.text(`Total: ${total} | Payé: ${payes} | Non payé: ${nonPayes} | Taux: ${taux}% | Montant total: ${formatNb(totalPaye)} FC`,15,62);
+doc.text(`Total: ${total} | Payé: ${payes} | Non payé: ${nonPayes} | Taux: ${taux}% | Montant total: ${formatNb(totalPaye)} FC`,15,55);
 
 const body=elevesFiltres.map((e,index)=>{
 const paiement=e.paiements?.[mois]?.montant||0;
@@ -1039,17 +1046,18 @@ const minerval=e.exonere?0:(e.minerval||45000);
 const estPaye=paiement>=minerval;
 const reste=Math.max(0,minerval-paiement);
 const nomComplet=(e.nom+' '+(e.postnom||'')+' '+(e.prenom||'')).trim().toUpperCase();
-return[(index+1).toString(),nomComplet,e.classe||'-',e.option||'-',`${formatNb(minerval)} FC`,`${formatNb(paiement)} FC`,estPaye?'✅ PAYÉ':'⚠️ NON PAYÉ',`${formatNb(reste)} FC`];
+const statutTexte=estPaye?'PAYÉ':'NON PAYÉ';
+return[(index+1).toString(),nomComplet,e.classe||'-',e.option||'-',`${formatNb(minerval)} FC`,`${formatNb(paiement)} FC`,statutTexte,`${formatNb(reste)} FC`];
 });
 
 doc.autoTable({
-startY:68,
+startY:62,
 head:[['N°','ÉLÈVE','CLASSE','OPTION','MINERVAL','PAYÉ','STATUT','RESTE']],
 body:body,
-styles:{fontSize:8,cellPadding:3,textColor:[30,30,30]},
-headStyles:{fillColor:[26,26,46],textColor:[255,255,255],fontSize:9,fontStyle:'bold'},
-alternateRowStyles:{fillColor:[248,246,242]},
-columnStyles:{0:{cellWidth:12,halign:'center'},1:{cellWidth:45,fontStyle:'bold'},2:{cellWidth:22},3:{cellWidth:22},4:{cellWidth:22,halign:'right'},5:{cellWidth:22,halign:'right'},6:{cellWidth:22,halign:'center'},7:{cellWidth:22,halign:'right'}},
+styles:{fontSize:8,cellPadding:3,textColor:[30,30,30],lineColor:[200,200,200],lineWidth:0.1},
+headStyles:{fillColor:[248,246,242],textColor:[26,26,46],fontSize:8,fontStyle:'bold',halign:'center',lineColor:[200,200,200],lineWidth:0.1},
+alternateRowStyles:{fillColor:[250,249,247]},
+columnStyles:{0:{cellWidth:12,halign:'center'},1:{cellWidth:45,fontStyle:'bold'},2:{cellWidth:22,halign:'center'},3:{cellWidth:22,halign:'center'},4:{cellWidth:22,halign:'right'},5:{cellWidth:22,halign:'right'},6:{cellWidth:22,halign:'center'},7:{cellWidth:22,halign:'right'}},
 margin:{left:15,right:15},
 didDrawPage:function(data){
 const pageNum=doc.internal.getCurrentPageInfo().pageNumber;
