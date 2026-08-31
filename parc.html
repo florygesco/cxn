@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recouvrement Mensuel</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f4f8;
+      padding: 20px;
+      color: #1e293b;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      padding: 24px 30px;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #e9edf4;
+      padding-bottom: 16px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .header h1 { font-size: 24px; font-weight: 700; color: #0f2b44; }
+    .header h1 span { color: #dc2626; }
+    .school-info {
+      font-size: 14px;
+      color: #64748b;
+      background: #f1f5f9;
+      padding: 6px 16px;
+      border-radius: 30px;
+      font-weight: 500;
+    }
+    .period {
+      background: #dbeafe;
+      color: #1d4ed8;
+      padding: 4px 14px;
+      border-radius: 30px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    /* FILTRES */
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      background: #f8fafc;
+      padding: 16px 20px;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      margin-bottom: 20px;
+      align-items: flex-end;
+    }
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1 1 160px;
+      min-width: 130px;
+    }
+    .filter-group label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .filter-group select {
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid #cbd5e1;
+      background: white;
+      font-size: 14px;
+      color: #1e293b;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .filter-group select:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+    }
+    .btn {
+      padding: 10px 24px;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      height: 44px;
+      white-space: nowrap;
+    }
+    .btn-primary {
+      background: #2563eb;
+      color: white;
+    }
+    .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+    .btn-success {
+      background: #059669;
+      color: white;
+    }
+    .btn-success:hover { background: #047857; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(5,150,105,0.3); }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid #cbd5e1;
+      color: #475569;
+    }
+    .btn-outline:hover { background: #f1f5f9; border-color: #94a3b8; }
+
+    /* STATS */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 14px 12px;
+      text-align: center;
+      border: 1px solid #e2e8f0;
+    }
+    .stat-card .number {
+      font-size: 24px;
+      font-weight: 700;
+      color: #0f2b44;
+    }
+    .stat-card .number.red { color: #dc2626; }
+    .stat-card .number.green { color: #059669; }
+    .stat-card .number.blue { color: #2563eb; }
+    .stat-card .label {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 2px;
+      font-weight: 500;
+    }
+
+    /* TABLEAU */
+    .table-wrapper {
+      overflow-x: auto;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th {
+      background: #f1f5f9;
+      color: #1e293b;
+      font-weight: 600;
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 2px solid #e2e8f0;
+      white-space: nowrap;
+    }
+    td {
+      padding: 11px 16px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle;
+    }
+    tr:hover { background: #f8fafc; }
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+    .font-mono { font-family: monospace; font-weight: 600; }
+    .badge {
+      display: inline-block;
+      padding: 3px 12px;
+      border-radius: 30px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-danger { background: #fee2e2; color: #b91c1c; }
+    .badge-warning { background: #fef3c7; color: #b45309; }
+    .badge-success { background: #dcfce7; color: #15803d; }
+    .badge-info { background: #dbeafe; color: #1d4ed8; }
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #94a3b8;
+      font-size: 16px;
+    }
+    .empty-state .icon { font-size: 48px; display: block; margin-bottom: 12px; }
+
+    /* TOAST */
+    #toastContainer {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 400px;
+    }
+    .toast {
+      background: #1e293b;
+      color: #f1f5f9;
+      padding: 14px 20px;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+      font-size: 14px;
+      font-weight: 500;
+      animation: slideIn 0.3s ease;
+      border-left: 4px solid #2563eb;
+    }
+    .toast.success { border-left-color: #059669; }
+    .toast.error { border-left-color: #dc2626; }
+    @keyframes slideIn {
+      from { transform: translateX(60px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* LOADING */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #64748b;
+    }
+    .spinner {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border: 4px solid #e2e8f0;
+      border-top-color: #2563eb;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      .container { padding: 16px; }
+      .filters { flex-direction: column; align-items: stretch; }
+      .filter-group { flex: 1 1 auto; }
+      .header { flex-direction: column; align-items: flex-start; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 480px) {
+      .stats { grid-template-columns: 1fr 1fr; }
+      th, td { padding: 8px 6px; font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container" id="app">
+  <!-- EN-TÊTE -->
+  <div class="header">
+    <h1>📊 <span>Recouvrement</span> Mensuel</h1>
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+      <span class="period" id="periodDisplay">📅 Septembre 2026</span>
+      <span class="school-info" id="schoolName">🏫 Complexe Scolaire</span>
+    </div>
+  </div>
+
+  <!-- FILTRES -->
+  <div class="filters">
+    <div class="filter-group">
+      <label>📅 Mois</label>
+      <select id="filterMois">
+        <option value="Septembre">Septembre</option>
+        <option value="Octobre">Octobre</option>
+        <option value="Novembre">Novembre</option>
+        <option value="Decembre">Décembre</option>
+        <option value="Janvier">Janvier</option>
+        <option value="Fevrier">Février</option>
+        <option value="Mars">Mars</option>
+        <option value="Avril">Avril</option>
+        <option value="Mai">Mai</option>
+        <option value="Juin">Juin</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>📚 Classe</label>
+      <select id="filterClasse">
+        <option value="">Toutes les classes</option>
+        <option value="7ème EB">7ème EB</option>
+        <option value="8ème EB">8ème EB</option>
+        <option value="1ère Année">1ère Année</option>
+        <option value="2ème Année">2ème Année</option>
+        <option value="3ème Année">3ème Année</option>
+        <option value="4ème Année">4ème Année</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>🎯 Option</label>
+      <select id="filterOption">
+        <option value="">Toutes les options</option>
+      </select>
+    </div>
+    <div class="filter-group" style="flex: 0 0 auto;">
+      <button class="btn btn-primary" id="btnAppliquer">🔍 Appliquer</button>
+    </div>
+    <div class="filter-group" style="flex: 0 0 auto;">
+      <button class="btn btn-outline" id="btnReset">✖ Réinitialiser</button>
+    </div>
+    <div class="filter-group" style="flex: 0 0 auto;">
+      <button class="btn btn-success" id="btnPDF">📄 PDF</button>
+    </div>
+  </div>
+
+  <!-- STATISTIQUES -->
+  <div class="stats" id="statsContainer">
+    <div class="stat-card">
+      <div class="number blue" id="statTotal">0</div>
+      <div class="label">👨‍🎓 Élèves</div>
+    </div>
+    <div class="stat-card">
+      <div class="number red" id="statImpayes">0</div>
+      <div class="label">⚠️ Impayés</div>
+    </div>
+    <div class="stat-card">
+      <div class="number green" id="statPayes">0</div>
+      <div class="label">✅ Payés</div>
+    </div>
+    <div class="stat-card">
+      <div class="number red" id="statTotalDu">0 FC</div>
+      <div class="label">💰 Montant total dû</div>
+    </div>
+  </div>
+
+  <!-- TABLEAU -->
+  <div class="table-wrapper">
+    <div id="tableContainer">
+      <div class="loading">
+        <div class="spinner"></div>
+        <p style="margin-top:12px;">Chargement des données...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toastContainer"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+  }
+}
+</script>
+
+<script type="module">
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, getDocs, query, where } from "firebase/firestore";
+
+// ----- CONFIG FIREBASE -----
+const firebaseConfig = {
+  apiKey: "AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",
+  authDomain: "gesco-2.firebaseapp.com",
+  projectId: "gesco-2",
+  storageBucket: "gesco-2.firebasestorage.app",
+  messagingSenderId: "36319988765",
+  appId: "1:36319988765:web:e8cd823804596495248af4"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// ----- PARAMÈTRES -----
+const urlParams = new URLSearchParams(window.location.search);
+const schoolId = urlParams.get('ecole') || 'complexe_scolaire_kinshasa';
+const ECOLET_ID = schoolId.replace(/[^a-zA-Z0-9]/g, '_');
+
+const moisListe = ["Septembre", "Octobre", "Novembre", "Decembre", "Janvier", "Fevrier", "Mars", "Avril", "Mai", "Juin"];
+
+// Détection du mois courant
+const dateRef = new Date();
+const moisActuelNum = dateRef.getMonth();
+let moisCourant = "Septembre";
+if (moisActuelNum >= 8) moisCourant = moisListe[moisActuelNum - 8];
+else if (moisActuelNum >= 0 && moisActuelNum <= 5) moisCourant = moisListe[moisActuelNum + 4];
+
+// Options par classe
+const optionsParClasse = {
+  "7ème EB": [],
+  "8ème EB": [],
+  "1ère Année": ["LATIN-PHILO", "SCIENCES", "PEDAGOGIE GENERALE", "COMMERCIALE ET GESTION", "ELECTRICITE", "MECANIQUE GENERALE", "COUPE ET COUTURE"],
+  "2ème Année": ["LATIN-PHILO", "SCIENCES", "PEDAGOGIE GENERALE", "COMMERCIALE ET GESTION", "ELECTRICITE", "MECANIQUE GENERALE", "COUPE ET COUTURE"],
+  "3ème Année": ["LATIN-PHILO", "SCIENCES", "PEDAGOGIE GENERALE", "COMMERCIALE ET GESTION", "ELECTRICITE", "MECANIQUE GENERALE", "COUPE ET COUTURE"],
+  "4ème Année": ["LATIN-PHILO", "SCIENCES", "PEDAGOGIE GENERALE", "COMMERCIALE ET GESTION", "ELECTRICITE", "MECANIQUE GENERALE", "COUPE ET COUTURE"]
+};
+
+// ----- ÉTAT -----
+let tousLesEleves = [];
+let elevesFiltres = [];
+let moisSelectionne = moisCourant;
+
+// ----- ÉLÉMENTS DOM -----
+const filterMois = document.getElementById('filterMois');
+const filterClasse = document.getElementById('filterClasse');
+const filterOption = document.getElementById('filterOption');
+const btnAppliquer = document.getElementById('btnAppliquer');
+const btnReset = document.getElementById('btnReset');
+const btnPDF = document.getElementById('btnPDF');
+const tableContainer = document.getElementById('tableContainer');
+const statTotal = document.getElementById('statTotal');
+const statImpayes = document.getElementById('statImpayes');
+const statPayes = document.getElementById('statPayes');
+const statTotalDu = document.getElementById('statTotalDu');
+const periodDisplay = document.getElementById('periodDisplay');
+const schoolName = document.getElementById('schoolName');
+
+// ----- TOAST -----
+function toast(msg, type = "info") {
+  const container = document.getElementById('toastContainer');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => { el.remove(); }, 3500);
+}
+
+// ----- FORMATAGE -----
+function formatNb(n) {
+  if (n === 0 || !n) return "0";
+  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+}
+
+function formaterDate(date) {
+  const d = new Date(date);
+  return d.getDate().toString().padStart(2, "0") + "/" + (d.getMonth() + 1).toString().padStart(2, "0") + "/" + d.getFullYear();
+}
+
+// ----- CHARGEMENT DES DONNÉES -----
+async function chargerEleves() {
+  try {
+    tableContainer.innerHTML = `<div class="loading"><div class="spinner"></div><p style="margin-top:12px;">Chargement des données...</p></div>`;
+
+    const q = query(collection(db, "ecoles", ECOLET_ID, "compta_eleves"));
+    const snap = await getDocs(q);
+
+    tousLesEleves = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      if (!d.nom || d.abandon === true) return;
+      tousLesEleves.push({
+        id: d.eleveId || doc.id,
+        nom: d.nom || "",
+        postnom: d.postnom || "",
+        prenom: d.prenom || "",
+        classe: d.classe || "",
+        option: d.option || "",
+        minerval: d.minerval || 45000,
+        exonere: d.exonere || false,
+        phone: d.phone || "",
+        parentCode: d.parentCode || "",
+        paiements: d.paiements || {},
+        moisBlancs: d.moisBlancs || []
+      });
+    });
+
+    // Mise à jour des options
+    mettreAJourOptions();
+
+    // Appliquer les filtres par défaut
+    moisSelectionne = filterMois.value;
+    appliquerFiltres();
+
+  } catch (error) {
+    console.error("Erreur chargement:", error);
+    tableContainer.innerHTML = `<div class="empty-state"><span class="icon">❌</span>Erreur de chargement: ${error.message}</div>`;
+    toast("Erreur de chargement des données", "error");
+  }
+}
+
+// ----- MISE À JOUR DES OPTIONS -----
+function mettreAJourOptions() {
+  const optSelect = filterOption;
+  const optionsUniques = new Set();
+  for (const [classe, opts] of Object.entries(optionsParClasse)) {
+    opts.forEach(o => optionsUniques.add(o));
+  }
+  let html = '<option value="">Toutes les options</option>';
+  [...optionsUniques].sort().forEach(opt => {
+    html += `<option value="${opt}">${opt}</option>`;
+  });
+  optSelect.innerHTML = html;
+}
+
+// ----- FILTRAGE -----
+function appliquerFiltres() {
+  const mois = filterMois.value;
+  const classe = filterClasse.value;
+  const option = filterOption.value;
+
+  moisSelectionne = mois;
+
+  let resultats = tousLesEleves.filter(e => {
+    // Vérifier si l'élève a payé ce mois
+    const paiement = (e.paiements[mois] || {}).montant || 0;
+    const minerval = e.exonere ? 0 : e.minerval;
+    const estBlanc = (e.moisBlancs || []).includes(mois);
+
+    // Si exonéré ou mois blanc, considéré comme payé
+    const estPaye = estBlanc || e.exonere || paiement >= minerval;
+
+    // On garde uniquement les IMPAYÉS
+    return !estPaye;
+  });
+
+  // Filtrer par classe
+  if (classe) {
+    resultats = resultats.filter(e => e.classe === classe);
+  }
+
+  // Filtrer par option
+  if (option) {
+    resultats = resultats.filter(e => e.option === option);
+  }
+
+  // Tri alphabétique par nom
+  resultats.sort((a, b) => a.nom.localeCompare(b.nom));
+
+  elevesFiltres = resultats;
+  afficherTableau();
+  afficherStats();
+}
+
+// ----- AFFICHAGE STATS -----
+function afficherStats() {
+  const total = elevesFiltres.length;
+  let totalDu = 0;
+  elevesFiltres.forEach(e => {
+    const paiement = (e.paiements[moisSelectionne] || {}).montant || 0;
+    const minerval = e.exonere ? 0 : e.minerval;
+    const reste = Math.max(0, minerval - paiement);
+    totalDu += reste;
+  });
+
+  statTotal.textContent = total;
+  statImpayes.textContent = total;
+  statPayes.textContent = tousLesEleves.length - total;
+  statTotalDu.textContent = formatNb(totalDu) + " FC";
+
+  // Mettre à jour le mois affiché
+  const moisDisplay = moisSelectionne;
+  const annee = new Date().getFullYear();
+  periodDisplay.textContent = `📅 ${moisDisplay} ${annee}`;
+}
+
+// ----- AFFICHAGE TABLEAU -----
+function afficherTableau() {
+  if (elevesFiltres.length === 0) {
+    tableContainer.innerHTML = `<div class="empty-state"><span class="icon">✅</span>Aucun impayé pour <strong>${moisSelectionne}</strong></div>`;
+    return;
+  }
+
+  let html = `<table>
+    <thead>
+      <tr>
+        <th>👤 Élève</th>
+        <th>📚 Classe</th>
+        <th>🎯 Option</th>
+        <th class="text-right">💰 Minerval</th>
+        <th class="text-right">💳 Payé</th>
+        <th class="text-right">⚠️ Reste dû</th>
+        <th class="text-center">📞 Téléphone</th>
+        <th class="text-center">🔑 Code</th>
+      </tr>
+    </thead>
+    <tbody>`;
+
+  elevesFiltres.forEach(e => {
+    const paiement = (e.paiements[moisSelectionne] || {}).montant || 0;
+    const minerval = e.exonere ? 0 : e.minerval;
+    const reste = Math.max(0, minerval - paiement);
+    const nomComplet = `${e.nom} ${e.postnom || ''} ${e.prenom || ''}`.trim().toUpperCase();
+    const estExonere = e.exonere;
+    const badgeExonere = estExonere ? `<span class="badge badge-info">EXONÉRÉ</span>` : '';
+
+    html += `<tr>
+      <td><strong>${nomComplet}</strong> ${badgeExonere}</td>
+      <td>${e.classe}</td>
+      <td>${e.option || '-'}</td>
+      <td class="text-right">${formatNb(minerval)} FC</td>
+      <td class="text-right">${formatNb(paiement)} FC</td>
+      <td class="text-right"><strong style="color:${reste > 0 ? '#dc2626' : '#059669'};">${formatNb(reste)} FC</strong></td>
+      <td class="text-center">${e.phone || '-'}</td>
+      <td class="text-center font-mono">${e.parentCode || '-'}</td>
+    </tr>`;
+  });
+
+  html += `</tbody></table>`;
+  tableContainer.innerHTML = html;
+}
+
+// ----- GÉNÉRATION PDF -----
+async function genererPDF() {
+  if (elevesFiltres.length === 0) {
+    toast("Aucun impayé à exporter", "error");
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF("portrait", "mm", "a4");
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  // En-tête
+  doc.setFillColor(255, 255, 255);
+  doc.rect(0, 0, pageWidth, 50, "F");
+  doc.setDrawColor(200, 200, 200);
+  doc.line(15, 45, pageWidth - 15, 45);
+
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 43, 68);
+  doc.text("RECOUVREMENT MENSUEL", 15, 22);
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 100, 100);
+  const annee = new Date().getFullYear();
+  doc.text(`Mois: ${moisSelectionne} ${annee}`, 15, 32);
+
+  const classeFiltre = filterClasse.value || "Toutes";
+  const optionFiltre = filterOption.value || "Toutes";
+  doc.text(`Classe: ${classeFiltre} | Option: ${optionFiltre}`, 15, 39);
+
+  doc.setFontSize(9);
+  doc.setTextColor(120, 120, 120);
+  doc.text(`Élèves: ${elevesFiltres.length}`, 15, 46);
+
+  // Corps du tableau
+  const body = elevesFiltres.map(e => {
+    const paiement = (e.paiements[moisSelectionne] || {}).montant || 0;
+    const minerval = e.exonere ? 0 : e.minerval;
+    const reste = Math.max(0, minerval - paiement);
+    const nomComplet = `${e.nom} ${e.postnom || ''} ${e.prenom || ''}`.trim().toUpperCase();
+    return [
+      nomComplet,
+      e.classe,
+      e.option || '-',
+      formatNb(minerval) + ' FC',
+      formatNb(paiement) + ' FC',
+      formatNb(reste) + ' FC',
+      e.phone || '-',
+      e.parentCode || '-'
+    ];
+  });
+
+  doc.autoTable({
+    startY: 50,
+    head: [["ÉLÈVE", "CLASSE", "OPTION", "MINERVAL", "PAYÉ", "RESTE DÛ", "TÉLÉPHONE", "CODE"]],
+    body: body,
+    styles: { fontSize: 8, cellPadding: 3, textColor: [30, 30, 30] },
+    headStyles: { fillColor: [40, 80, 130], textColor: [255, 255, 255], fontSize: 9, fontStyle: "bold", halign: "center" },
+    alternateRowStyles: { fillColor: [245, 247, 250] },
+    columnStyles: {
+      0: { cellWidth: 35, fontStyle: "bold" },
+      1: { cellWidth: 22 },
+      2: { cellWidth: 25 },
+      3: { cellWidth: 20, halign: "right" },
+      4: { cellWidth: 20, halign: "right" },
+      5: { cellWidth: 22, halign: "right" },
+      6: { cellWidth: 20, halign: "center" },
+      7: { cellWidth: 18, halign: "center" }
+    },
+    margin: { left: 15, right: 15 },
+    didDrawPage: function(data) {
+      const pageNum = doc.internal.getCurrentPageInfo().pageNumber;
+      const totalPages = doc.internal.getNumberOfPages();
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text(`Page ${pageNum} / ${totalPages}`, pageWidth / 2, doc.internal.pageSize.height - 10, { align: "center" });
+      doc.text(new Date().toLocaleString('fr-FR'), pageWidth - 15, doc.internal.pageSize.height - 10, { align: "right" });
+    }
+  });
+
+  // Total en bas
+  const finalY = doc.lastAutoTable.finalY + 10;
+  let totalDu = 0;
+  elevesFiltres.forEach(e => {
+    const paiement = (e.paiements[moisSelectionne] || {}).montant || 0;
+    const minerval = e.exonere ? 0 : e.minerval;
+    totalDu += Math.max(0, minerval - paiement);
+  });
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(200, 40, 40);
+  doc.text(`TOTAL RESTE DÛ: ${formatNb(totalDu)} FC`, pageWidth - 15, finalY, { align: "right" });
+
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(80, 80, 80);
+  doc.text(`Nombre d'élèves: ${elevesFiltres.length}`, 15, finalY);
+
+  doc.save(`Recouvrement_${moisSelectionne}_${classeFiltre}_${formatDateYMD()}.pdf`);
+  toast("PDF généré avec succès !", "success");
+}
+
+function formatDateYMD() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+// ----- ÉVÉNEMENTS -----
+btnAppliquer.addEventListener('click', appliquerFiltres);
+btnReset.addEventListener('click', () => {
+  filterClasse.value = '';
+  filterOption.value = '';
+  filterMois.value = moisCourant;
+  appliquerFiltres();
+});
+btnPDF.addEventListener('click', genererPDF);
+
+// Changement de mois -> on recharge automatiquement
+filterMois.addEventListener('change', appliquerFiltres);
+
+// ----- INITIALISATION -----
+schoolName.textContent = `🏫 ${schoolId.toUpperCase()}`;
+filterMois.value = moisCourant;
+document.getElementById('periodDisplay').textContent = `📅 ${moisCourant} ${new Date().getFullYear()}`;
+
+chargerEleves();
+</script>
+</body>
+</html>
