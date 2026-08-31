@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Recouvrement - 3 Espaces</title>
+<title>Recouvrement - Export Excel</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 <style>
@@ -33,8 +34,10 @@ body{font-family:'Segoe UI',Tahoma,sans-serif;background:#0a0a1a;color:#fff;padd
 .btn-success:hover{background:#1e8449;transform:translateY(-2px)}
 .btn-outline{background:transparent;border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5)}
 .btn-outline:hover{background:rgba(255,255,255,0.05)}
-.btn-pdf{background:#2ecc71;color:#0a0a1a}
-.btn-pdf:hover{background:#27ae60}
+.btn-pdf{background:#e74c3c;color:#fff}
+.btn-pdf:hover{background:#c0392b}
+.btn-excel{background:#217346;color:#fff}
+.btn-excel:hover{background:#1e6b3a;transform:translateY(-2px)}
 .table-wrapper{overflow-x:auto;border-radius:12px;border:1px solid rgba(255,255,255,0.04)}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.4);font-weight:600;padding:10px 12px;text-align:left;border-bottom:2px solid rgba(255,255,255,0.04);white-space:nowrap}
@@ -47,12 +50,6 @@ tr:hover{background:rgba(255,255,255,0.02)}
 .badge{display:inline-block;padding:2px 12px;border-radius:20px;font-size:10px;font-weight:700}
 .badge-success{background:rgba(46,204,113,0.15);color:#2ecc71}
 .badge-danger{background:rgba(231,76,60,0.15);color:#e74c3c}
-.badge-info{background:rgba(52,152,219,0.15);color:#5dade2}
-.badge-warning{background:rgba(241,196,15,0.15);color:#f1c40f}
-.badge-espace{font-size:9px;padding:1px 8px;border-radius:12px}
-.badge-espace.secondaire{background:rgba(247,151,30,0.15);color:#f7971e}
-.badge-espace.primaire{background:rgba(52,152,219,0.15);color:#5dade2}
-.badge-espace.maternelle{background:rgba(46,204,113,0.15);color:#2ecc71}
 .empty-state{text-align:center;padding:40px 20px;color:rgba(255,255,255,0.2);font-size:14px}
 .empty-state .icon{font-size:36px;display:block;margin-bottom:8px}
 .loading{text-align:center;padding:30px;color:rgba(255,255,255,0.2)}
@@ -92,12 +89,8 @@ tr:hover{background:rgba(255,255,255,0.02)}
 <select id="filterClasse"><option value="">Toutes</option></select>
 </div>
 <div class="filter-group">
-<label>💰 Statut</label>
-<select id="filterStatut">
-<option value="all">Tous</option>
-<option value="impaye">⚠️ Impayés</option>
-<option value="paye">✅ Payés</option>
-</select>
+<label>🎯 Option (Secondaire)</label>
+<select id="filterOption"><option value="">Toutes</option></select>
 </div>
 <div class="filter-group" style="flex:2 1 160px">
 <label>🔍 Recherche</label>
@@ -108,6 +101,9 @@ tr:hover{background:rgba(255,255,255,0.02)}
 </div>
 <div class="filter-group" style="flex:0 0 auto">
 <button class="btn btn-outline" id="btnReset">✖ Réinitialiser</button>
+</div>
+<div class="filter-group" style="flex:0 0 auto">
+<button class="btn btn-excel" id="btnExcel">📊 Excel</button>
 </div>
 <div class="filter-group" style="flex:0 0 auto">
 <button class="btn btn-pdf" id="btnPDF">📄 PDF</button>
@@ -135,7 +131,7 @@ if(e.metaKey){e.preventDefault();return false;}
 
 <script type="module">
 import{initializeApp}from"firebase/app";
-import{getFirestore,collection,getDocs,doc,getDoc,setDoc,updateDoc}from"firebase/firestore";
+import{getFirestore,collection,getDocs,doc,getDoc,setDoc}from"firebase/firestore";
 
 const firebaseConfig={
 apiKey:"AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",
@@ -155,10 +151,18 @@ const ECOLET_ID=schoolId.replace(/[^a-zA-Z0-9]/g,'_');
 
 const moisListe=["Septembre","Octobre","Novembre","Decembre","Janvier","Fevrier","Mars","Avril","Mai","Juin"];
 
-// Classes par espace
 const classesSecondaire=["7ème EB","8ème EB","1ère Année","2ème Année","3ème Année","4ème Année"];
 const classesPrimaire=["1ère A","1ère B","2ème A","2ème B","3ème A","3ème B","4ème A","4ème B","5ème A","5ème B","6ème A","6ème B"];
 const classesMaternelle=["Niveau 1","Niveau 2","Niveau 3"];
+
+const optionsSecondaire={
+"7ème EB":[],
+"8ème EB":[],
+"1ère Année":["LATIN-PHILO","SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","COUPE ET COUTURE"],
+"2ème Année":["LATIN-PHILO","SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","COUPE ET COUTURE"],
+"3ème Année":["LATIN-PHILO","SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","COUPE ET COUTURE"],
+"4ème Année":["LATIN-PHILO","SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","COUPE ET COUTURE"]
+};
 
 const dateRef=new Date();
 const moisActuelNum=dateRef.getMonth();
@@ -173,11 +177,12 @@ let moisSelectionne=moisCourant;
 
 const filterMois=document.getElementById('filterMois');
 const filterClasse=document.getElementById('filterClasse');
-const filterStatut=document.getElementById('filterStatut');
+const filterOption=document.getElementById('filterOption');
 const filterSearch=document.getElementById('filterSearch');
 const btnAppliquer=document.getElementById('btnAppliquer');
 const btnReset=document.getElementById('btnReset');
 const btnPDF=document.getElementById('btnPDF');
+const btnExcel=document.getElementById('btnExcel');
 const tableContainer=document.getElementById('tableContainer');
 const schoolName=document.getElementById('schoolName');
 
@@ -193,29 +198,12 @@ setTimeout(()=>{el.classList.add('removing');setTimeout(()=>el.remove(),400);},3
 function formatNb(n){if(!n||n===0)return"0";return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");}
 
 function getElevesCollection(){
-const map={
-secondaire:"compta_eleves",
-primaire:"prima_eleves",
-maternelle:"mater_eleves"
-};
+const map={secondaire:"compta_eleves",primaire:"prima_eleves",maternelle:"mater_eleves"};
 return collection(db,"ecoles",ECOLET_ID,map[espaceActif]||"compta_eleves");
 }
 
-function getConfigRef(name){
-const map={
-secondaire:"compta_config",
-primaire:"prima_config",
-maternelle:"mater_config"
-};
-return doc(db,"ecoles",ECOLET_ID,map[espaceActif]||"compta_config",name);
-}
-
 function getClasses(){
-const map={
-secondaire:classesSecondaire,
-primaire:classesPrimaire,
-maternelle:classesMaternelle
-};
+const map={secondaire:classesSecondaire,primaire:classesPrimaire,maternelle:classesMaternelle};
 return map[espaceActif]||classesSecondaire;
 }
 
@@ -224,28 +212,14 @@ const map={secondaire:"SECONDAIRE",primaire:"PRIMAIRE",maternelle:"MATERNELLE"};
 return map[espaceActif]||"SECONDAIRE";
 }
 
-function getEspaceColor(){
-const map={secondaire:"#f7971e",primaire:"#3498db",maternelle:"#2ecc71"};
-return map[espaceActif]||"#f7971e";
-}
-
-function getEspaceColorRGB(){
-const map={secondaire:[247,151,30],primaire:[52,152,219],maternelle:[46,204,113]};
-return map[espaceActif]||[247,151,30];
-}
-
-function getEspaceBadge(){
-const map={
-secondaire:'<span class="badge badge-espace secondaire">SECONDAIRE</span>',
-primaire:'<span class="badge badge-espace primaire">PRIMAIRE</span>',
-maternelle:'<span class="badge badge-espace maternelle">MATERNELLE</span>'
-};
-return map[espaceActif]||'';
-}
-
 function getDefaultMinerval(){
-const map={secondaire:45000,primaire:25000,maternelle:15000};
+const map={secondaire:45000,primaire:30000,maternelle:30000};
 return map[espaceActif]||45000;
+}
+
+function getOptionsForClasse(classe){
+if(espaceActif!=='secondaire')return [];
+return optionsSecondaire[classe]||[];
 }
 
 function remplirMois(){
@@ -265,6 +239,23 @@ classes.forEach(c=>{const o=document.createElement('option');o.value=c;o.textCon
 select.appendChild(opt);
 }
 
+function remplirOptions(){
+const select=filterOption;
+select.innerHTML='<option value="">Toutes</option>';
+if(espaceActif!=='secondaire')return;
+const optsUniques=new Set();
+for(const c of classesSecondaire){
+const opts=optionsSecondaire[c]||[];
+opts.forEach(o=>optsUniques.add(o));
+}
+[...optsUniques].sort().forEach(o=>{
+const opt=document.createElement('option');
+opt.value=o;
+opt.textContent=o;
+select.appendChild(opt);
+});
+}
+
 async function chargerEleves(){
 try{
 tableContainer.innerHTML=`<div class="loading"><div class="spinner"></div><p style="margin-top:8px;">Chargement ${getEspaceLabel()}...</p></div>`;
@@ -279,6 +270,7 @@ nom:data.nom||"",
 postnom:data.postnom||"",
 prenom:data.prenom||"",
 classe:data.classe||"",
+option:data.option||"",
 minerval:data.minerval||getDefaultMinerval(),
 phone:data.phone||"",
 parentCode:data.parentCode||"",
@@ -289,6 +281,7 @@ dateInscription:data.dateInscription||new Date().toISOString()
 });
 remplirMois();
 remplirClasses();
+remplirOptions();
 moisSelectionne=filterMois.value;
 appliquerFiltres();
 }catch(e){
@@ -301,13 +294,14 @@ toast("Erreur de chargement","error");
 function appliquerFiltres(){
 const mois=filterMois.value;
 const classe=filterClasse.value;
-const statut=filterStatut.value;
+const option=filterOption.value;
 const search=filterSearch.value.trim().toLowerCase();
 
 moisSelectionne=mois;
 let r=tousLesEleves;
 
 if(classe)r=r.filter(e=>e.classe===classe);
+if(option)r=r.filter(e=>e.option===option);
 
 if(search){
 r=r.filter(e=>{
@@ -316,16 +310,6 @@ const code=e.parentCode||'';
 return nom.includes(search)||code.includes(search);
 });
 }
-
-r=r.filter(e=>{
-const paiement=(e.paiements[mois]||{}).montant||0;
-const minerval=e.minerval||getDefaultMinerval();
-const estBlanc=(e.moisBlancs||[]).includes(mois);
-const estPaye=estBlanc||paiement>=minerval;
-if(statut==='paye')return estPaye;
-if(statut==='impaye')return !estPaye;
-return true;
-});
 
 r.sort((a,b)=>a.nom.localeCompare(b.nom));
 elevesFiltres=r;
@@ -340,10 +324,10 @@ return;
 let h=`<table><thead><tr>
 <th>👤 Élève</th>
 <th>📚 Classe</th>
+<th>🎯 Option</th>
 <th class="text-right">💰 Minerval</th>
 <th class="text-right">💳 Payé</th>
 <th class="text-right">⚠️ Dette</th>
-<th class="text-center">Statut</th>
 <th class="text-center">🔑 Code</th>
 </tr></thead><tbody>`;
 
@@ -356,14 +340,14 @@ const estPaye=estBlanc||paiement>=minerval;
 const nom=(e.nom+' '+(e.postnom||'')+' '+(e.prenom||'')).trim().toUpperCase();
 const badge=estPaye?`<span class="badge badge-success">✅ PAYÉ</span>`:`<span class="badge badge-danger">⚠️ IMPAYÉ</span>`;
 const code=e.parentCode||'-';
-const espaceBadge=getEspaceBadge();
+const opt=e.option||'-';
 h+=`<tr>
-<td><strong>${nom}</strong> ${espaceBadge}</td>
+<td><strong>${nom}</strong></td>
 <td>${e.classe}</td>
+<td>${opt}</td>
 <td class="text-right">${formatNb(minerval)} FC</td>
 <td class="text-right ${estPaye?'paye':''}">${formatNb(paiement)} FC</td>
 <td class="text-right ${!estPaye?'dette':''}">${formatNb(dette)} FC</td>
-<td class="text-center">${badge}</td>
 <td class="text-center" style="font-family:monospace;font-size:12px;">${code}</td>
 </tr>`;
 });
@@ -371,6 +355,146 @@ h+=`</tbody></table>`;
 tableContainer.innerHTML=h;
 }
 
+// ----- EXPORT EXCEL (NOM DE FICHIER FIXE PAR SECTION) -----
+function genererExcel(){
+if(elevesFiltres.length===0){toast("Aucun élève à exporter","error");return;}
+
+const XLSX = window.XLSX;
+const nomEcole = "C.S. LE TREMPLIN";
+const sousTitre = "MUSOSHI-SODIMICO";
+const espaceLabel = getEspaceLabel();
+const classeFiltre = filterClasse.value || "TOUTES";
+const moisFiltre = moisSelectionne;
+
+// Créer le tableau de données
+const data = [];
+
+// Ligne 1: Nom de l'école
+data.push([nomEcole, "", "", "", "", "", "", "", "", "", "", ""]);
+
+// Ligne 2: Sous-titre
+data.push([sousTitre, "", "", "", "", "", "", "", "", "", "", ""]);
+
+// Ligne 3: Classe
+const classeDisplay = classeFiltre === "TOUTES" ? "TOUTES CLASSES" : classeFiltre;
+data.push([`CLASSE: ${classeDisplay} - ${espaceLabel}`, "", "", "", "", "", "", "", "", "", "", ""]);
+
+// Ligne 4: Vide
+data.push([]);
+
+// Ligne 5: Titre du tableau
+data.push(["LISTE DE PERCEPTION DES FRAIS ADMINISTRATIFS", "", "", "", "", "", "", "", "", "", "", ""]);
+
+// Ligne 6: En-tête des colonnes
+data.push([
+"N°",
+"NOM ET POST NOM",
+"",
+"SEP",
+"OCT",
+"NOV",
+"DEC",
+"JANV",
+"FEV",
+"MARS",
+"AVR",
+"MAI"
+]);
+
+// Ligne 7: Sous-en-tête (trimestres)
+data.push([
+"",
+"",
+"",
+"Premier Trimestre",
+"",
+"",
+"Deuxième Trimestre",
+"",
+"",
+"Troisième Trimestre",
+"",
+""
+]);
+
+// Ajouter les élèves
+elevesFiltres.forEach((e, index) => {
+const nomComplet = `${e.nom} ${e.postnom||''} ${e.prenom||''}`.trim();
+const paiements = e.paiements || {};
+const minerval = e.minerval || getDefaultMinerval();
+
+// Pour chaque mois, récupérer le montant payé ou le minerval si non payé
+const moisData = moisListe.map(m => {
+const pay = paiements[m]?.montant || 0;
+return pay > 0 ? `${formatNb(pay)}FC` : `${formatNb(minerval)}FC`;
+});
+
+// Ajouter la ligne de l'élève
+data.push([
+(index + 1).toString(),
+nomComplet,
+"",
+moisData[0],
+moisData[1],
+moisData[2],
+moisData[3],
+moisData[4],
+moisData[5],
+moisData[6],
+moisData[7],
+moisData[8]
+]);
+});
+
+// Ajouter quelques lignes vides à la fin (comme dans le modèle)
+for(let i=0; i<5; i++){
+data.push(["", "", "", "", "", "", "", "", "", "", "", ""]);
+}
+
+// Créer le workbook
+const wb = XLSX.utils.book_new();
+const ws = XLSX.utils.aoa_to_sheet(data);
+
+// Définir la largeur des colonnes
+ws['!cols'] = [
+{wch: 6},   // N°
+{wch: 30},  // NOM ET POST NOM
+{wch: 5},   // (vide)
+{wch: 12},  // SEP
+{wch: 12},  // OCT
+{wch: 12},  // NOV
+{wch: 12},  // DEC
+{wch: 12},  // JANV
+{wch: 12},  // FEV
+{wch: 12},  // MARS
+{wch: 12},  // AVR
+{wch: 12}   // MAI
+];
+
+// Fusionner les cellules d'en-tête
+ws['!merges'] = [
+{s: {r:0, c:0}, e: {r:0, c:11}}, // Nom école
+{s: {r:1, c:0}, e: {r:1, c:11}}, // Sous-titre
+{s: {r:2, c:0}, e: {r:2, c:11}}, // Classe
+{s: {r:4, c:0}, e: {r:4, c:11}}, // Titre
+{s: {r:6, c:3}, e: {r:6, c:5}}, // Premier Trimestre
+{s: {r:6, c:6}, e: {r:6, c:8}}, // Deuxième Trimestre
+{s: {r:6, c:9}, e: {r:6, c:11}} // Troisième Trimestre
+];
+
+// Ajouter la feuille au workbook
+const sheetName = classeFiltre.replace(/\s/g, '_').substring(0, 31);
+XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+// NOM DE FICHIER FIXE PAR SECTION (écrase automatiquement l'ancien)
+const nomFichier = `Recouvrement_${espaceActif.toUpperCase()}.xlsx`;
+
+// Générer le fichier (écrase automatiquement s'il existe déjà)
+XLSX.writeFile(wb, nomFichier);
+toast(`✅ Excel ${espaceLabel} généré avec succès ! (fichier écrasé)`,`success`);
+}
+
+// ----- EXPORT PDF (NOM DE FICHIER FIXE PAR SECTION) -----
 function genererPDF(){
 if(elevesFiltres.length===0){toast("Aucun élève à exporter","error");return;}
 const{jsPDF}=window.jspdf;
@@ -378,27 +502,29 @@ const doc=new jsPDF("portrait","mm","a4");
 const pw=doc.internal.pageSize.getWidth();
 const nomEcole=schoolId.toUpperCase();
 const espaceLabel=getEspaceLabel();
-const colorRGB=getEspaceColorRGB();
+const classeFiltre=filterClasse.value||"Toutes";
 
 doc.setFillColor(255,255,255);
 doc.rect(0,0,pw,50,"F");
-doc.setDrawColor(colorRGB[0],colorRGB[1],colorRGB[2]);
+doc.setDrawColor(espaceActif==='secondaire'?247:espaceActif==='primaire'?52:46,
+espaceActif==='secondaire'?151:espaceActif==='primaire'?152:204,
+espaceActif==='secondaire'?30:espaceActif==='primaire'?219:113);
 doc.setLineWidth(1.5);
 doc.line(15,48,pw-15,48);
 
 doc.setFontSize(16);
 doc.setFont("helvetica","bold");
 doc.setTextColor(0,0,0);
-doc.text("RECOUVREMENT - "+espaceLabel,15,20);
+doc.text(`RECOUVREMENT - ${espaceLabel}`,15,20);
 
 doc.setFontSize(10);
 doc.setFont("helvetica","normal");
 doc.setTextColor(80,80,80);
 const annee=new Date().getFullYear();
 const cf=filterClasse.value||"Toutes";
-const sf=filterStatut.value==='paye'?'Payés':filterStatut.value==='impaye'?'Impayés':'Tous';
+const of=filterOption.value||"Toutes";
 const search=filterSearch.value.trim()||'Aucun';
-doc.text(`Mois: ${moisSelectionne} ${annee}  |  Classe: ${cf}  |  Statut: ${sf}  |  Recherche: ${search}`,15,30);
+doc.text(`Mois: ${moisSelectionne} ${annee}  |  Classe: ${cf}  |  Option: ${of}  |  Recherche: ${search}`,15,30);
 doc.text(`École: ${nomEcole}`,15,38);
 doc.text(`Élèves: ${elevesFiltres.length}`,15,46);
 
@@ -409,24 +535,27 @@ const estBlanc=(e.moisBlancs||[]).includes(moisSelectionne);
 const dette=estBlanc?0:Math.max(0,minerval-paiement);
 const nom=(e.nom+' '+(e.postnom||'')+' '+(e.prenom||'')).trim().toUpperCase();
 const statut=estBlanc?'BLANC':(paiement>=minerval?'PAYÉ':'IMPAYÉ');
-return[nom,e.classe,formatNb(minerval)+' FC',formatNb(paiement)+' FC',formatNb(dette)+' FC',statut,e.parentCode||'-'];
+const opt=e.option||'-';
+return[nom,e.classe,opt,formatNb(minerval)+' FC',formatNb(paiement)+' FC',formatNb(dette)+' FC',statut,e.parentCode||'-'];
 });
 
+const colors=espaceActif==='secondaire'?[247,151,30]:espaceActif==='primaire'?[52,152,219]:[46,204,113];
 doc.autoTable({
 startY:55,
-head:[["ÉLÈVE","CLASSE","MINERVAL","PAYÉ","DETTE","STATUT","CODE"]],
+head:[["ÉLÈVE","CLASSE","OPTION","MINERVAL","PAYÉ","DETTE","STATUT","CODE"]],
 body:body,
 styles:{fontSize:8,cellPadding:3,textColor:[30,30,30]},
-headStyles:{fillColor:colorRGB,textColor:[255,255,255],fontSize:9,fontStyle:"bold"},
+headStyles:{fillColor:colors,textColor:[255,255,255],fontSize:9,fontStyle:"bold"},
 alternateRowStyles:{fillColor:[245,247,250]},
 columnStyles:{
 0:{cellWidth:35,fontStyle:"bold"},
-1:{cellWidth:25},
-2:{cellWidth:20,halign:"right"},
-3:{cellWidth:20,halign:"right"},
-4:{cellWidth:20,halign:"right"},
-5:{cellWidth:18,halign:"center"},
-6:{cellWidth:18,halign:"center"}
+1:{cellWidth:22},
+2:{cellWidth:22},
+3:{cellWidth:18,halign:"right"},
+4:{cellWidth:18,halign:"right"},
+5:{cellWidth:18,halign:"right"},
+6:{cellWidth:16,halign:"center"},
+7:{cellWidth:16,halign:"center"}
 },
 margin:{left:15,right:15},
 didDrawPage:function(d){
@@ -439,21 +568,23 @@ doc.text(new Date().toLocaleString('fr-FR'),pw-15,doc.internal.pageSize.height-1
 }
 });
 
-doc.save(`Recouvrement_${espaceActif}_${moisSelectionne}_${new Date().toISOString().slice(0,10)}.pdf`);
-toast("PDF généré !","success");
+// NOM DE FICHIER PDF FIXE PAR SECTION
+const nomFichierPDF = `Recouvrement_${espaceActif.toUpperCase()}.pdf`;
+doc.save(nomFichierPDF);
+toast(`✅ PDF ${espaceLabel} généré avec succès ! (fichier écrasé)`,`success`);
 }
 
 btnAppliquer.addEventListener('click',appliquerFiltres);
 btnReset.addEventListener('click',()=>{
 filterClasse.value='';
-filterStatut.value='all';
+filterOption.value='';
 filterSearch.value='';
 filterMois.value=moisCourant;
 appliquerFiltres();
 });
 btnPDF.addEventListener('click',genererPDF);
+btnExcel.addEventListener('click',genererExcel);
 filterMois.addEventListener('change',appliquerFiltres);
-filterStatut.addEventListener('change',appliquerFiltres);
 filterSearch.addEventListener('input',appliquerFiltres);
 
 document.querySelectorAll('.space-btn').forEach(btn=>{
@@ -463,8 +594,7 @@ if(newSpace===espaceActif)return;
 document.querySelectorAll('.space-btn').forEach(b=>b.classList.remove('active'));
 this.classList.add('active');
 espaceActif=newSpace;
-const label=getEspaceLabel();
-toast('🔄 Bascule vers '+label,'success');
+toast('🔄 Bascule vers '+(newSpace==='secondaire'?'SECONDAIRE':newSpace==='primaire'?'PRIMAIRE':'MATERNELLE'),'success');
 await chargerEleves();
 };
 });
