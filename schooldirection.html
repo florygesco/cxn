@@ -528,7 +528,7 @@ body{min-height:100vh;padding:0;margin:0;overflow-y:auto!important;overflow-x:hi
 </div>
 </div>
 <div class="header-actions">
-<button class="btn-refresh-header" id="refreshPageBtn" title="Rafraîchir la page"><i class="fas fa-sync"></i></button>
+<button class="btn-refresh-header" id="refreshPageBtn"><i class="fas fa-sync"></i></button>
 <button class="btn-logout" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> DÉCONNEXION</button>
 </div>
 </div>
@@ -620,6 +620,8 @@ body{min-height:100vh;padding:0;margin:0;overflow-y:auto!important;overflow-x:hi
 <span style="font-size:11px;font-weight:400;color:var(--text-muted);" id="presenceDateDisplay"><i class="fas fa-calendar-alt"></i> <span id="currentDateDisplay"></span></span>
 <div style="display:flex;gap:6px;flex-wrap:wrap;">
 <button class="btn btn-sm btn-pdf" id="btnExportPresencePDF"><i class="fas fa-file-pdf"></i> PDF</button>
+<button class="btn btn-sm btn-primary" id="btnRapportHebdo"><i class="fas fa-calendar-week"></i> RAPPORT HEBDOMADAIRE</button>
+<button class="btn btn-sm btn-purple" id="btnRapportMensuel"><i class="fas fa-calendar-alt"></i> RAPPORT MENSUEL</button>
 <button class="btn btn-sm btn-outline" id="btnRefreshPresence"><i class="fas fa-sync"></i></button>
 </div>
 </div>
@@ -634,6 +636,16 @@ body{min-height:100vh;padding:0;margin:0;overflow-y:auto!important;overflow-x:hi
 <option value="ens">🏫 Enseignants</option>
 </select>
 <button class="btn btn-sm btn-primary" id="btnAppliquerFiltre"><i class="fas fa-filter"></i> APPLIQUER</button>
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;border-top:1px solid var(--border-color);padding-top:8px;">
+<label><i class="fas fa-user"></i> PROFESSEUR :</label>
+<select id="filtreProfesseurRapport" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border-color);font-size:12px;font-family:'Inter',sans-serif;background:#fff;min-width:150px;">
+<option value="tous">👥 Tous les professeurs</option>
+</select>
+<label><i class="fas fa-calendar-week"></i> SEMAINE :</label>
+<input type="week" id="filtreSemaineRapport" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border-color);font-size:12px;font-family:'Inter',sans-serif;">
+<label><i class="fas fa-calendar-alt"></i> MOIS :</label>
+<input type="month" id="filtreMoisRapport" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border-color);font-size:12px;font-family:'Inter',sans-serif;">
 </div>
 <div class="filter-row" style="background:var(--green-bg);border-radius:12px;padding:10px 14px;border:1px solid #86efac;margin-bottom:12px;">
 <div style="display:flex;align-items:center;gap:10px;flex:1;flex-wrap:wrap;">
@@ -993,6 +1005,368 @@ document.getElementById('currentDateDisplay').textContent=new Date().toLocaleDat
 document.getElementById('presenceDateDisplay').innerHTML='<i class="fas fa-calendar-alt"></i> '+new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
 document.getElementById('filtreDatePresence').value=currentDate;
 
+function getDateOfISOWeek(year, week) {
+    const simple = new Date(year, 0, 1 + (week - 1) * 7);
+    const dow = simple.getDay();
+    const isoWeekStart = simple;
+    if (dow <= 4) {
+        isoWeekStart.setDate(simple.getDate() - simple.getDay() + 1);
+    } else {
+        isoWeekStart.setDate(simple.getDate() + 8 - simple.getDay());
+    }
+    return isoWeekStart;
+}
+
+function getWeekNumber(date) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+    const week1 = new Date(d.getFullYear(), 0, 4);
+    return 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+}
+
+function estJourOuvre(date) {
+    const jour = date.getDay();
+    return jour !== 0 && jour !== 6;
+}
+
+function getJoursOuvres(dateDebut, dateFin) {
+    const jours = [];
+    const current = new Date(dateDebut);
+    while (current <= dateFin) {
+        if (estJourOuvre(current)) {
+            jours.push(new Date(current));
+        }
+        current.setDate(current.getDate() + 1);
+    }
+    return jours;
+}
+
+async function getPresencesPersonne(personneId, type, dateDebut, dateFin) {
+    const collectionName = type === 'prof' ? SC.PROFESSEURS : SC.ENSEIGNANTS;
+    const docRef = doc(db, "ecoles", ECOLET_ID, collectionName, personneId);
+    const snap = await getDoc(docRef);
+    
+    if (!snap.exists()) return {};
+    
+    const data = snap.data();
+    const presences = data.presences || {};
+    const resultats = {};
+    
+    const debut = new Date(dateDebut);
+    const fin = new Date(dateFin);
+    
+    for (const [dateKey, valeur] of Object.entries(presences)) {
+        const dateObj = new Date(dateKey);
+        if (dateObj >= debut && dateObj <= fin) {
+            resultats[dateKey] = valeur;
+        }
+    }
+    
+    return resultats;
+}
+
+async function chargerProfesseursPourRapport() {
+    const select = document.getElementById('filtreProfesseurRapport');
+    if (!select) return;
+    
+    try {
+        const profs = await chargerProfs();
+        const ens = await chargerEnseignants();
+        const toutes = [...profs.map(p => ({...p, type: 'prof'})), ...ens.map(e => ({...e, type: 'ens'}))];
+        
+        select.innerHTML = '<option value="tous">👥 Tous les professeurs</option>';
+        toutes.sort((a,b) => a.nom.localeCompare(b.nom));
+        toutes.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id + '_' + p.type;
+            opt.textContent = p.nom + ' (' + (p.type === 'prof' ? 'Prof' : 'Ens') + ')';
+            select.appendChild(opt);
+        });
+    } catch(e) {
+        console.error('Erreur chargement professeurs:', e);
+    }
+}
+
+function updateMoisEtSemaineRapport() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const week = String(getWeekNumber(now)).padStart(2, '0');
+    
+    const moisInput = document.getElementById('filtreMoisRapport');
+    const semaineInput = document.getElementById('filtreSemaineRapport');
+    
+    if (moisInput && !moisInput.value) {
+        moisInput.value = `${year}-${month}`;
+    }
+    if (semaineInput && !semaineInput.value) {
+        semaineInput.value = `${year}-W${week}`;
+    }
+}
+
+async function genererRapportHebdomadaire() {
+    const semaineInput = document.getElementById('filtreSemaineRapport');
+    const personneSelect = document.getElementById('filtreProfesseurRapport');
+    
+    if (!semaineInput.value) {
+        toast('⚠️ Veuillez sélectionner une semaine', 'warning');
+        return;
+    }
+    
+    const [year, week] = semaineInput.value.split('-W').map(Number);
+    const dateDebut = getDateOfISOWeek(year, week);
+    const dateFin = new Date(dateDebut);
+    dateFin.setDate(dateFin.getDate() + 6);
+    
+    let personnes = [];
+    if (personneSelect.value === 'tous') {
+        const profs = await chargerProfs();
+        const ens = await chargerEnseignants();
+        personnes = [...profs.map(p => ({...p, type: 'prof'})), ...ens.map(e => ({...e, type: 'ens'}))];
+    } else {
+        const [id, type] = personneSelect.value.split('_');
+        const collectionName = type === 'prof' ? SC.PROFESSEURS : SC.ENSEIGNANTS;
+        const docRef = doc(db, "ecoles", ECOLET_ID, collectionName, id);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+            personnes = [{...snap.data(), id, type}];
+        }
+    }
+    
+    if (personnes.length === 0) {
+        toast('⚠️ Aucun professeur trouvé', 'warning');
+        return;
+    }
+    
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('landscape', 'mm', 'a4');
+    const nomEcole = document.querySelector('.school-name')?.textContent || 'COMPLEXE SCOLAIRE';
+    
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(nomEcole, 14, 15);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text('RAPPORT HEBDOMADAIRE DES PRÉSENCES', 14, 25);
+    doc.text(`Semaine du ${dateDebut.toLocaleDateString('fr-FR')} au ${dateFin.toLocaleDateString('fr-FR')}`, 14, 32);
+    doc.setFontSize(10);
+    doc.text('(Jours ouvrés: Lundi au Vendredi - Samedi & Dimanche exclus)', 14, 39);
+    doc.text('Année scolaire 2026-2027', 14, 46);
+    
+    let yOffset = 53;
+    const joursOuvres = getJoursOuvres(dateDebut, dateFin);
+    const joursLabels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'];
+    
+    for (const personne of personnes) {
+        const presences = await getPresencesPersonne(personne.id, personne.type, dateDebut, dateFin);
+        
+        if (yOffset > 240) {
+            doc.addPage();
+            yOffset = 20;
+        }
+        
+        let presents = 0, absents = 0, retards = 0;
+        const joursData = [];
+        
+        for (const date of joursOuvres) {
+            const dateKey = date.toISOString().split('T')[0];
+            const jourSemaine = joursLabels[date.getDay() - 1];
+            const presence = presences[dateKey] || { statut: 'absent' };
+            
+            if (presence.statut === 'present') presents++;
+            else if (presence.statut === 'retard') retards++;
+            else absents++;
+            
+            joursData.push({
+                jour: jourSemaine,
+                date: dateKey,
+                statut: presence.statut || 'absent',
+                heureArrivee: presence.heureArrivee || '-',
+                heureSortie: presence.heureSortie || '-'
+            });
+        }
+        
+        const totalJours = joursOuvres.length;
+        const tauxPresence = totalJours > 0 ? ((presents / totalJours) * 100).toFixed(1) : 0;
+        
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${personne.nom} (${personne.type === 'prof' ? 'Professeur' : 'Enseignant'})`, 14, yOffset);
+        yOffset += 6;
+        
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`✅ Présents: ${presents}  ❌ Absents: ${absents}  ⏰ Retards: ${retards}  📊 Taux: ${tauxPresence}% (${presents}/${totalJours})`, 14, yOffset);
+        yOffset += 6;
+        
+        const tableData = joursData.map(j => [
+            j.jour,
+            j.date,
+            j.statut === 'present' ? '✅ Présent' : j.statut === 'retard' ? '⏰ Retard' : '❌ Absent',
+            j.heureArrivee,
+            j.heureSortie
+        ]);
+        
+        doc.autoTable({
+            head: [['Jour', 'Date', 'Statut', 'Arrivée', 'Sortie']],
+            body: tableData,
+            startY: yOffset,
+            styles: { fontSize: 7, cellPadding: 1.5 },
+            headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontSize: 8 },
+            alternateRowStyles: { fillColor: [245, 247, 250] },
+            columnStyles: {
+                0: { cellWidth: 15 },
+                1: { cellWidth: 25 },
+                2: { cellWidth: 25 },
+                3: { cellWidth: 20 },
+                4: { cellWidth: 20 }
+            }
+        });
+        
+        yOffset = doc.lastAutoTable.finalY + 6;
+    }
+    
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.text(`Généré le ${new Date().toLocaleString('fr-FR')} - NeTubeX Gestion Scolaire`, 14, doc.internal.pageSize.height - 10);
+    
+    doc.save(`Rapport_hebdomadaire_${dateDebut.toISOString().split('T')[0]}.pdf`);
+    toast('✅ Rapport hebdomadaire généré avec succès', 'success');
+}
+
+async function genererRapportMensuel() {
+    const moisInput = document.getElementById('filtreMoisRapport');
+    const personneSelect = document.getElementById('filtreProfesseurRapport');
+    
+    if (!moisInput.value) {
+        toast('⚠️ Veuillez sélectionner un mois', 'warning');
+        return;
+    }
+    
+    const [year, month] = moisInput.value.split('-').map(Number);
+    const dateDebut = new Date(year, month - 1, 1);
+    const dateFin = new Date(year, month, 0);
+    
+    let personnes = [];
+    if (personneSelect.value === 'tous') {
+        const profs = await chargerProfs();
+        const ens = await chargerEnseignants();
+        personnes = [...profs.map(p => ({...p, type: 'prof'})), ...ens.map(e => ({...e, type: 'ens'}))];
+    } else {
+        const [id, type] = personneSelect.value.split('_');
+        const collectionName = type === 'prof' ? SC.PROFESSEURS : SC.ENSEIGNANTS;
+        const docRef = doc(db, "ecoles", ECOLET_ID, collectionName, id);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+            personnes = [{...snap.data(), id, type}];
+        }
+    }
+    
+    if (personnes.length === 0) {
+        toast('⚠️ Aucun professeur trouvé', 'warning');
+        return;
+    }
+    
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('landscape', 'mm', 'a4');
+    const nomEcole = document.querySelector('.school-name')?.textContent || 'COMPLEXE SCOLAIRE';
+    
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(nomEcole, 14, 15);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text('RAPPORT MENSUEL DES PRÉSENCES', 14, 25);
+    doc.text(`${dateDebut.toLocaleDateString('fr-FR', {month: 'long', year: 'numeric'})}`, 14, 32);
+    doc.setFontSize(10);
+    doc.text('(Jours ouvrés: Lundi au Vendredi - Samedi & Dimanche exclus)', 14, 39);
+    doc.text('Année scolaire 2026-2027', 14, 46);
+    
+    let yOffset = 53;
+    const joursOuvres = getJoursOuvres(dateDebut, dateFin);
+    
+    for (const personne of personnes) {
+        const presences = await getPresencesPersonne(personne.id, personne.type, dateDebut, dateFin);
+        
+        if (yOffset > 240) {
+            doc.addPage();
+            yOffset = 20;
+        }
+        
+        let presents = 0, absents = 0, retards = 0;
+        const joursData = [];
+        
+        for (const date of joursOuvres) {
+            const dateKey = date.toISOString().split('T')[0];
+            const jourSemaine = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'][date.getDay() - 1];
+            const presence = presences[dateKey] || { statut: 'absent' };
+            
+            if (presence.statut === 'present') presents++;
+            else if (presence.statut === 'retard') retards++;
+            else absents++;
+            
+            joursData.push({
+                jourNum: date.getDate(),
+                jour: jourSemaine,
+                date: dateKey,
+                statut: presence.statut || 'absent',
+                heureArrivee: presence.heureArrivee || '-',
+                heureSortie: presence.heureSortie || '-'
+            });
+        }
+        
+        const totalJours = joursOuvres.length;
+        const tauxPresence = totalJours > 0 ? ((presents / totalJours) * 100).toFixed(1) : 0;
+        
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${personne.nom} (${personne.type === 'prof' ? 'Professeur' : 'Enseignant'})`, 14, yOffset);
+        yOffset += 6;
+        
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`✅ Présents: ${presents}  ❌ Absents: ${absents}  ⏰ Retards: ${retards}  📊 Taux: ${tauxPresence}% (${presents}/${totalJours})`, 14, yOffset);
+        yOffset += 6;
+        
+        const tableData = joursData.map(j => [
+            j.jourNum,
+            j.jour,
+            j.date,
+            j.statut === 'present' ? '✅ P' : j.statut === 'retard' ? '⏰ R' : '❌ A',
+            j.heureArrivee,
+            j.heureSortie
+        ]);
+        
+        doc.autoTable({
+            head: [['N°', 'Jour', 'Date', 'Statut', 'Arrivée', 'Sortie']],
+            body: tableData,
+            startY: yOffset,
+            styles: { fontSize: 6, cellPadding: 1 },
+            headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontSize: 7 },
+            alternateRowStyles: { fillColor: [245, 247, 250] },
+            columnStyles: {
+                0: { cellWidth: 10 },
+                1: { cellWidth: 12 },
+                2: { cellWidth: 22 },
+                3: { cellWidth: 15 },
+                4: { cellWidth: 18 },
+                5: { cellWidth: 18 }
+            },
+            pageBreak: 'auto'
+        });
+        
+        yOffset = doc.lastAutoTable.finalY + 6;
+    }
+    
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.text(`Généré le ${new Date().toLocaleString('fr-FR')} - NeTubeX Gestion Scolaire`, 14, doc.internal.pageSize.height - 10);
+    
+    doc.save(`Rapport_mensuel_${year}-${String(month).padStart(2, '0')}.pdf`);
+    toast('✅ Rapport mensuel généré avec succès', 'success');
+}
+
 function mettreAJourStatsLocales() {
     const badges = document.querySelectorAll('.statut-badge');
     let presents = 0, absents = 0, retards = 0;
@@ -1211,6 +1585,8 @@ window.toggleDocPedagogique=async function(id,type,dateKey){
 
 document.getElementById('btnRefreshPresence').addEventListener('click',chargerPresences);
 document.getElementById('btnAppliquerFiltre').addEventListener('click',chargerPresences);
+document.getElementById('btnRapportHebdo').addEventListener('click',genererRapportHebdomadaire);
+document.getElementById('btnRapportMensuel').addEventListener('click',genererRapportMensuel);
 
 document.getElementById('searchPresenceInput').addEventListener('input',function(){
   const val=this.value.toLowerCase();
@@ -1237,10 +1613,8 @@ document.getElementById('btnExportPresencePDF').addEventListener('click',functio
     const sortieSelect=card.querySelector('.card-details .detail-item select');
     const sortieOther=card.querySelector('.card-details .detail-item input');
     const heureSortie=sortieOther?.style?.display!=='none'?sortieOther?.value||'-':sortieSelect?.value||'-';
-    const docEl=card.querySelector('.btn-doc');
-    const docPedago=docEl?.textContent?.includes('OUI')?'OUI':'NON';
-    const motifSelect=card.querySelector('.motif-select');
-    const motif=motifSelect?.value||'-';
+    const docPedago=card.querySelector('.btn-doc')?.textContent?.includes('OUI')?'OUI':'NON';
+    const motif=card.querySelector('.motif-select')?.value||'-';
     rows.push([num,nom,statut,arrivee,heureSortie,docPedago,motif]);
   });
   doc.autoTable({head:[['#','NOM','STATUT','ARRIVÉE','SORTIE','DOC','MOTIF']],body:rows,startY:38,styles:{fontSize:8,cellPadding:2},headStyles:{fillColor:[15,23,42],textColor:[255,255,255],fontSize:9,fontStyle:'bold'},alternateRowStyles:{fillColor:[245,247,250]},columnStyles:{0:{cellWidth:15},1:{cellWidth:35},2:{cellWidth:30},3:{cellWidth:25},4:{cellWidth:25},5:{cellWidth:20},6:{cellWidth:30}}});
@@ -1259,6 +1633,8 @@ function initApp(){
   initGestionEleves();
   updateStats();
   chargerPresences();
+  chargerProfesseursPourRapport();
+  updateMoisEtSemaineRapport();
   setInterval(updateStats,60000);
   setTimeout(scrollRecoToBottom,800);
 }
@@ -1280,6 +1656,7 @@ document.querySelectorAll('.tab').forEach(btn=>{
     if(this.dataset.tab==='tabPresences'){chargerPresences();}
   };
 });
+
 document.addEventListener('contextmenu',function(e){e.preventDefault();return false;});
 document.addEventListener('keydown',function(e){
   if(e.key==='F12'||e.keyCode===123){e.preventDefault();return false;}
