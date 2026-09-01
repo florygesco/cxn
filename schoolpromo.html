@@ -17,7 +17,8 @@
 html,body{height:100%;min-height:100%;background:#f5f0e8;font-family:'Inter',sans-serif;color:#1a1a2e;overflow-y:auto!important;overflow-x:hidden!important;-webkit-overflow-scrolling:touch}
 body{min-height:100vh;padding:0;margin:0;overflow-y:auto!important;overflow-x:hidden!important;-webkit-overflow-scrolling:touch;background:#f5f0e8}
 .container{max-width:1400px;margin:0 auto;padding:0 16px 20px 16px;width:100%}
-.school-header{position:sticky;top:0;z-index:100;background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:0 0 20px 20px;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;box-shadow:0 4px 20px rgba(0,0,0,0.15);border-bottom:4px solid #d4af37}
+.school-header{position:sticky;top:0;z-index:100;background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:0 0 20px 20px;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;box-shadow:0 4px 20px rgba(0,0,0,0.15);border-bottom:4px solid #d4af37;transition:transform 0.3s ease}
+.school-header.hidden{transform:translateY(-100%)}
 .school-header .header-left{display:flex;align-items:center;gap:14px;flex:1}
 .school-header .logo-icon{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#d4af37,#f59e0b);display:flex;align-items:center;justify-content:center;font-size:20px;color:#1a1a2e;font-weight:800;flex-shrink:0;box-shadow:0 4px 12px rgba(212,175,55,0.3)}
 .school-name{font-size:17px;font-weight:700;color:#fff;letter-spacing:0.5px}
@@ -174,7 +175,7 @@ body{min-height:100vh;padding:0;margin:0;overflow-y:auto!important;overflow-x:hi
 <body>
 <div id="mainContent">
 <div class="container">
-<div class="school-header">
+<div class="school-header" id="schoolHeader">
 <div class="header-left">
 <div class="logo-icon"><i class="fas fa-graduation-cap"></i></div>
 <div>
@@ -350,7 +351,7 @@ body{min-height:100vh;padding:0;margin:0;overflow-y:auto!important;overflow-x:hi
 <div class="card-body">
 <div class="filter-row">
 <div class="filter-group"><label>📅 MOIS</label><select id="recoverMois"></select></div>
-<div class="filter-group"><label>📊 STATUT</label><select id="recoverStatut"><option value="tous">TOUS</option><option value="paye">PAYÉ</option><option value="non_paye">NON PAYÉ</option></select></div>
+<div class="filter-group"><label>📊 STATUT</label><select id="recoverStatut"><option value="tous">TOUS</option><option value="paye">PAYÉ</option><option value="non_paye">NON PAYÉ</option><option value="partiel">PARTIEL</option></select></div>
 <div class="filter-group"><label>📚 SECTION</label><select id="recoverSection"><option value="toutes">TOUTES</option><option value="maternelle">MATERNELLE</option><option value="primaire">PRIMAIRE</option><option value="secondaire">SECONDAIRE</option></select></div>
 <div class="filter-group"><label>📚 CLASSE</label><select id="recoverClasse"><option value="">TOUTES</option></select></div>
 <div class="filter-group"><label>🎯 OPTION</label><select id="recoverOption"><option value="">TOUTES</option></select></div>
@@ -363,6 +364,7 @@ body{min-height:100vh;padding:0;margin:0;overflow-y:auto!important;overflow-x:hi
 <div class="stat-card"><div class="stat-label"><i class="fas fa-users"></i> TOTAL</div><div class="stat-value blue" id="recoverTotal">0</div></div>
 <div class="stat-card"><div class="stat-label"><i class="fas fa-check-circle" style="color:#059669;"></i> PAYÉ</div><div class="stat-value green" id="recoverPaye">0</div></div>
 <div class="stat-card"><div class="stat-label"><i class="fas fa-times-circle" style="color:#dc2626;"></i> NON PAYÉ</div><div class="stat-value red" id="recoverNonPaye">0</div></div>
+<div class="stat-card"><div class="stat-label"><i class="fas fa-percent" style="color:#d97706;"></i> PARTIEL</div><div class="stat-value gold" id="recoverPartiel">0</div></div>
 <div class="stat-card"><div class="stat-label"><i class="fas fa-percent"></i> TAUX</div><div class="stat-value gold" id="recoverTaux">0%</div></div>
 </div>
 <div class="table-wrapper" id="recoverTableContainer">
@@ -923,8 +925,10 @@ const elevesFiltres=eleves.filter(e=>{
 const paiement=e.paiements?.[mois]?.montant||0;
 const minerval=e.exonere?0:(e.minerval||45000);
 const estPaye=paiement>=minerval;
+const estPartiel=paiement>0&&paiement<minerval;
 if(statut==='paye')return estPaye;
-if(statut==='non_paye')return !estPaye;
+if(statut==='non_paye')return !estPaye&&paiement===0;
+if(statut==='partiel')return estPartiel;
 return true;
 });
 
@@ -932,6 +936,7 @@ if(elevesFiltres.length===0){container.innerHTML='<div style="text-align:center;
 document.getElementById('recoverTotal').textContent='0';
 document.getElementById('recoverPaye').textContent='0';
 document.getElementById('recoverNonPaye').textContent='0';
+document.getElementById('recoverPartiel').textContent='0';
 document.getElementById('recoverTaux').textContent='0%';
 return;
 }
@@ -943,12 +948,15 @@ elevesFiltres.forEach((e,index)=>{
 const paiement=e.paiements?.[mois]?.montant||0;
 const minerval=e.exonere?0:(e.minerval||45000);
 const estPaye=paiement>=minerval;
+const estPartiel=paiement>0&&paiement<minerval;
 const reste=Math.max(0,minerval-paiement);
 const nomComplet=(e.nom+' '+(e.postnom||'')+' '+(e.prenom||'')).trim().toUpperCase();
 totalAttendu+=minerval;
 totalPaye+=paiement;
-const statutLabel=estPaye?'PAYÉ':'NON PAYÉ';
-const statutColor=estPaye?'#059669':'#dc2626';
+let statutLabel='NON PAYÉ';
+let statutColor='#dc2626';
+if(estPaye){statutLabel='PAYÉ';statutColor='#059669';}
+else if(estPartiel){statutLabel='PARTIEL';statutColor='#d97706';}
 html+='<tr><td>'+(index+1)+'</td><td class="nom">'+escapeHtml(nomComplet)+'</td><td>'+escapeHtml(e.classe||'')+'</td><td>'+escapeHtml(e.option||'-')+'</td><td style="text-align:right;">'+formatNb(minerval)+' FC</td><td style="text-align:right;color:#059669;">'+formatNb(paiement)+' FC</td><td style="text-align:center;color:'+statutColor+';font-weight:600;">'+statutLabel+'</td><td style="text-align:right;color:#dc2626;">'+formatNb(reste)+' FC</td></tr>';
 });
 html+='</tbody></table>';
@@ -960,12 +968,21 @@ const paiement=e.paiements?.[mois]?.montant||0;
 const minerval=e.exonere?0:(e.minerval||45000);
 return paiement>=minerval;
 }).length;
-const nonPayes=total-payes;
+const nonPayes=elevesFiltres.filter(e=>{
+const paiement=e.paiements?.[mois]?.montant||0;
+return paiement===0;
+}).length;
+const partiels=elevesFiltres.filter(e=>{
+const paiement=e.paiements?.[mois]?.montant||0;
+const minerval=e.exonere?0:(e.minerval||45000);
+return paiement>0&&paiement<minerval;
+}).length;
 const taux=total>0?Math.round((payes/total)*100):0;
 
 document.getElementById('recoverTotal').textContent=total;
 document.getElementById('recoverPaye').textContent=payes;
 document.getElementById('recoverNonPaye').textContent=nonPayes;
+document.getElementById('recoverPartiel').textContent=partiels;
 document.getElementById('recoverTaux').textContent=taux+'%';
 document.getElementById('recoverDate').textContent=mois+' '+new Date().getFullYear();
 }
@@ -992,15 +1009,17 @@ const elevesFiltres=eleves.filter(e=>{
 const paiement=e.paiements?.[mois]?.montant||0;
 const minerval=e.exonere?0:(e.minerval||45000);
 const estPaye=paiement>=minerval;
+const estPartiel=paiement>0&&paiement<minerval;
 if(statut==='paye')return estPaye;
-if(statut==='non_paye')return !estPaye;
+if(statut==='non_paye')return !estPaye&&paiement===0;
+if(statut==='partiel')return estPartiel;
 return true;
 });
 
 if(elevesFiltres.length===0){toast("Aucun élève à exporter","error");return;}
 
 const{jsPDF}=window.jspdf;
-const doc=new jsPDF('portrait','mm','a4');
+const doc=new jsPDF('landscape','mm','a4');
 const pw=doc.internal.pageSize.getWidth();
 
 doc.setFillColor(248,246,242);
@@ -1017,7 +1036,7 @@ doc.setFontSize(12);doc.setFont('helvetica','bold');doc.setTextColor(colorSectio
 doc.text(`RECOUVREMENT - ${mois.toUpperCase()} ${new Date().getFullYear()}`,pw/2,30,{align:'center'});
 
 doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(60,60,60);
-const statutLabel=statut==='paye'?'PAYÉ':statut==='non_paye'?'NON PAYÉ':'TOUS';
+const statutLabel=statut==='paye'?'PAYÉ':statut==='non_paye'?'NON PAYÉ':statut==='partiel'?'PARTIEL':'TOUS';
 const classeLabel=classe||'TOUTES CLASSES';
 const optionLabel=option||'TOUTES OPTIONS';
 doc.text(`Section: ${sectionLabel} | Classe: ${classeLabel} | Option: ${optionLabel} | Statut: ${statutLabel}`,15,48);
@@ -1028,26 +1047,45 @@ const paiement=e.paiements?.[mois]?.montant||0;
 const minerval=e.exonere?0:(e.minerval||45000);
 return paiement>=minerval;
 }).length;
-const nonPayes=total-payes;
-const taux=total>0?Math.round((payes/total)*100):0;
-let totalAttendu=0,totalPaye=0;
-elevesFiltres.forEach(e=>{
-const minerval=e.exonere?0:(e.minerval||45000);
+const nonPayes=elevesFiltres.filter(e=>{
 const paiement=e.paiements?.[mois]?.montant||0;
-totalAttendu+=minerval;
+return paiement===0;
+}).length;
+const partiels=elevesFiltres.filter(e=>{
+const paiement=e.paiements?.[mois]?.montant||0;
+const minerval=e.exonere?0:(e.minerval||45000);
+return paiement>0&&paiement<minerval;
+}).length;
+const taux=total>0?Math.round((payes/total)*100):0;
+let totalPaye=0;
+elevesFiltres.forEach(e=>{
+const paiement=e.paiements?.[mois]?.montant||0;
 totalPaye+=paiement;
 });
 doc.setFontSize(9);doc.setTextColor(60,60,60);
-doc.text(`Total: ${total} | Payé: ${payes} | Non payé: ${nonPayes} | Taux: ${taux}% | Montant total: ${formatNb(totalPaye)} FC`,15,55);
+doc.text(`Total: ${total} | Payé: ${payes} | Partiel: ${partiels} | Non payé: ${nonPayes} | Taux: ${taux}% | Montant total: ${totalPaye.toLocaleString('fr-FR')} FC`,15,55);
 
 const body=elevesFiltres.map((e,index)=>{
 const paiement=e.paiements?.[mois]?.montant||0;
 const minerval=e.exonere?0:(e.minerval||45000);
 const estPaye=paiement>=minerval;
+const estPartiel=paiement>0&&paiement<minerval;
 const reste=Math.max(0,minerval-paiement);
 const nomComplet=(e.nom+' '+(e.postnom||'')+' '+(e.prenom||'')).trim().toUpperCase();
-const statutTexte=estPaye?'PAYÉ':'NON PAYÉ';
-return[(index+1).toString(),nomComplet,e.classe||'-',e.option||'-',`${formatNb(minerval)} FC`,`${formatNb(paiement)} FC`,statutTexte,`${formatNb(reste)} FC`];
+let statutTexte='NON PAYÉ';
+let statutColor='#dc2626';
+if(estPaye){statutTexte='PAYÉ';statutColor='#059669';}
+else if(estPartiel){statutTexte='PARTIEL';statutColor='#d97706';}
+return[
+(index+1).toString(),
+nomComplet,
+e.classe||'-',
+e.option||'-',
+`${minerval.toLocaleString('fr-FR')} FC`,
+`${paiement.toLocaleString('fr-FR')} FC`,
+statutTexte,
+`${reste.toLocaleString('fr-FR')} FC`
+];
 });
 
 doc.autoTable({
@@ -1214,8 +1252,21 @@ document.getElementById(this.dataset.tab).classList.add('active');
 if(this.dataset.tab==='tabProfs'){chargerProfs().then(()=>afficherProfs());}
 if(this.dataset.tab==='tabFinances'){afficherPaiements();}
 if(this.dataset.tab==='tabPerception'){afficherPerception();}
-if(this.dataset.tab==='tabRecouvrement'){afficherRecouvrement();}
+if(this.dataset.tab==='tabRecouvrement'){
+afficherRecouvrement();
+document.getElementById('schoolHeader').classList.add('hidden');
+}
 };
+if(btn.dataset.tab!=='tabRecouvrement'){
+const header=document.getElementById('schoolHeader');
+if(header){header.classList.remove('hidden');}
+}
+});
+const header=document.getElementById('schoolHeader');
+document.addEventListener('scroll',function(){
+if(header&&document.querySelector('#tabRecouvrement')?.classList.contains('active')){
+header.classList.add('hidden');
+}
 });
 
 const tabsContainer=document.querySelector('.tabs-container');
