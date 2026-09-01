@@ -168,11 +168,17 @@ body{min-height:100vh;padding:0;margin:0;overflow-y:auto!important;overflow-x:hi
 #tabPresences .presence-card .prof-info .prof-num{font-weight:700;color:var(--text-muted);font-size:11px;min-width:28px}
 #tabPresences .presence-card .prof-info .prof-nom{font-weight:600;font-size:14px;color:var(--text-primary)}
 #tabPresences .presence-card .prof-info .prof-type{font-size:10px;padding:2px 8px;border-radius:30px;background:#f1f3f5;color:var(--text-secondary)}
-#tabPresences .presence-card .prof-info .statut-badge{padding:2px 10px;border-radius:30px;font-size:10px;font-weight:600}
+#tabPresences .presence-card .prof-info .statut-badge{padding:2px 10px;border-radius:30px;font-size:10px;font-weight:600;transition:all 0.3s ease}
 #tabPresences .presence-card .prof-info .statut-badge.present{background:var(--green-bg);color:var(--green)}
 #tabPresences .presence-card .prof-info .statut-badge.absent{background:var(--red-bg);color:var(--red)}
 #tabPresences .presence-card .prof-info .statut-badge.retard{background:var(--orange-bg);color:var(--orange)}
 #tabPresences .presence-card .card-actions{display:flex;gap:4px;flex-wrap:wrap}
+#tabPresences .presence-card .card-actions .btn{transition:all 0.15s ease !important;position:relative;overflow:hidden}
+#tabPresences .presence-card .card-actions .btn:active{transform:scale(0.92) !important;box-shadow:0 2px 8px rgba(0,0,0,0.15) !important}
+#tabPresences .presence-card .card-actions .btn.clicked{transform:scale(0.92);opacity:0.7}
+#tabPresences .presence-card .card-actions .btn.success-flash{background:#10b981 !important;color:white !important;border-color:#10b981 !important}
+#tabPresences .presence-card .card-actions .btn.warning-flash{background:#f59e0b !important;color:white !important;border-color:#f59e0b !important}
+#tabPresences .presence-card .card-actions .btn.danger-flash{background:#ef4444 !important;color:white !important;border-color:#ef4444 !important}
 #tabPresences .presence-card .card-details{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border-color)}
 #tabPresences .presence-card .card-details .detail-item{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-secondary)}
 #tabPresences .presence-card .card-details .detail-item strong{color:var(--text-primary)}
@@ -446,6 +452,18 @@ body{min-height:100vh;padding:0;margin:0;overflow-y:auto!important;overflow-x:hi
 .dark-mode #tabReco .reco-send-btn:hover{background:#2ea043}
 .dark-mode #tabReco .reco-empty{color:#8b949e}
 .dark-mode #tabReco .reco-empty i{color:#238636}
+.card-actions .btn{transition:all 0.15s ease !important;position:relative;overflow:hidden}
+.card-actions .btn:active{transform:scale(0.92) !important;box-shadow:0 2px 8px rgba(0,0,0,0.15) !important}
+.card-actions .btn.clicked{transform:scale(0.92);opacity:0.7}
+.card-actions .btn.success-flash{background:#10b981 !important;color:white !important;border-color:#10b981 !important}
+.card-actions .btn.warning-flash{background:#f59e0b !important;color:white !important;border-color:#f59e0b !important}
+.card-actions .btn.danger-flash{background:#ef4444 !important;color:white !important;border-color:#ef4444 !important}
+.statut-badge{transition:all 0.3s ease}
+.statut-badge.present{background:var(--green-bg) !important;color:var(--green) !important}
+.statut-badge.absent{background:var(--red-bg) !important;color:var(--red) !important}
+.statut-badge.retard{background:var(--orange-bg) !important;color:var(--orange) !important}
+.statut-badge.updating{animation:pulse 0.5s ease}
+@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.1)}100%{transform:scale(1)}}
 @media(max-width:768px){.tabs{flex-wrap:wrap;justify-content:center}.tab{padding:5px 10px;font-size:9px}.tab i{font-size:9px}}
 @media(max-width:640px){
 .container{padding:10px}
@@ -975,6 +993,93 @@ document.getElementById('currentDateDisplay').textContent=new Date().toLocaleDat
 document.getElementById('presenceDateDisplay').innerHTML='<i class="fas fa-calendar-alt"></i> '+new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
 document.getElementById('filtreDatePresence').value=currentDate;
 
+function mettreAJourStatsLocales() {
+    const badges = document.querySelectorAll('.statut-badge');
+    let presents = 0, absents = 0, retards = 0;
+    badges.forEach(badge => {
+        const text = badge.textContent;
+        if (text.includes('PRÉSENT')) presents++;
+        else if (text.includes('ABSENT')) absents++;
+        else if (text.includes('RETARD')) retards++;
+    });
+    document.getElementById('statPresencePresent').textContent = presents;
+    document.getElementById('statPresenceAbsent').textContent = absents;
+    document.getElementById('statPresenceRetard').textContent = retards;
+    document.getElementById('statPresenceTotal').textContent = presents + absents + retards;
+}
+
+window.pointerPresence = async function(id, type, statut, dateKey) {
+    const buttons = document.querySelectorAll(`[data-id="${id}"][data-type="${type}"]`);
+    const card = document.querySelector(`[data-card="${id}_${type}"]`);
+    
+    buttons.forEach(btn => {
+        btn.classList.add('clicked');
+        btn.disabled = true;
+    });
+    
+    if (card) {
+        const badge = card.querySelector('.statut-badge');
+        const statutLabels = {
+            'present': '✅ PRÉSENT',
+            'retard': '⏰ RETARD',
+            'absent': '❌ ABSENT'
+        };
+        const statutClasses = {
+            'present': 'present',
+            'retard': 'retard',
+            'absent': 'absent'
+        };
+        
+        if (badge) {
+            badge.textContent = statutLabels[statut];
+            badge.className = `statut-badge ${statutClasses[statut]} updating`;
+            setTimeout(() => badge.classList.remove('updating'), 500);
+        }
+        
+        if (statut === 'present' || statut === 'retard') {
+            const heure = new Date().toTimeString().slice(0, 5);
+            const arriveeEl = card.querySelector('.detail-item:first-child strong');
+            if (arriveeEl) arriveeEl.textContent = heure;
+        }
+    }
+    
+    try {
+        const heureArrivee = new Date().toTimeString().slice(0, 5);
+        const collectionName = type === 'prof' ? SC.PROFESSEURS : SC.ENSEIGNANTS;
+        const docRef = doc(db, "ecoles", ECOLET_ID, collectionName, id);
+        const snap = await getDoc(docRef);
+        let data = snap.exists() ? snap.data() : {};
+        let presences = data.presences || {};
+        
+        if (!presences[dateKey]) presences[dateKey] = {};
+        presences[dateKey].statut = statut;
+        presences[dateKey].heureArrivee = (statut === 'present' || statut === 'retard') ? heureArrivee : '';
+        
+        await updateDoc(docRef, { presences: presences });
+        
+        buttons.forEach(btn => {
+            btn.classList.remove('clicked');
+            btn.disabled = false;
+            if (statut === 'present') btn.classList.add('success-flash');
+            else if (statut === 'retard') btn.classList.add('warning-flash');
+            else btn.classList.add('danger-flash');
+            setTimeout(() => {
+                btn.classList.remove('success-flash', 'warning-flash', 'danger-flash');
+            }, 500);
+        });
+        
+        mettreAJourStatsLocales();
+        
+    } catch (e) {
+        buttons.forEach(btn => {
+            btn.classList.remove('clicked');
+            btn.disabled = false;
+        });
+        toast('❌ Erreur: ' + e.message, 'error');
+        chargerPresences();
+    }
+}
+
 async function chargerPresences(){
   const container=document.getElementById('presenceCardsContainer');
   if(!container)return;
@@ -1019,7 +1124,7 @@ async function chargerPresences(){
       const typeLabel=p.type==='prof'?'PROFESSEUR':'ENSEIGNANT';
       const cycleLabel=p.type==='prof'?'':p.cycle==='primaire'?'📚 PRIMAIRE':'🧸 MATERNELLE';
       const dateFormatee=new Date(dateKey).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
-      html+='<div class="presence-card">'+
+      html+='<div class="presence-card" data-card="'+p.id+'_'+p.type+'">'+
         '<div class="card-row">'+
           '<div class="prof-info">'+
             '<span class="prof-num">#'+compteur+'</span>'+
@@ -1028,9 +1133,9 @@ async function chargerPresences(){
             '<span class="statut-badge '+statutClass+'">'+statutIcon+' '+statutLabel+'</span>'+
           '</div>'+
           '<div class="card-actions">'+
-            '<button class="btn btn-sm btn-success" onclick="pointerPresence(\''+p.id+'\',\''+p.type+'\',\'present\',\''+dateKey+'\')"><i class="fas fa-check"></i> PRÉSENT</button>'+
-            '<button class="btn btn-sm btn-warning" onclick="pointerPresence(\''+p.id+'\',\''+p.type+'\',\'retard\',\''+dateKey+'\')"><i class="fas fa-clock"></i> RETARD</button>'+
-            '<button class="btn btn-sm btn-danger" onclick="pointerPresence(\''+p.id+'\',\''+p.type+'\',\'absent\',\''+dateKey+'\')"><i class="fas fa-times"></i> ABSENT</button>'+
+            '<button class="btn btn-sm btn-success" data-id="'+p.id+'" data-type="'+p.type+'" onclick="pointerPresence(\''+p.id+'\',\''+p.type+'\',\'present\',\''+dateKey+'\')"><i class="fas fa-check"></i> PRÉSENT</button>'+
+            '<button class="btn btn-sm btn-warning" data-id="'+p.id+'" data-type="'+p.type+'" onclick="pointerPresence(\''+p.id+'\',\''+p.type+'\',\'retard\',\''+dateKey+'\')"><i class="fas fa-clock"></i> RETARD</button>'+
+            '<button class="btn btn-sm btn-danger" data-id="'+p.id+'" data-type="'+p.type+'" onclick="pointerPresence(\''+p.id+'\',\''+p.type+'\',\'absent\',\''+dateKey+'\')"><i class="fas fa-times"></i> ABSENT</button>'+
           '</div>'+
         '</div>'+
         '<div class="presence-date"><i class="fas fa-calendar-day"></i> '+dateFormatee+'</div>'+
@@ -1060,23 +1165,6 @@ async function chargerPresences(){
     document.getElementById('presenceCount').textContent=toutesPersonnes.length+' personnes';
     container.innerHTML=html;
   }catch(e){toast('Erreur chargement présences: '+e.message,'error');}
-}
-
-window.pointerPresence=async function(id,type,statut,dateKey){
-  try{
-    const heureArrivee=new Date().toTimeString().slice(0,5);
-    const collectionName=type==='prof'?SC.PROFESSEURS:SC.ENSEIGNANTS;
-    const docRef=doc(db,"ecoles",ECOLET_ID,collectionName,id);
-    const snap=await getDoc(docRef);
-    let data=snap.exists()?snap.data():{};
-    let presences=data.presences||{};
-    if(!presences[dateKey])presences[dateKey]={};
-    presences[dateKey].statut=statut;
-    presences[dateKey].heureArrivee=(statut==='present'||statut==='retard')?heureArrivee:'';
-    await updateDoc(docRef,{presences:presences});
-    toast('✅ Pointage effectué','success');
-    chargerPresences();
-  }catch(e){toast('Erreur: '+e.message,'error');}
 }
 
 window.sauvegarderHeureSortie=async function(id,type,heureSortie,dateKey){
