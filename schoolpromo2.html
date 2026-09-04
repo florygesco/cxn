@@ -133,6 +133,23 @@ table .text-right{text-align:right}
 table .statut-present{color:#10B981;font-weight:700}
 table .statut-absent{color:#EC4899;font-weight:700}
 table .statut-retard{color:#FBBF24;font-weight:700}
+.toast-container{position:fixed;top:20px;right:20px;z-index:99999;display:flex;flex-direction:column;gap:12px;max-width:400px;pointer-events:none}
+.toast{background:var(--bg-secondary);border-radius:14px;padding:14px 18px;box-shadow:0 15px 60px rgba(0,0,0,0.6),0 5px 25px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.05);border-left:4px solid #10B981;display:flex;align-items:flex-start;gap:12px;pointer-events:auto;animation:slideIn 0.4s cubic-bezier(0.34,1.56,0.64,1);position:relative;overflow:hidden;border:1px solid var(--border-color)}
+.toast .bar{position:absolute;bottom:0;left:0;height:2px;background:linear-gradient(90deg,#10B981,#34D399);animation:progress 5s linear forwards}
+.toast .icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 2px 15px rgba(0,0,0,0.1)}
+.toast .icon.success{background:rgba(16,185,129,0.15);color:#10B981}
+.toast .content{flex:1}
+.toast .content .title{font-weight:800;font-size:15px;color:var(--text-primary)}
+.toast .content .message{font-size:13px;color:var(--text-secondary);line-height:1.5}
+.toast .close-btn{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:4px;flex-shrink:0}
+.toast .close-btn:hover{color:var(--text-primary)}
+.toast.removing{animation:slideOut 0.3s ease forwards}
+@keyframes slideIn{from{transform:translateX(60px) scale(0.95);opacity:0}to{transform:translateX(0) scale(1);opacity:1}}
+@keyframes slideOut{from{transform:translateX(0) scale(1);opacity:1}to{transform:translateX(60px) scale(0.95);opacity:0}}
+@keyframes progress{from{width:100%}to{width:0%}}
+.toast-btn{position:fixed;bottom:24px;left:24px;z-index:999;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#EC4899,#8B5CF6);color:#fff;border:none;font-size:22px;cursor:pointer;box-shadow:0 8px 40px var(--pink-glow),0 4px 20px rgba(236,72,153,0.3);transition:all .3s;display:flex;align-items:center;justify-content:center}
+.toast-btn:hover{transform:scale(1.08) translateY(-3px);box-shadow:0 15px 60px var(--pink-glow),0 8px 35px rgba(236,72,153,0.4)}
+.toast-btn.active{background:rgba(255,255,255,0.10);color:var(--text-muted);box-shadow:none}
 @media(max-width:640px){.container{padding:12px}.school-header{padding:14px 16px}.school-name{font-size:18px}.school-sub{font-size:11px}.tab{padding:10px 18px;font-size:13px}.card-body{padding:12px 14px}.stats-grid{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}.stat-card{padding:14px}.stat-card .stat-value{font-size:28px}.filter-group{min-width:80px;padding:4px 8px}.filter-group select{font-size:12px}.btn{padding:6px 14px;font-size:11px}.chart-container{grid-template-columns:1fr;gap:10px}.chart-donut .donut{width:80px;height:80px}.chart-donut .donut-center{width:44px;height:44px;font-size:14px}.chart-bars-vertical{height:75px}.chart-bars-vertical .bar-track{height:60px}.table-wrapper{max-height:350px}table{font-size:12px}table th,table td{padding:8px 10px}}
 @media(max-width:480px){.container{padding:8px}.school-header{padding:10px 12px}.school-name{font-size:16px}.school-sub{font-size:10px}.tab{padding:8px 14px;font-size:12px}.stats-grid{grid-template-columns:repeat(2,1fr);gap:6px}.stat-card{padding:10px}.stat-card .stat-value{font-size:22px}.filter-group{min-width:60px;padding:3px 6px}.filter-group select{font-size:11px}.btn{padding:5px 12px;font-size:10px}.chart-donut .donut{width:60px;height:60px}.chart-donut .donut-center{width:34px;height:34px;font-size:11px}.chart-bars-vertical{height:60px}.chart-bars-vertical .bar-track{height:45px}table{font-size:11px}table th,table td{padding:6px 8px}}
 </style>
@@ -269,6 +286,8 @@ table .statut-retard{color:#FBBF24;font-weight:700}
 </div>
 </div>
 </div>
+<button class="toast-btn effet-3d" id="toastToggleBtn" title="Notifications"><i class="fas fa-bell"></i></button>
+<div class="toast-container" id="toastContainer"></div>
 <script type="importmap">
 {"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"}}
 </script>
@@ -291,7 +310,7 @@ const ECOLET_ID=schoolId.replace(/[^a-zA-Z0-9]/g,'_');
 const SCHOOL_DISPLAY_NAME=schoolId;
 document.getElementById('schoolNameSpan').textContent=SCHOOL_DISPLAY_NAME.toUpperCase();
 
-let allEleves=[], allProfs=[], currentDate=new Date().toISOString().split('T')[0];
+let allEleves=[], allProfs=[], isFirstLoad=true, toastEnabled=true, currentDate=new Date().toISOString().split('T')[0];
 let unsubscribePrimaire=null, unsubscribeMaternelle=null, unsubscribeSecondaire=null, unsubscribeProfs=null;
 
 function formatNbSimple(n){
@@ -303,6 +322,63 @@ function formatMontant(n){return formatNbSimple(n)+' FC';}
 function escapeHtml(s){if(!s)return'';return s.replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
 
 const moisListe=["Septembre","Octobre","Novembre","Decembre","Janvier","Fevrier","Mars","Avril","Mai","Juin"];
+
+let toastQueue=[], isToastShowing=false;
+
+function showToast(icon,title,message){
+if(!toastEnabled)return;
+toastQueue.push({icon,title,message});
+if(!isToastShowing)processToastQueue();
+}
+
+function processToastQueue(){
+if(toastQueue.length===0||isToastShowing)return;
+isToastShowing=true;
+const{icon,title,message}=toastQueue.shift();
+const container=document.getElementById('toastContainer');
+const toast=document.createElement('div');
+toast.className='toast';
+toast.innerHTML='<div class="bar"></div><div class="icon success">'+icon+'</div><div class="content"><div class="title">'+title+'</div><div class="message">'+message+'</div></div><button class="close-btn">✕</button>';
+container.appendChild(toast);
+toast.querySelector('.close-btn').onclick=()=>{removeToast(toast);};
+setTimeout(()=>{removeToast(toast);},5000);
+}
+
+function removeToast(toast){
+if(!toast||toast.classList.contains('removing'))return;
+toast.classList.add('removing');
+setTimeout(()=>{toast.remove();isToastShowing=false;processToastQueue();},400);
+}
+
+function toastInscription(nomComplet,classe,section){
+const sectionLabel=section==='primaire'?'PRIMAIRE':section==='maternelle'?'MATERNELLE':'SECONDAIRE';
+showToast('📚','Nouvel élève inscrit','<strong>'+nomComplet+'</strong> · '+classe+' · '+sectionLabel);
+}
+
+function toastPaiement(nomComplet,montant,periode,section){
+const sectionLabel=section==='primaire'?'PRIMAIRE':section==='maternelle'?'MATERNELLE':'SECONDAIRE';
+showToast('💰','Paiement effectué','<strong>'+formatMontant(montant)+'</strong> · '+nomComplet+' · '+periode+' · '+sectionLabel);
+}
+
+const toastBtn=document.getElementById('toastToggleBtn');
+try{const saved=localStorage.getItem('toastEnabled');if(saved!==null){toastEnabled=JSON.parse(saved);if(!toastEnabled){toastBtn.innerHTML='<i class="fas fa-bell-slash"></i>';toastBtn.classList.add('active');}}}catch(e){}
+
+toastBtn.addEventListener('click',function(){
+toastEnabled=!toastEnabled;
+if(toastEnabled){
+this.innerHTML='<i class="fas fa-bell"></i>';
+this.classList.remove('active');
+toastQueue=[];
+showToast('🔔','Notifications activées','Vous recevrez les alertes');
+}else{
+this.innerHTML='<i class="fas fa-bell-slash"></i>';
+this.classList.add('active');
+toastQueue=[];
+document.querySelectorAll('.toast').forEach(t=>t.remove());
+isToastShowing=false;
+}
+try{localStorage.setItem('toastEnabled',JSON.stringify(toastEnabled));}catch(e){}
+});
 
 const themeBtn=document.getElementById('themeBtn');
 const themes=['dark','light','gray'];
@@ -536,13 +612,47 @@ select.appendChild(opt);
 }
 
 function demarrerTempsReel(){
-unsubscribePrimaire=onSnapshot(collection(db,"ecoles",ECOLET_ID,"prima_eleves"),()=>{
+unsubscribePrimaire=onSnapshot(collection(db,"ecoles",ECOLET_ID,"prima_eleves"),(snapshot)=>{
+snapshot.docChanges().forEach(change=>{
+if(isFirstLoad)return;
+if(change.type==='added'){
+const data=change.doc.data();
+if(data.nom){toastInscription(data.nom+' '+(data.prenom||''),data.classe,'primaire');}
+}
+});
 chargerTousEleves().then(()=>{updateStats();afficherPaiements();});
 });
-unsubscribeMaternelle=onSnapshot(collection(db,"ecoles",ECOLET_ID,"mater_eleves"),()=>{
+unsubscribeMaternelle=onSnapshot(collection(db,"ecoles",ECOLET_ID,"mater_eleves"),(snapshot)=>{
+snapshot.docChanges().forEach(change=>{
+if(isFirstLoad)return;
+if(change.type==='added'){
+const data=change.doc.data();
+if(data.nom){toastInscription(data.nom+' '+(data.prenom||''),data.classe,'maternelle');}
+}
+});
 chargerTousEleves().then(()=>{updateStats();afficherPaiements();});
 });
-unsubscribeSecondaire=onSnapshot(collection(db,"ecoles",ECOLET_ID,"compta_eleves"),()=>{
+unsubscribeSecondaire=onSnapshot(collection(db,"ecoles",ECOLET_ID,"compta_eleves"),(snapshot)=>{
+snapshot.docChanges().forEach(change=>{
+if(isFirstLoad)return;
+if(change.type==='added'){
+const data=change.doc.data();
+if(data.nom){toastInscription(data.nom+' '+(data.prenom||''),data.classe||'Secondaire','secondaire');}
+}
+if(change.type==='modified'){
+const data=change.doc.data();
+const paiements=data.paiements||{};
+for(const mois of moisListe){
+if(paiements[mois]?.montant>0){
+const ancien=change.doc.data()._ancienPaiement?.[mois]?.montant||0;
+if(paiements[mois].montant>ancien){
+toastPaiement(data.nom,paiements[mois].montant,mois,data.section||'secondaire');
+break;
+}
+}
+}
+}
+});
 chargerTousEleves().then(()=>{updateStats();afficherPaiements();});
 });
 unsubscribeProfs=onSnapshot(collection(db,"ecoles",ECOLET_ID,"professeurs"),()=>{chargerProfs().then(()=>afficherProfs());});
@@ -567,24 +677,26 @@ const rows=[];
 document.querySelectorAll('#paiementsTableBody tr').forEach(row=>{
 const cells=row.querySelectorAll('td');
 if(cells.length===6){
-rows.push([
-cells[0]?.textContent||'',
-cells[1]?.textContent||'',
-cells[2]?.textContent||'',
-cells[3]?.textContent||'',
-cells[4]?.textContent||'',
-cells[5]?.textContent||''
-]);
+let classe=cells[0]?.textContent||'';
+let eleves=cells[1]?.textContent||'';
+let attendu=cells[2]?.textContent?.replace(/\//g,' ').replace(/FC/g,'').trim()||'';
+let paye=cells[3]?.textContent?.replace(/\//g,' ').replace(/FC/g,'').trim()||'';
+let taux=cells[4]?.textContent||'';
+let reste=cells[5]?.textContent?.replace(/\//g,' ').replace(/FC/g,'').trim()||'';
+rows.push([classe,eleves,attendu,paye,taux,reste]);
 }
 });
 doc.autoTable({
 head:[['CLASSE','ÉLÈVES','ATTENDU','PAYÉ','TAUX','RESTE']],
 body:rows,
 startY:36,
-styles:{fontSize:10,cellPadding:4},
-headStyles:{fillColor:[50,50,60],textColor:[255,255,255],fontSize:11,fontStyle:'bold',halign:'center'},
-columnStyles:{0:{cellWidth:50,halign:'left'},1:{cellWidth:25,halign:'center'},2:{cellWidth:45,halign:'right'},3:{cellWidth:45,halign:'right'},4:{cellWidth:30,halign:'center'},5:{cellWidth:45,halign:'right'}},
-margin:{left:10,right:10}
+theme:'striped',
+styles:{fontSize:9,cellPadding:4,lineColor:[200,200,200],lineWidth:0.1},
+headStyles:{fillColor:[50,50,60],textColor:[255,255,255],fontSize:10,fontStyle:'bold',halign:'center',cellPadding:5},
+columnStyles:{0:{cellWidth:55,halign:'left'},1:{cellWidth:25,halign:'center'},2:{cellWidth:50,halign:'right'},3:{cellWidth:50,halign:'right'},4:{cellWidth:30,halign:'center'},5:{cellWidth:50,halign:'right'}},
+bodyStyles:{halign:'center'},
+alternateRowStyles:{fillColor:[248,248,250]},
+margin:{left:8,right:8}
 });
 doc.save('Finances_'+document.getElementById('filterMois').value+'_'+new Date().toISOString().split('T')[0]+'.pdf');
 });
@@ -602,25 +714,27 @@ const rows=[];
 document.querySelectorAll('#profsTableBody tr').forEach(row=>{
 const cells=row.querySelectorAll('td');
 if(cells.length===7){
-rows.push([
-cells[0]?.textContent||'',
-cells[1]?.textContent||'',
-cells[2]?.textContent||'',
-cells[3]?.textContent||'',
-cells[4]?.textContent||'',
-cells[5]?.textContent||'',
-cells[6]?.textContent||''
-]);
+let num=cells[0]?.textContent||'';
+let nom=cells[1]?.textContent||'';
+let sexe=cells[2]?.textContent||'';
+let statut=cells[3]?.textContent?.replace(/[✅⏰❌]/g,'').trim()||'';
+let arrivee=cells[4]?.textContent||'';
+let jours=cells[5]?.textContent||'';
+let document=cells[6]?.textContent||'';
+rows.push([num,nom,sexe,statut,arrivee,jours,document]);
 }
 });
 doc.autoTable({
 head:[['N°','PROFESSEUR','SEXE','STATUT','ARRIVÉE','JOURS/20','DOCUMENT']],
 body:rows,
 startY:36,
-styles:{fontSize:10,cellPadding:4},
-headStyles:{fillColor:[50,50,60],textColor:[255,255,255],fontSize:11,fontStyle:'bold',halign:'center'},
-columnStyles:{0:{cellWidth:20,halign:'center'},1:{cellWidth:60,halign:'left'},2:{cellWidth:30,halign:'center'},3:{cellWidth:35,halign:'center'},4:{cellWidth:30,halign:'center'},5:{cellWidth:35,halign:'center'},6:{cellWidth:35,halign:'center'}},
-margin:{left:10,right:10}
+theme:'striped',
+styles:{fontSize:9,cellPadding:4,lineColor:[200,200,200],lineWidth:0.1},
+headStyles:{fillColor:[50,50,60],textColor:[255,255,255],fontSize:10,fontStyle:'bold',halign:'center',cellPadding:5},
+columnStyles:{0:{cellWidth:20,halign:'center'},1:{cellWidth:65,halign:'left'},2:{cellWidth:35,halign:'center'},3:{cellWidth:40,halign:'center'},4:{cellWidth:30,halign:'center'},5:{cellWidth:35,halign:'center'},6:{cellWidth:40,halign:'center'}},
+bodyStyles:{halign:'center'},
+alternateRowStyles:{fillColor:[248,248,250]},
+margin:{left:8,right:8}
 });
 doc.save('Professeurs_'+new Date().toISOString().split('T')[0]+'.pdf');
 });
@@ -698,6 +812,7 @@ updateStats();
 afficherPaiements();
 afficherProfs();
 updateClasseFilter();
+isFirstLoad=false;
 demarrerTempsReel();
 }
 initApp();
