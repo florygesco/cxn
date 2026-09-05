@@ -201,7 +201,7 @@ table .badge.impaye{background:rgba(239,68,68,0.15);color:var(--red)}
 <div id="tabStats" class="tab-content">
 <div class="card">
 <h3><i class="fas fa-chart-bar"></i> Statistiques des paiements</h3>
-<p class="subtitle">Toutes les écoles confondues</p>
+<p class="subtitle">Toutes les écoles confondues — Collection <strong style="color:var(--pink)">school</strong></p>
 <div class="stats-grid" id="statsGlobal">
 <div class="stat-mini"><div class="value blue" id="statTotalEleves">0</div><div class="label">Total élèves</div></div>
 <div class="stat-mini"><div class="value green" id="statComplet">0</div><div class="label">✅ Complet</div></div>
@@ -244,7 +244,7 @@ table .badge.impaye{background:rgba(239,68,68,0.15);color:var(--red)}
 <script type="module">
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
-import { getFirestore, doc, getDoc, setDoc, collection, getDocs, query, where } from "firebase/firestore";
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from "firebase/firestore";
 
 const firebaseConfig = {
 apiKey: "AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",
@@ -416,24 +416,43 @@ document.getElementById('saveStatutsBtn').addEventListener('click', saveStatuts)
 
 async function loadStats() {
 try {
-const ecolesSnap = await getDocs(collection(db, 'ecoles'));
+// Lire depuis la collection "school" (et non "ecoles")
+const ecolesSnap = await getDocs(collection(db, 'school'));
 const stats = { total: 0, complet: 0, partiel: 0, impaye: 0, ecoles: [] };
 
 for (const ecoleDoc of ecolesSnap.docs) {
 const ecoleId = ecoleDoc.id;
-const elevesSnap = await getDocs(collection(db, 'ecoles', ecoleId, 'eleves'));
-let ecoleStats = { id: ecoleId, nom: ecoleId, total: 0, complet: 0, partiel: 0, impaye: 0 };
-elevesSnap.forEach(doc => {
-const data = doc.data();
-const statut = data.statut || 'Impayé';
+const data = ecoleDoc.data();
+const eleves = data.eleves ? Object.values(data.eleves) : [];
+const nom = data.nom || ecoleId.replace(/_/g, ' ');
+
+let ecoleStats = { id: ecoleId, nom: nom, total: 0, complet: 0, partiel: 0, impaye: 0 };
+
+eleves.forEach(eleve => {
+// Calcul du statut à partir des paiements
+const paiements = eleve.paiements || {};
+let totalDu = 0, totalPaye = 0;
+for (const type of ['etat', 'bulletin', 'technique']) {
+if (paiements[type]) {
+totalDu += paiements[type].du || 0;
+totalPaye += paiements[type].paye || 0;
+}
+}
+
+let statut = 'Impayé';
+if (totalPaye >= totalDu && totalDu > 0) statut = 'Complet';
+else if (totalPaye > 0) statut = 'Partiel';
+
 ecoleStats.total++;
 stats.total++;
 if (statut === 'Complet') { ecoleStats.complet++; stats.complet++; }
 else if (statut === 'Partiel') { ecoleStats.partiel++; stats.partiel++; }
 else { ecoleStats.impaye++; stats.impaye++; }
 });
+
 if (ecoleStats.total > 0) stats.ecoles.push(ecoleStats);
 }
+
 stats.ecoles.sort((a, b) => b.total - a.total);
 displayStats(stats);
 } catch (e) {
@@ -451,8 +470,11 @@ document.getElementById('statNbEcoles').textContent = stats.ecoles.length;
 const taux = stats.total > 0 ? Math.round((stats.complet / stats.total) * 100) : 0;
 document.getElementById('statTaux').textContent = taux + '%';
 
-const config = { frais: { etat: 5000, bulletin: 3000, technique: 4000, autres: 0 } };
-const totalFrais = (config.frais.etat || 0) + (config.frais.bulletin || 0) + (config.frais.technique || 0) + (config.frais.autres || 0);
+// Récupérer les frais depuis la config ou valeurs par défaut
+const fraisEtat = parseInt(document.getElementById('fraisEtat').value) || 5000;
+const fraisBulletin = parseInt(document.getElementById('fraisBulletin').value) || 3000;
+const fraisTechnique = parseInt(document.getElementById('fraisTechnique').value) || 4000;
+const totalFrais = fraisEtat + fraisBulletin + fraisTechnique;
 
 let html = '';
 if (stats.ecoles.length === 0) {
@@ -462,7 +484,7 @@ stats.ecoles.forEach(ecole => {
 const tauxEcole = ecole.total > 0 ? Math.round((ecole.complet / ecole.total) * 100) : 0;
 const reste = (ecole.partiel + ecole.impaye) * totalFrais;
 html += '<tr>' +
-'<td class="nom">' + ecole.nom.replace(/_/g, ' ') + '</td>' +
+'<td class="nom">' + ecole.nom + '</td>' +
 '<td class="text-center">' + ecole.total + '</td>' +
 '<td class="text-center"><span class="badge complet">' + ecole.complet + '</span></td>' +
 '<td class="text-center"><span class="badge partiel">' + ecole.partiel + '</span></td>' +
