@@ -321,6 +321,18 @@ document.addEventListener('contextmenu',function(e){e.preventDefault();return fa
 document.addEventListener('keydown',function(e){if(e.key==='F12'||(e.ctrlKey&&e.shiftKey&&e.key==='I')||(e.ctrlKey&&e.shiftKey&&e.key==='J')||(e.ctrlKey&&e.key==='U')||(e.ctrlKey&&e.key==='S')||(e.ctrlKey&&e.key==='C')||(e.ctrlKey&&e.key==='V')||(e.ctrlKey&&e.key==='X')||(e.ctrlKey&&e.key==='A')){e.preventDefault();return false;}});
 function fermerModal(id){document.getElementById(id).classList.remove('active');}
 function getNomComplet(eleve){const nom=eleve.nom||'';const postnom=eleve.postnom||'';const prenom=eleve.prenom||'';return (nom+' '+postnom+' '+prenom).trim();}
+function calculerStatut(paiements){
+let totalDu=0,totalPaye=0;
+for(const type of ['etat','bulletin','technique']){
+if(paiements && paiements[type]){
+totalDu+=paiements[type].du||0;
+totalPaye+=paiements[type].paye||0;
+}
+}
+if(totalPaye>=totalDu && totalDu>0)return {statut:'Complet',classe:'badge-complet'};
+if(totalPaye>0)return {statut:'Partiel',classe:'badge-partiel'};
+return {statut:'Impayé',classe:'badge-impaye'};
+}
 </script>
 <script type="importmap">
 {"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"}}
@@ -350,8 +362,8 @@ let unsubscribeSchool=null;
 
 function toast(msg,type="success"){const existing=document.querySelector('.toast');if(existing)existing.remove();const toast=document.createElement('div');toast.className='toast'+(type==='error'?' error':'');const icon=type==='error'?'❌':'✅';toast.innerHTML='<span class="icon">'+icon+'</span><div class="content"><div class="title">'+(type==='error'?'Erreur':'Succès')+'</div><div class="message">'+msg+'</div></div><button class="close">&times;</button>';document.body.appendChild(toast);toast.querySelector('.close').onclick=()=>toast.remove();setTimeout(()=>toast.remove(),4000);}
 function formatNb(n){if(isNaN(n)||n===null||n===undefined)return"0 FC";return Number(n).toLocaleString('fr-FR')+' FC';}
-function formatNbSimple(n){if(isNaN(n)||n===null||n===undefined)return"0";return Number(n).toLocaleString('fr-FR');}
 function getNomComplet(eleve){const nom=eleve.nom||'';const postnom=eleve.postnom||'';const prenom=eleve.prenom||'';return (nom+' '+postnom+' '+prenom).trim();}
+function calculerStatut(paiements){let totalDu=0,totalPaye=0;for(const type of ['etat','bulletin','technique']){if(paiements && paiements[type]){totalDu+=paiements[type].du||0;totalPaye+=paiements[type].paye||0;}}if(totalPaye>=totalDu && totalDu>0)return {statut:'Complet',classe:'badge-complet'};if(totalPaye>0)return {statut:'Partiel',classe:'badge-partiel'};return {statut:'Impayé',classe:'badge-impaye'};}
 
 const loginPage=document.getElementById('loginPage');
 const dashboardPage=document.getElementById('dashboardPage');
@@ -380,7 +392,7 @@ if(docSnap.exists()){schoolData=docSnap.data();allStudents=Object.values(schoolD
 
 function updateAll(){updateStudentsList();updateSelects();updateStats();updatePaiementSearch();}
 
-function updateStudentsList(){const tbody=document.getElementById('elevesTableBody');const search=document.getElementById('searchEleve').value.toLowerCase();const classe=document.getElementById('filterClasse').value;const option=document.getElementById('filterOption').value;let filtered=allStudents;if(search)filtered=filtered.filter(e=>getNomComplet(e).toLowerCase().includes(search));if(classe)filtered=filtered.filter(e=>e.classe===classe);if(option)filtered=filtered.filter(e=>e.option===option);document.getElementById('totalEleves').textContent=filtered.length;if(!filtered.length){tbody.innerHTML='<tr><td colspan="6" class="text-center" style="padding:12px;color:#667781;font-size:11px">Aucun élève</td></tr>';return;}let html='';filtered.forEach((e,i)=>{const totalDu=(e.paiements?.etat?.du||0)+(e.paiements?.bulletin?.du||0)+(e.paiements?.technique?.du||0);const totalPaye=(e.paiements?.etat?.paye||0)+(e.paiements?.bulletin?.paye||0)+(e.paiements?.technique?.paye||0);let statut='Impayé';let statutClass='badge-impaye';if(totalPaye>=totalDu&&totalDu>0){statut='Complet';statutClass='badge-complet';}else if(totalPaye>0){statut='Partiel';statutClass='badge-partiel';}html+='<tr><td>'+(i+1)+'</td><td class="nom">'+getNomComplet(e)+'</td><td>'+(e.classe||'')+'</td><td>'+(e.option||'-')+'</td><td><span class="badge '+statutClass+'">'+statut+'</span></td><td class="text-center" style="white-space:nowrap;"><button class="btn-action modifier" onclick="editStudent(\''+e.id+'\')" title="Modifier">✏️</button><button class="btn-action paiement" onclick="openPayment(\''+e.id+'\')" title="Paiement">💳</button><button class="btn-action details" onclick="viewStudent(\''+e.id+'\')" title="Détails">📊</button></td></tr>';});tbody.innerHTML=html;}
+function updateStudentsList(){const tbody=document.getElementById('elevesTableBody');const search=document.getElementById('searchEleve').value.toLowerCase();const classe=document.getElementById('filterClasse').value;const option=document.getElementById('filterOption').value;let filtered=allStudents;if(search)filtered=filtered.filter(e=>getNomComplet(e).toLowerCase().includes(search));if(classe)filtered=filtered.filter(e=>e.classe===classe);if(option)filtered=filtered.filter(e=>e.option===option);document.getElementById('totalEleves').textContent=filtered.length;if(!filtered.length){tbody.innerHTML='<tr><td colspan="6" class="text-center" style="padding:12px;color:#667781;font-size:11px">Aucun élève</td></tr>';return;}let html='';filtered.forEach((e,i)=>{const statut=calculerStatut(e.paiements);html+='<tr><td>'+(i+1)+'</td><td class="nom">'+getNomComplet(e)+'</td><td>'+(e.classe||'')+'</td><td>'+(e.option||'-')+'</td><td><span class="badge '+statut.classe+'">'+statut.statut+'</span></td><td class="text-center" style="white-space:nowrap;"><button class="btn-action modifier" onclick="editStudent(\''+e.id+'\')" title="Modifier">✏️</button><button class="btn-action paiement" onclick="openPayment(\''+e.id+'\')" title="Paiement">💳</button><button class="btn-action details" onclick="viewStudent(\''+e.id+'\')" title="Détails">📊</button></td></tr>';});tbody.innerHTML=html;}
 
 function updateSelects(){const select1=document.getElementById('selectElevePaiement');let html1='<option value="">-- Choisir un élève --</option>';allStudents.forEach(e=>{const nomComplet=getNomComplet(e);html1+='<option value="'+e.id+'">'+nomComplet+' ('+(e.classe||'')+')</option>';});select1.innerHTML=html1;const filterOpt=document.getElementById('filterOption');let opts=new Set();allStudents.forEach(e=>{if(e.option)opts.add(e.option);});let html2='<option value="">Toutes</option>';opts.forEach(o=>html2+='<option value="'+o+'">'+o+'</option>');filterOpt.innerHTML=html2;updatePaiementSearch();}
 
