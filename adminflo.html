@@ -323,6 +323,7 @@ body{background:var(--bg-primary);color:var(--text-primary);min-height:100vh;pad
 </div>
 </div>
 </div>
+<div class="toast-container" id="toastContainer"></div>
 <div class="modal-overlay" id="codeModal"><div class="modal-card"><h3>🔐 Vérification</h3><p style="text-align:center;color:var(--text-muted);font-size:11px;margin-bottom:8px;">Entrez le code d'accès</p><div class="code-input-group"><input type="password" id="nxCodeInput" maxlength="8" placeholder="••••••••" style="letter-spacing:4px;font-size:16px;font-weight:700;" /><button class="btn btn-primary" id="nxCodeValidate">✅ Valider</button></div><div id="codeError" style="color:#f87171;font-size:10px;text-align:center;min-height:14px;"></div><div class="modal-buttons"><button class="btn btn-outline" id="nxCodeCancel">Annuler</button></div></div></div>
 <div class="modal-overlay" id="confirmModal"><div class="modal-card"><h3>⚠️ Confirmation</h3><div id="confirmMessage" style="text-align:center;padding:10px;font-size:13px;color:var(--text-secondary);"></div><div class="modal-buttons"><button class="btn btn-primary" id="confirmYes">Oui</button><button class="btn btn-outline" id="confirmNo">Non</button></div></div></div>
 <div class="modal-overlay" id="logoModal"><div class="modal-card"><h3>🖼️ Changer le logo</h3><p style="text-align:center;color:var(--text-muted);font-size:11px;margin-bottom:8px;">Entrez l'URL de l'image</p><div class="form-group-db"><label>URL du logo</label><input type="text" id="logoUrlInput" placeholder="https://example.com/logo.png" style="width:100%;padding:6px 10px;border:1px solid rgba(255,255,255,0.04);border-radius:6px;font-size:11px;background:rgba(255,255,255,0.02);color:#fff;outline:none;" /></div><div id="logoPreviewContainer" style="text-align:center;margin:6px 0;display:none;"><img id="logoPreviewImg" src="" alt="Aperçu" style="max-width:60px;max-height:60px;border-radius:6px;border:1px solid rgba(255,255,255,0.04);" /></div><div class="modal-buttons"><button class="btn btn-success" id="logoValidateBtn">💾 Enregistrer</button><button class="btn btn-outline" id="logoCancelBtn">Annuler</button></div></div></div>
@@ -591,15 +592,9 @@ if (unsubscribeEleves) { unsubscribeEleves(); unsubscribeEleves = null; }
 if (unsubscribeMembresA) { unsubscribeMembresA(); unsubscribeMembresA = null; }
 if (unsubscribeMembresB) { unsubscribeMembresB(); unsubscribeMembresB = null; }
 if (unsubscribeMembresC) { unsubscribeMembresC(); unsubscribeMembresC = null; }
-const allElevesRef = collectionGroup(db, "compta_eleves");
-unsubscribeEleves = onSnapshot(allElevesRef, (snapshot) => {
-let total = 0;
-snapshot.forEach(doc => {
-const data = doc.data();
-if (data.nom && !data.abandon) total++;
-});
-document.getElementById('hdrEleves').textContent = total;
-}, (error) => {});
+
+let totalA = 0, totalB = 0, totalC = 0;
+
 const refA = collectionGroup(db, "compta_eleves");
 unsubscribeMembresA = onSnapshot(refA, (snapshot) => {
 let count = 0;
@@ -607,8 +602,11 @@ snapshot.forEach(doc => {
 const data = doc.data();
 if (data.nom && !data.abandon) count++;
 });
-document.getElementById('countA').textContent = count;
+totalA = count;
+document.getElementById('countA').textContent = totalA;
+document.getElementById('hdrEleves').textContent = totalA + totalB + totalC;
 }, (error) => {});
+
 const refB = collectionGroup(db, "prima_eleves");
 unsubscribeMembresB = onSnapshot(refB, (snapshot) => {
 let count = 0;
@@ -616,8 +614,11 @@ snapshot.forEach(doc => {
 const data = doc.data();
 if (data.nom) count++;
 });
-document.getElementById('countB').textContent = count;
+totalB = count;
+document.getElementById('countB').textContent = totalB;
+document.getElementById('hdrEleves').textContent = totalA + totalB + totalC;
 }, (error) => {});
+
 const refC = collectionGroup(db, "mater_eleves");
 unsubscribeMembresC = onSnapshot(refC, (snapshot) => {
 let count = 0;
@@ -625,7 +626,9 @@ snapshot.forEach(doc => {
 const data = doc.data();
 if (data.nom) count++;
 });
-document.getElementById('countC').textContent = count;
+totalC = count;
+document.getElementById('countC').textContent = totalC;
+document.getElementById('hdrEleves').textContent = totalA + totalB + totalC;
 }, (error) => {});
 }
 
@@ -1183,7 +1186,7 @@ async function loadSchoolsCollection() {
     } catch(e) { container.innerHTML = '<div class="empty-state">❌ Erreur: ' + e.message + '</div>'; }
 }
 
-document.getElementById('schoolNameSchool')?.addEventListener('input', function() {
+document.getElementById('schoolNameSchool').addEventListener('input', function() {
     const val = this.value.trim().toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     document.getElementById('schoolIdSchool').value = val || 'auto-' + Date.now().toString().slice(-6);
     const code = genererCode6Chiffres();
@@ -1191,56 +1194,58 @@ document.getElementById('schoolNameSchool')?.addEventListener('input', function(
     document.getElementById('previewEmail').textContent = 'prefet@' + (val || 'ecole') + '@gmail.com';
 });
 
-document.getElementById('showAddSchoolBtn')?.addEventListener('click', function() {
+document.getElementById('showAddSchoolBtn').addEventListener('click', function() {
     document.getElementById('addSchoolForm').style.display = 'block';
     const code = genererCode6Chiffres();
     document.getElementById('previewCode').textContent = code;
 });
 
-document.getElementById('cancelSchoolBtn')?.addEventListener('click', function() { document.getElementById('addSchoolForm').style.display = 'none'; });
-document.getElementById('cancelSchoolBtn2')?.addEventListener('click', function() { document.getElementById('addSchoolForm').style.display = 'none'; });
+document.getElementById('cancelSchoolBtn').addEventListener('click', function() { document.getElementById('addSchoolForm').style.display = 'none'; });
+document.getElementById('cancelSchoolBtn2').addEventListener('click', function() { document.getElementById('addSchoolForm').style.display = 'none'; });
 
-document.getElementById('saveSchoolBtn')?.addEventListener('click', async function() {
+document.getElementById('saveSchoolBtn').addEventListener('click', async function() {
     const nom = document.getElementById('schoolNameSchool').value.trim();
     const id = document.getElementById('schoolIdSchool').value.trim();
-    if (!nom || !id) return;
+    if (!nom || !id) { toast('Nom et ID requis', 'error'); return; }
     if (!await showCodeModal()) return;
     try {
         const existing = await getDoc(doc(getDb(), "school", id));
-        if (existing.exists()) return;
+        if (existing.exists()) { toast('ID déjà utilisé', 'error'); return; }
         const code = genererCode6Chiffres();
         const schoolData = { id: id, nom: nom, code: code, eleves: {} };
         await setDoc(doc(getDb(), "school", id), schoolData);
+        toast('✅ École créée dans school', 'success');
         document.getElementById('addSchoolForm').style.display = 'none';
         loadSchoolsCollection();
         updateTabCounts();
-    } catch(e) {}
+    } catch(e) { toast('❌ ' + e.message, 'error'); }
 });
 
-document.getElementById('refreshSchoolBtn')?.addEventListener('click', loadSchoolsCollection);
-document.getElementById('schoolSearch')?.addEventListener('input', loadSchoolsCollection);
+document.getElementById('refreshSchoolBtn').addEventListener('click', loadSchoolsCollection);
+document.getElementById('schoolSearch').addEventListener('input', loadSchoolsCollection);
 
-document.getElementById('showAddSchool')?.addEventListener('click', function() { document.getElementById('addSchoolForm').style.display = 'block'; });
-document.getElementById('cancelSchoolBtn')?.addEventListener('click', function() { document.getElementById('addSchoolForm').style.display = 'none'; });
-document.getElementById('cancelSchoolBtn2')?.addEventListener('click', function() { document.getElementById('addSchoolForm').style.display = 'none'; });
-document.getElementById('schoolName')?.addEventListener('input', function() {
+document.getElementById('showAddSchool').addEventListener('click', function() { document.getElementById('addSchoolForm').style.display = 'block'; });
+document.getElementById('cancelSchoolBtn').addEventListener('click', function() { document.getElementById('addSchoolForm').style.display = 'none'; });
+document.getElementById('cancelSchoolBtn2').addEventListener('click', function() { document.getElementById('addSchoolForm').style.display = 'none'; });
+document.getElementById('schoolName').addEventListener('input', function() {
 const val = this.value.trim().toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
 document.getElementById('schoolId').value = val || 'auto-' + Date.now().toString().slice(-6);
 });
-document.getElementById('saveSchoolBtn')?.addEventListener('click', async function() {
+document.getElementById('saveSchoolBtn').addEventListener('click', async function() {
 const nom = document.getElementById('schoolName').value.trim();
 const id = document.getElementById('schoolId').value.trim();
-if (!nom || !id) return;
+if (!nom || !id) { toast('Nom et ID requis', 'error'); return; }
 if (!await showCodeModal()) return;
 try {
 const existing = await getDoc(doc(getDb(), 'ecoles', id));
-if (existing.exists()) return;
+if (existing.exists()) { toast('ID déjà utilisé', 'error'); return; }
 const codeDirection = genererCode6Chiffres();
 await setDoc(doc(getDb(), 'ecoles', id), { nom, id, province: document.getElementById('schoolProvince').value, ville: document.getElementById('schoolCity').value.trim(), telephone: document.getElementById('schoolPhone').value.trim(), directeur: document.getElementById('schoolDirector').value.trim(), adresse: document.getElementById('schoolAddress').value.trim(), actif: true, inscriptionActive: false, masque: false, dateCreation: new Date().toISOString() });
 await setDoc(doc(getDb(), 'ecoles', id, 'settings', 'data'), { codeDirection: codeDirection, codeComptabilite: genererCode6Chiffres(), codePromoteur: genererCode6Chiffres(), emailDirection: 'direction.' + id + '@gmail.com', emailComptabilite: 'compta.' + id + '@gmail.com', emailPromoteur: 'promoteur.' + id + '@gmail.com', updatedAt: new Date().toISOString() });
+toast('✅ École créée', 'success');
 document.getElementById('addSchoolForm').style.display = 'none';
 loadAllData();
-} catch(e) {}
+} catch(e) { toast('❌ ' + e.message, 'error'); }
 });
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -1276,32 +1281,32 @@ setTimeout(() => chargerDiagnostic(), 1500);
 });
 });
 
-document.getElementById('refreshDiagnosticBtn')?.addEventListener('click', chargerDiagnostic);
-document.getElementById('refreshTeachersBtn')?.addEventListener('click', loadTeachers);
-document.getElementById('refreshEcolesBtn')?.addEventListener('click', loadSchools);
-document.getElementById('refreshEnsBtn')?.addEventListener('click', loadEnseignants);
+document.getElementById('refreshDiagnosticBtn').addEventListener('click', chargerDiagnostic);
+document.getElementById('refreshTeachersBtn').addEventListener('click', loadTeachers);
+document.getElementById('refreshEcolesBtn').addEventListener('click', loadSchools);
+document.getElementById('refreshEnsBtn').addEventListener('click', loadEnseignants);
 
-document.getElementById('refreshAllBtn')?.addEventListener('click', function() {
+document.getElementById('refreshAllBtn').addEventListener('click', function() {
     loadAllData();
     setTimeout(() => chargerDiagnostic(), 1000);
 });
 
 ['ecoleSearch','ecoleStatutFilter'].forEach(id => {
-document.getElementById(id)?.addEventListener('input', loadSchools);
-document.getElementById(id)?.addEventListener('change', loadSchools);
+document.getElementById(id).addEventListener('input', loadSchools);
+document.getElementById(id).addEventListener('change', loadSchools);
 });
 
-['memberEcoleFilterA','memberSearchA'].forEach(id => { document.getElementById(id)?.addEventListener('change', loadMembersA); document.getElementById(id)?.addEventListener('input', loadMembersA); });
-['memberEcoleFilterB','memberSearchB'].forEach(id => { document.getElementById(id)?.addEventListener('change', loadMembersB); document.getElementById(id)?.addEventListener('input', loadMembersB); });
-['memberEcoleFilterC','memberSearchC'].forEach(id => { document.getElementById(id)?.addEventListener('change', loadMembersC); document.getElementById(id)?.addEventListener('input', loadMembersC); });
-['teacherEcoleFilter','teacherSearch'].forEach(id => { document.getElementById(id)?.addEventListener('change', loadTeachers); document.getElementById(id)?.addEventListener('input', loadTeachers); });
-['sheetEcoleFilter','sheetSearch'].forEach(id => { document.getElementById(id)?.addEventListener('change', loadSheets); document.getElementById(id)?.addEventListener('input', loadSheets); });
-document.getElementById('codesEmailsEcoleFilter')?.addEventListener('change', loadCodesEmails);
-document.getElementById('codeEcoleSelect')?.addEventListener('change', loadParentCodes);
-document.getElementById('codeSearchInput')?.addEventListener('input', loadParentCodes);
-document.getElementById('clearCacheBtn')?.addEventListener('click', clearCache);
-document.getElementById('ensEcoleFilter')?.addEventListener('change', loadEnseignants);
-document.getElementById('ensSearch')?.addEventListener('input', loadEnseignants);
+['memberEcoleFilterA','memberSearchA'].forEach(id => { document.getElementById(id).addEventListener('change', loadMembersA); document.getElementById(id).addEventListener('input', loadMembersA); });
+['memberEcoleFilterB','memberSearchB'].forEach(id => { document.getElementById(id).addEventListener('change', loadMembersB); document.getElementById(id).addEventListener('input', loadMembersB); });
+['memberEcoleFilterC','memberSearchC'].forEach(id => { document.getElementById(id).addEventListener('change', loadMembersC); document.getElementById(id).addEventListener('input', loadMembersC); });
+['teacherEcoleFilter','teacherSearch'].forEach(id => { document.getElementById(id).addEventListener('change', loadTeachers); document.getElementById(id).addEventListener('input', loadTeachers); });
+['sheetEcoleFilter','sheetSearch'].forEach(id => { document.getElementById(id).addEventListener('change', loadSheets); document.getElementById(id).addEventListener('input', loadSheets); });
+document.getElementById('codesEmailsEcoleFilter').addEventListener('change', loadCodesEmails);
+document.getElementById('codeEcoleSelect').addEventListener('change', loadParentCodes);
+document.getElementById('codeSearchInput').addEventListener('input', loadParentCodes);
+document.getElementById('clearCacheBtn').addEventListener('click', clearCache);
+document.getElementById('ensEcoleFilter').addEventListener('change', loadEnseignants);
+document.getElementById('ensSearch').addEventListener('input', loadEnseignants);
 
 loginBtn.addEventListener('click', handleLogin);
 loginPassword.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleLogin(); });
