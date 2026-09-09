@@ -983,7 +983,7 @@ document.getElementById('menuVoirPresencesSec').addEventListener('click', functi
     document.querySelector('.tab[data-tab="tabPresencesSecondaire"]').classList.add('active');
     document.getElementById('tabPresencesSecondaire').classList.add('active');
     chargerPresencesSecondaire();
-    toast('Affichage des présences Secondaire', 'success');
+    toast('👀 Affichage des présences Secondaire', 'success');
 });
 document.getElementById('menuVoirPresencesPri').addEventListener('click', function() {
     document.getElementById('customContextMenu').style.display = 'none';
@@ -992,7 +992,7 @@ document.getElementById('menuVoirPresencesPri').addEventListener('click', functi
     document.querySelector('.tab[data-tab="tabPresencesPrimaire"]').classList.add('active');
     document.getElementById('tabPresencesPrimaire').classList.add('active');
     chargerPresencesPrimaire();
-    toast('Affichage des présences Primaire', 'success');
+    toast('👀 Affichage des présences Primaire', 'success');
 });
 document.getElementById('menuVoirPresencesMat').addEventListener('click', function() {
     document.getElementById('customContextMenu').style.display = 'none';
@@ -1001,16 +1001,16 @@ document.getElementById('menuVoirPresencesMat').addEventListener('click', functi
     document.querySelector('.tab[data-tab="tabPresencesMaternelle"]').classList.add('active');
     document.getElementById('tabPresencesMaternelle').classList.add('active');
     chargerPresencesMaternelle();
-    toast('Affichage des présences Maternelle', 'success');
+    toast('👀 Affichage des présences Maternelle', 'success');
 });
 
 async function chargerProfs(){try{const q=query(collection(db,"ecoles",ECOLET_ID,SC.PROFESSEURS),where("_type","==","prof"));const snap=await getDocs(q);const profs=[];snap.forEach(ds=>{const data=ds.data();if(data.nom)profs.push({id:ds.id,...data});});profs.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));return profs;}catch(e){return[];}}
 function afficherProfs(profs){const c=document.getElementById('profsListContainer');if(!c)return;const searchTerm=document.getElementById('searchProfInput')?.value?.toLowerCase()||'';let filtered=profs;if(searchTerm){filtered=profs.filter(p=>(p.nom||'').toLowerCase().includes(searchTerm));}if(!filtered||filtered.length===0){c.innerHTML='<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px;"><i class="fas fa-chalkboard-teacher" style="font-size:32px;display:block;margin-bottom:8px;color:#e5e7eb;"></i><p>Aucun professeur trouve</p></div>';return;}let html='<div class="prof-cards">';filtered.forEach((p,index)=>{const estActif=p.actif!==false;const sexe=p.sexe||'M';const sexeLabel=sexe==='F'?'<i class="fas fa-venus" style="color:#ec4899;"></i> FEMME':'<i class="fas fa-mars" style="color:var(--blue);"></i> HOMME';const statusClass=estActif?'actif':'inactif';const statusLabel=estActif?'ACTIF':'INACTIF';html+='<div class="prof-card" style="border-left:4px solid var(--secondaire);background:var(--secondaire-bg);"><span class="prof-numero">#'+(index+1)+'</span><span class="prof-nom">'+escapeHtml(p.nom)+'</span><span class="prof-sex">'+sexeLabel+'</span><span class="prof-code">'+(p.actif===false?'<i class="fas fa-lock"></i> DESACTIVE':'<i class="fas fa-unlock"></i> ACTIF')+'</span><span class="prof-status '+statusClass+'">'+statusLabel+'</span><button onclick="window.supprimerProf(\''+p.id+'\')" class="btn btn-sm btn-danger" style="padding:4px 14px;font-size:10px;"><i class="fas fa-trash"></i> SUPPRIMER</button></div>';});html+='</div>';c.innerHTML=html;}
-window.supprimerProf=async function(id){showConfirm('SUPPRIMER LE PROFESSEUR','Voulez-vous vraiment supprimer ce professeur ? Cette action est irreversible.',async()=>{try{const docRef=doc(db,"ecoles",ECOLET_ID,SC.PROFESSEURS,id);await deleteDoc(docRef);toast('Professeur supprime avec succes','success');chargerProfs().then(p=>afficherProfs(p));}catch(e){toast('Erreur: '+e.message,'error');}});};
+window.supprimerProf=async function(id){showConfirm('SUPPRIMER LE PROFESSEUR','Voulez-vous vraiment supprimer ce professeur ? Cette action est irreversible.',async()=>{try{const docRef=doc(db,"ecoles",ECOLET_ID,SC.PROFESSEURS,id);await deleteDoc(docRef);toast('✅ Professeur supprime avec succes','success');chargerProfs().then(p=>afficherProfs(p));}catch(e){toast('❌ Erreur: '+e.message,'error');}});};
 function ecouterProfs(){if(profsUnsubscribe){profsUnsubscribe();profsUnsubscribe=null;}try{const q=query(collection(db,"ecoles",ECOLET_ID,SC.PROFESSEURS),where("_type","==","prof"));profsUnsubscribe=onSnapshot(q,async(snapshot)=>{const profs=[];snapshot.forEach(ds=>{const data=ds.data();if(data.nom)profs.push({id:ds.id,...data});});profs.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));afficherProfs(profs);},(error)=>{});}catch(e){}}
-document.getElementById('addProfBtn').onclick=function(){const extraHtml='<div style="margin-top:8px;"><label style="display:block;font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:3px;">SEXE</label><select id="modalSexe" style="width:100%;padding:10px 14px;border-radius:12px;background:#f8fafc;border:2px solid var(--border-color);color:var(--text-primary);font-size:13px;outline:none;font-family:\'Inter\',sans-serif;"><option value="M"><i class="fas fa-mars"></i> HOMME</option><option value="F"><i class="fas fa-venus"></i> FEMME</option></select></div>';showPrompt('AJOUTER UN PROFESSEUR','Entrez le nom complet du professeur','Nom complet',async(nom,sexe)=>{if(!nom||!nom.trim()){toast('Veuillez entrer un nom','error');return;}const code=genererCodeAcces();const pid='prof_'+Date.now();const schoolId=ECOLET_ID;const nomTrim=nom.trim();const sexeValue=sexe||'M';const email=genererEmailProfesseur(nomTrim,schoolId);let authCreated=false;try{await createUserWithEmailAndPassword(auth,email,code);authCreated=true;}catch(authError){if(authError.code==='auth/email-already-in-use'){authCreated=true;}else if(authError.code==='auth/weak-password'){toast('Le code doit faire au moins 6 caracteres','error');return;}else{toast('Erreur Auth: '+authError.message,'warning');}}const data={_type:"prof",id:pid,profId:pid,nom:nomTrim,sexe:sexeValue,code:code,email:email,emailProf:email,authCreated:authCreated,createdAt:Date.now(),actif:true,school:schoolId};try{await setDoc(doc(db,"ecoles",schoolId,SC.PROFESSEURS,pid),data);toast(nomTrim+' ajoute avec succes','success');const bodyHTML='<div style="text-align:center;"><div style="font-size:48px;margin-bottom:8px;"><i class="fas fa-chalkboard-teacher"></i></div><p style="font-weight:600;font-size:18px;color:var(--text-primary);">'+escapeHtml(nomTrim)+'</p><p style="font-size:13px;color:var(--text-secondary);margin:4px 0 12px 0;">'+(sexeValue==='F'?'<i class="fas fa-venus"></i> FEMME':'<i class="fas fa-mars"></i> HOMME')+'</p><div style="background:var(--green-bg);border-radius:12px;padding:16px;border:2px solid var(--green);margin:8px 0;"><div style="font-size:11px;font-weight:600;color:var(--green);"><i class="fas fa-key"></i> CODE D\'ACCES DU PROFESSEUR</div><div style="font-size:32px;font-weight:800;letter-spacing:6px;color:var(--green);font-family:monospace;margin:4px 0;">'+code+'</div></div><div style="background:var(--orange-bg);border-radius:8px;padding:10px;margin:12px 0;border:1px solid #fde68a;"><p style="font-size:11px;color:#92400e;margin:0;"><i class="fas fa-info-circle"></i> <strong>Important :</strong> Transmettez ce code au professeur.<br>Il utilisera son nom et ce code pour se connecter.</p></div></div>';showModalSlideUp('PROFESSEUR AJOUTE',bodyHTML,'<button class="btn btn-sm btn-primary" onclick="this.closest(\'.modal-slide-up\').remove()">FERMER</button>');chargerProfs().then(p=>afficherProfs(p));}catch(e){toast('Erreur: '+e.message,'error');}},extraHtml);};
+document.getElementById('addProfBtn').onclick=function(){const extraHtml='<div style="margin-top:8px;"><label style="display:block;font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:3px;">SEXE</label><select id="modalSexe" style="width:100%;padding:10px 14px;border-radius:12px;background:#f8fafc;border:2px solid var(--border-color);color:var(--text-primary);font-size:13px;outline:none;font-family:\'Inter\',sans-serif;"><option value="M"><i class="fas fa-mars"></i> HOMME</option><option value="F"><i class="fas fa-venus"></i> FEMME</option></select></div>';showPrompt('AJOUTER UN PROFESSEUR','Entrez le nom complet du professeur','Nom complet',async(nom,sexe)=>{if(!nom||!nom.trim()){toast('❌ Veuillez entrer un nom','error');return;}const code=genererCodeAcces();const pid='prof_'+Date.now();const schoolId=ECOLET_ID;const nomTrim=nom.trim();const sexeValue=sexe||'M';const email=genererEmailProfesseur(nomTrim,schoolId);let authCreated=false;try{await createUserWithEmailAndPassword(auth,email,code);authCreated=true;}catch(authError){if(authError.code==='auth/email-already-in-use'){authCreated=true;}else if(authError.code==='auth/weak-password'){toast('❌ Le code doit faire au moins 6 caracteres','error');return;}else{toast('⚠️ Erreur Auth: '+authError.message,'warning');}}const data={_type:"prof",id:pid,profId:pid,nom:nomTrim,sexe:sexeValue,code:code,email:email,emailProf:email,authCreated:authCreated,createdAt:Date.now(),actif:true,school:schoolId};try{await setDoc(doc(db,"ecoles",schoolId,SC.PROFESSEURS,pid),data);toast('✅ '+nomTrim+' ajoute avec succes','success');const bodyHTML='<div style="text-align:center;"><div style="font-size:48px;margin-bottom:8px;"><i class="fas fa-chalkboard-teacher"></i></div><p style="font-weight:600;font-size:18px;color:var(--text-primary);">'+escapeHtml(nomTrim)+'</p><p style="font-size:13px;color:var(--text-secondary);margin:4px 0 12px 0;">'+(sexeValue==='F'?'<i class="fas fa-venus"></i> FEMME':'<i class="fas fa-mars"></i> HOMME')+'</p><div style="background:var(--green-bg);border-radius:12px;padding:16px;border:2px solid var(--green);margin:8px 0;"><div style="font-size:11px;font-weight:600;color:var(--green);"><i class="fas fa-key"></i> CODE D\'ACCES DU PROFESSEUR</div><div style="font-size:32px;font-weight:800;letter-spacing:6px;color:var(--green);font-family:monospace;margin:4px 0;">'+code+'</div></div><div style="background:var(--orange-bg);border-radius:8px;padding:10px;margin:12px 0;border:1px solid #fde68a;"><p style="font-size:11px;color:#92400e;margin:0;"><i class="fas fa-info-circle"></i> <strong>Important :</strong> Transmettez ce code au professeur.<br>Il utilisera son nom et ce code pour se connecter.</p></div></div>';showModalSlideUp('✅ PROFESSEUR AJOUTE',bodyHTML,'<button class="btn btn-sm btn-primary" onclick="this.closest(\'.modal-slide-up\').remove()">FERMER</button>');chargerProfs().then(p=>afficherProfs(p));}catch(e){toast('❌ Erreur: '+e.message,'error');}},extraHtml);};
 document.getElementById('searchProfInput').addEventListener('input',function(){chargerProfs().then(p=>afficherProfs(p));});
-document.getElementById('refreshProfsBtn').addEventListener('click',function(){chargerProfs().then(p=>afficherProfs(p));toast('Professeurs actualises','success');});
+document.getElementById('refreshProfsBtn').addEventListener('click',function(){chargerProfs().then(p=>afficherProfs(p));toast('✅ Professeurs actualises','success');});
 
 function getClassesSelectionnees(){
   const select=document.getElementById('ensClasses');
@@ -1042,11 +1042,13 @@ window.changerCycleEns=function(){
 
 async function chargerEnseignants(){try{const q=query(collection(db,"ecoles",ECOLET_ID,SC.ENSEIGNANTS),where("_type","==","enseignant"));const snap=await getDocs(q);const ens=[];snap.forEach(ds=>{const data=ds.data();if(data.nom)ens.push({id:ds.id,...data});});ens.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));return ens;}catch(e){return[];}}
 
+// ENSEIGNANTS PRIMAIRE
 function afficherEnseignantsPrimaire(ens){const c=document.getElementById('ensPrimaireListContainer');if(!c)return;const searchTerm=document.getElementById('searchEnsPrimaireInput')?.value?.toLowerCase()||'';let filtered=ens.filter(e=>e.cycle==='primaire');if(searchTerm){filtered=filtered.filter(e=>(e.nom||'').toLowerCase().includes(searchTerm));}if(!filtered||filtered.length===0){c.innerHTML='<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px;"><i class="fas fa-school" style="font-size:32px;display:block;margin-bottom:8px;color:#e5e7eb;"></i><p>Aucun enseignant primaire trouve</p></div>';return;}let html='<div class="ens-cards">';filtered.forEach((e,index)=>{const estActif=e.actif!==false;const statusClass=estActif?'actif':'inactif';const statusLabel=estActif?'ACTIF':'INACTIF';const classesDisplay=(e.classes||[]).join(', ');const sexeLabel=e.sexe==='F'?'👩':'👨';html+='<div class="ens-card" style="border-left:4px solid var(--primaire);background:var(--primaire-bg);"><span class="ens-numero">#'+(index+1)+'</span><span class="ens-nom">'+escapeHtml(e.nom)+'</span><span class="ens-sex">'+sexeLabel+'</span><span class="ens-cycle" style="background:var(--primaire-bg);color:var(--primaire);">PRIMAIRE</span><span class="ens-classes"><i class="fas fa-book"></i> '+escapeHtml(classesDisplay)+'</span><span class="ens-status '+statusClass+'">'+statusLabel+'</span><button onclick="window.supprimerEns(\''+e.id+'\')" class="btn btn-sm btn-danger" style="padding:4px 14px;font-size:10px;"><i class="fas fa-trash"></i> SUPPRIMER</button></div>';});html+='</div>';c.innerHTML=html;}
 
+// ENSEIGNANTS MATERNELLE
 function afficherEnseignantsMaternelle(ens){const c=document.getElementById('ensMaternelleListContainer');if(!c)return;const searchTerm=document.getElementById('searchEnsMaternelleInput')?.value?.toLowerCase()||'';let filtered=ens.filter(e=>e.cycle==='maternelle');if(searchTerm){filtered=filtered.filter(e=>(e.nom||'').toLowerCase().includes(searchTerm));}if(!filtered||filtered.length===0){c.innerHTML='<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px;"><i class="fas fa-child" style="font-size:32px;display:block;margin-bottom:8px;color:#e5e7eb;"></i><p>Aucun enseignant maternelle trouve</p></div>';return;}let html='<div class="ens-cards">';filtered.forEach((e,index)=>{const estActif=e.actif!==false;const statusClass=estActif?'actif':'inactif';const statusLabel=estActif?'ACTIF':'INACTIF';const classesDisplay=(e.classes||[]).join(', ');const sexeLabel=e.sexe==='F'?'👩':'👨';html+='<div class="ens-card" style="border-left:4px solid var(--maternelle);background:var(--maternelle-bg);"><span class="ens-numero">#'+(index+1)+'</span><span class="ens-nom">'+escapeHtml(e.nom)+'</span><span class="ens-sex">'+sexeLabel+'</span><span class="ens-cycle" style="background:var(--maternelle-bg);color:var(--maternelle);">MATERNELLE</span><span class="ens-classes"><i class="fas fa-book"></i> '+escapeHtml(classesDisplay)+'</span><span class="ens-status '+statusClass+'">'+statusLabel+'</span><button onclick="window.supprimerEns(\''+e.id+'\')" class="btn btn-sm btn-danger" style="padding:4px 14px;font-size:10px;"><i class="fas fa-trash"></i> SUPPRIMER</button></div>';});html+='</div>';c.innerHTML=html;}
 
-window.supprimerEns=async function(id){showConfirm('SUPPRIMER L\'ENSEIGNANT','Voulez-vous vraiment supprimer cet enseignant ? Cette action est irreversible.',async()=>{try{const docRef=doc(db,"ecoles",ECOLET_ID,SC.ENSEIGNANTS,id);await deleteDoc(docRef);toast('Enseignant supprime avec succes','success');const ens=await chargerEnseignants();afficherEnseignantsPrimaire(ens);afficherEnseignantsMaternelle(ens);}catch(e){toast('Erreur: '+e.message,'error');}});};
+window.supprimerEns=async function(id){showConfirm('SUPPRIMER L\'ENSEIGNANT','Voulez-vous vraiment supprimer cet enseignant ? Cette action est irreversible.',async()=>{try{const docRef=doc(db,"ecoles",ECOLET_ID,SC.ENSEIGNANTS,id);await deleteDoc(docRef);toast('✅ Enseignant supprime avec succes','success');const ens=await chargerEnseignants();afficherEnseignantsPrimaire(ens);afficherEnseignantsMaternelle(ens);}catch(e){toast('❌ Erreur: '+e.message,'error');}});};
 function ecouterEnseignants(){try{const q=query(collection(db,"ecoles",ECOLET_ID,SC.ENSEIGNANTS),where("_type","==","enseignant"));onSnapshot(q,async(snapshot)=>{const ens=[];snapshot.forEach(ds=>{const data=ds.data();if(data.nom)ens.push({id:ds.id,...data});});ens.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));afficherEnseignantsPrimaire(ens);afficherEnseignantsMaternelle(ens);},(error)=>{});}catch(e){}}
 
 document.getElementById('addEnsPrimaireBtn').onclick=function(){
@@ -1076,9 +1078,9 @@ document.getElementById('saveEnsBtn').onclick=async function(){
   const cycle=document.getElementById('ensCycle').value;
   const classes=getClassesSelectionnees();
   const code=document.getElementById('ensCode').value.trim();
-  if(!nom){toast('Veuillez entrer un nom','error');return;}
-  if(classes.length===0){toast('Selectionnez au moins une classe','error');return;}
-  if(!code||code.length<6){toast('Code a 6 chiffres','error');return;}
+  if(!nom){toast('⚠️ Veuillez entrer un nom','error');return;}
+  if(classes.length===0){toast('⚠️ Selectionnez au moins une classe','error');return;}
+  if(!code||code.length<6){toast('⚠️ Code a 6 chiffres','error');return;}
   this.disabled=true;this.innerHTML='<i class="fas fa-spinner fa-spin"></i> ENREGISTREMENT...';
   try{
     const email=genererEmailEnseignant(nom,ECOLET_ID);
@@ -1090,31 +1092,31 @@ document.getElementById('saveEnsBtn').onclick=async function(){
     });
     document.getElementById('modalEnseignant').classList.remove('show');
     const bodyHTML='<div style="text-align:center;"><div style="font-size:48px;margin-bottom:8px;"><i class="fas fa-school"></i></div><p style="font-weight:600;font-size:18px;color:var(--text-primary);">'+escapeHtml(nom)+'</p><p style="font-size:13px;color:var(--text-secondary);margin:4px 0 12px 0;">'+(sexe==='F'?'👩 FEMME':'👨 HOMME')+' · '+(cycle==='primaire'?'📚 PRIMAIRE':'🧸 MATERNELLE')+'</p><div style="background:var(--green-bg);border-radius:12px;padding:16px;border:2px solid var(--green);margin:8px 0;"><div style="font-size:11px;font-weight:600;color:var(--green);"><i class="fas fa-key"></i> CODE D\'ACCES DE L\'ENSEIGNANT</div><div style="font-size:32px;font-weight:800;letter-spacing:6px;color:var(--green);font-family:monospace;margin:4px 0;">'+code+'</div></div><div style="background:var(--orange-bg);border-radius:8px;padding:10px;margin:12px 0;border:1px solid #fde68a;"><p style="font-size:11px;color:#92400e;margin:0;"><i class="fas fa-info-circle"></i> <strong>Important :</strong> Transmettez ce code a l\'enseignant.<br>Il utilisera son nom et ce code pour se connecter.</p></div></div>';
-    showModalSlideUp('ENSEIGNANT AJOUTE',bodyHTML,'<button class="btn btn-sm btn-primary" onclick="this.closest(\'.modal-slide-up\').remove()">FERMER</button>');
+    showModalSlideUp('✅ ENSEIGNANT AJOUTE',bodyHTML,'<button class="btn btn-sm btn-primary" onclick="this.closest(\'.modal-slide-up\').remove()">FERMER</button>');
     const ens=await chargerEnseignants();
     afficherEnseignantsPrimaire(ens);
     afficherEnseignantsMaternelle(ens);
-    toast(nom+' ajoute avec succes','success');
-  }catch(e){toast('Erreur: '+e.message,'error');}
+    toast('✅ '+nom+' ajoute avec succes','success');
+  }catch(e){toast('❌ Erreur: '+e.message,'error');}
   this.disabled=false;this.innerHTML='<i class="fas fa-save"></i> ENREGISTRER';
 };
 document.getElementById('searchEnsPrimaireInput').addEventListener('input',function(){chargerEnseignants().then(e=>afficherEnseignantsPrimaire(e));});
 document.getElementById('searchEnsMaternelleInput').addEventListener('input',function(){chargerEnseignants().then(e=>afficherEnseignantsMaternelle(e));});
-document.getElementById('refreshEnsPrimaireBtn').addEventListener('click',function(){chargerEnseignants().then(e=>afficherEnseignantsPrimaire(e));toast('Enseignants Primaire actualises','success');});
-document.getElementById('refreshEnsMaternelleBtn').addEventListener('click',function(){chargerEnseignants().then(e=>afficherEnseignantsMaternelle(e));toast('Enseignants Maternelle actualises','success');});
+document.getElementById('refreshEnsPrimaireBtn').addEventListener('click',function(){chargerEnseignants().then(e=>afficherEnseignantsPrimaire(e));toast('✅ Enseignants Primaire actualises','success');});
+document.getElementById('refreshEnsMaternelleBtn').addEventListener('click',function(){chargerEnseignants().then(e=>afficherEnseignantsMaternelle(e));toast('✅ Enseignants Maternelle actualises','success');});
 
 async function chargerPunitions(){const c=document.getElementById('punitionClasseSelect').value;const en=document.getElementById('punitionEleveSelect').value;const container=document.getElementById('punitionsListContainer');if(!container)return;container.innerHTML='<div style="text-align:center;padding:14px;color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';try{let constraints=[];if(c)constraints.push(where("classe","==",c));if(en)constraints.push(where("eleveNom","==",en));constraints.push(where("statut","==","active"));let q=collection(db,"ecoles",ECOLET_ID,SC.PUNITIONS);let queryRef=constraints.length>0?query(q,...constraints):q;const snap=await getDocs(queryRef);const punitions=[];snap.forEach(ds=>{punitions.push({id:ds.id,...ds.data()})});if(punitions.length===0){container.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="fas fa-check-circle" style="font-size:24px;display:block;margin-bottom:4px;color:#e5e7eb;"></i><p>Aucune punition active</p></div>';return;}let html='';punitions.sort((a,b)=>new Date(b.date)-new Date(a.date));punitions.forEach(p=>{const df=new Date(p.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});const gc=p.gravite==='grave'?'grave':p.gravite==='moyenne'?'moyenne':'legere';html+='<div class="punition-item"><div class="info"><span class="nom">'+escapeHtml(p.eleveNom)+'</span><span class="classe-tag">'+escapeHtml(p.classe||'')+'</span><span class="motif">'+escapeHtml(p.motif)+'</span><span class="date"><i class="far fa-calendar-alt"></i> '+df+'</span><span class="gravite '+gc+'">'+(p.gravite==='grave'?'GRAVE':p.gravite==='moyenne'?'MOYENNE':'LEGERE')+'</span></div><div class="punition-actions"><button onclick="window.annulerPunition(\''+p.id+'\')"><i class="fas fa-times"></i> ANNULER</button></div></div>';});container.innerHTML=html;}catch(e){container.innerHTML='<div style="text-align:center;padding:16px;color:var(--red);"><i class="fas fa-exclamation-circle" style="font-size:24px;display:block;margin-bottom:4px;"></i><p>Erreur de chargement</p></div>';}}
 window.annulerPunition=async function(id){showConfirm('ANNULER LA PUNITION','Voulez-vous vraiment annuler cette punition ?',async()=>{try{const snap=await getDoc(doc(db,"ecoles",ECOLET_ID,SC.PUNITIONS,id));const data=snap.data();await setDoc(doc(db,"ecoles",ECOLET_ID,SC.PUNITIONS,id),{statut:"annulee"},{merge:true});chargerPunitions();}catch(e){}});};
 document.getElementById('addPunitionBtn').onclick=function(){const form=document.getElementById('punitionForm');const es=document.getElementById('punitionEleveSelect');if(form.classList.contains('show')){form.classList.remove('show');return;}if(!es.value){toast('Veuillez selectionner un eleve','error');return;}document.getElementById('punitionMotif').value='';document.getElementById('punitionJustification').value='';form.classList.add('show');document.getElementById('punitionMotif').focus();};
 document.getElementById('cancelPunitionBtn').onclick=function(){document.getElementById('punitionForm').classList.remove('show');};
-document.getElementById('savePunitionBtn').onclick=async function(){const es=document.getElementById('punitionEleveSelect');const c=document.getElementById('punitionClasseSelect').value;const motif=document.getElementById('punitionMotif').value.trim();const just=document.getElementById('punitionJustification').value.trim();if(!es.value){toast('Veuillez selectionner un eleve','error');return;}if(!motif){toast('Veuillez saisir un motif','error');return;}if(!just){toast('Veuillez saisir une justification','error');return;}const data={eleveNom:es.value,classe:c||'Non specifiee',motif:motif,justification:just,date:new Date().toISOString(),enregistrePar:'Direction',gravite:'moyenne',statut:'active'};try{const docId='punition_'+Date.now();await setDoc(doc(db,"ecoles",ECOLET_ID,SC.PUNITIONS,docId),data);document.getElementById('punitionForm').classList.remove('show');chargerPunitions();toast('Punition enregistree','success');}catch(e){toast('Erreur: '+e.message,'error');}};
+document.getElementById('savePunitionBtn').onclick=async function(){const es=document.getElementById('punitionEleveSelect');const c=document.getElementById('punitionClasseSelect').value;const motif=document.getElementById('punitionMotif').value.trim();const just=document.getElementById('punitionJustification').value.trim();if(!es.value){toast('Veuillez selectionner un eleve','error');return;}if(!motif){toast('Veuillez saisir un motif','error');return;}if(!just){toast('Veuillez saisir une justification','error');return;}const data={eleveNom:es.value,classe:c||'Non specifiee',motif:motif,justification:just,date:new Date().toISOString(),enregistrePar:'Direction',gravite:'moyenne',statut:'active'};try{const docId='punition_'+Date.now();await setDoc(doc(db,"ecoles",ECOLET_ID,SC.PUNITIONS,docId),data);document.getElementById('punitionForm').classList.remove('show');chargerPunitions();toast('✅ Punition enregistree','success');}catch(e){toast('Erreur: '+e.message,'error');}};
 async function updatePunitionEleves(){const c=document.getElementById('punitionClasseSelect').value;const es=document.getElementById('punitionEleveSelect');if(!es)return;const cv=es.value;es.innerHTML='<option value="">TOUS</option>';try{const snap=await getDocs(collection(db,"ecoles",ECOLET_ID,SC.FICHES));const elevesSet=new Set();snap.forEach(ds=>{const d=ds.data();if(d._type)return;if(c&&d.classe!==c)return;if(d.eleves&&Array.isArray(d.eleves)){d.eleves.forEach(e=>{if(e.nom)elevesSet.add(e.nom);});}});const elevesTries=Array.from(elevesSet).sort((a,b)=>a.localeCompare(b));if(elevesTries.length===0){es.innerHTML='<option value="">Aucun eleve trouve</option>';return;}elevesTries.forEach(n=>{const opt=document.createElement('option');opt.value=n;opt.textContent=n;if(n===cv)opt.selected=true;es.appendChild(opt);});}catch(e){es.innerHTML='<option value="">Erreur de chargement</option>';}}
 document.getElementById('punitionClasseSelect').onchange=function(){updatePunitionEleves();chargerPunitions();};
 document.getElementById('punitionEleveSelect').onchange=function(){chargerPunitions();};
 async function afficherCorbeille(){const c=document.getElementById('corbeilleList');if(!c)return;try{const corbeilleRef=collection(db,"ecoles",ECOLET_ID,SC.CORBEILLE);const snap=await getDocs(corbeilleRef);const corbeille=[];snap.forEach(ds=>{const data=ds.data();if(data.dateExpiration&&new Date(data.dateExpiration)>new Date()){corbeille.push({id:ds.id,...data});}});if(corbeille.length===0){c.innerHTML='<div style="text-align:center;padding:30px 20px;color:var(--text-muted);font-size:13px;"><div style="font-size:40px;margin-bottom:12px;opacity:0.3;"><i class="fas fa-trash-alt"></i></div><p style="font-weight:500;color:var(--text-secondary);">Corbeille vide</p><p style="font-size:11px;margin-top:4px;">Les fiches supprimees apparaitront ici</p></div>';return;}corbeille.sort((a,b)=>(b.dateSuppression||0)-(a.dateSuppression||0));let html='<div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;"><div style="display:flex;justify-content:space-between;align-items:center;padding:6px 12px;background:#f8fafc;border-radius:10px;font-size:11px;color:var(--text-muted);font-weight:600;border:1px solid var(--border-color);"><span><i class="fas fa-file-alt"></i> FICHE</span><span><i class="fas fa-clock"></i> EXPIRATION</span><span style="text-align:right;">ACTION</span></div>';for(const f of corbeille){const dateSupp=f.dateSuppression?new Date(f.dateSuppression):new Date();const dateExpiration=new Date(dateSupp);dateExpiration.setDate(dateExpiration.getDate()+30);const joursRestants=Math.ceil((dateExpiration-new Date())/(1000*60*60*24));let statutCouleur='#10b981';let statutTexte=joursRestants+' JOUR(S)';if(joursRestants<=5){statutCouleur='#dc2626';statutTexte='<i class="fas fa-exclamation-triangle"></i> '+joursRestants+' JOUR(S)';}else if(joursRestants<=10){statutCouleur='#f59e0b';statutTexte='<i class="fas fa-bolt"></i> '+joursRestants+' JOUR(S)';}const refNum=f.numeroRef?'F'+String(f.numeroRef).padStart(3,'0'):'???';const cours=f.cours||'Sans cours';const classe=f.classe||'?';const optionDisplay=f.option?' ('+f.option+')':'';const profNom=f.professeurNom||f.profId||'Inconnu';const dateSuppFormatee=new Date(dateSupp).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});html+='<div style="background:#ffffff;border-radius:12px;padding:12px 16px;border:1px solid var(--border-color);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;"><div style="display:flex;align-items:center;gap:12px;flex:1;min-width:180px;"><div style="background:var(--red-bg);border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;color:var(--red);font-family:monospace;border:1px solid #fecaca;">'+refNum+'</div><div><div style="font-weight:600;font-size:14px;color:var(--text-primary);">'+escapeHtml(cours)+'</div><div style="font-size:12px;color:var(--text-secondary);">'+escapeHtml(classe)+optionDisplay+' · '+escapeHtml(profNom)+'</div></div></div><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);"><span style="font-size:10px;"><i class="fas fa-trash-alt"></i></span><span>'+dateSuppFormatee+'</span></div><div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:'+statutCouleur+';"><span style="font-size:10px;"><i class="fas fa-hourglass-half"></i></span><span>'+statutTexte+'</span></div><div style="display:flex;gap:6px;"><select id="restaureProf_'+f.id+'" style="padding:5px 10px;border-radius:30px;background:#f8fafc;color:var(--text-primary);border:1px solid var(--border-color);font-size:11px;cursor:pointer;outline:none;"><option value="'+f.profId+'"><i class="fas fa-chalkboard-teacher"></i> '+escapeHtml(profNom)+'</option><option value="autre"><i class="fas fa-exchange-alt"></i> AUTRE PROF</option><option value="nouveau"><i class="fas fa-plus-circle"></i> NOUVEAU PROF</option></select><button onclick="window.confirmerRestauration(\''+f.id+'\')" style="background:var(--green);color:white;border:none;padding:5px 16px;border-radius:30px;font-size:11px;font-weight:600;cursor:pointer;"><i class="fas fa-undo"></i> RESTAURER</button></div></div></div>';}html+='</div>';c.innerHTML=html;}catch(e){c.innerHTML='<div style="text-align:center;padding:20px;color:var(--red);font-size:13px;"><div style="font-size:28px;margin-bottom:8px;"><i class="fas fa-exclamation-circle"></i></div><p>Erreur de chargement de la corbeille</p></div>';}}
-window.confirmerRestauration=function(ficheId){showConfirm('RESTAURER LA FICHE DE COTATION','Voulez-vous vraiment restaurer cette <strong>fiche de cotation</strong> ?<br><br>La fiche sera remise dans l\'espace du professeur selectionne.<br>Les donnees (eleves, notes, epreuves) seront conservees.',function(){window.restaurerFicheCorbeille(ficheId);});};
+window.confirmerRestauration=function(ficheId){showConfirm('🔄 RESTAURER LA FICHE DE COTATION','Voulez-vous vraiment restaurer cette <strong>fiche de cotation</strong> ?<br><br>La fiche sera remise dans l\'espace du professeur selectionne.<br>Les donnees (eleves, notes, epreuves) seront conservees.',function(){window.restaurerFicheCorbeille(ficheId);});};
 window.restaurerFicheCorbeille=async function(ficheId){try{const docRef=doc(db,"ecoles",ECOLET_ID,SC.CORBEILLE,ficheId);const snap=await getDoc(docRef);if(!snap.exists()){toast('Fiche non trouvee dans la corbeille','error');return;}const fiche=snap.data();const select=document.getElementById('restaureProf_'+ficheId);const choix=select?select.value:fiche.profId;let nouveauProfId=fiche.profId;let nouveauProfNom=fiche.professeurNom;if(choix==="nouveau"){showPrompt("NOM DU NOUVEAU PROFESSEUR","Nom complet du professeur","Nom",async function(nouveauNom){if(nouveauNom&&nouveauNom.trim()){const code=genererCodeAcces();const pid='prof_'+Date.now();const email=genererEmailProfesseur(nouveauNom.trim(),ECOLET_ID);try{await createUserWithEmailAndPassword(auth,email,code).catch(()=>{});const data={_type:"prof",id:pid,profId:pid,nom:nouveauNom.trim(),code:code,email:email,emailProf:email,createdAt:Date.now(),actif:true,school:ECOLET_ID,authCreated:true};await setDoc(doc(db,"ecoles",ECOLET_ID,SC.PROFESSEURS,pid),data);nouveauProfId=pid;nouveauProfNom=nouveauNom.trim();await restaurerFiche(ficheId,fiche,nouveauProfId,nouveauProfNom);}catch(e){toast('Erreur: '+e.message,'error');}}else{toast('Nom invalide','error');}});return;}else if(choix==="autre"){let profs=[];try{const snapProfs=await getDocs(collection(db,"ecoles",ECOLET_ID,SC.PROFESSEURS));snapProfs.forEach(ds=>{const d=ds.data();if(d._type==='prof')profs.push(d);});}catch(e){toast('Erreur chargement profs','error');return;}if(profs.length===0){toast('Aucun professeur disponible','error');return;}showPrompt("NOM DU PROFESSEUR","Entrez le nom du professeur",profs.map(p=>p.nom).join(', '),async function(reponse){if(reponse&&reponse.trim()){const profTrouve=profs.find(p=>p.nom===reponse.trim()||p.id===reponse.trim());if(profTrouve){await restaurerFiche(ficheId,fiche,profTrouve.id,profTrouve.nom);}else{toast('Professeur non trouve','error');}}else{toast('Nom invalide','error');}});return;}await restaurerFiche(ficheId,fiche,nouveauProfId,nouveauProfNom);}catch(e){toast('Erreur: '+e.message,'error');}};
-async function restaurerFiche(ficheId,ficheData,nouveauProfId,nouveauProfNom){try{const docRef=doc(db,"ecoles",ECOLET_ID,SC.FICHES,ficheId);const newData={...ficheData};delete newData.dateSuppression;delete newData.dateExpiration;delete newData.professeurNom;delete newData.supprimePar;newData.profId=nouveauProfId;newData.professeurNom=nouveauProfNom;newData.school=ECOLET_ID;newData.dateRestoration=new Date().toISOString();await setDoc(docRef,newData);await deleteDoc(doc(db,"ecoles",ECOLET_ID,SC.CORBEILLE,ficheId));toast('Fiche de cotation restauree avec succes','success');afficherCorbeille();}catch(e){toast('Erreur: '+e.message,'error');}}
+async function restaurerFiche(ficheId,ficheData,nouveauProfId,nouveauProfNom){try{const docRef=doc(db,"ecoles",ECOLET_ID,SC.FICHES,ficheId);const newData={...ficheData};delete newData.dateSuppression;delete newData.dateExpiration;delete newData.professeurNom;delete newData.supprimePar;newData.profId=nouveauProfId;newData.professeurNom=nouveauProfNom;newData.school=ECOLET_ID;newData.dateRestoration=new Date().toISOString();await setDoc(docRef,newData);await deleteDoc(doc(db,"ecoles",ECOLET_ID,SC.CORBEILLE,ficheId));toast('✅ Fiche de cotation restauree avec succes','success');afficherCorbeille();}catch(e){toast('Erreur: '+e.message,'error');}}
 
 async function updateStats(){
   try{
@@ -1166,16 +1168,16 @@ async function updateStats(){
 }
 
 let pendingReply=null,botWaitingMessageSent=false,recoMessages=[];
-function getNaturalReply(subject,message){const replies={'amelioration':['Excellente suggestion ! Je transmets a l\'equipe support humain.','Ah, c\'est une super idee ! Le support humain va l\'etudier.','Votre suggestion est geniale ! Je la transmets.','J\'adore cette idee ! Le support humain vous repondra bientot.'],'correction':['Je note ce bug. L\'equipe support va le corriger.','Merci pour ce signalement ! Le support humain va traiter ca.','Bien vu ! Ce probleme est corrige par l\'equipe.','Ah, effectivement, c\'est un probleme ! Le support va le resoudre.'],'suppression':['Votre demande de suppression a ete prise en compte. Le support humain va la traiter.','C\'est note ! Le support va vous confirmer.','Parfait ! Le support va s\'en occuper.','Demande de suppression validee. Le support humain vous repondra.'],'nouveaute':['Oh, quelle excellente idee ! Le support humain va l\'examiner.','C\'est une tres belle proposition ! Je la transmets.','Impressionnant ! L\'equipe support va l\'etudier.','Super idee ! Le support humain va vous recontacter.'],'autre':['Merci pour votre message ! Je le transmets a l\'equipe support.','J\'ai bien recu votre demande. Le support va vous repondre.','Parfait ! J\'ai enregistre votre demande. Le support humain vous repondra.','Votre message a bien ete recu. L\'equipe support va le traiter.']};let type='autre';if(subject.includes('amelioration'))type='amelioration';else if(subject.includes('correction'))type='correction';else if(subject.includes('suppression'))type='suppression';else if(subject.includes('nouveaute'))type='nouveaute';const possibleReplies=replies[type]||replies['autre'];const index=Math.floor(Math.random()*possibleReplies.length);return possibleReplies[index];}
+function getNaturalReply(subject,message){const replies={'amelioration':['Excellente suggestion ! 💡 Je transmets a l\'equipe support humain.','Ah, c\'est une super idee ! 😍 Le support humain va l\'etudier.','Wouah ! 🤩 Votre suggestion est geniale ! Je la transmets.','👍 J\'adore cette idee ! Le support humain vous repondra bientot.'],'correction':['Oups ! 🐛 Je note ce bug. L\'equipe support va le corriger.','Merci pour ce signalement ! 🙏 Le support humain va traiter ca.','Bien vu ! 👀 Ce probleme est corrige par l\'equipe.','😮 Ah, effectivement, c\'est un probleme ! Le support va le resoudre.'],'suppression':['Votre demande de suppression a ete prise en compte. 🗑️ Le support humain va la traiter.','C\'est note ! 📝 Le support va vous confirmer.','Parfait ! 👍 Le support va s\'en occuper.','✅ Demande de suppression validee. Le support humain vous repondra.'],'nouveaute':['Oh, quelle excellente idee ! ✨ Le support humain va l\'examiner.','C\'est une tres belle proposition ! 🎨 Je la transmets.','Impressionnant ! 🚀 L\'equipe support va l\'etudier.','😲 Waouh ! Super idee ! Le support humain va vous recontacter.'],'autre':['Merci pour votre message ! 📝 Je le transmets a l\'equipe support.','J\'ai bien recu votre demande. 🤗 Le support va vous repondre.','Parfait ! ✅ J\'ai enregistre votre demande. Le support humain vous repondra.','😊 Votre message a bien ete recu. L\'equipe support va le traiter.']};let type='autre';if(subject.includes('amelioration'))type='amelioration';else if(subject.includes('correction'))type='correction';else if(subject.includes('suppression'))type='suppression';else if(subject.includes('nouveaute'))type='nouveaute';const possibleReplies=replies[type]||replies['autre'];const index=Math.floor(Math.random()*possibleReplies.length);return possibleReplies[index];}
 function scrollRecoToBottom(){const recoBody=document.getElementById('recoBody');if(recoBody){requestAnimationFrame(()=>{recoBody.scrollTop=recoBody.scrollHeight;});setTimeout(()=>{recoBody.scrollTop=recoBody.scrollHeight;},100);setTimeout(()=>{recoBody.scrollTop=recoBody.scrollHeight;},300);}}
 function addRecoMessage(sender,nom,message){const container=document.getElementById('recoMessagesContainer');if(!container)return;const empty=container.querySelector('.reco-empty');if(empty)empty.remove();const div=document.createElement('div');div.className='reco-message '+sender;const time=new Date().toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});div.innerHTML='<div class="bubble"><div class="sender">'+nom+'</div><div class="text">'+escapeHtml(message)+'</div><div class="time">'+time+'</div></div>';container.appendChild(div);setTimeout(scrollRecoToBottom,50);}
 function addTypingIndicator(){const container=document.getElementById('recoMessagesContainer');if(!container)return;removeTypingIndicator();const div=document.createElement('div');div.className='typing-indicator';div.id='typingIndicator';div.innerHTML='<div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div><span class="typing-text">L\'assistant support ecrit...</span>';container.appendChild(div);setTimeout(scrollRecoToBottom,50);}
 function removeTypingIndicator(){const el=document.getElementById('typingIndicator');if(el)el.remove();}
-function showTypingAndAutoReplyWithCustomReply(subject,customReply){if(pendingReply){clearTimeout(pendingReply);removeTypingIndicator();}botWaitingMessageSent=false;addTypingIndicator();const delay=1500+Math.random()*2000;pendingReply=setTimeout(()=>{removeTypingIndicator();addRecoMessage('support','Support NeTubeX',customReply);if(!botWaitingMessageSent){const secondDelay=2000+Math.random()*1500;setTimeout(()=>{if(!botWaitingMessageSent){addRecoMessage('support','Support NeTubeX','Merci, veuillez patienter le message du support dans moins de quelques heures.');botWaitingMessageSent=true;}},secondDelay);}pendingReply=null;},delay);}
+function showTypingAndAutoReplyWithCustomReply(subject,customReply){if(pendingReply){clearTimeout(pendingReply);removeTypingIndicator();}botWaitingMessageSent=false;addTypingIndicator();const delay=1500+Math.random()*2000;pendingReply=setTimeout(()=>{removeTypingIndicator();addRecoMessage('support','Support NeTubeX',customReply);if(!botWaitingMessageSent){const secondDelay=2000+Math.random()*1500;setTimeout(()=>{if(!botWaitingMessageSent){addRecoMessage('support','Support NeTubeX','Merci, veuillez patienter le message du support dans moins de quelques heures. ⏳');botWaitingMessageSent=true;}},secondDelay);}pendingReply=null;},delay);}
 function initReco(){if(recoUnsubscribe)return;const docRef=doc(db,"communication","support_netubex_board");recoUnsubscribe=onSnapshot(docRef,(snap)=>{if(snap.exists()){const data=snap.data();let all=data.messages||[];let filtered=all.filter(m=>m.ecole===SCHOOL_DISPLAY_NAME);filtered.sort((a,b)=>(a.number||0)-(b.number||0));const previousCount=recoMessages.length;const newMessages=filtered.slice(previousCount);recoMessages=filtered;newMessages.forEach(msg=>{if(msg.expediteur==='support'){removeTypingIndicator();addRecoMessage('support','Support NeTubeX',msg.message);botWaitingMessageSent=true;if(pendingReply){clearTimeout(pendingReply);pendingReply=null;}}});updateRecoUI();setTimeout(scrollRecoToBottom,200);}},(e)=>{});document.getElementById('recoSendBtn').addEventListener('click',sendRecoMessage);document.getElementById('recoInput').addEventListener('keypress',function(e){if(e.key==='Enter')sendRecoMessage();});document.getElementById('recoSubjectSelect').addEventListener('change',function(){this.classList.remove('error');});}
 function updateRecoUI(){const container=document.getElementById('recoMessagesContainer');if(!container)return;const empty=container.querySelector('.reco-empty');if(empty)empty.remove();}
 function sendRecoMessage(){const input=document.getElementById('recoInput');const subjectSelect=document.getElementById('recoSubjectSelect');const message=input.value.trim();const subject=subjectSelect.value;if(!message){toast('Veuillez ecrire un message','warning');return;}if(!subject||subject===''){subjectSelect.classList.add('error');toast('Veuillez selectionner un sujet','warning');return;}subjectSelect.classList.remove('error');addRecoMessage('direction','Direction',message);input.value='';envoyerMessageSupport(message,subject);const customReply=getNaturalReply(subject,message);showTypingAndAutoReplyWithCustomReply(subject,customReply);}
-async function envoyerMessageSupport(message,subject){try{const docRef=doc(db,"communication","support_netubex_board");const snap=await getDoc(docRef);let data=snap.exists()?snap.data():{messages:[]};let messages=data.messages||[];const newMessage={number:messages.length+1,message:message,sujet:subject,ecole:SCHOOL_DISPLAY_NAME,expediteur:'direction',heure:new Date().toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),timestamp:Date.now()};messages.push(newMessage);await setDoc(docRef,{messages:messages});toast('Message envoye au support','success');}catch(error){toast('Erreur: '+error.message,'error');}}
+async function envoyerMessageSupport(message,subject){try{const docRef=doc(db,"communication","support_netubex_board");const snap=await getDoc(docRef);let data=snap.exists()?snap.data():{messages:[]};let messages=data.messages||[];const newMessage={number:messages.length+1,message:message,sujet:subject,ecole:SCHOOL_DISPLAY_NAME,expediteur:'direction',heure:new Date().toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),timestamp:Date.now()};messages.push(newMessage);await setDoc(docRef,{messages:messages});toast('✅ Message envoye au support','success');}catch(error){toast('❌ Erreur: '+error.message,'error');}}
 document.getElementById('recoBackBtn').addEventListener('click',function(){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));document.querySelector('.tab[data-tab="tabStats"]').classList.add('active');document.getElementById('tabStats').classList.add('active');});
 
 function initDates() {
@@ -1193,295 +1195,6 @@ function initDates() {
     document.getElementById('filtreMoisRapportSec').value = moisVal;
     document.getElementById('filtreMoisRapportPri').value = moisVal;
     document.getElementById('filtreMoisRapportMat').value = moisVal;
-}
-
-// FONCTION GENERER RAPPORT MENSUEL AVEC CHAQUE PERSONNE SUR SA PROPRE PAGE
-async function genererRapportMensuelSection(section, nomSection) {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('portrait', 'mm', 'a4');
-    const pageWidth = doc.internal.pageSize.width;
-    const pageHeight = doc.internal.pageSize.height;
-    
-    const nomEcole = document.querySelector('.school-name')?.textContent || 'COMPLEXE SCOLAIRE';
-    
-    const colors = {
-        'sec': { color: [59, 130, 246], label: 'SECONDAIRE' },
-        'pri': { color: [16, 185, 129], label: 'PRIMAIRE' },
-        'mat': { color: [236, 72, 153], label: 'MATERNELLE' }
-    };
-    const c = colors[section] || colors['sec'];
-    
-    const moisInput = document.getElementById('filtreMoisRapport' + section.charAt(0).toUpperCase() + section.slice(1));
-    let moisLabel = new Date().toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
-    let dateDebut, dateFin;
-    if(moisInput && moisInput.value) {
-        const [year, month] = moisInput.value.split('-').map(Number);
-        dateDebut = new Date(year, month - 1, 1);
-        dateFin = new Date(year, month, 0);
-        moisLabel = new Date(year, month-1, 1).toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
-    } else {
-        const now = new Date();
-        dateDebut = new Date(now.getFullYear(), now.getMonth(), 1);
-        dateFin = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    }
-    
-    const joursOuvres = [];
-    const current = new Date(dateDebut);
-    while (current <= dateFin) {
-        const jour = current.getDay();
-        if (jour !== 0 && jour !== 6) {
-            joursOuvres.push(new Date(current));
-        }
-        current.setDate(current.getDate() + 1);
-    }
-    const totalJours = joursOuvres.length;
-    
-    let personnes = [];
-    if(section === 'sec') {
-        personnes = await chargerProfs();
-        personnes = personnes.map(p => ({...p, type: 'prof'}));
-    } else if(section === 'pri') {
-        const ens = await chargerEnseignants();
-        personnes = ens.filter(e => e.cycle === 'primaire').map(e => ({...e, type: 'ens'}));
-    } else if(section === 'mat') {
-        const ens = await chargerEnseignants();
-        personnes = ens.filter(e => e.cycle === 'maternelle').map(e => ({...e, type: 'ens'}));
-    }
-    
-    if(personnes.length === 0) {
-        toast('Aucun ' + nomSection + ' trouve', 'warning');
-        return;
-    }
-    
-    let totalPresents = 0, totalAbsents = 0, totalRetards = 0;
-    const statsPersonnes = [];
-    
-    for (let idx = 0; idx < personnes.length; idx++) {
-        const p = personnes[idx];
-        
-        const collectionName = p.type === 'prof' ? SC.PROFESSEURS : SC.ENSEIGNANTS;
-        const docRef = doc(db, "ecoles", ECOLET_ID, collectionName, p.id);
-        const snap = await getDoc(docRef);
-        let presences = {};
-        if(snap.exists()) {
-            const data = snap.data();
-            presences = data.presences || {};
-        }
-        
-        let presents = 0, absents = 0, retards = 0;
-        const joursData = [];
-        
-        for (const date of joursOuvres) {
-            const dateKey = date.toISOString().split('T')[0];
-            const presence = presences[dateKey] || { statut: 'absent' };
-            
-            if (presence.statut === 'present') presents++;
-            else if (presence.statut === 'retard') retards++;
-            else absents++;
-            
-            joursData.push({
-                date: dateKey,
-                jourCourt: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'][date.getDay() - 1],
-                statut: presence.statut || 'absent',
-                arrivee: presence.heureArrivee || '-',
-                sortie: presence.heureSortie || '-'
-            });
-        }
-        
-        const taux = totalJours > 0 ? Math.round((presents / totalJours) * 100) : 0;
-        totalPresents += presents;
-        totalAbsents += absents;
-        totalRetards += retards;
-        
-        statsPersonnes.push({
-            nom: p.nom,
-            presents: presents,
-            absents: absents,
-            retards: retards,
-            taux: taux,
-            total: totalJours,
-            joursData: joursData
-        });
-        
-        if (idx > 0) {
-            doc.addPage();
-        }
-        
-        let yOffset = 20;
-        
-        doc.setFillColor(15, 23, 42);
-        doc.rect(0, 0, pageWidth, 28, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text(nomEcole, 14, 14);
-        doc.setTextColor(251, 191, 36);
-        doc.setFontSize(9);
-        doc.text('RAPPORT MENSUEL - ' + nomSection.toUpperCase(), 14, 22);
-        doc.setTextColor(148, 163, 184);
-        doc.setFontSize(8);
-        doc.text('Mois: ' + moisLabel, 14, 27);
-        
-        doc.setDrawColor(c.color[0], c.color[1], c.color[2]);
-        doc.setLineWidth(2);
-        doc.line(14, 31, 60, 31);
-        
-        doc.setTextColor(15, 23, 42);
-        doc.setFontSize(18);
-        doc.setFont('helvetica', 'bold');
-        doc.text(p.nom, 14, 42);
-        
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(16, 185, 129);
-        doc.text('Presents: ' + presents, 14, 52);
-        doc.setTextColor(239, 68, 68);
-        doc.text('Absents: ' + absents, 80, 52);
-        doc.setTextColor(245, 158, 11);
-        doc.text('Retards: ' + retards, 140, 52);
-        doc.setTextColor(15, 23, 42);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Taux: ' + taux + '% (' + presents + '/' + totalJours + ' jours)', 14, 60);
-        
-        yOffset = 68;
-        
-        const tableData = joursData.map(j => [
-            j.date.split('-')[2] + '/' + j.date.split('-')[1],
-            j.jourCourt,
-            j.statut === 'present' ? 'Present' : j.statut === 'retard' ? 'Retard' : 'Absent',
-            j.arrivee,
-            j.sortie
-        ]);
-        
-        doc.autoTable({
-            head: [['Jour', 'Sem.', 'Statut', 'Arrivee', 'Sortie']],
-            body: tableData,
-            startY: yOffset,
-            styles: { fontSize: 7, cellPadding: 1.5 },
-            headStyles: { 
-                fillColor: c.color, 
-                textColor: [255, 255, 255], 
-                fontSize: 8,
-                fontStyle: 'bold'
-            },
-            alternateRowStyles: { fillColor: [245, 247, 250] },
-            columnStyles: {
-                0: { cellWidth: 22 },
-                1: { cellWidth: 20 },
-                2: { cellWidth: 32 },
-                3: { cellWidth: 25 },
-                4: { cellWidth: 25 }
-            },
-            margin: { left: 10, right: 10 }
-        });
-        
-        yOffset = doc.lastAutoTable.finalY + 10;
-        
-        if (yOffset < 250) {
-            doc.setDrawColor(c.color[0], c.color[1], c.color[2]);
-            doc.setLineWidth(1);
-            doc.line(14, yOffset, pageWidth - 14, yOffset);
-            yOffset += 4;
-            doc.setFontSize(9);
-            doc.setFont('helvetica', 'italic');
-            doc.setTextColor(100, 116, 139);
-            doc.text('Resume: Presents: ' + presents + ' | Absents: ' + absents + ' | Retards: ' + retards + ' | Taux: ' + taux + '%', 14, yOffset);
-            yOffset += 6;
-            
-            const barWidth = pageWidth - 28;
-            const barHeight = 6;
-            doc.setFillColor(229, 231, 235);
-            doc.rect(14, yOffset, barWidth, barHeight, 'F');
-            const fillWidth = (taux / 100) * barWidth;
-            doc.setFillColor(c.color[0], c.color[1], c.color[2]);
-            doc.rect(14, yOffset, fillWidth, barHeight, 'F');
-            yOffset += 10;
-        }
-        
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(148, 163, 184);
-        doc.text('Page ' + (idx + 1) + '/' + personnes.length, pageWidth - 30, pageHeight - 10);
-    }
-    
-    // Derniere page : Resume global
-    doc.addPage();
-    let yOffset = 20;
-    
-    doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, pageWidth, 24, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text('RESUME MENSUEL - ' + nomSection.toUpperCase(), 14, 15);
-    
-    doc.setTextColor(15, 23, 42);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Total personnes: ' + personnes.length, 14, yOffset);
-    yOffset += 6;
-    doc.text('Jours ouvrables: ' + totalJours + ' (Lundi-Vendredi)', 14, yOffset);
-    yOffset += 6;
-    const totalGlobal = totalPresents + totalAbsents + totalRetards;
-    const tauxGlobal = totalGlobal > 0 ? Math.round((totalPresents / totalGlobal) * 100) : 0;
-    doc.text('Taux de presence global: ' + tauxGlobal + '% (' + totalPresents + '/' + totalGlobal + ')', 14, yOffset);
-    yOffset += 10;
-    
-    statsPersonnes.sort((a, b) => b.taux - a.taux);
-    const resumeData = statsPersonnes.map(s => [
-        s.nom,
-        s.presents + '/' + s.total,
-        s.taux + '%',
-        s.retards > 0 ? String(s.retards) : '0'
-    ]);
-    
-    doc.autoTable({
-        head: [['Nom', 'Presence', 'Taux', 'Retards']],
-        body: resumeData,
-        startY: yOffset,
-        styles: { fontSize: 8, cellPadding: 2 },
-        headStyles: { fillColor: c.color, textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [245, 247, 250] },
-        columnStyles: { 0: { cellWidth: 70 }, 1: { cellWidth: 35 }, 2: { cellWidth: 30 }, 3: { cellWidth: 25 } },
-        margin: { left: 10, right: 10 }
-    });
-    
-    yOffset = doc.lastAutoTable.finalY + 10;
-    
-    if (yOffset < 250) {
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(15, 23, 42);
-        doc.text('Repartition globale:', 14, yOffset);
-        yOffset += 6;
-        
-        const barWidth = pageWidth - 28;
-        const barHeight = 8;
-        
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
-        
-        doc.setTextColor(16, 185, 129);
-        doc.text('Presents: ' + totalPresents + ' (' + Math.round((totalPresents/totalGlobal)*100) + '%)', 14, yOffset + 8);
-        doc.setFillColor(16, 185, 129);
-        doc.rect(14, yOffset + 12, (totalPresents/totalGlobal) * barWidth, barHeight, 'F');
-        yOffset += 14;
-        
-        doc.setTextColor(245, 158, 11);
-        doc.text('Retards: ' + totalRetards + ' (' + Math.round((totalRetards/totalGlobal)*100) + '%)', 14, yOffset + 8);
-        doc.setFillColor(245, 158, 11);
-        doc.rect(14, yOffset + 12, (totalRetards/totalGlobal) * barWidth, barHeight, 'F');
-        yOffset += 14;
-        
-        doc.setTextColor(239, 68, 68);
-        doc.text('Absents: ' + totalAbsents + ' (' + Math.round((totalAbsents/totalGlobal)*100) + '%)', 14, yOffset + 8);
-        doc.setFillColor(239, 68, 68);
-        doc.rect(14, yOffset + 12, (totalAbsents/totalGlobal) * barWidth, barHeight, 'F');
-    }
-    
-    const nomFichier = 'Rapport_Mensuel_' + nomSection + '_' + new Date().toISOString().split('T')[0] + '.pdf';
-    doc.save(nomFichier);
-    toast('Rapport mensuel ' + nomSection + ' genere avec succes', 'success');
 }
 
 async function chargerPresencesSecondaire() {
@@ -1677,6 +1390,7 @@ document.getElementById('btnExportPresencePDFSec').addEventListener('click', fun
     toast('PDF Secondaire genere avec succes', 'success');
 });
 document.getElementById('btnRapportMensuelSec').addEventListener('click', function() {
+    toast('📊 Rapport mensuel Secondaire en cours de generation...', 'success');
     genererRapportMensuelSection('sec', 'Secondaire');
 });
 
@@ -1771,7 +1485,7 @@ window.pointerPresencePri = async function(id, statut, dateKey) {
         const heureActuelle = now.getHours() + now.getMinutes()/60;
         if(heureActuelle > 7.25) {
             statut = 'retard';
-            toast('Enseignant Primaire marque en retard (apres 7h15)', 'warning');
+            toast('⏰ Enseignant Primaire marqué en retard (après 7h15)', 'warning');
         }
     }
     const buttons = document.querySelectorAll(`[data-id="${id}"][data-type="ens"]`);
@@ -1881,6 +1595,7 @@ document.getElementById('btnExportPresencePDFPri').addEventListener('click', fun
     toast('PDF Primaire genere avec succes', 'success');
 });
 document.getElementById('btnRapportMensuelPri').addEventListener('click', function() {
+    toast('📊 Rapport mensuel Primaire en cours de generation...', 'success');
     genererRapportMensuelSection('pri', 'Primaire');
 });
 
@@ -1975,7 +1690,7 @@ window.pointerPresenceMat = async function(id, statut, dateKey) {
         const heureActuelle = now.getHours() + now.getMinutes()/60;
         if(heureActuelle > 7.25) {
             statut = 'retard';
-            toast('Enseignant Maternelle marque en retard (apres 7h15)', 'warning');
+            toast('⏰ Enseignant Maternelle marqué en retard (après 7h15)', 'warning');
         }
     }
     const buttons = document.querySelectorAll(`[data-id="${id}"][data-type="ens"]`);
@@ -2085,11 +1800,67 @@ document.getElementById('btnExportPresencePDFMat').addEventListener('click', fun
     toast('PDF Maternelle genere avec succes', 'success');
 });
 document.getElementById('btnRapportMensuelMat').addEventListener('click', function() {
+    toast('📊 Rapport mensuel Maternelle en cours de generation...', 'success');
     genererRapportMensuelSection('mat', 'Maternelle');
 });
 
+async function genererRapportMensuelSection(section, nomSection) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('portrait', 'mm', 'a4');
+    const nomEcole = document.querySelector('.school-name')?.textContent || 'COMPLEXE SCOLAIRE';
+    doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.text(nomEcole, 14, 15);
+    doc.setFontSize(14); doc.text('RAPPORT MENSUEL - ' + nomSection.toUpperCase(), 14, 25);
+    doc.setFontSize(10); doc.text('Annee scolaire 2026-2027', 14, 33);
+    let personnes = [];
+    const moisInput = document.getElementById('filtreMoisRapport' + section.charAt(0).toUpperCase() + section.slice(1));
+    let moisLabel = 'ce mois';
+    if(moisInput && moisInput.value) {
+        const [year, month] = moisInput.value.split('-');
+        moisLabel = new Date(year, month-1, 1).toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+    }
+    doc.text('Mois: ' + moisLabel, 14, 40);
+    if(section === 'sec') {
+        personnes = await chargerProfs();
+        personnes = personnes.map(p => ({...p, type: 'prof'}));
+    } else if(section === 'pri') {
+        const ens = await chargerEnseignants();
+        personnes = ens.filter(e => e.cycle === 'primaire').map(e => ({...e, type: 'ens'}));
+    } else if(section === 'mat') {
+        const ens = await chargerEnseignants();
+        personnes = ens.filter(e => e.cycle === 'maternelle').map(e => ({...e, type: 'ens'}));
+    }
+    if(personnes.length === 0) {
+        toast('Aucun ' + nomSection + ' trouve', 'warning');
+        return;
+    }
+    const rows = [];
+    personnes.forEach((p, idx) => {
+        rows.push([
+            (idx+1).toString(),
+            p.nom,
+            p.type === 'prof' ? 'Professeur' : 'Enseignant',
+            '-',
+            '-',
+            '-'
+        ]);
+    });
+    doc.autoTable({
+        head: [['#', 'NOM', 'TYPE', 'PRESENTS', 'RETARDS', 'ABSENTS']],
+        body: rows,
+        startY: 45,
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 247, 250] },
+        margin: {left:10, right:10}
+    });
+    const dateStr = new Date().toISOString().split('T')[0];
+    doc.save('Rapport_Mensuel_' + nomSection + '_' + dateStr + '.pdf');
+    toast('✅ Rapport mensuel ' + nomSection + ' genere avec succes', 'success');
+}
+
 function updateStatsPresences() {
     try {
+        // Secondaire
         const secCards = document.querySelectorAll('#presenceCardsContainerSec .presence-section-card');
         let secPresent=0, secAbsent=0, secRetard=0;
         secCards.forEach(card => {
@@ -2110,6 +1881,7 @@ function updateStatsPresences() {
         if(secTotal > 0) secBar.style.width = ((secPresent / secTotal) * 100) + '%';
         else secBar.style.width = '0%';
 
+        // Primaire
         const priCards = document.querySelectorAll('#presenceCardsContainerPri .presence-section-card');
         let priPresent=0, priAbsent=0, priRetard=0;
         priCards.forEach(card => {
@@ -2130,6 +1902,7 @@ function updateStatsPresences() {
         if(priTotal > 0) priBar.style.width = ((priPresent / priTotal) * 100) + '%';
         else priBar.style.width = '0%';
 
+        // Maternelle
         const matCards = document.querySelectorAll('#presenceCardsContainerMat .presence-section-card');
         let matPresent=0, matAbsent=0, matRetard=0;
         matCards.forEach(card => {
