@@ -1749,17 +1749,21 @@ async function genererRapportMensuelSection(section, nomSection) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('portrait', 'mm', 'a4');
     const nomEcole = document.querySelector('.school-name')?.textContent || 'COMPLEXE SCOLAIRE';
-    doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.text(nomEcole, 14, 15);
-    doc.setFontSize(14); doc.text('RAPPORT MENSUEL - ' + nomSection.toUpperCase(), 14, 25);
-    doc.setFontSize(10); doc.text('Annee scolaire 2026-2027', 14, 33);
     let personnes = [];
     const moisInput = document.getElementById('filtreMoisRapport' + section.charAt(0).toUpperCase() + section.slice(1));
     let moisLabel = 'ce mois';
+    let annee, mois;
     if(moisInput && moisInput.value) {
-        const [year, month] = moisInput.value.split('-');
-        moisLabel = new Date(year, month-1, 1).toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+        const parts = moisInput.value.split('-');
+        annee = parseInt(parts[0]);
+        mois = parseInt(parts[1]);
+        moisLabel = new Date(annee, mois-1, 1).toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+    } else {
+        const now = new Date();
+        annee = now.getFullYear();
+        mois = now.getMonth() + 1;
+        moisLabel = new Date(annee, mois-1, 1).toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
     }
-    doc.text('Mois: ' + moisLabel, 14, 40);
     if(section === 'sec') {
         personnes = await chargerProfs();
         personnes = personnes.map(p => ({...p, type: 'prof'}));
@@ -1774,28 +1778,115 @@ async function genererRapportMensuelSection(section, nomSection) {
         toast('Aucun ' + nomSection + ' trouve', 'warning');
         return;
     }
-    const rows = [];
-    personnes.forEach((p, idx) => {
-        rows.push([
-            (idx+1).toString(),
-            p.nom,
-            p.type === 'prof' ? 'Professeur' : 'Enseignant',
-            '-',
-            '-',
-            '-'
-        ]);
-    });
-    doc.autoTable({
-        head: [['#', 'NOM', 'TYPE', 'PRESENTS', 'RETARDS', 'ABSENTS']],
-        body: rows,
-        startY: 45,
-        styles: { fontSize: 8, cellPadding: 2 },
-        headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [245, 247, 250] },
-        margin: {left:10, right:10}
-    });
-    const dateStr = new Date().toISOString().split('T')[0];
-    doc.save('Rapport_Mensuel_' + nomSection + '_' + dateStr + '.pdf');
+    const joursDansMois = new Date(annee, mois, 0).getDate();
+    const jours = [];
+    for(let j = 1; j <= joursDansMois; j++) {
+        const date = new Date(annee, mois-1, j);
+        const jourSemaine = date.getDay();
+        if(jourSemaine !== 0 && jourSemaine !== 6) {
+            jours.push(j);
+        }
+    }
+    const typeLabel = section === 'sec' ? 'PROFESSEURS' : section === 'pri' ? 'PRIMAIRE' : 'MATERNELLE';
+    for(let idx = 0; idx < personnes.length; idx++) {
+        const p = personnes[idx];
+        if(idx > 0) { doc.addPage(); }
+        let yPos = 15;
+        doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.text(nomEcole.toUpperCase(), 14, yPos);
+        yPos += 8;
+        doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.text('RAPPORT MENSUEL - ' + typeLabel, 14, yPos);
+        yPos += 6;
+        doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+        doc.text('Annee scolaire 2026-2027', 14, yPos);
+        yPos += 5;
+        doc.text('Mois: ' + moisLabel.toUpperCase(), 14, yPos);
+        yPos += 8;
+        doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text('ENSEIGNANT: ' + p.nom.toUpperCase(), 14, yPos);
+        yPos += 6;
+        doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+        doc.text('Statut: ' + (p.type === 'prof' ? 'Professeur' : 'Enseignant'), 14, yPos);
+        yPos += 5;
+        if(p.classes && p.classes.length > 0) {
+            doc.text('Classes: ' + p.classes.join(', '), 14, yPos);
+            yPos += 5;
+        }
+        yPos += 3;
+        let presents = 0, retards = 0, absents = 0, justifiees = 0, nonJustifiees = 0;
+        const details = [];
+        for(const jour of jours) {
+            const dateKey = annee + '-' + String(mois).padStart(2,'0') + '-' + String(jour).padStart(2,'0');
+            const dateStr = String(jour).padStart(2,'0') + '/' + String(mois).padStart(2,'0') + '/' + annee;
+            let statut = '-', heureArrivee = '-', motif = '-';
+            const docRef = doc(db, "ecoles", ECOLET_ID, p.type === 'prof' ? SC.PROFESSEURS : SC.ENSEIGNANTS, p.id);
+            const snap = await getDoc(docRef);
+            if(snap.exists()) {
+                const data = snap.data();
+                const presences = data.presences || {};
+                const presence = presences[dateKey];
+                if(presence) {
+                    statut = presence.statut || 'absent';
+                    heureArrivee = presence.heureArrivee || '-';
+                    motif = presence.motif || '-';
+                    if(statut === 'present') { presents++; }
+                    else if(statut === 'retard') { retards++; }
+                    else if(statut === 'absent') {
+                        absents++;
+                        if(motif === 'Absence justifiee') { justifiees++; }
+                        else if(motif === 'Absence non justifiee') { nonJustifiees++; }
+                    }
+                } else {
+                    statut = 'absent';
+                    absents++;
+                }
+            } else {
+                absents++;
+            }
+            const jourSemaine = new Date(annee, mois-1, jour).toLocaleDateString('fr-FR', {weekday:'short'});
+            details.push({date: dateStr, jour: jourSemaine, statut: statut, heureArrivee: heureArrivee, motif: motif});
+        }
+        const total = presents + retards + absents;
+        doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.text('STATISTIQUES DU MOIS', 14, yPos);
+        yPos += 6;
+        const statsData = [
+            ['PRESENTS', presents.toString()],
+            ['RETARDS', retards.toString()],
+            ['ABSENTS', absents.toString()],
+            ['ABSENCES JUSTIFIEES', justifiees.toString()],
+            ['ABSENCES NON JUSTIFIEES', nonJustifiees.toString()],
+            ['TOTAL', total.toString()]
+        ];
+        doc.autoTable({
+            startY: yPos,
+            body: statsData.map(row => [{content: row[0], styles: {fontWeight: 'bold', fontSize: 9}}, {content: row[1], styles: {fontSize: 9}}]),
+            theme: 'striped',
+            styles: {fontSize: 9, cellPadding: 2},
+            columnStyles: {0: {cellWidth: 70}, 1: {cellWidth: 30}},
+            margin: {left: 14},
+            tableWidth: 120
+        });
+        yPos = doc.lastAutoTable.finalY + 8;
+        doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.text('DETAIL DES PRESENCES', 14, yPos);
+        yPos += 6;
+        const detailRows = details.map(d => [d.date, d.jour, d.statut.toUpperCase(), d.heureArrivee, d.motif]);
+        if(detailRows.length > 0) {
+            doc.autoTable({
+                startY: yPos,
+                head: [['DATE', 'JOUR', 'STATUT', 'ARRIVEE', 'MOTIF']],
+                body: detailRows,
+                styles: {fontSize: 7, cellPadding: 1.5},
+                headStyles: {fillColor: [15, 23, 42], textColor: [255, 255, 255], fontSize: 7, fontStyle: 'bold'},
+                alternateRowStyles: {fillColor: [245, 247, 250]},
+                columnStyles: {0: {cellWidth: 22}, 1: {cellWidth: 18}, 2: {cellWidth: 22}, 3: {cellWidth: 20}, 4: {cellWidth: 30}},
+                margin: {left: 14},
+                tableWidth: 170
+            });
+            yPos = doc.lastAutoTable.finalY + 5;
+        }
+        doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+        doc.text('Rapport genere le ' + new Date().toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}), 14, yPos + 5);
+        doc.text('Page ' + (idx + 1) + ' / ' + personnes.length, 180, yPos + 5);
+    }
+    doc.save('Rapport_Mensuel_' + nomSection + '_' + annee + '-' + String(mois).padStart(2,'0') + '.pdf');
     toast('✅ Rapport mensuel ' + nomSection + ' genere avec succes', 'success');
 }
 
