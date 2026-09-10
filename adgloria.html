@@ -105,7 +105,7 @@ tr:hover td{background:rgba(59,130,246,0.05);}
 .info-box{background:linear-gradient(135deg,rgba(59,130,246,0.1),rgba(59,130,246,0.05));border-left:3px solid #3b82f6;padding:14px 18px;border-radius:12px;font-size:12.5px;color:#cbd5e1;margin-bottom:20px;line-height:1.7;}
 .info-box strong{color:#60a5fa;}
 .code-pill{display:inline-flex;align-items:center;gap:8px;background:rgba(251,191,36,0.12);border-radius:10px;padding:6px 12px;border:1px solid rgba(251,191,36,0.2);}
-.code-value{color:#fbbf24;font-family:monospace;font-size:14px;font-weight:700;letter-spacing:1.5px;}
+.code-value{color:#fbbf24;font-family:monospace;font-size:14px;font-weight:700;letter-spacing:2px;}
 .copy-btn{background:rgba(251,191,36,0.15);border:none;color:#fbbf24;cursor:pointer;padding:5px 10px;border-radius:8px;font-size:13px;transition:all 0.2s;}
 .copy-btn:hover{background:rgba(251,191,36,0.3);transform:scale(1.05);}
 .school-badge{display:inline-block;padding:4px 12px;border-radius:20px;background:rgba(59,130,246,0.15);color:#60a5fa;font-size:11px;font-weight:600;}
@@ -167,7 +167,7 @@ tr:hover td{background:rgba(59,130,246,0.05);}
 </div>
 
 <div class="panel" id="panel-professeurs">
-<div class="info-box">💡 Le <strong>mot de passe</strong> du professeur lui sert aussi de <strong>code d'accès</strong> pour se connecter au système.</div>
+<div class="info-box">💡 L'<strong>email</strong> et le <strong>code d'accès</strong> sont générés automatiquement à partir du nom. Le code sert à se connecter au système.</div>
 <div class="toolbar">
 <select id="profEcoleSelect"><option value="">-- Choisir une école --</option></select>
 <input type="text" id="searchProfs" placeholder="🔍 Rechercher un professeur...">
@@ -273,6 +273,20 @@ function showConfirm(title, message, onConfirm, onCancel, danger = true) {
     d.querySelector('[data-cancel]').onclick = () => { close(); if (onCancel) onCancel(); };
     d.querySelector('[data-ok]').onclick = () => { close(); if (onConfirm) onConfirm(); };
     d.onclick = (e) => { if (e.target === d) close(); };
+}
+
+function genererEmail(nomComplet) {
+    if (!nomComplet.trim()) return '';
+    const normalized = nomComplet.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const parts = normalized.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '';
+    const prenom = parts[0];
+    const nomFamille = parts.length > 1 ? parts[parts.length - 1] : parts[0];
+    return prenom + '.' + nomFamille + '@gmail.com';
+}
+
+function genererCode() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 document.getElementById("loginBtn").onclick = doLogin;
@@ -482,24 +496,36 @@ function openProfModal(ecoleId, prof = null) {
     <div class="modal">
     <h2>${isEdit ? '✏️ Modifier un professeur' : '➕ Ajouter un professeur'}</h2>
     <div class="field"><label>NOM COMPLET *</label><input type="text" id="profNom" value="${isEdit ? esc(prof.nom || '') : ''}" placeholder="ex: Jean KASONGO"></div>
-    <div class="field"><label>EMAIL *</label><input type="email" id="profEmail" value="${isEdit ? esc(prof.email || '') : ''}" placeholder="ex: jean@gmail.com" ${isEdit ? 'disabled' : ''}></div>
-    <div class="field"><label>MOT DE PASSE ${isEdit ? '' : '*'} </label><input type="text" id="profPassword" placeholder="${isEdit ? 'Laisser vide pour ne pas changer' : 'min 6 caractères'}"></div>
-    <div class="info-box" style="margin-top:20px;">💡 Le <strong>mot de passe</strong> et le <strong>code d'accès</strong> sont la même chose. Ce professeur utilisera ce mot de passe pour se connecter au <strong>système</strong>.</div>
+    <div class="field"><label>EMAIL (généré automatiquement)</label><input type="email" id="profEmail" value="${isEdit ? esc(prof.email || '') : ''}" placeholder="ex: jean.kasongo@gmail.com" readonly style="background:#0f172a;color:#60a5fa;font-family:monospace;"></div>
+    <div class="field"><label>CODE D'ACCÈS (généré automatiquement)</label><input type="text" id="profPassword" value="" placeholder="6 chiffres" readonly style="background:#0f172a;color:#fbbf24;font-family:monospace;font-size:18px;letter-spacing:4px;font-weight:700;text-align:center;"></div>
+    <div class="info-box" style="margin-top:20px;">💡 L'<strong>email</strong> et le <strong>code d'accès</strong> sont générés automatiquement à partir du nom. Le professeur utilisera ce code pour se connecter au <strong>système</strong>.</div>
     <div class="modal-actions">
     <button class="btn btn-secondary" data-cancel>Annuler</button>
     <button class="btn btn-success" data-save>${isEdit ? 'METTRE À JOUR' : 'CRÉER'}</button>
     </div>
     </div>`;
     document.body.appendChild(modal);
+
+    const nomInput = modal.querySelector("#profNom");
+    const emailInput = modal.querySelector("#profEmail");
+    const pwdInput = modal.querySelector("#profPassword");
+
+    if (!isEdit) {
+        pwdInput.value = genererCode();
+        nomInput.addEventListener('input', () => {
+            emailInput.value = genererEmail(nomInput.value);
+        });
+    }
+
     modal.querySelector("[data-cancel]").onclick = () => modal.remove();
     modal.querySelector("[data-save]").onclick = async () => {
         const nom = modal.querySelector("#profNom").value.trim();
         const email = modal.querySelector("#profEmail").value.trim().toLowerCase();
-        const password = modal.querySelector("#profPassword").value;
+        const password = modal.querySelector("#profPassword").value.trim();
         if (!nom) { toast("Le nom est obligatoire", "error"); return; }
-        if (!email) { toast("L'email est obligatoire", "error"); return; }
-        if (!isEdit && !password) { toast("Le mot de passe est obligatoire", "error"); return; }
-        if (!isEdit && password.length < 6) { toast("Minimum 6 caractères", "error"); return; }
+        if (!email) { toast("L'email n'a pas pu être généré. Vérifiez le nom.", "error"); return; }
+        if (!password) { toast("Le code d'accès n'a pas été généré", "error"); return; }
+        if (password.length < 6) { toast("Le code doit contenir au moins 6 caractères", "error"); return; }
         setLoading(true);
         try {
             if (!isEdit) {
@@ -511,11 +537,11 @@ function openProfModal(ecoleId, prof = null) {
                     await setDoc(doc(db, "ecoles", ecoleId, "professeurs", profId), {
                         profId, nom, email, code: password, school: ecoleId, actif: true, createdAt: serverTimestamp()
                     });
-                    toast("Professeur créé");
+                    toast("Professeur créé avec succès");
                 } finally { await deleteApp(secondApp); }
             } else {
                 const updateData = { nom };
-                if (password) updateData.code = password;
+                if (password && password !== '••••••') updateData.code = password;
                 await setDoc(doc(db, "ecoles", ecoleId, "professeurs", prof.id), updateData, { merge: true });
                 toast("Professeur mis à jour");
             }
@@ -525,7 +551,7 @@ function openProfModal(ecoleId, prof = null) {
             let msg = "Erreur";
             if (e.code === "auth/email-already-in-use") msg = "Cet email est déjà utilisé par un autre professeur";
             if (e.code === "auth/invalid-email") msg = "Email invalide";
-            if (e.code === "auth/weak-password") msg = "Mot de passe trop faible";
+            if (e.code === "auth/weak-password") msg = "Code trop faible";
             toast(msg, "error");
         } finally { setLoading(false); }
     };
