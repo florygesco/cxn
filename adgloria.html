@@ -5,7 +5,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0a0e1a">
-<title>ADMINISTRATION - GLORIA DEI</title>
+<title>ADMINISTRATION</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;font-family:'Inter',sans-serif;}
@@ -142,8 +142,8 @@ tr:hover td{background:rgba(59,130,246,0.05);}
 <div class="header">
 <div class="header-content">
 <div class="logo-ic">🏫</div>
-<h1>COMPLEXE SCOLAIRE GLORIA DEI</h1>
-<p>Panneau d'administration</p>
+<h1>PANNEAU D'ADMINISTRATION</h1>
+<p>Gestion des établissements scolaires</p>
 </div>
 </div>
 
@@ -388,40 +388,185 @@ function openEcoleModal(ecole = null) {
     modal.innerHTML = `
     <div class="modal">
     <h2>${isEdit ? '✏️ Modifier une école' : '➕ Ajouter une école'}</h2>
-    <div class="field"><label>NOM DE L'ÉCOLE *</label><input type="text" id="ecoleNom" value="${isEdit ? esc(ecole.nom || '') : ''}" placeholder="ex: GLORIA DEI"></div>
-    <div class="field"><label>IDENTIFIANT *</label><input type="text" id="ecoleId" value="${isEdit ? esc(ecole.id) : ''}" placeholder="ex: GLORIA_DEI" ${isEdit ? 'disabled' : ''}></div>
+    <div class="field"><label>NOM DE L'ÉCOLE *</label><input type="text" id="ecoleNom" value="${isEdit ? esc(ecole.nom || '') : ''}" placeholder="ex: COMPLEXE SCOLAIRE"></div>
+    <div class="field"><label>IDENTIFIANT *</label><input type="text" id="ecoleId" value="${isEdit ? esc(ecole.id) : ''}" placeholder="ex: MON_ECOLE" ${isEdit ? 'disabled' : ''}></div>
     <div class="field"><label>VILLE</label><input type="text" id="ecoleVille" value="${isEdit ? esc(ecole.ville || '') : ''}" placeholder="ex: Kinshasa"></div>
     <div class="field"><label>LOGO (URL)</label><input type="text" id="ecoleLogo" value="${isEdit ? esc(ecole.logoUrl || '') : ''}" placeholder="https://..."></div>
+    ${!isEdit ? `
+    <div class="info-box" id="ecoleInfoBox" style="margin-top:16px;background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(16,185,129,0.05));border-left-color:#10b981;">
+    🔐 <strong style="color:#10b981;">3 comptes seront créés automatiquement :</strong><br>
+    • 👔 <strong>Direction</strong> · direction.xxx@gmail.com<br>
+    • 💰 <strong>Comptabilité</strong> · compta.xxx@gmail.com<br>
+    • 🏛️ <strong>Promoteur</strong> · promoteur.xxx@gmail.com<br>
+    <span style="font-size:11px;color:#94a3b8;">Chaque compte recevra un code à 6 chiffres.</span>
+    </div>` : ''}
     <div class="modal-actions">
     <button class="btn btn-secondary" data-cancel>Annuler</button>
-    <button class="btn btn-success" data-save>${isEdit ? 'METTRE À JOUR' : 'CRÉER'}</button>
+    <button class="btn btn-success" data-save>${isEdit ? 'METTRE À JOUR' : 'CRÉER + 3 COMPTES'}</button>
     </div>
     </div>`;
     document.body.appendChild(modal);
+
+    if (!isEdit) {
+        const idInput = modal.querySelector("#ecoleId");
+        const infoBox = modal.querySelector("#ecoleInfoBox");
+        idInput.addEventListener("input", function() {
+            const cleanId = this.value.trim().toLowerCase().replace(/[^a-z0-9]/g, '_') || "xxx";
+            infoBox.innerHTML = `
+            🔐 <strong style="color:#10b981;">3 comptes seront créés automatiquement :</strong><br>
+            • 👔 <strong>Direction</strong> · direction.${cleanId}@gmail.com<br>
+            • 💰 <strong>Comptabilité</strong> · compta.${cleanId}@gmail.com<br>
+            • 🏛️ <strong>Promoteur</strong> · promoteur.${cleanId}@gmail.com<br>
+            <span style="font-size:11px;color:#94a3b8;">Chaque compte recevra un code à 6 chiffres.</span>`;
+        });
+    }
+
     modal.querySelector("[data-cancel]").onclick = () => modal.remove();
+
     modal.querySelector("[data-save]").onclick = async () => {
         const nom = modal.querySelector("#ecoleNom").value.trim();
         let id = modal.querySelector("#ecoleId").value.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_');
         const ville = modal.querySelector("#ecoleVille").value.trim();
         const logoUrl = modal.querySelector("#ecoleLogo").value.trim();
+
         if (!nom) { toast("Le nom est obligatoire", "error"); return; }
         if (!id) { toast("L'identifiant est obligatoire", "error"); return; }
+
         setLoading(true);
+
         try {
             if (isEdit) {
                 await setDoc(doc(db, "ecoles", id), { nom, ville, logoUrl }, { merge: true });
                 toast("École mise à jour");
-            } else {
-                const exists = await getDoc(doc(db, "ecoles", id));
-                if (exists.exists()) { toast("Cet identifiant existe déjà", "error"); setLoading(false); return; }
-                await setDoc(doc(db, "ecoles", id), { nom, ville, logoUrl, createdAt: serverTimestamp() });
-                toast("École créée");
+                modal.remove();
+                await loadEcoles();
+                await refreshEcoleSelectors();
+                setLoading(false);
+                return;
             }
+
+            const exists = await getDoc(doc(db, "ecoles", id));
+            if (exists.exists()) {
+                toast("Cet identifiant existe déjà", "error");
+                setLoading(false);
+                return;
+            }
+
+            const codeDirection = genererCode();
+            const codeComptabilite = genererCode();
+            const codePromoteur = genererCode();
+
+            const idLower = id.toLowerCase();
+            const emailDirection = `direction.${idLower}@gmail.com`;
+            const emailComptabilite = `compta.${idLower}@gmail.com`;
+            const emailPromoteur = `promoteur.${idLower}@gmail.com`;
+
+            await setDoc(doc(db, "ecoles", id), {
+                nom, ville, logoUrl,
+                actif: true,
+                masque: false,
+                createdAt: serverTimestamp()
+            });
+
+            await setDoc(doc(db, "ecoles", id, "settings", "data"), {
+                codeDirection,
+                codeComptabilite,
+                codePromoteur,
+                emailDirection,
+                emailComptabilite,
+                emailPromoteur,
+                updatedAt: serverTimestamp()
+            });
+
+            const comptes = [
+                { email: emailDirection, password: codeDirection, role: 'Direction', icon: '👔', color: '#60a5fa' },
+                { email: emailComptabilite, password: codeComptabilite, role: 'Comptabilité', icon: '💰', color: '#a78bfa' },
+                { email: emailPromoteur, password: codePromoteur, role: 'Promoteur', icon: '🏛️', color: '#f472b6' }
+            ];
+
+            const resultats = [];
+
+            for (const compte of comptes) {
+                const secondaryApp = initializeApp(firebaseConfig, `create-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+                const secondaryAuth = getAuth(secondaryApp);
+                try {
+                    await createUserWithEmailAndPassword(secondaryAuth, compte.email, compte.password);
+                    resultats.push({ ...compte, ok: true });
+                } catch (err) {
+                    if (err.code === 'auth/email-already-in-use') {
+                        resultats.push({ ...compte, ok: true, note: 'déjà existant' });
+                    } else {
+                        resultats.push({ ...compte, ok: false, erreur: err.code });
+                    }
+                } finally {
+                    await deleteApp(secondaryApp);
+                }
+            }
+
             modal.remove();
             await loadEcoles();
             await refreshEcoleSelectors();
-        } catch (e) { toast("Erreur", "error"); }
-        finally { setLoading(false); }
+
+            const comptesHtml = resultats.map(r => `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(255,255,255,0.03);border-radius:10px;margin-bottom:6px;border-left:3px solid ${r.color};">
+                    <div style="text-align:left;">
+                        <div style="font-size:12px;font-weight:700;color:${r.color};">${r.icon} ${r.role}${r.note ? ' · déjà existant' : ''}</div>
+                        <div style="font-size:10px;color:#94a3b8;font-family:monospace;">${r.email}</div>
+                    </div>
+                    <div style="font-family:monospace;font-size:16px;font-weight:800;color:#fbbf24;letter-spacing:2px;">${r.password}</div>
+                </div>
+            `).join('');
+
+            const recapModal = document.createElement("div");
+            recapModal.className = "modal-overlay show";
+            recapModal.innerHTML = `
+            <div class="modal" style="max-width:560px;">
+                <div style="text-align:center;margin-bottom:16px;">
+                    <div style="font-size:56px;margin-bottom:8px;">🏫</div>
+                    <h2 style="justify-content:center;color:#10b981;margin-bottom:4px;">École créée !</h2>
+                    <p style="color:#94a3b8;font-size:13px;">${esc(nom)} · <span style="font-family:monospace;color:#60a5fa;">${esc(id)}</span></p>
+                </div>
+                <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px;">🔐 Comptes créés</div>
+                ${comptesHtml}
+                <div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:12px;padding:12px 16px;margin-top:16px;">
+                    <div style="font-size:11px;color:#fbbf24;font-weight:700;margin-bottom:4px;">⚠️ IMPORTANT</div>
+                    <div style="font-size:11px;color:#cbd5e1;line-height:1.6;">
+                        Transmettez ces <strong style="color:#fbbf24;">3 codes</strong> aux responsables de l'école.<br>
+                        Ils les utiliseront sur la page de connexion pour accéder à leur espace.
+                    </div>
+                </div>
+                <div class="modal-actions" style="margin-top:20px;">
+                    <button class="btn btn-primary" data-copy-all style="flex:1;justify-content:center;">📋 Copier les codes</button>
+                    <button class="btn btn-success" data-close style="flex:1;justify-content:center;">✅ J'ai noté</button>
+                </div>
+            </div>`;
+            document.body.appendChild(recapModal);
+
+            recapModal.querySelector("[data-copy-all]").onclick = async () => {
+                const texte = `🏫 ${nom} (${id})\n\n` +
+                    `👔 Direction : ${codeDirection}\n` +
+                    `💰 Comptabilité : ${codeComptabilite}\n` +
+                    `🏛️ Promoteur : ${codePromoteur}\n\n` +
+                    `Connexion : https://www.netubex.com/login.html?ecole=${id}`;
+                try {
+                    await navigator.clipboard.writeText(texte);
+                    toast("Codes copiés dans le presse-papier", "success");
+                } catch (err) {
+                    toast("Impossible de copier automatiquement", "warning");
+                }
+            };
+
+            recapModal.querySelector("[data-close]").onclick = () => recapModal.remove();
+            recapModal.onclick = (e) => { if (e.target === recapModal) recapModal.remove(); };
+
+            toast("École + 3 comptes créés avec succès", "success");
+
+        } catch (e) {
+            console.error(e);
+            toast("Erreur : " + e.message, "error");
+        } finally {
+            setLoading(false);
+        }
     };
 }
 
