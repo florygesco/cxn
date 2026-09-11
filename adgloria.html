@@ -255,6 +255,17 @@ function esc(s) { if (!s) return ''; return String(s).replace(/[&<>"']/g, m => (
 
 function setLoading(show) { document.getElementById("loading").classList.toggle("show", show); }
 
+// ✅ NOUVEAU : Normalisation stricte des identifiants d'école
+function normaliserIdEcole(raw) {
+    return String(raw || '')
+        .trim()
+        .toUpperCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^A-Z0-9_]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '');
+}
+
 function showConfirm(title, message, onConfirm, onCancel, danger = true) {
     const d = document.createElement('div');
     d.className = 'modal-overlay show';
@@ -389,7 +400,7 @@ function openEcoleModal(ecole = null) {
     <div class="modal">
     <h2>${isEdit ? '✏️ Modifier une école' : '➕ Ajouter une école'}</h2>
     <div class="field"><label>NOM DE L'ÉCOLE *</label><input type="text" id="ecoleNom" value="${isEdit ? esc(ecole.nom || '') : ''}" placeholder="ex: COMPLEXE SCOLAIRE"></div>
-    <div class="field"><label>IDENTIFIANT *</label><input type="text" id="ecoleId" value="${isEdit ? esc(ecole.id) : ''}" placeholder="ex: MON_ECOLE" ${isEdit ? 'disabled' : ''}></div>
+    <div class="field"><label>IDENTIFIANT * (sera converti en MAJUSCULES)</label><input type="text" id="ecoleId" value="${isEdit ? esc(ecole.id) : ''}" placeholder="ex: GLORIADEI" ${isEdit ? 'disabled' : ''}></div>
     <div class="field"><label>VILLE</label><input type="text" id="ecoleVille" value="${isEdit ? esc(ecole.ville || '') : ''}" placeholder="ex: Kinshasa"></div>
     <div class="field"><label>LOGO (URL)</label><input type="text" id="ecoleLogo" value="${isEdit ? esc(ecole.logoUrl || '') : ''}" placeholder="https://..."></div>
     ${!isEdit ? `
@@ -411,13 +422,14 @@ function openEcoleModal(ecole = null) {
         const idInput = modal.querySelector("#ecoleId");
         const infoBox = modal.querySelector("#ecoleInfoBox");
         idInput.addEventListener("input", function() {
-            const cleanId = this.value.trim().toLowerCase().replace(/[^a-z0-9]/g, '_') || "xxx";
+            // ✅ Aperçu en direct avec normalisation MAJUSCULES
+            const cleanId = normaliserIdEcole(this.value) || "XXX";
             infoBox.innerHTML = `
             🔐 <strong style="color:#10b981;">3 comptes seront créés automatiquement :</strong><br>
-            • 👔 <strong>Direction</strong> · direction.${cleanId}@gmail.com<br>
-            • 💰 <strong>Comptabilité</strong> · compta.${cleanId}@gmail.com<br>
-            • 🏛️ <strong>Promoteur</strong> · promoteur.${cleanId}@gmail.com<br>
-            <span style="font-size:11px;color:#94a3b8;">Chaque compte recevra un code à 6 chiffres.</span>`;
+            • 👔 <strong>Direction</strong> · direction.${cleanId.toLowerCase()}@gmail.com<br>
+            • 💰 <strong>Comptabilité</strong> · compta.${cleanId.toLowerCase()}@gmail.com<br>
+            • 🏛️ <strong>Promoteur</strong> · promoteur.${cleanId.toLowerCase()}@gmail.com<br>
+            <span style="font-size:11px;color:#94a3b8;">Identifiant : <strong style="color:#60a5fa;">${cleanId}</strong></span>`;
         });
     }
 
@@ -425,12 +437,14 @@ function openEcoleModal(ecole = null) {
 
     modal.querySelector("[data-save]").onclick = async () => {
         const nom = modal.querySelector("#ecoleNom").value.trim();
-        let id = modal.querySelector("#ecoleId").value.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_');
+        // ✅ Normalisation stricte de l'ID
+        let id = normaliserIdEcole(modal.querySelector("#ecoleId").value);
         const ville = modal.querySelector("#ecoleVille").value.trim();
         const logoUrl = modal.querySelector("#ecoleLogo").value.trim();
 
         if (!nom) { toast("Le nom est obligatoire", "error"); return; }
         if (!id) { toast("L'identifiant est obligatoire", "error"); return; }
+        if (id.length < 3) { toast("L'identifiant doit contenir au moins 3 caractères", "error"); return; }
 
         setLoading(true);
 
@@ -532,7 +546,7 @@ function openEcoleModal(ecole = null) {
                     <div style="font-size:11px;color:#fbbf24;font-weight:700;margin-bottom:4px;">⚠️ IMPORTANT</div>
                     <div style="font-size:11px;color:#cbd5e1;line-height:1.6;">
                         Transmettez ces <strong style="color:#fbbf24;">3 codes</strong> aux responsables de l'école.<br>
-                        Ils les utiliseront sur la page de connexion pour accéder à leur espace.
+                        URL de l'app prof : <code style="color:#60a5fa;">?ecole=${esc(id.toLowerCase())}</code>
                     </div>
                 </div>
                 <div class="modal-actions" style="margin-top:20px;">
@@ -547,7 +561,7 @@ function openEcoleModal(ecole = null) {
                     `👔 Direction : ${codeDirection}\n` +
                     `💰 Comptabilité : ${codeComptabilite}\n` +
                     `🏛️ Promoteur : ${codePromoteur}\n\n` +
-                    `Connexion : https://www.netubex.com/login.html?ecole=${id}`;
+                    `Connexion Prof : https://www.netubex.com/gloriadei?ecole=${id.toLowerCase()}`;
                 try {
                     await navigator.clipboard.writeText(texte);
                     toast("Codes copiés dans le presse-papier", "success");
@@ -573,7 +587,7 @@ function openEcoleModal(ecole = null) {
 document.getElementById("addEcoleBtn").onclick = () => openEcoleModal();
 
 async function refreshEcoleSelectors() {
-    const opts = '<option value="">-- Choisir une école --</option>' + ecolesList.map(e => `<option value="${esc(e.id)}">${esc(e.nom || e.id)}</option>`).join('');
+    const opts = '<option value="">-- Choisir une école --</option>' + ecolesList.map(e => `<option value="${esc(e.id)}">${esc(e.nom || e.id)} (${esc(e.id)})</option>`).join('');
     document.getElementById("profEcoleSelect").innerHTML = opts;
     document.getElementById("eleveEcoleSelect").innerHTML = opts;
     document.getElementById("profsBody").innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-icon">👨‍🏫</div><div class="empty-title">Choisissez une école</div></div></td></tr>`;
@@ -635,6 +649,8 @@ document.getElementById("addProfBtn").onclick = () => {
 
 function openProfModal(ecoleId, prof = null) {
     const isEdit = !!prof;
+    // ✅ Normalisation MAJUSCULES de l'ID école
+    const ecoleIdNorm = normaliserIdEcole(ecoleId);
     const modal = document.createElement("div");
     modal.className = "modal-overlay show";
     modal.innerHTML = `
@@ -643,6 +659,7 @@ function openProfModal(ecoleId, prof = null) {
     <div class="field"><label>NOM COMPLET *</label><input type="text" id="profNom" value="${isEdit ? esc(prof.nom || '') : ''}" placeholder="ex: Jean KASONGO"></div>
     <div class="field"><label>EMAIL (généré automatiquement)</label><input type="email" id="profEmail" value="${isEdit ? esc(prof.email || '') : ''}" placeholder="ex: prof.jean.kasongo@gmail.com" readonly style="background:#0f172a;color:#60a5fa;font-family:monospace;"></div>
     <div class="field"><label>CODE D'ACCÈS (généré automatiquement)</label><input type="text" id="profPassword" value="" placeholder="6 chiffres" readonly style="background:#0f172a;color:#fbbf24;font-family:monospace;font-size:18px;letter-spacing:4px;font-weight:700;text-align:center;"></div>
+    <div class="field"><label>ÉCOLE</label><input type="text" value="${esc(ecoleIdNorm)}" readonly style="background:#0f172a;color:#10b981;font-family:monospace;font-weight:700;letter-spacing:2px;"></div>
     <div class="info-box" style="margin-top:20px;">💡 L'<strong>email</strong> et le <strong>code d'accès</strong> sont générés automatiquement à partir du nom. Le professeur utilisera ce code pour se connecter au <strong>système</strong>.</div>
     <div class="modal-actions">
     <button class="btn btn-secondary" data-cancel>Annuler</button>
@@ -673,31 +690,47 @@ function openProfModal(ecoleId, prof = null) {
         if (password.length < 6) { toast("Le code doit contenir au moins 6 caractères", "error"); return; }
         setLoading(true);
         try {
+            // ✅ Vérification que l'école existe AVANT création
+            const ecoleSnap = await getDoc(doc(db, "ecoles", ecoleIdNorm));
+            if (!ecoleSnap.exists()) {
+                toast("L'école " + ecoleIdNorm + " n'existe pas dans Firestore. Créez-la d'abord.", "error");
+                setLoading(false);
+                return;
+            }
+
             if (!isEdit) {
                 const secondApp = initializeApp(firebaseConfig, "secondary-" + Date.now());
                 const secondAuth = getAuth(secondApp);
                 try {
                     const cred = await createUserWithEmailAndPassword(secondAuth, email, password);
                     const profId = cred.user.uid;
-                    await setDoc(doc(db, "ecoles", ecoleId, "professeurs", profId), {
-                        profId, nom, email, code: password, school: ecoleId, actif: true, createdAt: serverTimestamp()
+                    // ✅ school forcé en MAJUSCULES
+                    await setDoc(doc(db, "ecoles", ecoleIdNorm, "professeurs", profId), {
+                        profId,
+                        nom,
+                        email,
+                        code: password,
+                        school: ecoleIdNorm,       // ← DÉJÀ EN MAJUSCULES
+                        actif: true,
+                        createdAt: serverTimestamp()
                     });
                     toast("Professeur créé avec succès");
                 } finally { await deleteApp(secondApp); }
             } else {
-                const updateData = { nom };
+                const updateData = { nom, school: ecoleIdNorm };  // ✅ re-force au cas où
                 if (password && password !== '••••••') updateData.code = password;
-                await setDoc(doc(db, "ecoles", ecoleId, "professeurs", prof.id), updateData, { merge: true });
+                await setDoc(doc(db, "ecoles", ecoleIdNorm, "professeurs", prof.id), updateData, { merge: true });
                 toast("Professeur mis à jour");
             }
             modal.remove();
-            await loadProfs(ecoleId);
+            await loadProfs(ecoleIdNorm);
         } catch (e) {
             let msg = "Erreur";
             if (e.code === "auth/email-already-in-use") msg = "Cet email est déjà utilisé par un autre professeur";
             if (e.code === "auth/invalid-email") msg = "Email invalide";
             if (e.code === "auth/weak-password") msg = "Code trop faible";
             toast(msg, "error");
+            console.error(e);
         } finally { setLoading(false); }
     };
 }
