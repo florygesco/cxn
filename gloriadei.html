@@ -443,6 +443,21 @@ import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, quer
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { getAnalytics } from "firebase/analytics";
 
+// ✅ CORRECTION MAJEURE : Normalisation de l'ID école AVANT tout usage
+function normaliserIdEcole(raw) {
+    return String(raw || '')
+        .trim()
+        .toUpperCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^A-Z0-9_]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '');
+}
+
+// ✅ CORRECTION MAJEURE : ECOLET_ID lu depuis l'URL ?ecole= puis normalisé
+const urlParams = new URLSearchParams(window.location.search);
+const ECOLET_ID = normaliserIdEcole(urlParams.get('ecole') || 'GLORIADEI');
+
 document.addEventListener('keydown', function(e) {
     if (e.key === 'F12' || e.keyCode === 123) { e.preventDefault(); e.stopPropagation(); return false; }
     if (e.ctrlKey && e.shiftKey && ['I','i','J','j','C','c'].includes(e.key)) { e.preventDefault(); e.stopPropagation(); return false; }
@@ -466,8 +481,6 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const analytics = getAnalytics(app);
 
-const ECOLET_ID = "GLORIADEI";
-
 const SC = {
     PROFESSEURS: 'professeurs',
     FICHES: 'fiches',
@@ -483,7 +496,7 @@ async function verifierEcoleAutorisee() {
 }
 const estAutorisee = await verifierEcoleAutorisee();
 if (!estAutorisee) {
-    document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0d0a1f;color:#fff;flex-direction:column;padding:20px;text-align:center;"><div style="font-size:64px;margin-bottom:20px;">🚫</div><h1 style="color:#ef4444;margin-bottom:10px;">Accès non autorisé</h1><p style="color:#94a3b8;max-width:400px;">L'établissement <strong>GLORIADEI</strong> n'est pas enregistré.</p></div>`;
+    document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0d0a1f;color:#fff;flex-direction:column;padding:20px;text-align:center;"><div style="font-size:64px;margin-bottom:20px;">🚫</div><h1 style="color:#ef4444;margin-bottom:10px;">Accès non autorisé</h1><p style="color:#94a3b8;max-width:400px;">L'établissement <strong>${ECOLET_ID}</strong> n'est pas enregistré.</p></div>`;
     throw new Error('École non autorisée');
 }
 
@@ -594,10 +607,19 @@ async function loadAllFiches() {
     try {
         const snap = await getDocs(collection(db, "ecoles", ECOLET_ID, SC.FICHES));
         const fiches = [];
+        // ✅ Accepte profId OU id (au cas où l'un serait manquant)
+        const monId = currentProf.id;
+        const monProfId = currentProf.profId || currentProf.id;
         for (const ds of snap.docs) {
             const data = ds.data();
-            if (!data._type && data.profId === currentProf.id) {
-                fiches.push({ id: ds.id, cours: data.cours || '', classe: data.classe || '', option: data.option || '', numeroRef: data.numeroRef || null });
+            if (!data._type && (data.profId === monId || data.profId === monProfId)) {
+                fiches.push({
+                    id: ds.id,
+                    cours: data.cours || '',
+                    classe: data.classe || '',
+                    option: data.option || '',
+                    numeroRef: data.numeroRef || null
+                });
             }
         }
         fiches.sort((a, b) => (a.numeroRef || 999) - (b.numeroRef || 999));
@@ -1008,7 +1030,7 @@ async function showLogin() {
     d.className = 'login-overlay';
     d.id = 'loginOverlay';
     d.innerHTML = `<div class="login-card">
-    <h2>GLORIADEI</h2>
+    <h2>${ECOLET_ID}</h2>
     <p class="subtitle">Accès enseignant</p>
     <div class="select-wrapper">
     <span class="select-label">Professeur</span>
@@ -1028,26 +1050,56 @@ async function showLogin() {
             const snap = await getDocs(query(collection(db, "ecoles", ECOLET_ID, SC.PROFESSEURS), where("nom", "==", n)));
             snap.forEach(ds => {
                 const data = ds.data();
-                if (data.school === ECOLET_ID) fp = { id: data.profId, nom: data.nom, code: data.code, email: data.emailProf || data.email, profId: data.profId };
+                // ✅ Comparaison insensible à la casse
+                const schoolDoc = (data.school || '').toUpperCase();
+                if (schoolDoc === ECOLET_ID.toUpperCase()) {
+                    fp = {
+                        id: ds.id,
+                        profId: data.profId || ds.id,
+                        nom: data.nom,
+                        code: data.code,
+                        email: data.emailProf || data.email
+                    };
+                }
             });
         } catch (e) { console.error(e); }
         if (!fp) { document.getElementById('loginError').innerHTML = 'Identifiants incorrects'; return; }
         try {
             const snap = await getDoc(doc(db, "ecoles", ECOLET_ID, SC.PROFESSEURS, fp.id));
-            if (snap.exists() && snap.data().actif === false) {
+            if (!snap.exists()) {
+                document.getElementById('loginError').innerHTML = 'Compte introuvable';
+                return;
+            }
+            if (snap.data().actif === false) {
                 document.getElementById('loginOverlay').innerHTML = `<div class="prof-desactiver-msg"><div class="icon">🚫</div><h2>COMPTE DÉSACTIVÉ</h2><p>Contactez la direction pour plus d'informations.</p></div>`;
                 return;
             }
             await signInWithEmailAndPassword(auth, fp.email, c);
-            currentProf = { id: fp.id, nom: n, code: c, email: fp.email, createdAt: Date.now() };
-            localStorage.setItem('gloria_session_prof', JSON.stringify({ id: fp.id, nom: n, code: c, school: ECOLET_ID }));
+            currentProf = {
+                id: fp.id,
+                profId: fp.profId,
+                nom: n,
+                code: c,
+                email: fp.email,
+                createdAt: Date.now()
+            };
+            localStorage.setItem('gloria_session_prof', JSON.stringify({
+                id: fp.id,
+                profId: fp.profId,
+                nom: n,
+                code: c,
+                school: ECOLET_ID
+            }));
             document.getElementById('loginOverlay').remove();
             document.getElementById('mainApp').style.display = 'block';
             toutesFiches = await loadAllFiches();
             if (toutesFiches.length) await selectFiche(toutesFiches[0].id);
             await refreshSelectors();
             toast("Bienvenue " + currentProf.nom, 'success');
-        } catch (e) { document.getElementById('loginError').innerHTML = "Code d'accès incorrect"; }
+        } catch (e) {
+            console.error(e);
+            document.getElementById('loginError').innerHTML = "Code d'accès incorrect";
+        }
     };
 }
 
@@ -1057,10 +1109,18 @@ async function refreshTeachersList() {
         const snap = await getDocs(collection(db, "ecoles", ECOLET_ID, SC.PROFESSEURS));
         snap.forEach(ds => {
             const data = ds.data();
-            if (data.school === ECOLET_ID) professeurs.push({ id: data.profId, nom: data.nom });
+            // ✅ Comparaison insensible à la casse
+            const schoolDoc = (data.school || '').toUpperCase();
+            if (schoolDoc === ECOLET_ID.toUpperCase() && data.actif !== false) {
+                professeurs.push({
+                    id: ds.id,
+                    profId: data.profId || ds.id,
+                    nom: data.nom
+                });
+            }
         });
     } catch (e) { console.error(e); }
-    professeurs.sort((a, b) => a.nom.localeCompare(b.nom));
+    professeurs.sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
     let lo = document.getElementById('loginOverlay');
     if (lo) {
         let se = lo.querySelector('#loginNom');
@@ -1083,10 +1143,20 @@ async function restaurerSession() {
     if (session) {
         try {
             let prof = JSON.parse(session);
-            if (prof.school !== ECOLET_ID) { localStorage.removeItem('gloria_session_prof'); return false; }
+            // ✅ Comparaison insensible à la casse
+            if ((prof.school || '').toUpperCase() !== ECOLET_ID.toUpperCase()) {
+                localStorage.removeItem('gloria_session_prof');
+                return false;
+            }
             const snap = await getDoc(doc(db, "ecoles", ECOLET_ID, SC.PROFESSEURS, prof.id));
-            if (snap.exists() && snap.data().actif === false) { localStorage.removeItem('gloria_session_prof'); return false; }
-            currentProf = { id: prof.id, nom: prof.nom, code: prof.code };
+            if (!snap.exists()) { localStorage.removeItem('gloria_session_prof'); return false; }
+            if (snap.data().actif === false) { localStorage.removeItem('gloria_session_prof'); return false; }
+            currentProf = {
+                id: prof.id,
+                profId: prof.profId || prof.id,
+                nom: prof.nom,
+                code: prof.code
+            };
             document.getElementById('mainApp').style.display = 'block';
             toutesFiches = await loadAllFiches();
             if (toutesFiches.length) await selectFiche(toutesFiches[0].id);
