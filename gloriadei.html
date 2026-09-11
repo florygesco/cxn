@@ -543,7 +543,7 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 </div>
 <div class="result-card" id="titulaireResultCard">
 <div class="eleve-info" id="titulaireEleveInfo"></div>
-<button class="btn-export" id="exportTitulaireRelevePdfBtn">📄 Exporter l'extrait de bulletin en PDF</button>
+<button class="btn-export" id="exportTitulaireRelevePdfBtn" type="button" onclick="window.exporterExtraitBulletin && window.exporterExtraitBulletin()">📄 Exporter l'extrait de bulletin en PDF</button>
 </div>
 </div>
 </div>
@@ -1195,7 +1195,7 @@ async function showLogin() {
                 return;
             }
             if (snap.data().actif === false) {
-                document.getElementById('loginOverlay').innerHTML = `<div class="prof-desactiver-msg"><div class="icon">🚫</div><h2>COMPTE DÉSACTIVÉ</h2><p>Contactez la direction pour plus d'informations.</p></div>`;
+                document.getElementById('loginOverlay').innerHTML = `<div class="prof-desactiver-msg"><div class="icon">🚫</div><h2>COMPTE DÉSACTIVÉ</h2><p>Contactez la société NeTubeX pour plus d'informations.</p></div>`;
                 return;
             }
             await signInWithEmailAndPassword(auth, fp.email, c);
@@ -1356,7 +1356,7 @@ document.getElementById('creerFicheBtn').addEventListener('click', async functio
         });
 
         if (elevesFiltres.length === 0) {
-            showStyledConfirm('🚫 CRÉATION IMPOSSIBLE', `Aucun élève inscrit pour :<br>• Classe : <strong>${classe}</strong><br>${fop ? '• Option : <strong>' + fop + '</strong>' : ''}<br><br>Contactez la comptabilité.`, null, null);
+            showStyledConfirm('🚫 CRÉATION IMPOSSIBLE', `Aucun élève inscrit pour :<br>• Classe : <strong>${classe}</strong><br>${fop ? '• Option : <strong>' + fop + '</strong>' : ''}<br><br>Contactez la société NeTubeX.`, null, null);
             btn.disabled = false; btn.innerHTML = '📝 CRÉER'; isCreatingFiche = false;
             return;
         }
@@ -1868,7 +1868,10 @@ function calculerBulletin(eleveId, classe, option) {
     };
 }
 
-document.getElementById('titulaireSearchBtn')?.addEventListener('click', () => {
+let eleveCourantTitu = null;
+let ficheCouranteTitu = null;
+
+document.getElementById('titulaireSearchBtn').onclick = function() {
     const nom = document.getElementById('titulaireSearchNom').value.trim();
     const classeFiltre = document.getElementById('titulaireSearchClasse').value;
 
@@ -1906,35 +1909,36 @@ document.getElementById('titulaireSearchBtn')?.addEventListener('click', () => {
         <div><span>📚 Classe :</span><span>${ficheSource.classe}${ficheSource.option ? ' (' + ficheSource.option + ')' : ''}</span></div>
     `;
 
-    window.eleveTrouveTitu = eleveTrouve;
-    window.ficheSourceTitu = ficheSource;
+    eleveCourantTitu = eleveTrouve;
+    ficheCouranteTitu = ficheSource;
 
     rc.classList.add('show');
     toast("✅ Élève trouvé", 'success');
-});
+};
 
-document.getElementById('exportTitulaireRelevePdfBtn')?.addEventListener('click', async () => {
-    if (!window.eleveTrouveTitu || !window.ficheSourceTitu) {
-        toast("Veuillez d'abord rechercher un élève", 'error');
+window.exporterExtraitBulletin = async function() {
+    if (!eleveCourantTitu || !ficheCouranteTitu) {
+        toast("⚠️ Veuillez d'abord rechercher un élève", 'error');
         return;
     }
 
-    const btn = this;
-    btn.disabled = true;
-    btn.classList.add('exporting');
-    btn.innerHTML = '⏳ Génération du PDF...';
+    const btn = document.getElementById('exportTitulaireRelevePdfBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.classList.add('exporting');
+        btn.innerHTML = '⏳ Génération du PDF...';
+    }
 
     try {
-        const eleveTrouve = window.eleveTrouveTitu;
-        const ficheSource = window.ficheSourceTitu;
-
-        const bulletin = calculerBulletin(eleveTrouve.id, ficheSource.classe, ficheSource.option);
+        const bulletin = calculerBulletin(eleveCourantTitu.id, ficheCouranteTitu.classe, ficheCouranteTitu.option);
 
         if (!bulletin) {
             toast("❌ Aucune donnée disponible pour cette classe", 'error');
-            btn.classList.remove('exporting');
-            btn.disabled = false;
-            btn.innerHTML = '📄 Exporter l\'extrait de bulletin en PDF';
+            if (btn) {
+                btn.classList.remove('exporting');
+                btn.disabled = false;
+                btn.innerHTML = "📄 Exporter l'extrait de bulletin en PDF";
+            }
             return;
         }
 
@@ -1942,10 +1946,10 @@ document.getElementById('exportTitulaireRelevePdfBtn')?.addEventListener('click'
         const pdf = new jsPDF('landscape', 'mm', 'a4');
 
         const info = {
-            nom: getNomComplet(eleveTrouve),
-            sexe: eleveTrouve.sexe,
-            classe: ficheSource.classe,
-            option: ficheSource.option,
+            nom: getNomComplet(eleveCourantTitu),
+            sexe: eleveCourantTitu.sexe,
+            classe: ficheCouranteTitu.classe,
+            option: ficheCouranteTitu.option,
             anneeScolaire: '2026-2027'
         };
 
@@ -1980,9 +1984,9 @@ document.getElementById('exportTitulaireRelevePdfBtn')?.addEventListener('click'
             });
 
             Object.keys(groupes).sort((a, b2) => a - b2).forEach(groupeNum => {
-                const branchesGroupe = groupes[groupeNum];
-                const maxGroupe = branchesGroupe.reduce((s, x) => s + x.maxTotal, 0);
-                const ref = branchesGroupe[0];
+                const bg = groupes[groupeNum];
+                const maxGroupe = bg.reduce((s, x) => s + x.maxTotal, 0);
+                const ref = bg[0];
 
                 body.push([
                     { content: 'MAXIMA', styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } },
@@ -1997,7 +2001,7 @@ document.getElementById('exportTitulaireRelevePdfBtn')?.addEventListener('click'
                     { content: maxGroupe, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }
                 ]);
 
-                branchesGroupe.forEach(l => {
+                bg.forEach(l => {
                     if (l.manquant) {
                         body.push([
                             { content: l.nom + ' (non saisi)', styles: { textColor: [180, 0, 0] } },
@@ -2038,7 +2042,7 @@ document.getElementById('exportTitulaireRelevePdfBtn')?.addEventListener('click'
         body.push([{ content: 'MAXIMA GÉNÉRAUX', styles: { fontStyle: 'bold', fillColor: [254, 243, 199] } }, '', '', '', '', '', '', '', '', { content: bulletin.maximaGeneral, styles: { fontStyle: 'bold', fillColor: [254, 243, 199] } }]);
         body.push([{ content: 'TOTAUX', styles: { fontStyle: 'bold', fillColor: [254, 243, 199] } }, '', '', '', '', '', '', '', '', { content: bulletin.totaux, styles: { fontStyle: 'bold', fillColor: [254, 243, 199] } }]);
         body.push([{ content: 'POURCENTAGE', styles: { fontStyle: 'bold', fillColor: [220, 252, 231] } }, '', '', '', '', '', '', '', '', { content: bulletin.pourcentage + '%', styles: { fontStyle: 'bold', fillColor: [220, 252, 231] } }]);
-        body.push([{ content: 'PLACE / NBRE D\'ÉLÈVES', styles: { fontStyle: 'bold', fillColor: [243, 232, 255] } }, '', '', '', '', '', '', '', '', { content: bulletin.place + ' / ' + bulletin.nombreEleves, styles: { fontStyle: 'bold', fillColor: [243, 232, 255] } }]);
+        body.push([{ content: "PLACE / NBRE D'ÉLÈVES", styles: { fontStyle: 'bold', fillColor: [243, 232, 255] } }, '', '', '', '', '', '', '', '', { content: bulletin.place + ' / ' + bulletin.nombreEleves, styles: { fontStyle: 'bold', fillColor: [243, 232, 255] } }]);
         body.push([{ content: 'APPLICATION', styles: { fontStyle: 'bold', fillColor: [254, 249, 195] } }, '', '', '', '', '', '', '', '', { content: bulletin.application, styles: { fontStyle: 'bold', fillColor: [254, 249, 195] } }]);
         body.push([{ content: 'CONDUITE', styles: { fontStyle: 'bold', fillColor: [254, 249, 195] } }, '', '', '', '', '', '', '', '', { content: bulletin.conduite, styles: { fontStyle: 'bold', fillColor: [254, 249, 195] } }]);
 
@@ -2060,30 +2064,34 @@ document.getElementById('exportTitulaireRelevePdfBtn')?.addEventListener('click'
         pdf.text((bulletin.decision === 'DOUBLE' ? '☑' : '☐') + " L'élève double la classe", 20, finalY + 12);
 
         finalY += 30;
-        pdf.text('Signature de l\'élève', 40, finalY);
-        pdf.text('Sceau de l\'École', 130, finalY);
-        pdf.text('Chef d\'Établissement', 220, finalY);
+        pdf.text("Signature de l'élève", 40, finalY);
+        pdf.text("Sceau de l'École", 130, finalY);
+        pdf.text("Chef d'Établissement", 220, finalY);
 
         pdf.save('Extrait_Bulletin_' + info.nom.replace(/\s/g, '_') + '.pdf');
 
-        btn.classList.remove('exporting');
-        btn.classList.add('exported');
-        btn.innerHTML = '✅ Extrait exporté !';
-        toast("📄 Extrait de bulletin exporté", 'success');
+        if (btn) {
+            btn.classList.remove('exporting');
+            btn.classList.add('exported');
+            btn.innerHTML = '✅ Extrait exporté !';
+            toast("📄 Extrait de bulletin exporté", 'success');
 
-        setTimeout(() => {
-            btn.classList.remove('exported');
-            btn.innerHTML = '📄 Exporter l\'extrait de bulletin en PDF';
-            btn.disabled = false;
-        }, 1500);
+            setTimeout(() => {
+                btn.classList.remove('exported');
+                btn.innerHTML = "📄 Exporter l'extrait de bulletin en PDF";
+                btn.disabled = false;
+            }, 1500);
+        }
     } catch (e) {
-        console.error(e);
-        toast("❌ Erreur export PDF", 'error');
-        btn.classList.remove('exporting');
-        btn.disabled = false;
-        btn.innerHTML = '📄 Exporter l\'extrait de bulletin en PDF';
+        console.error('Erreur export:', e);
+        toast("❌ Erreur export PDF : " + e.message, 'error');
+        if (btn) {
+            btn.classList.remove('exporting');
+            btn.disabled = false;
+            btn.innerHTML = "📄 Exporter l'extrait de bulletin en PDF";
+        }
     }
-});
+};
 
 async function initTitulaireSimplifie() { await chargerToutesFichesTitu(); }
 
