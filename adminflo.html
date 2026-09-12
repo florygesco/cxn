@@ -308,7 +308,7 @@ body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(
 <div class="card-body">
 <div class="counter-hero">
 <div class="hero-value" id="counterTotal">0</div>
-<div class="hero-label">👥 Total élèves (basé sur parentCode)</div>
+<div class="hero-label">👥 Total élèves (basé sur codes parents)</div>
 <div class="hero-refresh" id="counterRefreshTime">Dernière mise à jour : —</div>
 </div>
 <div class="counter-grid">
@@ -330,7 +330,7 @@ body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(
 <div class="counter-box">
 <div class="counter-value c-total" id="counterCodes">0</div>
 <div class="counter-label">🔑 Codes parents</div>
-<div class="counter-sub">avec parentCode</div>
+<div class="counter-sub">total identique</div>
 </div>
 </div>
 </div>
@@ -349,7 +349,7 @@ body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(
 
 <script type="module">
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, onSnapshot, collectionGroup, query, limit } from "firebase/firestore";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc } from "firebase/firestore";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 
 const firebaseConfigA = {apiKey: "AIzaSyDX430AIfzzgfq3o8tXHwQfIptgWOZ-K8c", authDomain: "gesco-67c43.firebaseapp.com", projectId: "gesco-67c43", storageBucket: "gesco-67c43.firebasestorage.app", messagingSenderId: "333004443566", appId: "1:333004443566:web:de41f60000e418dce9023f"};
@@ -362,11 +362,6 @@ const dbB = getFirestore(appB);
 
 let diagnosticsCache = [];
 let diagnosticEnCours = false;
-let unsubscribeEleves = null;
-let unsubscribeMembresA = null;
-let unsubscribeMembresB = null;
-let unsubscribeMembresC = null;
-let refreshCountersInterval = null;
 
 async function chargerDiagnostic() {
     if (diagnosticEnCours) return;
@@ -414,10 +409,7 @@ function afficherDiagnostic() {
     const partiels = diagnosticsCache.filter(d => d.statut === 'partiel').length;
     const affectes = diagnosticsCache.filter(d => d.statut === 'affecte').length;
     const vides = diagnosticsCache.filter(d => d.statut === 'vide').length;
-    if (diagnosticsCache.length === 0) {
-        container.innerHTML = '<div class="empty-state">📭 Aucune école trouvée</div>';
-        return;
-    }
+    if (diagnosticsCache.length === 0) { container.innerHTML = '<div class="empty-state">📭 Aucune école trouvée</div>'; return; }
     let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:14px;">
         <div style="background:var(--wa-bg-header);border-radius:8px;padding:12px;text-align:center;"><div style="font-size:22px;font-weight:900;color:var(--wa-blue);">${total}</div><div style="font-size:9px;color:var(--wa-text-2);margin-top:4px;">🏫 Total</div></div>
         <div style="background:var(--wa-bg-header);border-radius:8px;padding:12px;text-align:center;"><div style="font-size:22px;font-weight:900;color:var(--wa-green-lt);">${sains}</div><div style="font-size:9px;color:var(--wa-text-2);margin-top:4px;">✅ Saines</div></div>
@@ -556,28 +548,13 @@ currentUser = null; sessionStorage.removeItem('adminSession');
 dashboardContent.classList.remove('visible');
 loginOverlay.classList.remove('hidden');
 loginEmail.value = ''; loginPassword.value = ''; loginError.textContent = ''; loginSuccess.textContent = '';
-if (unsubscribeEleves) { unsubscribeEleves(); unsubscribeEleves = null; }
-if (unsubscribeMembresA) { unsubscribeMembresA(); unsubscribeMembresA = null; }
-if (unsubscribeMembresB) { unsubscribeMembresB(); unsubscribeMembresB = null; }
-if (unsubscribeMembresC) { unsubscribeMembresC(); unsubscribeMembresC = null; }
-if (refreshCountersInterval) { clearInterval(refreshCountersInterval); refreshCountersInterval = null; }
 }
 
-async function updateGlobalCounters() {
-  const db = getDb();
-  let a = 0, b = 0, c = 0;
-  try {
-    const [sa, sb, sc] = await Promise.all([
-      getDocs(collectionGroup(db, "compta_eleves")),
-      getDocs(collectionGroup(db, "prima_eleves")),
-      getDocs(collectionGroup(db, "mater_eleves")),
-    ]);
-    sa.forEach(d => { const dd = d.data(); if (dd.parentCode && dd.nom && !dd.abandon) a++; });
-    sb.forEach(d => { const dd = d.data(); if (dd.parentCode && dd.nom) b++; });
-    sc.forEach(d => { const dd = d.data(); if (dd.parentCode && dd.nom) c++; });
-  } catch(e) {}
-
-  const total = a + b + c;
+function updateGlobalCounters() {
+  const total = allData.parentCodes.length;
+  const a = allData.parentCodes.filter(p => p.section === 'secondary').length;
+  const b = allData.parentCodes.filter(p => p.section === 'primary').length;
+  const c = allData.parentCodes.filter(p => p.section === 'nursery').length;
 
   const elA = document.getElementById('countA'); if (elA) elA.textContent = a;
   const elB = document.getElementById('countB'); if (elB) elB.textContent = b;
@@ -594,33 +571,6 @@ async function updateGlobalCounters() {
     const now = new Date();
     elTime.textContent = 'Dernière mise à jour : ' + now.toLocaleTimeString('fr-FR');
   }
-}
-
-function setupRealtimeListeners() {
-  if (unsubscribeEleves) { unsubscribeEleves(); unsubscribeEleves = null; }
-  if (unsubscribeMembresA) { unsubscribeMembresA(); unsubscribeMembresA = null; }
-  if (unsubscribeMembresB) { unsubscribeMembresB(); unsubscribeMembresB = null; }
-  if (unsubscribeMembresC) { unsubscribeMembresC(); unsubscribeMembresC = null; }
-  if (refreshCountersInterval) { clearInterval(refreshCountersInterval); refreshCountersInterval = null; }
-
-  const db = getDb();
-  updateGlobalCounters();
-
-  const signalA = query(collectionGroup(db, "compta_eleves"), limit(1));
-  const signalB = query(collectionGroup(db, "prima_eleves"), limit(1));
-  const signalC = query(collectionGroup(db, "mater_eleves"), limit(1));
-
-  let debounceTimer = null;
-  const triggerRefresh = () => {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(updateGlobalCounters, 1500);
-  };
-
-  unsubscribeMembresA = onSnapshot(signalA, triggerRefresh, () => {});
-  unsubscribeMembresB = onSnapshot(signalB, triggerRefresh, () => {});
-  unsubscribeMembresC = onSnapshot(signalC, triggerRefresh, () => {});
-
-  refreshCountersInterval = setInterval(updateGlobalCounters, 120000);
 }
 
 async function loadAllData() {
@@ -641,7 +591,6 @@ if (cached && isCacheValid() && cached.allData && Array.isArray(cached.allData.s
   membersC = dedupArr(membersC);
   updateDashboard();
   updateCacheIndicator('Cache: ' + Math.floor((Date.now() - parseInt(localStorage.getItem(CACHE_TIME_KEY))) / 3600000) + 'h');
-  setupRealtimeListeners();
   return;
 }
 
@@ -738,7 +687,6 @@ const cacheData = { allData, membersA, membersB, membersC };
 setCache(cacheData);
 updateDashboard();
 updateCacheIndicator('Cache: Frais');
-setupRealtimeListeners();
 } catch(e) {}
 }
 
@@ -748,12 +696,11 @@ if (el) el.textContent = '💾 ' + msg;
 }
 
 function updateDashboard() {
-updateCounters(); updateSelectors();
+updateCounters(); updateSelectors(); updateGlobalCounters();
 loadSchools(); loadMembersA(); loadMembersB(); loadMembersC(); loadTeachers(); loadSheets(); loadCodesEmails(); loadParentCodes(); loadEnseignants(); updateTabCounts();
 }
 
 function updateCounters() {
-document.getElementById('hdrEcoles') && (document.getElementById('hdrEcoles').textContent = allData.schools.length);
 document.getElementById('countSheets').textContent = allData.sheets.length;
 document.getElementById('countCodes').textContent = allData.codes.length;
 document.getElementById('countParentCodes').textContent = allData.parentCodes.length;
@@ -1066,7 +1013,7 @@ document.getElementById('tabCount7').textContent = allData.codes.length;
 const tabCount8 = document.getElementById('tabCount8');
 if (tabCount8) tabCount8.textContent = allData.enseignants ? allData.enseignants.length : 0;
 document.getElementById('tabCount10').textContent = allData.parentCodes.length;
-const total = membersA.length + membersB.length + membersC.length;
+const total = allData.parentCodes.length;
 const tabCount9 = document.getElementById('tabCount9');
 if (tabCount9) tabCount9.textContent = total;
 }
@@ -1093,11 +1040,6 @@ const classes = { a: 'a', b: 'b' };
 document.getElementById('sourceStatus').className = classes[activeSource];
 document.getElementById('sourceStatus').textContent = labels[activeSource];
 document.querySelectorAll('.source-badge .dot').forEach(el => { el.className = 'dot ' + (activeSource === 'a' ? 'blue' : 'green'); });
-if (unsubscribeEleves) { unsubscribeEleves(); unsubscribeEleves = null; }
-if (unsubscribeMembresA) { unsubscribeMembresA(); unsubscribeMembresA = null; }
-if (unsubscribeMembresB) { unsubscribeMembresB(); unsubscribeMembresB = null; }
-if (unsubscribeMembresC) { unsubscribeMembresC(); unsubscribeMembresC = null; }
-if (refreshCountersInterval) { clearInterval(refreshCountersInterval); refreshCountersInterval = null; }
 localStorage.removeItem(CACHE_KEY);
 localStorage.removeItem(CACHE_TIME_KEY);
 loadAllData();
