@@ -1556,11 +1556,7 @@ showDashboard(session.email);
 } catch(e) {}
 }
 
-/* ============================================================
-   ✅ SEULE MODIFICATION : CHAT_REF pointe maintenant sur le bon
-   document (2 segments) au lieu de 3 segments invalides.
-   ============================================================ */
-const CHAT_REF = () => doc(dbB, "communication", "chat_support_dsi"); // ✅ CORRIGÉ
+const CHAT_REF = () => doc(dbB, "communication", "chat_support_dsi");
 
 const CHAT_TTL = 24 * 60 * 60 * 1000;
 let chatUnsub = null;
@@ -1636,7 +1632,26 @@ html += `<div class="chat-date-separator">${d === today ? "Aujourd'hui" : d}</di
 lastDate = d;
 }
 
-if (m.type === 'patch') {
+if (m.auteur === 'Système' || m.auteur === 'Système Copie' || m.auteur === 'Système Rapport') {
+const lignes = (m.texte || '').split('\n');
+const titre = (lignes[0] || 'Notification').trim();
+const reste = lignes.slice(1).map(l => l.replace(/━+/g, '').trim()).filter(l => l).join('\n');
+const estRapport = titre.includes('RAPPORT');
+const couleurBordure = estRapport ? '#53bdeb' : '#25d366';
+const couleurFond = estRapport ? 'linear-gradient(135deg, #1e4a7a 0%, #2a5f8f 100%)' : 'linear-gradient(135deg, #005c4b 0%, #007a63 100%)';
+html += `<div class="chat-bubble chat-bubble-out" data-id="${m.id}" style="background:${couleurFond};border:1px solid ${couleurBordure}40;border-left:5px solid ${couleurBordure};box-shadow:0 4px 12px rgba(0,0,0,0.25);padding:12px 14px 8px;max-width:78%;">
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.15);">
+<div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">${estRapport ? '📊' : '🔐'}</div>
+<div style="flex:1;min-width:0;">
+<div style="font-weight:700;font-size:13.5px;color:#fff;line-height:1.2;white-space:normal;word-break:break-word;">${escapeHtml(titre.replace(/^[🔐📊]\s*/,''))}</div>
+<div style="font-size:9px;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:.8px;margin-top:3px;font-weight:600;">Notification Système</div>
+</div>
+</div>
+<div class="chat-bubble-text" style="padding-right:60px;font-size:13px;line-height:1.65;color:rgba(255,255,255,0.95);">${escapeHtml(reste).replace(/\n/g, '<br>')}</div>
+<div class="chat-bubble-meta" style="color:rgba(255,255,255,0.7);bottom:6px;right:10px;"><span>${m.heure||''}</span><span class="chat-bubble-check" style="color:#53bdeb;">✓✓</span></div>
+</div>`;
+}
+else if (m.type === 'patch') {
 html += `<div class="chat-bubble-patch" data-id="${m.id}">
 <div class="chat-patch-bubble-header">📤 Patch envoyé</div>
 ${m.lien ? `<a class="chat-patch-bubble-link" href="${escapeHtml(m.lien)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 ${escapeHtml(m.lien)}</a>` : ''}
