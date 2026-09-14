@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow">
+<title>CRÉATION UTILISATEURS · NeTubeX</title>
+<script type="importmap">
+{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"}}
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+:root{--wa-bg:#0b141a;--wa-bg-panel:#111b21;--wa-bg-header:#202c33;--wa-bg-input:#2a3942;--wa-green:#00a884;--wa-green-lt:#25d366;--wa-green-hov:#06cf9c;--wa-blue:#53bdeb;--wa-text:#e9edef;--wa-text-2:#8696a0;--wa-text-3:#667781;--wa-border:#222d34;--wa-danger:#f15c6d;--wa-warning:#ffbc38;--wa-purple:#a78bfa;--radius:8px;--radius-lg:12px}
+html,body{height:100%}
+body{background:var(--wa-bg);color:var(--wa-text);min-height:100vh;font-size:14px}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--wa-bg-input);border-radius:6px}
+#loginOverlay{position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;background:var(--wa-bg);padding:16px;transition:opacity .4s ease}
+#loginOverlay.hidden{opacity:0;pointer-events:none}
+.login-card{background:var(--wa-bg-panel);border-radius:var(--radius-lg);padding:36px 28px;max-width:400px;width:100%;border:1px solid var(--wa-border);box-shadow:0 8px 40px rgba(0,0,0,.5)}
+.login-card .logo{text-align:center;margin-bottom:20px}
+.login-card .logo .icon{background:var(--wa-green);width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;color:#fff;font-weight:900;font-size:26px}
+.login-card .logo .badge-dsi{display:inline-block;margin-top:10px;font-size:9px;font-weight:700;color:var(--wa-text-2);background:var(--wa-bg-input);padding:3px 12px;border-radius:12px;letter-spacing:.5px;text-transform:uppercase}
+.login-card h1{font-size:20px;font-weight:700;text-align:center;margin-bottom:4px}
+.login-card .sub{color:var(--wa-text-2);font-size:12px;text-align:center;margin-bottom:20px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;color:var(--wa-text-2);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.form-group .input-wrapper{position:relative;display:flex;align-items:center;background:var(--wa-bg-input);border:1px solid transparent;border-radius:var(--radius);transition:all .15s ease}
+.form-group .input-wrapper:focus-within{border-color:var(--wa-green)}
+.form-group .input-wrapper .input-icon{position:absolute;left:12px;font-size:14px;color:var(--wa-text-2)}
+.form-group .input-wrapper input{width:100%;padding:12px 14px 12px 40px;background:transparent;border:none;color:#fff;font-size:14px;outline:none;font-weight:500}
+.form-group .input-wrapper input::placeholder{color:var(--wa-text-3)}
+.form-group .input-wrapper .toggle-password{position:absolute;right:10px;background:transparent;border:none;color:var(--wa-text-2);cursor:pointer;font-size:14px;padding:6px;border-radius:50%}
+.btn-login{width:100%;padding:12px;border-radius:var(--radius);background:var(--wa-green);font-size:14px;font-weight:700;color:#fff;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;margin-top:6px}
+.btn-login:hover{background:var(--wa-green-hov)}
+.btn-login:disabled{opacity:.6;cursor:not-allowed}
+.spinner{display:none;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+.btn-login.loading .spinner{display:block}
+.btn-login.loading .btn-text{display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error{color:var(--wa-danger);font-size:12px;text-align:center;min-height:16px;margin-top:8px}
+.success{color:var(--wa-green-lt);font-size:12px;text-align:center;min-height:16px;margin-top:8px}
+.login-info{color:var(--wa-text-3);font-size:9px;text-align:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--wa-border);letter-spacing:.3px;text-transform:uppercase}
+#dashboardContent{display:none;opacity:0;transition:opacity .4s ease}
+#dashboardContent.visible{display:block;opacity:1}
+.topbar{background:var(--wa-bg-header);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;border-bottom:1px solid var(--wa-border);position:sticky;top:0;z-index:100}
+.topbar .brand{display:flex;align-items:center;gap:10px}
+.topbar .brand .logo{width:36px;height:36px;background:var(--wa-green);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#fff}
+.topbar .brand .title{font-size:14px;font-weight:700}
+.topbar .brand .title span{color:var(--wa-green-lt)}
+.topbar .right{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.topbar .right .btn{font-size:10px;padding:5px 12px;border-radius:16px}
+.main-content{padding:16px;max-width:900px;margin:0 auto}
+.card{background:var(--wa-bg-panel);border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--wa-border);margin-bottom:16px}
+.card-header{padding:14px 16px;font-weight:600;font-size:13px;background:var(--wa-bg-header);border-bottom:1px solid var(--wa-border);display:flex;justify-content:space-between;align-items:center}
+.card-body{padding:16px}
+.info-box{border-radius:var(--radius);padding:12px 14px;font-size:12px;line-height:1.6;margin-bottom:14px}
+.info-box.green{background:rgba(0,168,132,.1);border:1px solid rgba(0,168,132,.3);color:var(--wa-green-lt)}
+.info-box.orange{background:rgba(255,188,56,.1);border:1px solid rgba(255,188,56,.3);color:var(--wa-warning)}
+.info-box.red{background:rgba(241,92,109,.1);border:1px solid rgba(241,92,109,.3);color:var(--wa-danger)}
+.info-box.blue{background:rgba(83,189,235,.1);border:1px solid rgba(83,189,235,.3);color:var(--wa-blue)}
+.info-box.purple{background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);color:var(--wa-purple)}
+.form-group-db{margin-bottom:14px}
+.form-group-db label{display:block;font-size:10px;font-weight:600;color:var(--wa-text-2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.3px}
+.form-group-db input,.form-group-db select{width:100%;padding:11px 14px;border:1px solid transparent;border-radius:var(--radius);font-size:13px;background:var(--wa-bg-input);color:var(--wa-text);outline:none;font-family:inherit}
+.form-group-db input:focus,.form-group-db select:focus{border-color:var(--wa-green)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 20px;border:none;border-radius:var(--radius);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s ease}
+.btn:hover:not(:disabled){transform:translateY(-1px)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:var(--wa-green);color:#fff}
+.btn-primary:hover:not(:disabled){background:var(--wa-green-hov)}
+.btn-outline{background:transparent;border:1px solid var(--wa-border);color:var(--wa-text-2)}
+.btn-outline:hover:not(:disabled){background:var(--wa-bg-header);color:var(--wa-text)}
+.btn-danger{background:rgba(241,92,109,.15);color:var(--wa-danger)}
+.btn-blue{background:var(--wa-blue);color:#0b141a}
+.btn-block{width:100%;justify-content:center;padding:14px}
+.log-box{background:var(--wa-bg);border-radius:var(--radius);padding:12px;font-family:monospace;font-size:11px;max-height:400px;overflow-y:auto;line-height:1.7;white-space:pre-wrap;border:1px solid var(--wa-border);color:var(--wa-text-2)}
+.result-box{padding:16px;border-radius:var(--radius);margin-top:14px;font-size:13px;line-height:1.7}
+.result-box.success{background:rgba(0,168,132,.15);border:1px solid var(--wa-green);color:var(--wa-green-lt)}
+.result-box.error{background:rgba(241,92,109,.15);border:1px solid var(--wa-danger);color:var(--wa-danger)}
+.hidden{display:none!important}
+.role-card{background:var(--wa-bg-header);border-radius:var(--radius);padding:14px;margin-bottom:10px;border-left:4px solid var(--wa-blue)}
+.role-card.promoteur{border-left-color:var(--wa-purple)}
+.role-card.comptable{border-left-color:var(--wa-green)}
+.role-card.direction{border-left-color:var(--wa-blue)}
+.role-card .role-title{font-size:12px;font-weight:700;color:var(--wa-text);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+.role-card .role-email{font-family:monospace;font-size:12px;color:var(--wa-text-2);margin-bottom:8px;word-break:break-all}
+.role-card input{width:100%;padding:10px 12px;border:1px solid var(--wa-border);border-radius:var(--radius);font-size:13px;background:var(--wa-bg-input);color:var(--wa-text);outline:none;font-family:monospace}
+.role-card input:focus{border-color:var(--wa-green)}
+.user-card{background:var(--wa-bg-header);border-radius:var(--radius);padding:14px;margin-bottom:10px;border-left:4px solid var(--wa-green)}
+.user-card.error{border-left-color:var(--wa-danger)}
+.user-card .user-role{font-size:11px;font-weight:700;color:var(--wa-text-2);text-transform:uppercase;letter-spacing:.5px}
+.user-card .user-email{font-family:monospace;font-size:12px;color:var(--wa-green-lt);font-weight:700;word-break:break-all;margin-top:4px}
+.user-card .user-pass{font-family:monospace;font-size:12px;color:var(--wa-warning);font-weight:700;word-break:break-all;margin-top:4px}
+.user-card .row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-top:6px}
+.user-card .copy-btn{background:var(--wa-bg-input);border:none;color:var(--wa-text-2);padding:4px 10px;border-radius:12px;font-size:10px;cursor:pointer;font-weight:600}
+.user-card .copy-btn:hover{background:var(--wa-green);color:#fff}
+.user-card .status-icon{font-size:16px}
+@media(max-width:768px){.login-card{padding:28px 20px}.main-content{padding:12px}.topbar{padding:10px 12px}}
+</style>
+</head>
+<body>
+
+<div id="loginOverlay">
+<div class="login-card">
+<div class="logo">
+<div class="icon">N</div>
+<div class="badge-dsi">Création Utilisateurs</div>
+</div>
+<h1>Connexion Admin</h1>
+<p class="sub">Créez les comptes des écoles dans SOURCE B</p>
+<div class="form-group">
+<label>Adresse email</label>
+<div class="input-wrapper">
+<span class="input-icon">✉️</span>
+<input type="email" id="loginEmail" placeholder="admin@netubex.com" autocomplete="email" />
+</div>
+</div>
+<div class="form-group">
+<label>Mot de passe</label>
+<div class="input-wrapper">
+<span class="input-icon">🔒</span>
+<input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" />
+<button class="toggle-password" id="togglePassword" type="button">👁️</button>
+</div>
+</div>
+<button class="btn-login" id="loginBtn">
+<span class="spinner"></span>
+<span class="btn-text">Se connecter</span>
+</button>
+<div id="loginError" class="error"></div>
+<div id="loginSuccess" class="success"></div>
+<div class="login-info">🔐 Accès protégé · NeTubeX</div>
+</div>
+</div>
+
+<div id="dashboardContent">
+<div class="topbar">
+<div class="brand">
+<div class="logo">N</div>
+<div class="title">UTILISATEURS <span>ÉCOLES</span></div>
+</div>
+<div class="right">
+<button class="btn btn-outline" id="refreshBtn">⟳</button>
+<button class="btn btn-danger" id="logoutBtn">🚪</button>
+</div>
+</div>
+
+<div class="main-content">
+
+<div class="card">
+<div class="card-header">➕ Créer les comptes d'une école</div>
+<div class="card-body">
+<div class="info-box blue">
+Crée 3 comptes Firebase Auth dans <b>SOURCE B</b> : <b>Promoteur</b>, <b>Comptable</b>, <b>Direction</b>.<br>
+Entrez les mots de passe <b>identiques à l'ancien projet</b> pour que la connexion soit transparente.
+</div>
+
+<div class="form-group-db">
+<label>🏫 École (SOURCE B)</label>
+<select id="ecoleSelect"><option value="">Chargement...</option></select>
+</div>
+
+<div id="rolesContainer"></div>
+
+<button class="btn btn-primary btn-block" id="createAllBtn" disabled>🚀 Créer les 3 comptes</button>
+
+<div id="progressCard" class="hidden" style="margin-top:14px;">
+<div class="log-box" id="logBox"></div>
+</div>
+
+<div id="resultCard" class="hidden"></div>
+
+</div>
+</div>
+
+</div>
+</div>
+
+<script type="module">
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, getDocs } from "firebase/firestore";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updatePassword } from "firebase/auth";
+
+const firebaseConfigA = {
+  apiKey: "AIzaSyDX430AIfzzgfq3o8tXHwQfIptgWOZ-K8c",
+  authDomain: "gesco-67c43.firebaseapp.com",
+  projectId: "gesco-67c43",
+  storageBucket: "gesco-67c43.firebasestorage.app",
+  messagingSenderId: "333004443566",
+  appId: "1:333004443566:web:de41f60000e418dce9023f"
+};
+
+const firebaseConfigB = {
+  apiKey: "AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",
+  authDomain: "gesco-2.firebaseapp.com",
+  projectId: "gesco-2",
+  storageBucket: "gesco-2.firebasestorage.app",
+  messagingSenderId: "36319988765",
+  appId: "1:36319988765:web:e8cd823804596495248af4"
+};
+
+const appA = initializeApp(firebaseConfigA, 'sourceA');
+const appB = initializeApp(firebaseConfigB, 'sourceB');
+const dbA = getFirestore(appA);
+const dbB = getFirestore(appB);
+const authA = getAuth(appA);
+const authB = getAuth(appB);
+
+let adminEmail = '';
+let adminPassword = '';
+let ecoleSelectionnee = '';
+let comptesCrees = [];
+
+const loginOverlay = document.getElementById('loginOverlay');
+const dashboardContent = document.getElementById('dashboardContent');
+const loginEmail = document.getElementById('loginEmail');
+const loginPassword = document.getElementById('loginPassword');
+const loginBtn = document.getElementById('loginBtn');
+const loginError = document.getElementById('loginError');
+const loginSuccess = document.getElementById('loginSuccess');
+const togglePassword = document.getElementById('togglePassword');
+
+togglePassword?.addEventListener('click', function() {
+  const input = document.getElementById('loginPassword');
+  if (input.type === 'password') { input.type = 'text'; this.textContent = '🙈'; }
+  else { input.type = 'password'; this.textContent = '👁️'; }
+});
+
+function escapeHtml(s) {
+  if (!s) return "";
+  return String(s).replace(/[&<>"]/g, m => m === "&" ? "&amp;" : m === "<" ? "&lt;" : m === ">" ? "&gt;" : "&quot;");
+}
+
+async function handleLogin() {
+  const email = loginEmail.value.trim();
+  const password = loginPassword.value.trim();
+  loginError.textContent = '';
+  loginSuccess.textContent = '';
+  if (!email || !password) {
+    loginError.textContent = '❌ Veuillez remplir tous les champs';
+    return;
+  }
+  loginBtn.disabled = true;
+  loginBtn.classList.add('loading');
+  try {
+    await signInWithEmailAndPassword(authA, email, password);
+    try { await signInWithEmailAndPassword(authB, email, password); } catch(e) {}
+    adminEmail = email;
+    adminPassword = password;
+    loginSuccess.textContent = '✅ Connecté';
+    sessionStorage.setItem('usersSession', JSON.stringify({ email, password, timestamp: Date.now() }));
+    setTimeout(() => {
+      loginOverlay.classList.add('hidden');
+      dashboardContent.classList.add('visible');
+      chargerEcoles();
+    }, 600);
+  } catch(error) {
+    loginError.textContent = '❌ ' + error.message;
+  } finally {
+    loginBtn.disabled = false;
+    loginBtn.classList.remove('loading');
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem('usersSession');
+  signOut(authA).catch(()=>{});
+  signOut(authB).catch(()=>{});
+  dashboardContent.classList.remove('visible');
+  loginOverlay.classList.remove('hidden');
+  loginEmail.value = '';
+  loginPassword.value = '';
+  loginError.textContent = '';
+  loginSuccess.textContent = '';
+}
+
+async function chargerEcoles() {
+  const sel = document.getElementById('ecoleSelect');
+  sel.innerHTML = '<option value="">Chargement...</option>';
+  try {
+    const snap = await getDocs(collection(dbB, 'ecoles'));
+    const ecoles = [];
+    snap.forEach(d => {
+      ecoles.push({ id: d.id, nom: d.data().nom || d.id });
+    });
+    ecoles.sort((a, b) => a.nom.localeCompare(b.nom));
+    let html = '<option value="">-- Choisir une école --</option>';
+    ecoles.forEach(e => {
+      html += '<option value="' + escapeHtml(e.id) + '">' + escapeHtml(e.nom) + ' (' + escapeHtml(e.id) + ')</option>';
+    });
+    sel.innerHTML = html;
+    sel.onchange = () => {
+      ecoleSelectionnee = sel.value;
+      document.getElementById('createAllBtn').disabled = !sel.value;
+      afficherRoles();
+    };
+  } catch(e) {
+    sel.innerHTML = '<option value="">Erreur : ' + e.message + '</option>';
+  }
+}
+
+function afficherRoles() {
+  const container = document.getElementById('rolesContainer');
+  if (!ecoleSelectionnee) {
+    container.innerHTML = '<div class="info-box orange">Sélectionnez une école pour saisir les mots de passe.</div>';
+    return;
+  }
+  container.innerHTML =
+    '<div class="role-card promoteur">' +
+      '<div class="role-title">👔 Promoteur</div>' +
+      '<div class="role-email">promoteur.' + escapeHtml(ecoleSelectionnee) + '@netubex.com</div>' +
+      '<input type="text" id="pwdPromoteur" placeholder="Mot de passe du promoteur" autocomplete="off" />' +
+    '</div>' +
+    '<div class="role-card comptable">' +
+      '<div class="role-title">💰 Comptable</div>' +
+      '<div class="role-email">compta.' + escapeHtml(ecoleSelectionnee) + '@netubex.com</div>' +
+      '<input type="text" id="pwdComptable" placeholder="Mot de passe du comptable" autocomplete="off" />' +
+    '</div>' +
+    '<div class="role-card direction">' +
+      '<div class="role-title">🏫 Direction</div>' +
+      '<div class="role-email">direction.' + escapeHtml(ecoleSelectionnee) + '@netubex.com</div>' +
+      '<input type="text" id="pwdDirection" placeholder="Mot de passe de la direction" autocomplete="off" />' +
+    '</div>';
+}
+
+function log(msg, type) {
+  const box = document.getElementById('logBox');
+  if (!box) return;
+  const line = document.createElement('div');
+  if (type) line.style.color = type === 'ok' ? 'var(--wa-green-lt)' : type === 'err' ? 'var(--wa-danger)' : type === 'warn' ? 'var(--wa-warning)' : 'var(--wa-blue)';
+  line.textContent = msg;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+
+async function creerLesComptes() {
+  if (!ecoleSelectionnee) return;
+
+  const pwdPromoteur = document.getElementById('pwdPromoteur').value.trim();
+  const pwdComptable = document.getElementById('pwdComptable').value.trim();
+  const pwdDirection = document.getElementById('pwdDirection').value.trim();
+
+  if (!pwdPromoteur || pwdPromoteur.length < 6) { alert('Mot de passe Promoteur : 6 caractères minimum'); return; }
+  if (!pwdComptable || pwdComptable.length < 6) { alert('Mot de passe Comptable : 6 caractères minimum'); return; }
+  if (!pwdDirection || pwdDirection.length < 6) { alert('Mot de passe Direction : 6 caractères minimum'); return; }
+
+  if (!confirm(
+    'Créer les 3 comptes pour l\'école "' + ecoleSelectionnee + '" ?\n\n' +
+    '👔 Promoteur : ' + pwdPromoteur + '\n' +
+    '💰 Comptable : ' + pwdComptable + '\n' +
+    '🏫 Direction : ' + pwdDirection
+  )) return;
+
+  document.getElementById('resultCard').classList.add('hidden');
+  document.getElementById('progressCard').classList.remove('hidden');
+  document.getElementById('logBox').innerHTML = '';
+  document.getElementById('createAllBtn').disabled = true;
+
+  log('🚀 Création des 3 comptes...', 'info');
+  log('🏫 École : ' + ecoleSelectionnee);
+  log('');
+
+  comptesCrees = [];
+
+  const comptes = [
+    { role: '👔 Promoteur', email: 'promoteur.' + ecoleSelectionnee + '@netubex.com', pwd: pwdPromoteur },
+    { role: '💰 Comptable', email: 'compta.' + ecoleSelectionnee + '@netubex.com', pwd: pwdComptable },
+    { role: '🏫 Direction', email: 'direction.' + ecoleSelectionnee + '@netubex.com', pwd: pwdDirection }
+  ];
+
+  for (const c of comptes) {
+    log('👤 ' + c.role + ' (' + c.email + ')...', 'info');
+    try {
+      const cred = await createUserWithEmailAndPassword(authB, c.email, c.pwd);
+      log('   ✅ Compte créé', 'ok');
+      comptesCrees.push({ role: c.role, email: c.email, pwd: c.pwd, success: true, uid: cred.user.uid });
+      await signOut(authB);
+    } catch(e) {
+      if (e.code === 'auth/email-already-in-use') {
+        log('   ⚠️ Compte existant, mise à jour du mot de passe...', 'warn');
+        try {
+          const cred = await signInWithEmailAndPassword(authB, c.email, c.pwd);
+          log('   ✅ Mot de passe déjà correct', 'ok');
+          await signOut(authB);
+          comptesCrees.push({ role: c.role, email: c.email, pwd: c.pwd, success: true, existed: true });
+        } catch(e2) {
+          log('   ⚠️ Mot de passe différent — l\'ancien compte garde son mot de passe', 'warn');
+          log('   ➡️ Supprimez le compte dans Firebase Console pour le recréer', 'warn');
+          comptesCrees.push({ role: c.role, email: c.email, pwd: '(inchangé)', success: false, error: 'Compte existant avec un autre mot de passe' });
+        }
+      } else {
+        log('   ❌ ' + e.code + ' - ' + e.message, 'err');
+        comptesCrees.push({ role: c.role, email: c.email, pwd: c.pwd, success: false, error: e.message });
+      }
+    }
+  }
+
+  log('');
+  log('═══════════════════════════════', 'info');
+  const reussis = comptesCrees.filter(c => c.success).length;
+  log('✅ Comptes prêts : ' + reussis + ' / 3', 'ok');
+
+  try {
+    await signInWithEmailAndPassword(authB, adminEmail, adminPassword);
+    log('🔐 Session admin restaurée', 'ok');
+  } catch(e) {
+    log('⚠️ Session admin : ' + e.message, 'warn');
+  }
+
+  afficherResultats();
+  document.getElementById('createAllBtn').disabled = false;
+}
+
+function afficherResultats() {
+  const rc = document.getElementById('resultCard');
+  const reussis = comptesCrees.filter(c => c.success).length;
+  const echecs = comptesCrees.filter(c => !c.success).length;
+
+  rc.className = 'result-box ' + (echecs === 0 ? 'success' : 'error');
+
+  let html = '<strong>' + (echecs === 0 ? '✅ Tous les comptes sont prêts !' : '⚠️ Création partielle (' + reussis + '/3)') + '</strong><br><br>';
+  html += '<b>🏫 École :</b> ' + escapeHtml(ecoleSelectionnee) + '<br><br>';
+
+  comptesCrees.forEach(c => {
+    html += '<div class="user-card ' + (c.success ? '' : 'error') + '">' +
+      '<div class="row"><span class="user-role">' + c.role + '</span><span class="status-icon">' + (c.success ? '✅' : '❌') + '</span></div>' +
+      '<div class="user-email">' + escapeHtml(c.email) + '</div>' +
+      '<div class="user-pass">🔑 ' + escapeHtml(c.pwd) + '</div>' +
+      (c.existed ? '<div style="font-size:11px;color:var(--wa-warning);margin-top:6px;">⚠️ Compte existant</div>' : '') +
+      (c.error ? '<div style="font-size:11px;color:var(--wa-danger);margin-top:6px;">' + escapeHtml(c.error) + '</div>' : '') +
+      '<div class="row">' +
+      '<button class="copy-btn" onclick="navigator.clipboard.writeText(\'' + escapeHtml(c.email) + '\')">📋 Email</button>' +
+      '<button class="copy-btn" onclick="navigator.clipboard.writeText(\'' + escapeHtml(c.pwd) + '\')">📋 Mdp</button>' +
+      '</div></div>';
+  });
+
+  html += '<div style="background:var(--wa-bg-input);padding:12px;border-radius:8px;font-size:12px;line-height:1.8;margin-top:12px;">' +
+    '<b>📌 Connexion au Projet 2 :</b><br>' +
+    '&nbsp;&nbsp;?ecole=<b>' + escapeHtml(ecoleSelectionnee) + '</b><br>' +
+    '&nbsp;&nbsp;Puis choisissez le rôle et entrez l\'email + mot de passe.' +
+    '</div>';
+
+  rc.innerHTML = html;
+  rc.classList.remove('hidden');
+}
+
+loginBtn.addEventListener('click', handleLogin);
+loginPassword.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleLogin(); });
+loginEmail.addEventListener('keydown', (e) => { if (e.key === 'Enter') loginPassword.focus(); });
+document.getElementById('logoutBtn').addEventListener('click', logout);
+document.getElementById('refreshBtn').addEventListener('click', chargerEcoles);
+document.getElementById('createAllBtn').addEventListener('click', creerLesComptes);
+
+const savedSession = sessionStorage.getItem('usersSession');
+if (savedSession) {
+  try {
+    const session = JSON.parse(savedSession);
+    if (session.email && session.timestamp > Date.now() - 3600000) {
+      adminEmail = session.email;
+      adminPassword = session.password;
+      loginOverlay.classList.add('hidden');
+      dashboardContent.classList.add('visible');
+      chargerEcoles();
+    }
+  } catch(e) { }
+}
+</script>
+</body>
+</html>
