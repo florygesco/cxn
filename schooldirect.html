@@ -857,15 +857,13 @@ document.getElementById('refreshPageBtn').addEventListener('click', function() {
     location.reload();
 });
 
-// ✅ NOUVELLE CONFIGURATION FIREBASE
 const firebaseConfig = {
-  apiKey: "AIzaSyB_GdmPBnWl3w6g99j1cGO7vxDdxmKr4QA",
-  authDomain: "netubexmoney.firebaseapp.com",
-  databaseURL: "https://netubexmoney-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "netubexmoney",
-  storageBucket: "netubexmoney.firebasestorage.app",
-  messagingSenderId: "856592608176",
-  appId: "1:856592608176:web:69f9df9cfd4f8c28630475"
+  apiKey: "AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",
+  authDomain: "gesco-2.firebaseapp.com",
+  projectId: "gesco-2",
+  storageBucket: "gesco-2.firebasestorage.app",
+  messagingSenderId: "36319988765",
+  appId: "1:36319988765:web:e8cd823804596495248af4"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -876,161 +874,83 @@ const auth = getAuth(app);
 const urlParams = new URLSearchParams(window.location.search);
 const schoolId = urlParams.get('ecole');
 const codeFromUrl = urlParams.get('code');
-
-// ✅ REDIRECTION VERS login3.html
-if(!schoolId){window.location.href='https://www.netubex.com/login3.html?error=ecole_requise';throw new Error('Redirection');}
-if(!codeFromUrl){window.location.href='https://www.netubex.com/login3.html?ecole='+schoolId+'&error=code_requis';throw new Error('Redirection');}
-
+if(!schoolId){window.location.href='https://www.netubex.com/login.html?error=ecole_requise';throw new Error('Redirection');}
+if(!codeFromUrl){window.location.href='https://www.netubex.com/login.html?ecole='+schoolId+'&error=code_requis';throw new Error('Redirection');}
 const ECOLET_ID=schoolId.replace(/[^a-zA-Z0-9]/g,'_');
 const SCHOOL_DISPLAY_NAME=schoolId;
 document.getElementById('schoolNameSpan').textContent=SCHOOL_DISPLAY_NAME.toUpperCase();
 const SC={PROFESSEURS:"professeurs",PUNITIONS:"punitions",FICHES:"fiches",LOGS:"logs",SETTINGS:"settings",CORBEILLE:"corbeille",COMPTA_ELEVES:"compta_eleves",ENSEIGNANTS:"enseignants"};
 let currentAuthUser=null,profsUnsubscribe=null,elevesUnsubscribe=null,recoUnsubscribe=null,ACCESS_CODE=null,toastQueue=[],toastActive=false,currentDate=new Date().toISOString().split('T')[0];
-
 function toast(message,type='success'){toastQueue.push({message,type});if(!toastActive)processToastQueue();}
 function processToastQueue(){if(toastQueue.length===0){toastActive=false;return;}toastActive=true;const{message,type}=toastQueue.shift();const c=document.getElementById('toastContainer');if(!c){toastActive=false;processToastQueue();return;}const icons={success:'fas fa-check-circle',error:'fas fa-exclamation-circle',warning:'fas fa-exclamation-triangle'};const colors={success:'#10b981',error:'#ef4444',warning:'#f59e0b'};const e=document.createElement('div');e.className='toast '+(type||'');e.innerHTML='<div class="toast-icon" style="color:'+colors[type]+'"><i class="'+icons[type]+'"></i></div><div class="toast-content"><div class="toast-title">'+(type==='success'?'Succes':type==='error'?'Erreur':'Attention')+'</div><div class="toast-message">'+message+'</div></div>';c.appendChild(e);setTimeout(()=>e.classList.add('show'),10);setTimeout(()=>{e.classList.remove('show');setTimeout(()=>{if(e.parentNode)e.remove();toastActive=false;processToastQueue();},400);},3500);}
 function escapeHtml(s){if(!s)return'';return s.replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
 function showModalSlideUp(title,bodyHTML,footerHTML){const overlay=document.createElement('div');overlay.className='modal-slide-up';overlay.innerHTML='<div class="modal-content"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h3 style="font-size:18px;color:var(--text-primary);font-weight:700;">'+title+'</h3><span style="font-size:22px;cursor:pointer;color:var(--text-muted);background:none;border:none;padding:4px 8px;" onclick="this.closest(\'.modal-slide-up\').remove()">&times;</span></div>'+bodyHTML+'<div class="modal-footer" style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;border-top:1px solid var(--border-color);padding-top:16px;">'+footerHTML+'</div></div>';document.body.appendChild(overlay);setTimeout(()=>overlay.classList.add('show'),10);return overlay;}
 function showPrompt(title,message,placeholder,callback,extraInputs){let extraHtml=extraInputs||'';const m=showModalSlideUp(title,'<p style="color:var(--text-secondary);font-size:14px;margin-bottom:12px;">'+message+'</p><input type="text" id="modalInput" placeholder="'+placeholder+'" style="width:100%;padding:10px 14px;border-radius:12px;background:#f8fafc;border:2px solid var(--border-color);color:var(--text-primary);font-size:13px;outline:none;font-family:\'Inter\',sans-serif;margin-bottom:8px;">'+extraHtml,'<button class="btn btn-sm btn-outline" id="promptCancel">ANNULER</button><button class="btn btn-sm btn-success" id="promptConfirm">CONFIRMER</button>');m.querySelector('#promptCancel').onclick=()=>m.remove();m.querySelector('#promptConfirm').onclick=()=>{const val=m.querySelector('#modalInput')?.value||'';const sexe=m.querySelector('#modalSexe')?.value||'M';m.remove();if(callback)callback(val,sexe);};setTimeout(()=>{const inp=m.querySelector('#modalInput');if(inp)inp.focus()},100);}
 function showConfirm(title,message,onConfirm){const m=showModalSlideUp(title,'<p style="color:var(--text-secondary);font-size:14px;line-height:1.6;">'+message+'</p>','<button class="btn btn-sm btn-outline" id="confirmCancel">ANNULER</button><button class="btn btn-sm btn-danger" id="confirmOk">CONFIRMER</button>');m.querySelector('#confirmCancel').onclick=()=>m.remove();m.querySelector('#confirmOk').onclick=()=>{m.remove();if(onConfirm)onConfirm()};}
-
-function deconnecterUtilisateur(){
-  showConfirm('DECONNEXION','Etes-vous sur de vouloir vous deconnecter ?',()=>{
-    if(profsUnsubscribe){profsUnsubscribe();profsUnsubscribe=null;}
-    if(recoUnsubscribe){recoUnsubscribe();recoUnsubscribe=null;}
-    if(elevesUnsubscribe){elevesUnsubscribe();elevesUnsubscribe=null;}
-    // ✅ REDIRECTION VERS login3.html
-    window.location.href='https://www.netubex.com/login3.html?ecole='+schoolId;
-  });
-}
+function deconnecterUtilisateur(){showConfirm('DECONNEXION','Etes-vous sur de vouloir vous deconnecter ?',()=>{if(profsUnsubscribe){profsUnsubscribe();profsUnsubscribe=null;}if(recoUnsubscribe){recoUnsubscribe();recoUnsubscribe=null;}if(elevesUnsubscribe){elevesUnsubscribe();elevesUnsubscribe=null;}window.location.href='https://www.netubex.com/login.html?ecole='+schoolId;});}
 document.getElementById('logoutBtn').addEventListener('click',deconnecterUtilisateur);
-
 async function chargerAccessCode(){try{const docRef=doc(db,"ecoles",ECOLET_ID,SC.SETTINGS,"data");const docSnap=await getDoc(docRef);if(docSnap.exists()){const data=docSnap.data();if(data.codeDirection){ACCESS_CODE=data.codeDirection;document.getElementById('currentCodeDisplay').textContent=data.codeDirection;if(data.updatedAt){const date=new Date(data.updatedAt);document.getElementById('lastCodeChange').textContent=date.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}return true;}}return false;}catch(error){return false;}}
 async function verifierCohérenceCode(){if(!ACCESS_CODE||!currentAuthUser)return false;try{const email='direction.'+ECOLET_ID+'@gmail.com';await signInWithEmailAndPassword(auth,email,ACCESS_CODE);return true;}catch(error){if(error.code==='auth/wrong-password'){try{await updatePassword(currentAuthUser,ACCESS_CODE);return true;}catch(updateError){return false;}}return false;}}
-
-async function verifierCodeDirection(){
-  try{
-    const ref=doc(db,"ecoles",ECOLET_ID,"settings","data");
-    const snap=await getDoc(ref);
-    let email='direction.'+ECOLET_ID+'@gmail.com';
-    if(snap.exists()){
-      const data=snap.data();
-      if(data.emailDirection)email=data.emailDirection;
-      if(data.codeDirection)ACCESS_CODE=data.codeDirection;
-    }
-    let codeFound=false;
-    if(ACCESS_CODE&&ACCESS_CODE===codeFromUrl){codeFound=true;}
-    if(!codeFound&&codeFromUrl){
-      try{
-        const userCred=await signInWithEmailAndPassword(auth,email,codeFromUrl);
-        currentAuthUser=userCred.user;
-        codeFound=true;
-        ACCESS_CODE=codeFromUrl;
-        if(snap.exists()&&!snap.data().codeDirection){
-          await setDoc(ref,{codeDirection:codeFromUrl,emailDirection:email,updatedAt:new Date().toISOString()},{merge:true});
-        }
-      }catch(authError){
-        if(authError.code==='auth/user-not-found'){
-          try{
-            const userCred=await createUserWithEmailAndPassword(auth,email,codeFromUrl);
-            currentAuthUser=userCred.user;
-            codeFound=true;
-            ACCESS_CODE=codeFromUrl;
-            await setDoc(ref,{codeDirection:codeFromUrl,emailDirection:email,updatedAt:new Date().toISOString()},{merge:true});
-          }catch(createError){}
-        }
-      }
-    }
-    if(codeFound){
-      document.getElementById('mainContent').classList.add('visible');
-      await chargerAccessCode();
-      await verifierCohérenceCode();
-      initApp();
-      return true;
-    }
-    // ✅ REDIRECTION VERS login3.html
-    window.location.href='https://www.netubex.com/login3.html?ecole='+schoolId+'&error=code_incorrect';
-    return false;
-  }catch(error){
-    // ✅ REDIRECTION VERS login3.html
-    window.location.href='https://www.netubex.com/login3.html?ecole='+schoolId+'&error=code_incorrect';
-    return false;
-  }
-}
-
+async function verifierCodeDirection(){try{const ref=doc(db,"ecoles",ECOLET_ID,"settings","data");const snap=await getDoc(ref);let email='direction.'+ECOLET_ID+'@gmail.com';if(snap.exists()){const data=snap.data();if(data.emailDirection)email=data.emailDirection;if(data.codeDirection)ACCESS_CODE=data.codeDirection;}let codeFound=false;if(ACCESS_CODE&&ACCESS_CODE===codeFromUrl){codeFound=true;}if(!codeFound&&codeFromUrl){try{const userCred=await signInWithEmailAndPassword(auth,email,codeFromUrl);currentAuthUser=userCred.user;codeFound=true;ACCESS_CODE=codeFromUrl;if(snap.exists()&&!snap.data().codeDirection){await setDoc(ref,{codeDirection:codeFromUrl,emailDirection:email,updatedAt:new Date().toISOString()},{merge:true});}}catch(authError){if(authError.code==='auth/user-not-found'){try{const userCred=await createUserWithEmailAndPassword(auth,email,codeFromUrl);currentAuthUser=userCred.user;codeFound=true;ACCESS_CODE=codeFromUrl;await setDoc(ref,{codeDirection:codeFromUrl,emailDirection:email,updatedAt:new Date().toISOString()},{merge:true});}catch(createError){}}}}if(codeFound){document.getElementById('mainContent').classList.add('visible');await chargerAccessCode();await verifierCohérenceCode();initApp();return true;}window.location.href='https://www.netubex.com/login.html?ecole='+schoolId+'&error=code_incorrect';return false;}catch(error){window.location.href='https://www.netubex.com/login.html?ecole='+schoolId+'&error=code_incorrect';return false;}}
 function genererEmailProfesseur(nom,ecoleId){if(!nom)return'';const nomPropre=nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z\s]/g,'').trim().replace(/\s+/g,'.');return'prof.'+nomPropre+'.'+ecoleId+'@gmail.com';}
 function genererEmailEnseignant(nom,ecoleId){if(!nom)return'';const nomPropre=nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z\s]/g,'').trim().replace(/\s+/g,'.');return'ens.'+nomPropre+'.'+ecoleId+'@gmail.com';}
 function genererCodeAcces(){return String(Math.floor(100000+Math.random()*900000));}
 
-// ✅ CLIC DROIT → BASCULE VERS L'ONGLET SUIVANT
-const ONGLETS_ORDER = ['tabStats','tabPunitions','tabProfesseurs','tabEnseignantsPrimaire','tabEnseignantsMaternelle','tabPresencesSecondaire','tabPresencesPrimaire','tabPresencesMaternelle','tabReco','tabSettings'];
-
-function activerOnglet(tabName) {
-    const tabBtn = document.querySelector('.tab[data-tab="' + tabName + '"]');
-    const tabContent = document.getElementById(tabName);
-    if (!tabBtn || !tabContent) return;
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    tabBtn.classList.add('active');
-    tabContent.classList.add('active');
-    // Charger les données de l'onglet actif
-    if(tabName==='tabReco'){initReco();}
-    if(tabName==='tabProfesseurs'){chargerProfs().then(p=>afficherProfs(p));afficherCorbeille();}
-    if(tabName==='tabEnseignantsPrimaire'){chargerEnseignants().then(e=>afficherEnseignantsPrimaire(e));}
-    if(tabName==='tabEnseignantsMaternelle'){chargerEnseignants().then(e=>afficherEnseignantsMaternelle(e));}
-    if(tabName==='tabStats'){updateStats();}
-    if(tabName==='tabPresencesSecondaire'){chargerPresencesSecondaire();}
-    if(tabName==='tabPresencesPrimaire'){chargerPresencesPrimaire();}
-    if(tabName==='tabPresencesMaternelle'){chargerPresencesMaternelle();}
-}
-
+const contextMenu = document.getElementById('customContextMenu');
 document.addEventListener('contextmenu', function(e) {
     e.preventDefault();
-    // Trouver l'onglet actuellement actif
-    const activeTab = document.querySelector('.tab.active');
-    if (!activeTab) return;
-    const currentTabName = activeTab.dataset.tab;
-    let currentIndex = ONGLETS_ORDER.indexOf(currentTabName);
-    if (currentIndex === -1) currentIndex = 0;
-    // Passer à l'onglet suivant (cycle)
-    const nextIndex = (currentIndex + 1) % ONGLETS_ORDER.length;
-    const nextTabName = ONGLETS_ORDER[nextIndex];
-    activerOnglet(nextTabName);
-    toast('🔄 Onglet suivant : ' + nextTabName.replace('tab',''), 'success');
-    return false;
+    const menu = document.getElementById('customContextMenu');
+    menu.style.display = 'block';
+    let x = e.clientX;
+    let y = e.clientY;
+    if (x + menu.offsetWidth > window.innerWidth) {
+        x = window.innerWidth - menu.offsetWidth - 10;
+    }
+    if (y + menu.offsetHeight > window.innerHeight) {
+        y = window.innerHeight - menu.offsetHeight - 10;
+    }
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+});
+document.addEventListener('click', function(e) {
+    const menu = document.getElementById('customContextMenu');
+    if (!menu.contains(e.target)) {
+        menu.style.display = 'none';
+    }
+});
+document.getElementById('menuVoirPresencesSec').addEventListener('click', function() {
+    document.getElementById('customContextMenu').style.display = 'none';
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector('.tab[data-tab="tabPresencesSecondaire"]').classList.add('active');
+    document.getElementById('tabPresencesSecondaire').classList.add('active');
+    chargerPresencesSecondaire();
+    toast('👀 Affichage des présences Secondaire', 'success');
+});
+document.getElementById('menuVoirPresencesPri').addEventListener('click', function() {
+    document.getElementById('customContextMenu').style.display = 'none';
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector('.tab[data-tab="tabPresencesPrimaire"]').classList.add('active');
+    document.getElementById('tabPresencesPrimaire').classList.add('active');
+    chargerPresencesPrimaire();
+    toast('👀 Affichage des présences Primaire', 'success');
+});
+document.getElementById('menuVoirPresencesMat').addEventListener('click', function() {
+    document.getElementById('customContextMenu').style.display = 'none';
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector('.tab[data-tab="tabPresencesMaternelle"]').classList.add('active');
+    document.getElementById('tabPresencesMaternelle').classList.add('active');
+    chargerPresencesMaternelle();
+    toast('👀 Affichage des présences Maternelle', 'success');
 });
 
 async function chargerProfs(){try{const q=query(collection(db,"ecoles",ECOLET_ID,SC.PROFESSEURS),where("_type","==","prof"));const snap=await getDocs(q);const profs=[];snap.forEach(ds=>{const data=ds.data();if(data.nom)profs.push({id:ds.id,...data});});profs.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));return profs;}catch(e){return[];}}
 function afficherProfs(profs){const c=document.getElementById('profsListContainer');if(!c)return;const searchTerm=document.getElementById('searchProfInput')?.value?.toLowerCase()||'';let filtered=profs;if(searchTerm){filtered=profs.filter(p=>(p.nom||'').toLowerCase().includes(searchTerm));}if(!filtered||filtered.length===0){c.innerHTML='<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px;"><i class="fas fa-chalkboard-teacher" style="font-size:32px;display:block;margin-bottom:8px;color:#e5e7eb;"></i><p>Aucun professeur trouve</p></div>';return;}let html='<div class="prof-cards">';filtered.forEach((p,index)=>{const estActif=p.actif!==false;const sexe=p.sexe||'M';const sexeLabel=sexe==='F'?'<i class="fas fa-venus" style="color:#ec4899;"></i> FEMME':'<i class="fas fa-mars" style="color:var(--blue);"></i> HOMME';const statusClass=estActif?'actif':'inactif';const statusLabel=estActif?'ACTIF':'INACTIF';html+='<div class="prof-card" style="border-left:4px solid var(--secondaire);background:var(--secondaire-bg);"><span class="prof-numero">#'+(index+1)+'</span><span class="prof-nom">'+escapeHtml(p.nom)+'</span><span class="prof-sex">'+sexeLabel+'</span><span class="prof-code">'+(p.actif===false?'<i class="fas fa-lock"></i> DESACTIVE':'<i class="fas fa-unlock"></i> ACTIF')+'</span><span class="prof-status '+statusClass+'">'+statusLabel+'</span><button onclick="window.supprimerProf(\''+p.id+'\')" class="btn btn-sm btn-danger" style="padding:4px 14px;font-size:10px;"><i class="fas fa-trash"></i> SUPPRIMER</button></div>';});html+='</div>';c.innerHTML=html;}
 window.supprimerProf=async function(id){showConfirm('SUPPRIMER LE PROFESSEUR','Voulez-vous vraiment supprimer ce professeur ? Cette action est irreversible.',async()=>{try{const docRef=doc(db,"ecoles",ECOLET_ID,SC.PROFESSEURS,id);await deleteDoc(docRef);toast('✅ Professeur supprime avec succes','success');chargerProfs().then(p=>afficherProfs(p));}catch(e){toast('❌ Erreur: '+e.message,'error');}});};
 function ecouterProfs(){if(profsUnsubscribe){profsUnsubscribe();profsUnsubscribe=null;}try{const q=query(collection(db,"ecoles",ECOLET_ID,SC.PROFESSEURS),where("_type","==","prof"));profsUnsubscribe=onSnapshot(q,async(snapshot)=>{const profs=[];snapshot.forEach(ds=>{const data=ds.data();if(data.nom)profs.push({id:ds.id,...data});});profs.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));afficherProfs(profs);},(error)=>{});}catch(e){}}
-
-document.getElementById('addProfBtn').onclick=function(){
-  const extraHtml='<div style="margin-top:8px;"><label style="display:block;font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:3px;">SEXE</label><select id="modalSexe" style="width:100%;padding:10px 14px;border-radius:12px;background:#f8fafc;border:2px solid var(--border-color);color:var(--text-primary);font-size:13px;outline:none;font-family:\'Inter\',sans-serif;"><option value="M"><i class="fas fa-mars"></i> HOMME</option><option value="F"><i class="fas fa-venus"></i> FEMME</option></select></div>';
-  showPrompt('AJOUTER UN PROFESSEUR','Entrez le nom complet du professeur','Nom complet',async(nom,sexe)=>{
-    if(!nom||!nom.trim()){toast('❌ Veuillez entrer un nom','error');return;}
-    const code=genererCodeAcces();
-    const pid='prof_'+Date.now();
-    const schoolId=ECOLET_ID;
-    const nomTrim=nom.trim();
-    const sexeValue=sexe||'M';
-    const email=genererEmailProfesseur(nomTrim,schoolId);
-    let authCreated=false;
-    try{await createUserWithEmailAndPassword(auth,email,code);authCreated=true;}catch(authError){
-      if(authError.code==='auth/email-already-in-use'){authCreated=true;}
-      else if(authError.code==='auth/weak-password'){toast('❌ Le code doit faire au moins 6 caracteres','error');return;}
-      else{toast('⚠️ Erreur Auth: '+authError.message,'warning');}
-    }
-    const data={_type:"prof",id:pid,profId:pid,nom:nomTrim,sexe:sexeValue,code:code,email:email,emailProf:email,authCreated:authCreated,createdAt:Date.now(),actif:true,school:schoolId};
-    try{
-      await setDoc(doc(db,"ecoles",schoolId,SC.PROFESSEURS,pid),data);
-      toast('✅ '+nomTrim+' ajoute avec succes','success');
-      const bodyHTML='<div style="text-align:center;"><div style="font-size:48px;margin-bottom:8px;"><i class="fas fa-chalkboard-teacher"></i></div><p style="font-weight:600;font-size:18px;color:var(--text-primary);">'+escapeHtml(nomTrim)+'</p><p style="font-size:13px;color:var(--text-secondary);margin:4px 0 12px 0;">'+(sexeValue==='F'?'<i class="fas fa-venus"></i> FEMME':'<i class="fas fa-mars"></i> HOMME')+'</p><div style="background:var(--green-bg);border-radius:12px;padding:16px;border:2px solid var(--green);margin:8px 0;"><div style="font-size:11px;font-weight:600;color:var(--green);"><i class="fas fa-key"></i> CODE D\'ACCES DU PROFESSEUR</div><div style="font-size:32px;font-weight:800;letter-spacing:6px;color:var(--green);font-family:monospace;margin:4px 0;">'+code+'</div></div><div style="background:var(--orange-bg);border-radius:8px;padding:10px;margin:12px 0;border:1px solid #fde68a;"><p style="font-size:11px;color:#92400e;margin:0;"><i class="fas fa-info-circle"></i> <strong>Important :</strong> Transmettez ce code au professeur.<br>Il utilisera son nom et ce code pour se connecter.</p></div></div>';
-      showModalSlideUp('✅ PROFESSEUR AJOUTE',bodyHTML,'<button class="btn btn-sm btn-primary" onclick="this.closest(\'.modal-slide-up\').remove()">FERMER</button>');
-      chargerProfs().then(p=>afficherProfs(p));
-    }catch(e){toast('❌ Erreur: '+e.message,'error');}
-  },extraHtml);
-};
+document.getElementById('addProfBtn').onclick=function(){const extraHtml='<div style="margin-top:8px;"><label style="display:block;font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:3px;">SEXE</label><select id="modalSexe" style="width:100%;padding:10px 14px;border-radius:12px;background:#f8fafc;border:2px solid var(--border-color);color:var(--text-primary);font-size:13px;outline:none;font-family:\'Inter\',sans-serif;"><option value="M"><i class="fas fa-mars"></i> HOMME</option><option value="F"><i class="fas fa-venus"></i> FEMME</option></select></div>';showPrompt('AJOUTER UN PROFESSEUR','Entrez le nom complet du professeur','Nom complet',async(nom,sexe)=>{if(!nom||!nom.trim()){toast('❌ Veuillez entrer un nom','error');return;}const code=genererCodeAcces();const pid='prof_'+Date.now();const schoolId=ECOLET_ID;const nomTrim=nom.trim();const sexeValue=sexe||'M';const email=genererEmailProfesseur(nomTrim,schoolId);let authCreated=false;try{await createUserWithEmailAndPassword(auth,email,code);authCreated=true;}catch(authError){if(authError.code==='auth/email-already-in-use'){authCreated=true;}else if(authError.code==='auth/weak-password'){toast('❌ Le code doit faire au moins 6 caracteres','error');return;}else{toast('⚠️ Erreur Auth: '+authError.message,'warning');}}const data={_type:"prof",id:pid,profId:pid,nom:nomTrim,sexe:sexeValue,code:code,email:email,emailProf:email,authCreated:authCreated,createdAt:Date.now(),actif:true,school:schoolId};try{await setDoc(doc(db,"ecoles",schoolId,SC.PROFESSEURS,pid),data);toast('✅ '+nomTrim+' ajoute avec succes','success');const bodyHTML='<div style="text-align:center;"><div style="font-size:48px;margin-bottom:8px;"><i class="fas fa-chalkboard-teacher"></i></div><p style="font-weight:600;font-size:18px;color:var(--text-primary);">'+escapeHtml(nomTrim)+'</p><p style="font-size:13px;color:var(--text-secondary);margin:4px 0 12px 0;">'+(sexeValue==='F'?'<i class="fas fa-venus"></i> FEMME':'<i class="fas fa-mars"></i> HOMME')+'</p><div style="background:var(--green-bg);border-radius:12px;padding:16px;border:2px solid var(--green);margin:8px 0;"><div style="font-size:11px;font-weight:600;color:var(--green);"><i class="fas fa-key"></i> CODE D\'ACCES DU PROFESSEUR</div><div style="font-size:32px;font-weight:800;letter-spacing:6px;color:var(--green);font-family:monospace;margin:4px 0;">'+code+'</div></div><div style="background:var(--orange-bg);border-radius:8px;padding:10px;margin:12px 0;border:1px solid #fde68a;"><p style="font-size:11px;color:#92400e;margin:0;"><i class="fas fa-info-circle"></i> <strong>Important :</strong> Transmettez ce code au professeur.<br>Il utilisera son nom et ce code pour se connecter.</p></div></div>';showModalSlideUp('✅ PROFESSEUR AJOUTE',bodyHTML,'<button class="btn btn-sm btn-primary" onclick="this.closest(\'.modal-slide-up\').remove()">FERMER</button>');chargerProfs().then(p=>afficherProfs(p));}catch(e){toast('❌ Erreur: '+e.message,'error');}},extraHtml);};
 document.getElementById('searchProfInput').addEventListener('input',function(){chargerProfs().then(p=>afficherProfs(p));});
 document.getElementById('refreshProfsBtn').addEventListener('click',function(){chargerProfs().then(p=>afficherProfs(p));toast('✅ Professeurs actualises','success');});
 
@@ -1198,7 +1118,7 @@ function initReco(){if(recoUnsubscribe)return;const docRef=doc(db,"communication
 function updateRecoUI(){const container=document.getElementById('recoMessagesContainer');if(!container)return;const empty=container.querySelector('.reco-empty');if(empty)empty.remove();}
 function sendRecoMessage(){const input=document.getElementById('recoInput');const subjectSelect=document.getElementById('recoSubjectSelect');const message=input.value.trim();const subject=subjectSelect.value;if(!message){toast('Veuillez ecrire un message','warning');return;}if(!subject||subject===''){subjectSelect.classList.add('error');toast('Veuillez selectionner un sujet','warning');return;}subjectSelect.classList.remove('error');addRecoMessage('direction','Direction',message);input.value='';envoyerMessageSupport(message,subject);const customReply=getNaturalReply(subject,message);showTypingAndAutoReplyWithCustomReply(subject,customReply);}
 async function envoyerMessageSupport(message,subject){try{const docRef=doc(db,"communication","support_netubex_board");const snap=await getDoc(docRef);let data=snap.exists()?snap.data():{messages:[]};let messages=data.messages||[];const newMessage={number:messages.length+1,message:message,sujet:subject,ecole:SCHOOL_DISPLAY_NAME,expediteur:'direction',heure:new Date().toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),timestamp:Date.now()};messages.push(newMessage);await setDoc(docRef,{messages:messages});toast('✅ Message envoye au support','success');}catch(error){toast('❌ Erreur: '+error.message,'error');}}
-document.getElementById('recoBackBtn').addEventListener('click',function(){activerOnglet('tabStats');});
+document.getElementById('recoBackBtn').addEventListener('click',function(){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));document.querySelector('.tab[data-tab="tabStats"]').classList.add('active');document.getElementById('tabStats').classList.add('active');});
 
 function initDates() {
     const today = new Date().toISOString().split('T')[0];
@@ -2063,10 +1983,22 @@ if(tabsContainer){tabsContainer.setAttribute('tabindex','0');tabsContainer.style
 document.querySelectorAll('.tab').forEach(btn=>{
   btn.onclick=function(){
     if(this.id==='darkModeBtn'){document.body.classList.toggle('dark-mode');return;}
-    activerOnglet(this.dataset.tab);
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+    this.classList.add('active');
+    document.getElementById(this.dataset.tab).classList.add('active');
+    if(this.dataset.tab==='tabReco'){initReco();}
+    if(this.dataset.tab==='tabProfesseurs'){chargerProfs().then(p=>afficherProfs(p));afficherCorbeille();}
+    if(this.dataset.tab==='tabEnseignantsPrimaire'){chargerEnseignants().then(e=>afficherEnseignantsPrimaire(e));}
+    if(this.dataset.tab==='tabEnseignantsMaternelle'){chargerEnseignants().then(e=>afficherEnseignantsMaternelle(e));}
+    if(this.dataset.tab==='tabStats'){updateStats();}
+    if(this.dataset.tab==='tabPresencesSecondaire'){chargerPresencesSecondaire();}
+    if(this.dataset.tab==='tabPresencesPrimaire'){chargerPresencesPrimaire();}
+    if(this.dataset.tab==='tabPresencesMaternelle'){chargerPresencesMaternelle();}
   };
 });
 
+document.addEventListener('contextmenu',function(e){e.preventDefault();return false;});
 document.addEventListener('keydown',function(e){
   if(e.key==='F12'||e.keyCode===123){e.preventDefault();return false;}
   if(e.ctrlKey&&e.shiftKey&&(e.key==='I'||e.keyCode===73)){e.preventDefault();return false;}
