@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Migration Écoles</title>
+<script type="importmap">
+{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"}}
+</script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;background:#0a0e1a;color:#e2e8f0;min-height:100vh;padding:16px;font-size:14px}
+.container{max-width:640px;margin:0 auto;padding-bottom:40px}
+.header{background:linear-gradient(135deg,#0f2b44,#071a2c);border-radius:20px;padding:24px 20px;text-align:center;margin-bottom:20px;border:1px solid rgba(255,215,0,0.2);box-shadow:0 8px 32px rgba(0,0,0,0.4)}
+.header h1{font-size:22px;font-weight:800;background:linear-gradient(135deg,#ffd700,#fbbf24);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:6px}
+.header p{color:#94a3b8;font-size:12px}
+.card{background:rgba(26,35,50,0.9);border-radius:18px;padding:20px;margin-bottom:16px;border:1px solid rgba(255,215,0,0.15);box-shadow:0 4px 20px rgba(0,0,0,0.3)}
+.card-title{color:#ffd700;font-size:13px;font-weight:700;margin-bottom:14px;text-transform:uppercase;letter-spacing:0.5px}
+.info{border-radius:12px;padding:12px 14px;font-size:12px;line-height:1.6;margin-bottom:14px}
+.info.green{background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);color:#10b981}
+.info.orange{background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);color:#f59e0b}
+.info.red{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444}
+.info.blue{background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);color:#60a5fa}
+label{display:block;font-size:11px;font-weight:600;color:#94a3b8;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px}
+input,select{width:100%;padding:13px 14px;border-radius:12px;border:1px solid #334155;background:#2d3748;color:#fff;font-size:15px;margin-bottom:14px;font-family:inherit}
+input:focus,select:focus{outline:none;border-color:#ffd700}
+input::placeholder{color:#64748b}
+.radio-group{margin-bottom:14px}
+.radio-item{display:flex;align-items:center;gap:10px;padding:12px 14px;background:#2d3748;border-radius:10px;margin-bottom:8px;cursor:pointer;font-size:13px;color:#e2e8f0;border:2px solid transparent;transition:all 0.2s}
+.radio-item.selected{border-color:#ffd700;background:rgba(255,215,0,0.1)}
+.radio-item input{width:auto;margin:0}
+button{width:100%;padding:15px;border-radius:14px;border:none;color:white;font-weight:700;font-size:14px;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;font-family:inherit;transition:all 0.15s}
+button:active:not(:disabled){transform:scale(0.98)}
+button:disabled{opacity:0.4;cursor:not-allowed}
+.btn-green{background:linear-gradient(180deg,#10b981,#059669)}
+.btn-blue{background:linear-gradient(180deg,#3b82f6,#2563eb)}
+.btn-red{background:linear-gradient(180deg,#ef4444,#dc2626)}
+.progress-container{background:#2d3748;height:12px;border-radius:6px;overflow:hidden;margin:10px 0}
+.progress-bar{height:100%;background:linear-gradient(90deg,#10b981,#34d399);width:0%;transition:width 0.3s ease}
+.log{background:#0a0e1a;border-radius:10px;padding:12px;font-family:monospace;font-size:11px;max-height:300px;overflow-y:auto;line-height:1.7;white-space:pre-wrap;border:1px solid #334155}
+.result{padding:16px;border-radius:12px;margin-top:14px;font-size:13px;line-height:1.7}
+.result.success{background:rgba(16,185,129,0.15);border:1px solid #10b981;color:#10b981}
+.result.error{background:rgba(239,68,68,0.15);border:1px solid #ef4444;color:#ef4444}
+.hidden{display:none!important}
+.login-card{max-width:400px;margin:60px auto}
+.mode-radio{display:none}
+.mode-radio:checked+.radio-item{border-color:#ffd700;background:rgba(255,215,0,0.1)}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+<h1>Migration Écoles</h1>
+<p>SOURCE A → SOURCE B · Admin uniquement</p>
+</div>
+<div id="loginCard" class="card login-card">
+<div class="card-title">Connexion Admin</div>
+<div class="info blue">Connectez-vous avec votre compte admin pour accéder à la migration.</div>
+<label>Email admin</label>
+<input type="email" id="loginEmail" placeholder="votre@email.com">
+<label>Mot de passe</label>
+<input type="password" id="loginPassword" placeholder="••••••••">
+<button class="btn-green" id="loginBtn">Se connecter</button>
+<div id="loginError" style="color:#ef4444;font-size:12px;text-align:center;min-height:18px;margin-top:8px"></div>
+</div>
+<div id="appCard" class="hidden">
+<div class="card">
+<div class="info orange">Cette opération COPIE une école de SOURCE A vers SOURCE B. SOURCE A reste intacte. Les autres écoles de SOURCE B ne sont pas touchées.</div>
+<label>École source (SOURCE A)</label>
+<select id="sourceSelect"><option value="">Chargement...</option></select>
+<label>ID destination (SOURCE B)</label>
+<input type="text" id="destId" placeholder="ex: saint-joseph">
+<label>Que copier ?</label>
+<div class="radio-group">
+<input type="radio" name="mode" id="modeEssentiel" value="essentiel" class="mode-radio" checked>
+<label for="modeEssentiel" class="radio-item">Essentiel (élèves + config + codes)</label>
+<input type="radio" name="mode" id="modeTout" value="tout" class="mode-radio">
+<label for="modeTout" class="radio-item">Tout (toutes les collections)</label>
+<input type="radio" name="mode" id="modeEleves" value="eleves" class="mode-radio">
+<label for="modeEleves" class="radio-item">Élèves seulement</label>
+</div>
+<button class="btn-blue" id="analyseBtn">Analyser</button>
+<button class="btn-green" id="migrerBtn" disabled>Lancer la copie</button>
+</div>
+<div id="previewCard" class="card hidden">
+<div class="card-title">Aperçu</div>
+<div id="previewContent" class="info blue"></div>
+</div>
+<div id="progressCard" class="card hidden">
+<div class="card-title">Progression</div>
+<div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
+<div style="text-align:center;font-size:12px;color:#94a3b8;margin-bottom:10px" id="progressText">0%</div>
+<div class="log" id="logBox"></div>
+</div>
+<div id="resultCard" class="hidden"></div>
+<button class="btn-red" id="logoutBtn" style="margin-top:20px">Se déconnecter</button>
+</div>
+</div>
+<script type="module">
+import{initializeApp}from"firebase/app";
+import{getFirestore,collection,doc,getDoc,getDocs,setDoc}from"firebase/firestore";
+import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged}from"firebase/auth";
+const cfgA={apiKey:"AIzaSyDX430AIfzzgfq3o8tXHwQfIptgWOZ-K8c",authDomain:"gesco-67c43.firebaseapp.com",projectId:"gesco-67c43",storageBucket:"gesco-67c43.firebasestorage.app",messagingSenderId:"333004443566",appId:"1:333004443566:web:de41f60000e418dce9023f"};
+const cfgB={apiKey:"AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",authDomain:"gesco-2.firebaseapp.com",projectId:"gesco-2",storageBucket:"gesco-2.firebasestorage.app",messagingSenderId:"36319988765",appId:"1:36319988765:web:e8cd823804596495248af4"};
+const appA=initializeApp(cfgA,'srcA');
+const appB=initializeApp(cfgB,'srcB');
+const dbA=getFirestore(appA);
+const dbB=getFirestore(appB);
+const authA=getAuth(appA);
+const authB=getAuth(appB);
+const ADMIN_EMAIL="ngendaflory2@gmail.com";
+const NX_CODE="NXTheone";
+let ecolesSrc=[];
+const$=id=>document.getElementById(id);
+function log(msg,type){const box=$('logBox');if(!box)return;const line=document.createElement('div');if(type)line.style.color=type==='ok'?'#10b981':type==='err'?'#ef4444':type==='warn'?'#f59e0b':'#60a5fa';line.textContent=msg;box.appendChild(line);box.scrollTop=box.scrollHeight}
+function showCard(id){$(id).classList.remove('hidden')}
+function hideCard(id){$(id).classList.add('hidden')}
+document.querySelectorAll('.mode-radio').forEach(r=>{r.addEventListener('change',()=>{document.querySelectorAll('.radio-item').forEach(el=>el.classList.remove('selected'));document.querySelector('label[for="'+r.id+'"]').classList.add('selected')})});
+document.querySelector('label[for="modeEssentiel"]').classList.add('selected');
+$('loginBtn').onclick=async()=>{
+const email=$('loginEmail').value.trim();
+const pwd=$('loginPassword').value.trim();
+$('loginError').textContent='';
+if(!email||!pwd){$('loginError').textContent='Remplissez tous les champs';return}
+$('loginBtn').disabled=true;
+$('loginBtn').textContent='Connexion...';
+try{
+await signInWithEmailAndPassword(authA,email,pwd);
+try{await signInWithEmailAndPassword(authB,email,pwd)}catch(e){}
+if(email!==ADMIN_EMAIL){$('loginError').textContent='Accès refusé : compte non admin';await signOut(authA);await signOut(authB);$('loginBtn').disabled=false;$('loginBtn').textContent='Se connecter';return}
+hideCard('loginCard');
+showCard('appCard');
+chargerEcoles();
+}catch(e){
+$('loginError').textContent='Erreur : '+e.message;
+$('loginBtn').disabled=false;
+$('loginBtn').textContent='Se connecter';
+}
+};
+onAuthStateChanged(authA,user=>{
+if(!user){showCard('loginCard');hideCard('appCard')}
+});
+async function chargerEcoles(){
+const sel=$('sourceSelect');
+sel.innerHTML='<option value="">Chargement...</option>';
+try{
+const snap=await getDocs(collection(dbA,'ecoles'));
+ecolesSrc=[];
+snap.forEach(d=>{ecolesSrc.push({id:d.id,nom:d.data().nom||d.id})});
+ecolesSrc.sort((a,b)=>a.nom.localeCompare(b.nom));
+let html='<option value="">-- Choisir une école --</option>';
+ecolesSrc.forEach(e=>{html+='<option value="'+e.id+'">'+e.nom+' ('+e.id+')</option>'});
+sel.innerHTML=html;
+sel.onchange=()=>{
+if(sel.value)$('destId').value=sel.value;
+hideCard('previewCard');
+hideCard('resultCard');
+$('migrerBtn').disabled=true;
+};
+}catch(e){sel.innerHTML='<option value="">Erreur : '+e.message+'</option>'}
+}
+function getCols(mode){
+if(mode==='tout')return['compta_eleves','prima_eleves','mater_eleves','settings','config','professeurs','enseignants','fiches','horaires','punitions','presences','prima_config','mater_config','corbeille','compteur','options','logs','frais_inscription'];
+if(mode==='eleves')return['compta_eleves'];
+return['compta_eleves','prima_eleves','mater_eleves','settings','config'];
+}
+$('analyseBtn').onclick=async()=>{
+const src=$('sourceSelect').value;
+const dst=$('destId').value.trim();
+const mode=document.querySelector('.mode-radio:checked').value;
+if(!src){alert('Choisissez une école source');return}
+if(!dst){alert('Entrez un ID de destination');return}
+if(!/^[a-z0-9-]+$/.test(dst)){alert('ID destination : minuscules, chiffres et tirets uniquement');return}
+const preview=$('previewContent');
+preview.innerHTML='Analyse en cours...';
+showCard('previewCard');
+try{
+const srcDoc=await getDoc(doc(dbA,'ecoles',src));
+if(!srcDoc.exists()){preview.innerHTML='École source introuvable';return}
+const dstDoc=await getDoc(doc(dbB,'ecoles',dst));
+const existDst=dstDoc.exists();
+const cols=getCols(mode);
+let total=0;
+let detail='';
+for(const c of cols){
+try{
+const s=await getDocs(collection(dbA,'ecoles',src,c));
+detail+='<div style="display:flex;justify-content:space-between;padding:3px 0"><span>'+c+'</span><span style="color:#10b981;font-weight:700">'+s.size+'</span></div>';
+total+=s.size;
+}catch(e){detail+='<div style="opacity:.5">'+c+' : inaccessible</div>'}
+}
+const warn=existDst?'<div style="color:#ef4444;margin-bottom:8px">Attention : l\'école '+dst+' existe déjà dans SOURCE B. Les documents seront écrasés.</div>':'<div style="color:#10b981;margin-bottom:8px">Emplacement libre dans SOURCE B.</div>';
+preview.innerHTML=warn+'<div style="margin-bottom:8px">Source : '+(srcDoc.data().nom||src)+' ('+src+')<br>Destination : '+dst+'<br>Mode : '+mode+'</div>'+detail+'<div style="border-top:1px solid #334155;margin-top:8px;padding-top:8px;font-weight:700;color:#3b82f6">Total : '+total+' documents</div>';
+$('migrerBtn').disabled=total===0;
+}catch(e){preview.innerHTML='Erreur : '+e.message}
+};
+$('migrerBtn').onclick=async()=>{
+const src=$('sourceSelect').value;
+const dst=$('destId').value.trim();
+const mode=document.querySelector('.mode-radio:checked').value;
+if(!src||!dst)return;
+if(!confirm('Confirmer la copie ?\n\nSource : '+src+'\nDestination : '+dst+'\nMode : '+mode+'\n\nSOURCE A restera intacte.'))return;
+const code=prompt('Entrez le code de sécurité :');
+if(code!==NX_CODE){alert('Code incorrect');return}
+hideCard('resultCard');
+showCard('progressCard');
+$('logBox').innerHTML='';
+$('progressBar').style.width='0%';
+$('progressText').textContent='0%';
+$('migrerBtn').disabled=true;
+log('Démarrage de la migration...','info');
+log('Source : '+src);
+log('Destination : '+dst);
+log('');
+try{
+const srcDoc=await getDoc(doc(dbA,'ecoles',src));
+if(!srcDoc.exists()){log('École source introuvable','err');return}
+await setDoc(doc(dbB,'ecoles',dst),srcDoc.data());
+log('Document école copié','ok');
+$('progressBar').style.width='5%';
+$('progressText').textContent='5%';
+const cols=getCols(mode);
+let total=0;
+let errs=0;
+for(let i=0;i<cols.length;i++){
+const c=cols[i];
+const pct=5+Math.round(((i+1)/cols.length)*90);
+$('progressBar').style.width=pct+'%';
+$('progressText').textContent=pct+'%';
+log('');
+log('Copie de '+c+'...','info');
+try{
+const s=await getDocs(collection(dbA,'ecoles',src,c));
+if(s.empty){log('  Vide, ignorée','warn');continue}
+let count=0;
+for(const d of s.docs){
+try{
+await setDoc(doc(dbB,'ecoles',dst,c,d.id),d.data());
+count++;
+total++;
+}catch(e){errs++;log('  Erreur '+d.id+' : '+e.message,'err')}
+}
+log('  '+count+'/'+s.size+' documents copiés'+(errs>0?' ('+errs+' erreurs)':''),errs>0?'warn':'ok');
+}catch(e){log('  Inaccessible : '+e.message,'warn')}
+}
+$('progressBar').style.width='100%';
+$('progressText').textContent='100%';
+log('');
+log('=====================','info');
+log('MIGRATION TERMINÉE','ok');
+log('Documents copiés : '+total,'ok');
+if(errs>0)log('Erreurs : '+errs,'warn');
+log('SOURCE A : intacte','ok');
+const rc=$('resultCard');
+rc.className='result success';
+rc.innerHTML='<strong>Copie réussie !</strong><br>École '+dst+' créée dans SOURCE B.<br>Documents copiés : '+total+(errs>0?'<br>Erreurs : '+errs:'')+'<br><br>Créez un utilisateur Firebase Auth dans le projet SOURCE B pour vous connecter à cette école.';
+showCard('resultCard');
+}catch(e){
+log('ERREUR FATALE : '+e.message,'err');
+const rc=$('resultCard');
+rc.className='result error';
+rc.innerHTML='<strong>Erreur</strong><br>'+e.message;
+showCard('resultCard');
+}finally{
+$('migrerBtn').disabled=false;
+}
+};
+$('logoutBtn').onclick=async()=>{
+await signOut(authA);
+await signOut(authB);
+location.reload();
+};
+</script>
+</body>
+</html>
