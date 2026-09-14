@@ -29,7 +29,7 @@ html.light-mode-preload body{background:#f1f5f9!important;color:#0f172a!importan
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch}
 body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at top left,rgba(212,175,55,.08),transparent 50%),radial-gradient(ellipse at bottom right,rgba(59,130,246,.06),transparent 50%);pointer-events:none;z-index:0}
 .container{max-width:1440px;margin:0 auto;padding:20px;position:relative;z-index:1;min-height:100vh}
-.login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0a0e1a 0%,#1a2332 50%,#0a0e1a 100%);z-index:1000;padding:20px}
+.login-screen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:linear-gradient(135deg,#0a0e1a 0%,#1a2332 50%,#0a0e1a 100%);z-index:1000;padding:20px}
 .login-card{background:linear-gradient(160deg,#141c2e,#0f172a);border:1px solid rgba(212,175,55,.18);border-radius:28px;padding:48px 40px;max-width:440px;width:100%;box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 1px rgba(212,175,55,.05);text-align:center;position:relative;overflow:hidden;animation:cardIn .6s cubic-bezier(.34,1.56,.64,1)}
 .login-card::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:conic-gradient(from 0deg,transparent,rgba(212,175,55,.15),transparent 30%);animation:rotate 8s linear infinite;z-index:-1}
 .login-card::after{content:'';position:absolute;inset:1px;background:linear-gradient(160deg,#141c2e,#0f172a);border-radius:27px;z-index:-1}
@@ -102,6 +102,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .btn-primary:hover{box-shadow:0 8px 24px rgba(59,130,246,.4)}
 .btn-success{background:linear-gradient(135deg,#10b981,#059669);border-color:transparent;color:#fff}
 .btn-success:hover{box-shadow:0 8px 24px rgba(16,185,129,.4)}
+.btn-success:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
 .btn-danger{background:linear-gradient(135deg,#ef4444,#dc2626);border-color:transparent;color:#fff}
 .btn-danger:hover{box-shadow:0 8px 24px rgba(239,68,68,.4)}
 .btn-warning{background:linear-gradient(135deg,#f59e0b,#d97706);border-color:transparent;color:#fff}
@@ -346,19 +347,15 @@ body.light-mode .spinner{border-color:rgba(15,23,42,.15);border-top-color:#0f172
 <div class="card">
 <div class="card-head"><h3><i class="fas fa-coins"></i> ENCAISSEMENT</h3></div>
 <div class="card-body">
-<p style="font-size:12px;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px;">
-<i class="fas fa-info-circle" style="color:var(--gold);"></i>
-Les paiements sont enregistrés dans <strong style="color:var(--gold);">prefet_paiements</strong> — séparés de la Comptabilité.
-</p>
 <div class="row">
 <div class="fg" style="flex:2;"><label><i class="fas fa-search"></i></label><input type="text" id="searchPayEleve" placeholder="Rechercher un élève..."></div>
 </div>
 <div class="table-wrap">
 <table>
 <thead>
-<tr><th>N°</th><th>Nom complet</th><th>Classe</th><th>Option</th><th>Minerval</th><th>Actions</th></tr>
+<tr><th>N°</th><th>Nom complet</th><th>Classe</th><th>Option</th><th>Actions</th></tr>
 </thead>
-<tbody id="payTable"><tr><td colspan="6" class="empty"><i class="fas fa-spinner fa-spin"></i><br>Chargement...</td></tr></tbody>
+<tbody id="payTable"><tr><td colspan="5" class="empty"><i class="fas fa-spinner fa-spin"></i><br>Chargement...</td></tr></tbody>
 </table>
 </div>
 </div>
@@ -421,16 +418,26 @@ Les paiements sont enregistrés dans <strong style="color:var(--gold);">prefet_p
 <i class="fas fa-exclamation-triangle" style="color:var(--orange);"></i>
 Les modifications s'appliquent immédiatement à tous les élèves du secondaire.
 </p>
-<div class="form-g">
-<label>💰 Minerval mensuel (FC)</label>
-<input type="number" id="cfgMinerval" placeholder="45000" step="500" min="0">
+
+<div style="font-size:11px;font-weight:800;color:var(--gold);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">Types de base</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:22px;">
+<div class="form-g"><label><i class="fas fa-graduation-cap" style="color:#8b5cf6;margin-right:6px;"></i> Frais Exetat (FC)</label><input type="number" id="cfgExetat" step="500" min="0" placeholder="0"></div>
+<div class="form-g"><label><i class="fas fa-landmark" style="color:#3b82f6;margin-right:6px;"></i> Frais de l'État (FC)</label><input type="number" id="cfgDeletat" step="500" min="0" placeholder="0"></div>
+<div class="form-g"><label><i class="fas fa-wrench" style="color:#f59e0b;margin-right:6px;"></i> Frais Techniques (FC)</label><input type="number" id="cfgTechnique" step="500" min="0" placeholder="0"></div>
 </div>
-<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
-<div class="form-g"><label>Frais Exetat (FC)</label><input type="number" id="cfgExetat" step="500" min="0" placeholder="0"></div>
-<div class="form-g"><label>Frais de l'État (FC)</label><input type="number" id="cfgDeletat" step="500" min="0" placeholder="0"></div>
-<div class="form-g"><label>Frais Techniques (FC)</label><input type="number" id="cfgTechnique" step="500" min="0" placeholder="0"></div>
+
+<div style="font-size:11px;font-weight:800;color:var(--gold);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">Types personnalisés <span style="color:var(--muted);font-weight:600;">(max 7)</span></div>
+<div style="background:rgba(212,175,55,.05);border:1px dashed rgba(212,175,55,.3);border-radius:14px;padding:14px;margin-bottom:14px;">
+<div style="display:grid;grid-template-columns:2fr 1fr auto;gap:10px;align-items:end;">
+<div class="form-g" style="margin:0;"><label>Nom du type</label><input type="text" id="cfgAutreLabel" placeholder="Ex : Frais de bibliothèque" maxlength="40"></div>
+<div class="form-g" style="margin:0;"><label>Montant (FC)</label><input type="number" id="cfgAutreMontant" step="500" min="0" placeholder="0"></div>
+<button class="btn btn-success" id="btnAddTypeFrais" style="height:44px;padding:0 20px;"><i class="fas fa-plus"></i> AJOUTER</button>
 </div>
-<button class="btn btn-success" id="btnSaveConfig" style="width:100%;justify-content:center;padding:14px;margin-top:10px;font-size:13px;">
+</div>
+
+<div id="cfgTypesCustom"></div>
+
+<button class="btn btn-success" id="btnSaveConfig" style="width:100%;justify-content:center;padding:14px;margin-top:16px;font-size:13px;">
 <i class="fas fa-save"></i> ENREGISTRER LA CONFIGURATION
 </button>
 <div id="cfgLastChange" style="margin-top:14px;padding:12px;background:rgba(10,14,26,.5);border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px;">
@@ -443,23 +450,19 @@ Les modifications s'appliquent immédiatement à tous les élèves du secondaire
 <div class="card">
 <div class="card-head"><h3><i class="fas fa-file-pdf"></i> RAPPORT DE RECOUVREMENT</h3></div>
 <div class="card-body">
-<p style="font-size:12px;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;gap:8px;">
-<i class="fas fa-info-circle" style="color:var(--gold);"></i>
-Le PDF est basé <strong style="color:var(--gold);">uniquement</strong> sur les paiements enregistrés par le Préfet.
-</p>
 <div class="form-g">
 <label>Type de frais</label>
 <select id="recType">
 <option value="exetat">Frais Exetat</option>
 <option value="deletat">Frais de l'État</option>
 <option value="technique">Frais Techniques</option>
-<option value="autre">Autre (saisir manuellement)</option>
-<option value="tous">Tous les frais</option>
+<option value="autre">➕ Autre (saisir manuellement)</option>
+<option value="tous">📋 Tous les frais</option>
 </select>
 </div>
 <div class="form-g" id="recAutreGroup" style="display:none;">
-<label>Préciser le type de frais</label>
-<input type="text" id="recAutreLabel" placeholder="Ex : Frais de bibliothèque, tenue, examen..." maxlength="60">
+<label>✏️ Nom du type de frais</label>
+<input type="text" id="recAutreLabel" placeholder="Ex : Frais de bibliothèque..." maxlength="60">
 </div>
 <div class="form-g">
 <label>Statut de paiement</label>
@@ -515,12 +518,12 @@ Le PDF est basé <strong style="color:var(--gold);">uniquement</strong> sur les 
 <option value="exetat">Frais Exetat</option>
 <option value="deletat">Frais de l'État</option>
 <option value="technique">Frais Techniques</option>
-<option value="autre">Autre (saisir manuellement)</option>
+<option value="autre">➕ Autre (saisir manuellement)</option>
 </select>
 </div>
 <div class="form-g" id="payAutreGroup" style="display:none;">
-<label>Préciser le type de frais</label>
-<input type="text" id="payAutreLabel" placeholder="Ex : Frais de bibliothèque, tenue, examen..." maxlength="60">
+<label>✏️ Nom du type de frais</label>
+<input type="text" id="payAutreLabel" placeholder="Ex : Frais de bibliothèque..." maxlength="60">
 </div>
 <div class="form-g">
 <label>Montant (FC)</label>
@@ -592,31 +595,11 @@ document.getElementById('schoolName').textContent = SCHOOL_DISPLAY_NAME;
 const PREFET_EMAIL = "prefet.bwacha@gmail.com";
 const PREFET_PASSWORD = "022300";
 
-async function assurerComptePrefet() {
-try {
-try {
-await signInWithEmailAndPassword(auth, PREFET_EMAIL, PREFET_PASSWORD);
-return true;
-} catch (loginErr) {
-const needCreate = loginErr.code === "auth/user-not-found" || loginErr.code === "auth/invalid-credential" || loginErr.code === "auth/invalid-login-credentials";
-if (needCreate) {
-try {
-await createUserWithEmailAndPassword(auth, PREFET_EMAIL, PREFET_PASSWORD);
-try {
-await setDoc(doc(db, "ecoles", SCHOOL_ID, "settings", "prefet_auth"), { email: PREFET_EMAIL, createdAt: new Date().toISOString(), role: "prefet" }, { merge: true });
-} catch (e) {}
-return true;
-} catch (createErr) {
-if (createErr.code === "auth/email-already-in-use") return false;
-return false;
-}
-}
-return false;
-}
-} catch (err) {
-return false;
-}
-}
+const SESSION_KEY = 'prefet_session_active';
+const SESSION_TIMEOUT = 1000 * 60 * 60 * 24;
+
+const MAX_TYPES_CUSTOM = 7;
+const MAX_TYPES_TOTAL = 10;
 
 const MOIS_LISTE = ["Septembre","Octobre","Novembre","Decembre","Janvier","Fevrier","Mars","Avril","Mai","Juin"];
 const CLASSES = ["7ème EB","8ème EB","1ère Année","2ème Année","3ème Année","4ème Année"];
@@ -628,12 +611,12 @@ const OPTIONS = {
 "4ème Année": ["LATIN-PHILO","SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","COUPE ET COUTURE"]
 };
 
-const TYPES_FRAIS = ['exetat','deletat','technique'];
-
+let TYPES_FRAIS = ['exetat','deletat','technique'];
 let allStudents = [];
 let allProfs = [];
 let prefetPaiements = [];
 let currentStudent = null;
+let typesFraisCustom = {};
 let unsubscribePaiements = null;
 let unsubscribeEleves = null;
 let unsubscribeProfs = null;
@@ -684,6 +667,69 @@ btnNo.onclick = null;
 btnYes.onclick = () => { cleanup(); resolve(true); };
 btnNo.onclick = () => { cleanup(); resolve(false); };
 });
+}
+
+function marquerSessionActive() {
+try {
+localStorage.setItem(SESSION_KEY, JSON.stringify({ active: true, timestamp: Date.now() }));
+} catch (e) {}
+}
+
+function sessionEstActive() {
+try {
+const raw = localStorage.getItem(SESSION_KEY);
+if (!raw) return false;
+const data = JSON.parse(raw);
+if (!data.active) return false;
+if (Date.now() - (data.timestamp || 0) > SESSION_TIMEOUT) {
+localStorage.removeItem(SESSION_KEY);
+return false;
+}
+return true;
+} catch (e) {
+return false;
+}
+}
+
+function effacerSession() {
+try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+}
+
+function rafraichirSession() {
+if (sessionEstActive()) marquerSessionActive();
+}
+
+setInterval(rafraichirSession, 1000 * 60 * 30);
+['click', 'keydown', 'touchstart'].forEach(evt => {
+document.addEventListener(evt, () => {
+if (sessionEstActive()) marquerSessionActive();
+}, { passive: true });
+});
+
+async function assurerComptePrefet() {
+try {
+try {
+await signInWithEmailAndPassword(auth, PREFET_EMAIL, PREFET_PASSWORD);
+return true;
+} catch (loginErr) {
+const needCreate = loginErr.code === "auth/user-not-found" || loginErr.code === "auth/invalid-credential" || loginErr.code === "auth/invalid-login-credentials";
+if (needCreate) {
+try {
+await createUserWithEmailAndPassword(auth, PREFET_EMAIL, PREFET_PASSWORD);
+try {
+await setDoc(doc(db, "ecoles", SCHOOL_ID, "settings", "prefet_auth"), { email: PREFET_EMAIL, createdAt: new Date().toISOString(), role: "prefet" }, { merge: true });
+} catch (e) {}
+return true;
+} catch (createErr) {
+if (createErr.code === "auth/email-already-in-use") return false;
+return false;
+}
+}
+return false;
+}
+} catch (err) {
+return false;
+}
 }
 
 function mapEleve(d, docId) {
@@ -823,6 +869,8 @@ du = eleve.paiements?.deletat?.du || 0;
 du = eleve.paiements?.technique?.du || 0;
 } else if (eleve.paiements && eleve.paiements[typeFrais]) {
 du = eleve.paiements[typeFrais].du || 0;
+} else if (typesFraisCustom[typeFrais] !== undefined) {
+du = typesFraisCustom[typeFrais] || 0;
 }
 
 const paye = prefetPaiements
@@ -830,13 +878,6 @@ const paye = prefetPaiements
 .reduce((s, p) => s + (p.montant || 0), 0);
 
 return { du, paye, reste: Math.max(0, du - paye) };
-}
-
-function statutLabel(s) {
-if (s.du === 0) return { txt: 'EXONÉRÉ', cls: 'green' };
-if (s.reste <= 0) return { txt: 'PAYÉ', cls: 'green' };
-if (s.paye > 0) return { txt: 'PARTIEL', cls: 'orange' };
-return { txt: 'NON PAYÉ', cls: 'red' };
 }
 
 async function enregistrerPaiementPrefet(eleve, typeFrais, montant, mois, mode) {
@@ -860,6 +901,10 @@ await setDoc(doc(db, "ecoles", SCHOOL_ID, "prefet_paiements", paiementId), data)
 return { paiementId, reference };
 }
 
+function getTousTypes() {
+return [...TYPES_FRAIS, ...Object.keys(typesFraisCustom)];
+}
+
 function renderEleves() {
 const tbody = document.getElementById('elevesTable');
 const search = (document.getElementById('searchEleve').value || '').toLowerCase();
@@ -876,9 +921,11 @@ tbody.innerHTML = `<tr><td colspan="6" class="empty"><i class="fas fa-users"></i
 return;
 }
 
+const tousTypes = getTousTypes();
+
 tbody.innerHTML = list.map((e, i) => {
 let totalDu = 0, totalPaye = 0;
-TYPES_FRAIS.forEach(t => {
+tousTypes.forEach(t => {
 const s = calculerStatutPrefet(e, t, null);
 totalDu += s.du; totalPaye += s.paye;
 });
@@ -911,7 +958,7 @@ let list = allStudents.filter(e => !e.abandon);
 if (search) list = list.filter(e => getNomComplet(e).toLowerCase().includes(search));
 
 if (list.length === 0) {
-tbody.innerHTML = `<tr><td colspan="6" class="empty"><i class="fas fa-coins"></i><br>Aucun élève</td></tr>`;
+tbody.innerHTML = `<tr><td colspan="5" class="empty"><i class="fas fa-coins"></i><br>Aucun élève</td></tr>`;
 return;
 }
 
@@ -921,7 +968,6 @@ tbody.innerHTML = list.map((e, i) => `
 <td><strong style="color:#fff;">${getNomComplet(e).toUpperCase()}</strong></td>
 <td>${e.classe || '-'}</td>
 <td>${e.option || '-'}</td>
-<td>${e.exonere ? '<span class="badge green">EXONÉRÉ</span>' : formatNb(e.minerval) + ' FC'}</td>
 <td>
 <button class="btn btn-sm btn-success" onclick="ouvrirPaiement('${e.id}')">
 <i class="fas fa-coins"></i> Encaisser
@@ -945,13 +991,14 @@ if (list.length === 0) {
 c.innerHTML = `<div class="empty"><i class="fas fa-inbox"></i><br>Aucun paiement enregistré pour cet élève</div>`;
 return;
 }
+const labels = {exetat:'Frais Exetat', deletat:"Frais de l'État", technique:'Frais Techniques'};
 c.innerHTML = `<div style="margin-bottom:12px;font-size:13px;"><strong style="color:var(--gold);">${getNomComplet(eleve)}</strong> — ${eleve.classe}</div>
 <div class="table-wrap"><table>
 <thead><tr><th>Référence</th><th>Type</th><th>Montant</th><th>Mode</th><th>Date</th></tr></thead>
 <tbody>
 ${list.map(p => `<tr>
 <td><strong style="color:var(--gold);">${p.reference || '-'}</strong></td>
-<td>${(p.typeFrais || '').toUpperCase()}</td>
+<td>${labels[p.typeFrais] || p.typeFrais}</td>
 <td style="text-align:right;color:#34d399;font-weight:700;">${formatNb(p.montant)} FC</td>
 <td>${p.mode || '-'}</td>
 <td>${formatDateFr(p.datePaiement)}</td>
@@ -964,6 +1011,40 @@ document.getElementById('closeHistory').onclick = () => {
 document.getElementById('paymentsHistoryCard').style.display = 'none';
 };
 
+function enrichirSelectPayType() {
+const sel = document.getElementById('payType');
+const current = sel.value;
+const perso = Object.keys(typesFraisCustom);
+const anciens = Array.from(sel.querySelectorAll('option[data-perso="1"]'));
+anciens.forEach(o => o.remove());
+const autreOpt = sel.querySelector('option[value="autre"]');
+perso.forEach(t => {
+const opt = document.createElement('option');
+opt.value = t;
+opt.textContent = '★ ' + t;
+opt.dataset.perso = '1';
+sel.insertBefore(opt, autreOpt);
+});
+sel.value = current;
+}
+
+function enrichirSelectRecType() {
+const sel = document.getElementById('recType');
+const current = sel.value;
+const perso = Object.keys(typesFraisCustom);
+const anciens = Array.from(sel.querySelectorAll('option[data-perso="1"]'));
+anciens.forEach(o => o.remove());
+const autreOpt = sel.querySelector('option[value="autre"]');
+perso.forEach(t => {
+const opt = document.createElement('option');
+opt.value = t;
+opt.textContent = '★ ' + t;
+opt.dataset.perso = '1';
+sel.insertBefore(opt, autreOpt);
+});
+sel.value = current;
+}
+
 window.ouvrirPaiement = function(eleveId) {
 const eleve = allStudents.find(e => e.id === eleveId);
 if (!eleve) { toast("Élève non trouvé", "error"); return; }
@@ -972,9 +1053,9 @@ currentStudent = eleve;
 document.getElementById('payModalInfo').innerHTML = `
 <div class="modal-info-line"><span class="lbl">Élève</span><span class="val">${getNomComplet(eleve)}</span></div>
 <div class="modal-info-line"><span class="lbl">Classe</span><span class="val">${eleve.classe}${eleve.option ? ' — ' + eleve.option : ''}</span></div>
-<div class="modal-info-line"><span class="lbl">Minerval</span><span class="val">${eleve.exonere ? 'EXONÉRÉ' : formatNb(eleve.minerval) + ' FC'}</span></div>
 `;
 
+enrichirSelectPayType();
 document.getElementById('payType').value = 'exetat';
 document.getElementById('payAutreGroup').style.display = 'none';
 document.getElementById('payAutreLabel').value = '';
@@ -985,8 +1066,7 @@ document.getElementById('modalPaiement').classList.add('show');
 };
 
 document.getElementById('payType').addEventListener('change', function() {
-document.getElementById('payAutreGroup').style.display =
-this.value === 'autre' ? 'block' : 'none';
+document.getElementById('payAutreGroup').style.display = this.value === 'autre' ? 'block' : 'none';
 });
 
 document.getElementById('btnCancelPay').onclick = () => {
@@ -1051,8 +1131,7 @@ document.getElementById('statsOptions').innerHTML = Object.keys(map).sort().map(
 }
 
 function renderPresences() {
-const dateKey = document.getElementById('presenceDate').value
-|| new Date().toISOString().split('T')[0];
+const dateKey = document.getElementById('presenceDate').value || new Date().toISOString().split('T')[0];
 const search = (document.getElementById('searchProf').value || '').toLowerCase();
 const box = document.getElementById('presencesList');
 
@@ -1090,9 +1169,7 @@ return `<div class="presence-card">
 </div>
 <div class="details">
 <span><i class="fas fa-clock"></i> Arrivée : <strong>${heureArrivee}</strong></span>
-<span><i class="fas fa-file-alt"></i> Document :
-<strong class="${docPedago ? 'doc-yes' : 'doc-no'}">${docPedago ? 'OUI' : 'NON'}</strong>
-</span>
+<span><i class="fas fa-file-alt"></i> Document : <strong class="${docPedago ? 'doc-yes' : 'doc-no'}">${docPedago ? 'OUI' : 'NON'}</strong></span>
 <span><i class="fas fa-pen"></i> Motif : <strong>${motif}</strong></span>
 </div>
 </div>`;
@@ -1112,10 +1189,19 @@ const ref = doc(db, "ecoles", SCHOOL_ID, "settings", "data");
 const snap = await getDoc(ref);
 if (snap.exists()) {
 const d = snap.data();
-document.getElementById('cfgMinerval').value = d.minerval || 45000;
 document.getElementById('cfgExetat').value = d.frais?.exetat || 0;
 document.getElementById('cfgDeletat').value = d.frais?.deletat || 0;
 document.getElementById('cfgTechnique').value = d.frais?.technique || 0;
+
+typesFraisCustom = {};
+if (d.frais?.custom && typeof d.frais.custom === 'object') {
+Object.entries(d.frais.custom).forEach(([k, v]) => {
+typesFraisCustom[k] = parseInt(v) || 0;
+});
+}
+afficherTypesCustom();
+enrichirSelectPayType();
+enrichirSelectRecType();
 
 if (d.configFraisUpdatedAt) {
 const dt = new Date(d.configFraisUpdatedAt);
@@ -1124,35 +1210,170 @@ document.getElementById('cfgLastChange').innerHTML =
 `<i class="fas fa-clock" style="color:var(--gold);"></i> ${dt.toLocaleDateString('fr-FR')} à ${dt.toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'})}`;
 }
 } else {
-document.getElementById('cfgMinerval').value = 45000;
 document.getElementById('cfgExetat').value = 0;
 document.getElementById('cfgDeletat').value = 0;
 document.getElementById('cfgTechnique').value = 0;
+typesFraisCustom = {};
+afficherTypesCustom();
 }
 } catch (e) {
 toast("Erreur chargement config", "error");
 }
 }
 
-document.getElementById('btnSaveConfig').onclick = async () => {
-const minerval = parseInt(document.getElementById('cfgMinerval').value);
-const exetat = parseInt(document.getElementById('cfgExetat').value);
-const deletat = parseInt(document.getElementById('cfgDeletat').value);
-const technique = parseInt(document.getElementById('cfgTechnique').value);
+function afficherTypesCustom() {
+const box = document.getElementById('cfgTypesCustom');
+const entries = Object.entries(typesFraisCustom);
+const count = entries.length;
+const totalActuel = 3 + count;
+const limiteAtteinte = totalActuel >= MAX_TYPES_TOTAL;
 
-if ([minerval, exetat, deletat, technique].some(v => isNaN(v) || v < 0)) {
+const btnAdd = document.getElementById('btnAddTypeFrais');
+const inputLabel = document.getElementById('cfgAutreLabel');
+const inputMontant = document.getElementById('cfgAutreMontant');
+
+if (btnAdd) {
+if (limiteAtteinte) {
+btnAdd.disabled = true;
+btnAdd.style.opacity = '0.5';
+btnAdd.style.cursor = 'not-allowed';
+btnAdd.innerHTML = `<i class="fas fa-lock"></i> LIMITE`;
+} else {
+btnAdd.disabled = false;
+btnAdd.style.opacity = '1';
+btnAdd.style.cursor = 'pointer';
+btnAdd.innerHTML = `<i class="fas fa-plus"></i> AJOUTER`;
+}
+}
+
+if (inputLabel) inputLabel.disabled = limiteAtteinte;
+if (inputMontant) inputMontant.disabled = limiteAtteinte;
+
+const compteurHTML = `
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:8px 14px;background:${limiteAtteinte ? 'rgba(245,158,11,.1)' : 'rgba(212,175,55,.05)'};border:1px solid ${limiteAtteinte ? 'rgba(245,158,11,.3)' : 'rgba(212,175,55,.15)'};border-radius:10px;">
+<div style="font-size:11px;font-weight:800;color:${limiteAtteinte ? 'var(--orange)' : 'var(--gold)'};text-transform:uppercase;letter-spacing:.6px;display:flex;align-items:center;gap:8px;">
+<i class="fas ${limiteAtteinte ? 'fa-exclamation-triangle' : 'fa-tag'}"></i>
+${totalActuel} / ${MAX_TYPES_TOTAL} types au total
+</div>
+<div style="display:flex;align-items:center;gap:10px;">
+<span style="font-size:10px;color:var(--muted);font-weight:600;">3 base + ${count} perso</span>
+${limiteAtteinte
+? `<span style="font-size:10px;color:var(--orange);font-weight:700;">LIMITE</span>`
+: `<span style="font-size:10px;color:var(--muted);font-weight:600;">${MAX_TYPES_TOTAL - totalActuel} place${(MAX_TYPES_TOTAL - totalActuel) > 1 ? 's' : ''}</span>`}
+</div>
+</div>
+`;
+
+if (count === 0) {
+box.innerHTML = compteurHTML + `
+<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;border:1px dashed rgba(212,175,55,.15);border-radius:12px;background:rgba(10,14,26,.3);">
+<i class="fas fa-inbox" style="font-size:24px;display:block;margin-bottom:6px;color:rgba(212,175,55,.2);"></i>
+Aucun type personnalisé
+</div>`;
+return;
+}
+
+box.innerHTML = compteurHTML + `
+<div style="display:flex;flex-direction:column;gap:8px;">
+${entries.map(([nom, montant]) => `
+<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(10,14,26,.5);border:1px solid var(--border);border-radius:12px;padding:12px 14px;gap:10px;">
+<div style="flex:1;display:flex;align-items:center;gap:10px;min-width:0;">
+<i class="fas fa-tag" style="color:var(--gold);font-size:13px;flex-shrink:0;"></i>
+<span style="font-weight:700;color:#fff;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${nom}</span>
+</div>
+<div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+<input type="number" value="${montant}" step="500" min="0" data-custom="${nom}" style="width:110px;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:rgba(10,14,26,.6);color:#fff;font-size:12px;font-weight:700;outline:none;text-align:right;font-family:'Inter',sans-serif;">
+<span style="font-size:11px;color:var(--muted);font-weight:600;">FC</span>
+<button onclick="supprimerTypeCustom('${nom.replace(/'/g, "\\'")}')" style="width:32px;height:32px;border-radius:8px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#f87171;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;">
+<i class="fas fa-trash"></i>
+</button>
+</div>
+</div>
+`).join('')}
+</div>
+`;
+
+box.querySelectorAll('input[data-custom]').forEach(inp => {
+inp.addEventListener('input', () => {
+const nom = inp.dataset.custom;
+typesFraisCustom[nom] = parseInt(inp.value) || 0;
+});
+});
+}
+
+window.supprimerTypeCustom = function(nom) {
+delete typesFraisCustom[nom];
+afficherTypesCustom();
+enrichirSelectPayType();
+enrichirSelectRecType();
+toast("Type supprimé — pensez à enregistrer", "warning");
+};
+
+document.getElementById('btnAddTypeFrais').onclick = () => {
+const totalActuel = 3 + Object.keys(typesFraisCustom).length;
+if (totalActuel >= MAX_TYPES_TOTAL) {
+toast(`Limite atteinte : ${MAX_TYPES_TOTAL} types maximum`, "warning");
+return;
+}
+
+const nom = (document.getElementById('cfgAutreLabel').value || '').trim();
+const montant = parseInt(document.getElementById('cfgAutreMontant').value) || 0;
+
+if (!nom) { toast("Veuillez saisir un nom", "error"); return; }
+if (montant < 0) { toast("Montant invalide", "error"); return; }
+
+if (['exetat','deletat','technique'].includes(nom.toLowerCase())) {
+toast("Ce nom est réservé aux types de base", "warning");
+return;
+}
+
+if (typesFraisCustom[nom] !== undefined) {
+toast("Ce type existe déjà", "warning");
+return;
+}
+
+typesFraisCustom[nom] = montant;
+document.getElementById('cfgAutreLabel').value = '';
+document.getElementById('cfgAutreMontant').value = '';
+afficherTypesCustom();
+enrichirSelectPayType();
+enrichirSelectRecType();
+toast("✅ Type ajouté — pensez à enregistrer", "success");
+document.getElementById('cfgAutreLabel').focus();
+};
+
+document.getElementById('btnSaveConfig').onclick = async () => {
+const exetat = parseInt(document.getElementById('cfgExetat').value) || 0;
+const deletat = parseInt(document.getElementById('cfgDeletat').value) || 0;
+const technique = parseInt(document.getElementById('cfgTechnique').value) || 0;
+
+if ([exetat, deletat, technique].some(v => isNaN(v) || v < 0)) {
 toast("Veuillez saisir des montants valides", "error");
 return;
+}
+
+const totalTypes = 3 + Object.keys(typesFraisCustom).length;
+if (totalTypes > MAX_TYPES_TOTAL) {
+toast(`Limite dépassée : ${MAX_TYPES_TOTAL} types maximum`, "error");
+return;
+}
+
+const customEntries = Object.entries(typesFraisCustom);
+let apercuCustom = '';
+if (customEntries.length > 0) {
+apercuCustom = `<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(212,175,55,.15);">
+<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">Types personnalisés (${customEntries.length})</div>
+${customEntries.map(([nom, mt]) => `<div style="margin:4px 0;">• ${nom} : <strong style="color:var(--gold);">${formatNb(mt)} FC</strong></div>`).join('')}
+</div>`;
 }
 
 const ok = await showConfirm(
 "MODIFIER LA CONFIGURATION",
 `<div style="text-align:left;padding:8px 0;">
-<div style="margin:6px 0;">• Minerval : <strong style="color:var(--gold);">${formatNb(minerval)} FC</strong></div>
 <div style="margin:6px 0;">• Frais Exetat : <strong style="color:var(--gold);">${formatNb(exetat)} FC</strong></div>
 <div style="margin:6px 0;">• Frais de l'État : <strong style="color:var(--gold);">${formatNb(deletat)} FC</strong></div>
 <div style="margin:6px 0;">• Frais Techniques : <strong style="color:var(--gold);">${formatNb(technique)} FC</strong></div>
-<div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(212,175,55,.15);font-size:12px;color:var(--muted);">Ces changements s'appliquent immédiatement à tous les élèves du secondaire.</div>
+${apercuCustom}
 </div>`,
 "ENREGISTRER"
 );
@@ -1164,8 +1385,12 @@ const oldSnap = await getDoc(ref);
 const oldData = oldSnap.exists() ? oldSnap.data() : {};
 
 await setDoc(ref, {
-minerval,
-frais: { exetat, deletat, technique },
+frais: {
+exetat,
+deletat,
+technique,
+custom: typesFraisCustom
+},
 configFraisUpdatedAt: new Date().toISOString(),
 configFraisUpdatedBy: "Préfet",
 configFraisHistory: [
@@ -1173,11 +1398,8 @@ configFraisHistory: [
 {
 date: new Date().toISOString(),
 par: "Préfet",
-ancien: {
-minerval: oldData.minerval || 45000,
-frais: oldData.frais || { exetat: 0, deletat: 0, technique: 0 }
-},
-nouveau: { minerval, frais: { exetat, deletat, technique } }
+ancien: { frais: oldData.frais || { exetat: 0, deletat: 0, technique: 0, custom: {} } },
+nouveau: { frais: { exetat, deletat, technique, custom: typesFraisCustom } }
 }
 ]
 }, { merge: true });
@@ -1231,10 +1453,11 @@ return;
 typeFrais = label;
 }
 
+const tousTypes = getTousTypes();
 let list = getElevesFiltresRec();
 
 if (typeFrais === 'tous') {
-list = list.filter(e => TYPES_FRAIS.some(t => matchStatutRec(calculerStatutPrefet(e, t, null), statut)));
+list = list.filter(e => tousTypes.some(t => matchStatutRec(calculerStatutPrefet(e, t, null), statut)));
 } else {
 list = list.filter(e => matchStatutRec(calculerStatutPrefet(e, typeFrais, null), statut));
 }
@@ -1242,7 +1465,7 @@ list = list.filter(e => matchStatutRec(calculerStatutPrefet(e, typeFrais, null),
 let totalPaye = 0, totalReste = 0;
 list.forEach(e => {
 if (typeFrais === 'tous') {
-TYPES_FRAIS.forEach(t => {
+tousTypes.forEach(t => {
 const s = calculerStatutPrefet(e, t, null);
 totalPaye += s.paye; totalReste += s.reste;
 });
@@ -1258,8 +1481,7 @@ document.getElementById('recPrevReste').textContent = formatNb(totalReste) + ' F
 }
 
 document.getElementById('recType').addEventListener('change', function() {
-document.getElementById('recAutreGroup').style.display =
-this.value === 'autre' ? 'block' : 'none';
+document.getElementById('recAutreGroup').style.display = this.value === 'autre' ? 'block' : 'none';
 updateRecouvrementPreview();
 });
 
@@ -1280,6 +1502,7 @@ if (!label) { toast("Précisez le type de frais", "warning"); return; }
 typeFrais = label;
 }
 
+const tousTypes = getTousTypes();
 let list = getElevesFiltresRec();
 if (typeFrais !== 'tous') {
 list = list.filter(e => matchStatutRec(calculerStatutPrefet(e, typeFrais, null), statut));
@@ -1346,7 +1569,7 @@ const head = [["N°", "ÉLÈVE", "CLASSE", "OPTION", "DÛ", "PAYÉ (PRÉFET)", "
 const body = list.map((e, i) => {
 let du = 0, paye = 0;
 if (typeFrais === 'tous') {
-TYPES_FRAIS.forEach(t => {
+tousTypes.forEach(t => {
 const s = calculerStatutPrefet(e, t, null);
 du += s.du; paye += s.paye;
 });
@@ -1402,7 +1625,7 @@ doc.text(new Date().toLocaleDateString('fr-FR'), pw - 15, doc.internal.pageSize.
 let totalDu = 0, totalPaye = 0, totalReste = 0;
 list.forEach(e => {
 if (typeFrais === 'tous') {
-TYPES_FRAIS.forEach(t => {
+tousTypes.forEach(t => {
 const s = calculerStatutPrefet(e, t, null);
 totalDu += s.du; totalPaye += s.paye; totalReste += s.reste;
 });
@@ -1424,7 +1647,7 @@ doc.text("Total dû : " + formatNb(totalDu) + " FC", 15, fy + 11);
 doc.text("Total payé (Préfet) : " + formatNb(totalPaye) + " FC", 15, fy + 16);
 doc.text("Total reste : " + formatNb(totalReste) + " FC", 15, fy + 21);
 
-doc.save("Recouvrement_Prefet_" + typeFrais + "_" + new Date().toISOString().split('T')[0] + ".pdf");
+doc.save("Recouvrement_Prefet_" + typeFrais.replace(/\s/g,'_') + "_" + new Date().toISOString().split('T')[0] + ".pdf");
 toast("✅ PDF généré");
 };
 
@@ -1513,6 +1736,7 @@ if (pwd !== PREFET_PASSWORD) {
 throw new Error("Mot de passe incorrect");
 }
 
+marquerSessionActive();
 document.getElementById('loginScreen').style.display = 'none';
 document.getElementById('appContainer').style.display = 'block';
 
@@ -1538,9 +1762,8 @@ const ok = await showConfirm(
 "SE DÉCONNECTER"
 );
 if (!ok) return;
-try {
-await signOut(auth);
-} catch (e) {}
+try { await signOut(auth); } catch (e) {}
+effacerSession();
 if (unsubscribePaiements) unsubscribePaiements();
 if (unsubscribeEleves) unsubscribeEleves();
 if (unsubscribeProfs) unsubscribeProfs();
@@ -1573,6 +1796,34 @@ ecouterPaiements();
 ecouterEleves();
 ecouterProfs();
 }
+
+async function autoLogin() {
+initTheme();
+
+const sessionOk = sessionEstActive();
+
+if (sessionOk) {
+const accountOk = await assurerComptePrefet();
+
+if (accountOk) {
+document.getElementById('loginScreen').style.display = 'none';
+document.getElementById('appContainer').style.display = 'block';
+marquerSessionActive();
+await init();
+return;
+}
+effacerSession();
+}
+
+try { await signOut(auth); } catch (e) {}
+
+document.getElementById('loginScreen').style.display = 'flex';
+document.getElementById('appContainer').style.display = 'none';
+document.getElementById('pwdInput').value = '';
+document.getElementById('pwdInput').focus();
+}
+
+autoLogin();
 </script>
 </body>
 </html>
