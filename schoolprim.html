@@ -797,6 +797,13 @@ body.maternelle-theme .inscription-limit-info .limit-value{color:#2ecc71}
 </div>
 </div>
 <div class="modal-overlay" id="confirmModal"><div class="modal-card"><h3>⚠️ CONFIRMATION</h3><div id="confirmMessage" style="text-align:center;padding:14px;font-size:16px;color:rgba(255,255,255,0.7);"></div><div class="modal-buttons"><button class="btn" id="confirmYes">OUI</button><button class="btn btn-outline" id="confirmNo">NON</button></div></div></div>
+<div class="modal-overlay" id="rattacherFamilleModal">
+<div class="modal-card"><h3>🔗 RATTACHER À UNE FAMILLE</h3>
+<div id="rattacherInfo" style="margin-bottom:16px;"><div class="modal-info-line"><span>ÉLÈVE ACTUEL</span><span id="rattacherEleveNom" style="color:#ffd700;font-weight:bold;">-</span></div><div class="modal-info-line"><span>CODE ACTUEL</span><span id="rattacherCodeActuel" class="parent-code-card">-</span></div></div>
+<div class="form-group"><label>🔍 RECHERCHER LE FRÈRE/SŒUR EXISTANT</label><input type="text" id="searchFamilyMemberRattacher" placeholder="Nom d'un élève déjà inscrit" style="width:100%;background:#2d3748;border:1px solid #334155;border-radius:12px;padding:10px 14px;color:#fff;"><div id="familyMemberResultsRattacher" style="margin-top:8px;max-height:150px;overflow-y:auto;"></div></div>
+<div class="form-group"><label>📋 UTILISER LE CODE D'UN FRÈRE/SŒUR</label><select id="rattacherFamilyCodeSelect" style="width:100%;background:#2d3748;border:1px solid #334155;border-radius:12px;padding:10px 14px;color:#fff;"><option value="">-- Sélectionnez un frère/sœur --</option></select></div>
+<div id="rattacherPreview" style="background:rgba(16,185,129,0.1);border-radius:12px;padding:12px;margin:12px 0;border-left:3px solid #10b981;display:none;"><div style="font-weight:bold;color:#10b981;">📋 APERÇU DU RATTACHEMENT</div><div id="rattacherPreviewContent" style="font-size:13px;color:#e2e8f0;margin-top:8px;"></div></div>
+<div class="modal-buttons"><button class="btn btn-success" id="confirmRattacherFamille" disabled>RATTACHER À LA FAMILLE</button><button class="btn btn-outline" id="cancelRattacherFamille">ANNULER</button></div></div></div>
 <div class="toast-container" id="toastContainer"></div>
 <script>
 document.addEventListener('contextmenu',function(e){e.preventDefault();return false;});
@@ -819,7 +826,7 @@ function getNomEcole(displayName) {
     }
 }
 
-const firebaseConfig={apiKey:"AIzaSyDX430AIfzzgfq3o8tXHwQfIptgWOZ-K8c",authDomain:"gesco-67c43.firebaseapp.com",projectId:"gesco-67c43",storageBucket:"gesco-67c43.firebasestorage.app",messagingAppId:"1:333004443566:web:de41f60000e418dce9023f"};
+const firebaseConfig={apiKey:"AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",authDomain:"gesco-2.firebaseapp.com",projectId:"gesco-2",storageBucket:"gesco-2.firebasestorage.app",messagingSenderId:"36319988765",appId:"1:36319988765:web:e8cd823804596495248af4"};
 const app=initializeApp(firebaseConfig);
 const db=getFirestore(app);
 const auth=getAuth(app);
@@ -946,7 +953,7 @@ return[];
 async function getElevesAvecInfos(space=null){const s=space||espaceActif;const tous=await getAllEleves(s);const valides=tous.filter(e=>e.nom&&e.nom.trim()!=='');const resultats=[];for(let e of valides){if(e.abandon)continue;let totalPeriodes=0;let totalPaye=0;let imp=0;const paiements=e.paiements||{};const blancs=e.moisBlancs||[];const dateIns=e.dateInscription||new Date().toISOString();const moisIns=getMoisFromDate(dateIns);const idxIns=moisListe.indexOf(moisIns);const idxAct=moisListe.indexOf(moisCourant);const fin=Math.min(moisListe.length-1,idxAct);const debut=Math.max(0,idxIns===-1?0:idxIns);for(let i=debut;i<=fin;i++){const mois=moisListe[i];if(!mois)continue;const mt=paiements[mois]?.montant||0;const mv=e.exonere?0:(e.minerval||25000);totalPaye+=mt;totalPeriodes++;if(mt<mv&&!blancs.includes(mois))imp++;}const estEnOrdre=e.exonere||imp===0;resultats.push({...e,moisImpayes:imp,totalPaye,totalPeriodes,estEnOrdre,anneeScolaire:anneeScolaireCourante,estMaternelle:s==='maternelle'});}return resultats;}
 async function updateStats(space=null){const s=space||espaceActif;const tous=await getAllEleves(s);let total=0,filles=0,garcons=0,exoneres=0,abandons=0;for(let e of tous){if(e.abandon){abandons++;continue;}total++;if(e.sexe==='F')filles++;else if(e.sexe==='M')garcons++;if(e.exonere)exoneres++;}const label=s==='primaire'?'PRIMAIRE':'MATERNELLE';document.getElementById('totalHeader').textContent='('+total+' '+label+')';document.getElementById('hdrTotal').textContent=total;document.getElementById('hdrFilles').textContent=filles;document.getElementById('hdrGarcons').textContent=garcons;document.getElementById('hdrExoneres').textContent=exoneres;document.getElementById('hdrAbandons').textContent=abandons;document.getElementById('abandonCountTab').textContent=abandons;document.getElementById('abandonCountHeader').textContent='('+abandons+')';}
 async function getElevesFiltres(space=null,incAbandons=false){const s=space||espaceActif;let res=await getElevesAvecInfos(s);res=res.filter(e=>e.nom&&e.nom.trim()!=='');if(!incAbandons)res=res.filter(e=>!e.abandon);const nom=document.getElementById("searchNom")?.value.trim()||"";const cls=document.getElementById("filterClasse")?.value||"";if(nom)res=res.filter(e=>e.nom.toLowerCase().includes(nom.toLowerCase())||(e.postnom&&e.postnom.toLowerCase().includes(nom.toLowerCase())));if(cls){const classesEspace=s==='primaire'?classesPrimaire:classesMaternelle;if(classesEspace.includes(cls)){res=res.filter(e=>e.classe===cls);}else{res=[];}}if(currentFilter==="normal")return res.filter(e=>!e.exonere&&e.moisImpayes<3);if(currentFilter==="exonere")return res.filter(e=>e.exonere===true);return res;}
-async function afficherEleves(){const eleves=await getElevesFiltres();const cont=document.getElementById("elevesContainer");if(!eleves.length){cont.innerHTML='<div class="empty-state">📭 Aucun élève</div>';return;}let html='<div class="eleve-list">';for(let e of eleves){const estOrdre=(e.exonere||e.estEnOrdre);let badge='',cls='';const sexeBadge=e.sexe==='F'?'<span class="badge badge-fille">Fille</span>':'<span class="badge badge-garcon">Garçon</span>';if(e.exonere){badge='<span class="badge badge-exonere">EXONÉRÉ</span>';}else if(estOrdre){badge='<span class="badge badge-en-ordre">EN ORDRE</span>';cls='en-ordre';}else if(e.moisImpayes>0){badge='<span class="badge badge-listenoire" style="background:rgba(230,126,34,0.10);color:#f1c40f;border-color:rgba(230,126,34,0.10);">IMPAYÉ</span>';}const codeDisplay=e.parentCode?'<span class="badge badge-code">'+e.parentCode+'</span>':'';const espaceBadge=e.estMaternelle?'<span class="badge badge-espace-mater">MATERNELLE</span>':'<span class="badge badge-espace-primaire">PRIMAIRE</span>';const nom=(e.nom+' '+(e.postnom||'')+' '+(e.prenom||'')).toUpperCase();const hasLien=e.lienFamille?'🔗':'';html+='<div class="eleve-card '+cls+'" data-id="'+e.id+'"><div class="eleve-top"><div><span class="eleve-nom">'+nom+'</span> <span class="eleve-info">- '+e.classe+' '+espaceBadge+' '+hasLien+'</span></div><div>'+sexeBadge+badge+codeDisplay+'</div></div><div class="eleve-actions"><div class="dropdown" id="dropdown-'+e.id+'"><button class="dropdown-toggle" onclick="toggleDropdown(\''+e.id+'\')">▼ ACTIONS <span class="arrow">▾</span></button><div class="dropdown-menu"><button class="dropdown-item" onclick="voirPaiements(\''+e.id+'\');closeDropdown(\''+e.id+'\')"><span class="icon">💰</span> Paiements</button><button class="dropdown-item" onclick="ouvrirEditEleve(\''+e.id+'\');closeDropdown(\''+e.id+'\')"><span class="icon">✏️</span> Modifier</button><button class="dropdown-item" onclick="modifierNomEleve(\''+e.id+'\',\''+e.nom+'\',\''+(e.postnom||'')+'\',\''+(e.prenom||'')+'\');closeDropdown(\''+e.id+'\')"><span class="icon">✏️</span> Changer nom</button><button class="dropdown-item success" onclick="genererPDFIdentite(\''+e.id+'\');closeDropdown(\''+e.id+'\')"><span class="icon">📋</span> PDF Identité</button><button class="dropdown-item" onclick="changerSectionPrompt(\''+e.id+'\',\''+e.nom+'\');closeDropdown(\''+e.id+'\')"><span class="icon">🔄</span> Changer section</button><div class="dropdown-divider"></div><button class="dropdown-item danger" onclick="marquerAbandonPrompt(\''+e.id+'\',\''+e.nom+'\');closeDropdown(\''+e.id+'\')"><span class="icon">❌</span> Abandon</button><button class="dropdown-item danger" onclick="supprimerEleve(\''+e.id+'\',\''+e.nom+'\');closeDropdown(\''+e.id+'\')"><span class="icon">🗑️</span> Supprimer</button></div></div></div></div>';}html+='</div>';cont.innerHTML=html;await updateStats();}
+async function afficherEleves(){const eleves=await getElevesFiltres();const cont=document.getElementById("elevesContainer");if(!eleves.length){cont.innerHTML='<div class="empty-state">📭 Aucun élève</div>';return;}let html='<div class="eleve-list">';for(let e of eleves){const estOrdre=(e.exonere||e.estEnOrdre);let badge='',cls='';const sexeBadge=e.sexe==='F'?'<span class="badge badge-fille">Fille</span>':'<span class="badge badge-garcon">Garçon</span>';if(e.exonere){badge='<span class="badge badge-exonere">EXONÉRÉ</span>';}else if(estOrdre){badge='<span class="badge badge-en-ordre">EN ORDRE</span>';cls='en-ordre';}else if(e.moisImpayes>0){badge='<span class="badge badge-listenoire" style="background:rgba(230,126,34,0.10);color:#f1c40f;border-color:rgba(230,126,34,0.10);">IMPAYÉ</span>';}const codeDisplay=e.parentCode?'<span class="badge badge-code">'+e.parentCode+'</span>':'';const espaceBadge=e.estMaternelle?'<span class="badge badge-espace-mater">MATERNELLE</span>':'<span class="badge badge-espace-primaire">PRIMAIRE</span>';const nom=(e.nom+' '+(e.postnom||'')+' '+(e.prenom||'')).toUpperCase();const hasLien=e.lienFamille?'🔗':'';html+='<div class="eleve-card '+cls+'" data-id="'+e.id+'"><div class="eleve-top"><div><span class="eleve-nom">'+nom+'</span> <span class="eleve-info">- '+e.classe+' '+espaceBadge+' '+hasLien+'</span></div><div>'+sexeBadge+badge+codeDisplay+'</div></div><div class="eleve-actions"><div class="dropdown" id="dropdown-'+e.id+'"><button class="dropdown-toggle" onclick="toggleDropdown(\''+e.id+'\')">▼ ACTIONS <span class="arrow">▾</span></button><div class="dropdown-menu"><button class="dropdown-item" onclick="voirPaiements(\''+e.id+'\');closeDropdown(\''+e.id+'\')"><span class="icon">💰</span> Paiements</button><button class="dropdown-item" onclick="ouvrirEditEleve(\''+e.id+'\');closeDropdown(\''+e.id+'\')"><span class="icon">✏️</span> Modifier</button><button class="dropdown-item" onclick="ouvrirRattacherFamille(\''+e.id+'\',\''+e.nom+' '+(e.prenom||'')+'\',\''+(e.parentCode||'')+'\');closeDropdown(\''+e.id+'\')"><span class="icon">🔗</span> Rattacher</button><button class="dropdown-item success" onclick="genererPDFIdentite(\''+e.id+'\');closeDropdown(\''+e.id+'\')"><span class="icon">📋</span> PDF Identité</button><button class="dropdown-item" onclick="changerSectionPrompt(\''+e.id+'\',\''+e.nom+'\');closeDropdown(\''+e.id+'\')"><span class="icon">🔄</span> Changer section</button><div class="dropdown-divider"></div><button class="dropdown-item danger" onclick="marquerAbandonPrompt(\''+e.id+'\',\''+e.nom+'\');closeDropdown(\''+e.id+'\')"><span class="icon">❌</span> Abandon</button><button class="dropdown-item danger" onclick="supprimerEleve(\''+e.id+'\',\''+e.nom+'\');closeDropdown(\''+e.id+'\')"><span class="icon">🗑️</span> Supprimer</button></div></div></div></div>';}html+='</div>';cont.innerHTML=html;await updateStats();}
 window.toggleDropdown=function(id){const dropdown=document.getElementById('dropdown-'+id);if(dropdown){const isOpen=dropdown.classList.contains('open');document.querySelectorAll('.dropdown.open').forEach(d=>d.classList.remove('open'));if(!isOpen){dropdown.classList.add('open');}}};
 window.closeDropdown=function(id){const dropdown=document.getElementById('dropdown-'+id);if(dropdown){dropdown.classList.remove('open');}};
 document.addEventListener('click',function(e){if(!e.target.closest('.dropdown')){document.querySelectorAll('.dropdown.open').forEach(d=>d.classList.remove('open'));}});
@@ -1258,6 +1265,87 @@ document.getElementById('configSubTabs').addEventListener('click',function(e){co
 document.querySelectorAll('.filter-btn').forEach(btn=>{btn.onclick=function(){document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active');currentFilter=this.dataset.filter;afficherEleves();};});
 document.getElementById('searchNom').oninput=()=>afficherEleves();
 document.getElementById('filterClasse').onchange=()=>afficherEleves();
+
+let rattacherEleveId=null,rattacherEleveNom='',rattacherCodeActuel='',rattacherSelectedEleve=null,rattacherSearchResults=[];
+let rattacherSectionSource='primaire';
+
+window.ouvrirRattacherFamille=function(eleveId,eleveNom,codeActuel){
+rattacherEleveId=eleveId;rattacherEleveNom=eleveNom;rattacherCodeActuel=codeActuel||'Aucun code';rattacherSelectedEleve=null;rattacherSearchResults=[];rattacherSectionSource=espaceActif;
+document.getElementById('rattacherEleveNom').textContent=eleveNom;
+document.getElementById('rattacherCodeActuel').textContent=codeActuel||'Aucun code';
+document.getElementById('searchFamilyMemberRattacher').value='';
+document.getElementById('familyMemberResultsRattacher').innerHTML='';
+document.getElementById('rattacherFamilyCodeSelect').innerHTML='<option value="">-- Sélectionnez un frère/sœur --</option>';
+document.getElementById('rattacherPreview').style.display='none';
+document.getElementById('confirmRattacherFamille').disabled=true;
+document.getElementById('rattacherFamilleModal').classList.add('show');
+};
+
+document.getElementById('searchFamilyMemberRattacher').addEventListener('input',async function(){
+const searchTerm=this.value.trim().toLowerCase();
+const resultsDiv=document.getElementById('familyMemberResultsRattacher');
+const select=document.getElementById('rattacherFamilyCodeSelect');
+if(searchTerm.length<2){resultsDiv.innerHTML='';select.innerHTML='<option value="">-- Sélectionnez un frère/sœur --</option>';document.getElementById('rattacherPreview').style.display='none';document.getElementById('confirmRattacherFamille').disabled=true;return;}
+const elevesPrimaire=await getAllEleves('primaire');
+const elevesMater=await getAllEleves('maternelle');
+const eleves=[...elevesPrimaire,...elevesMater];
+const actifs=eleves.filter(e=>!e.abandon&&e.id!==rattacherEleveId);
+const results=actifs.filter(e=>e.nom.toLowerCase().includes(searchTerm)||(e.postnom&&e.postnom.toLowerCase().includes(searchTerm))||(e.prenom&&e.prenom.toLowerCase().includes(searchTerm)));
+rattacherSearchResults=results;
+if(results.length===0){resultsDiv.innerHTML='<div style="color:#94a3b8;font-size:12px;">Aucun élève trouvé</div>';select.innerHTML='<option value="">-- Sélectionnez un frère/sœur --</option>';document.getElementById('rattacherPreview').style.display='none';document.getElementById('confirmRattacherFamille').disabled=true;return;}
+let html='';
+results.forEach(e=>{const codeDisplay=e.parentCode?'🔑 <strong style="color:#3b82f6;font-family:monospace;">'+e.parentCode+'</strong>':'⚠️ Sans code';const isMater=e.classe&&(e.classe.startsWith('Niveau')||classesMaternelle.includes(e.classe));const sectionLabel=isMater?'⚪ MATERNELLE':'🔵 PRIMAIRE';html+='<div style="background:rgba(15,23,42,0.6);border-radius:8px;padding:8px 12px;margin-bottom:5px;cursor:pointer;border-left:3px solid #3b82f6;transition:all 0.2s;" onclick="selectFamilyMemberRattacher(\''+e.id+'\')" onmouseover="this.style.background=\'rgba(59,130,246,0.2)\'" onmouseout="this.style.background=\'rgba(15,23,42,0.6)\'"><div style="font-weight:600;color:#fff;">'+e.nom+' '+(e.postnom||'')+' '+(e.prenom||'')+'</div><div style="font-size:11px;color:#94a3b8;">📚 '+e.classe+' | '+sectionLabel+' | '+codeDisplay+'</div></div>';});
+resultsDiv.innerHTML=html;
+let selectHtml='<option value="">-- Sélectionnez un frère/sœur --</option>';
+results.forEach(e=>{const isMater=e.classe&&(e.classe.startsWith('Niveau')||classesMaternelle.includes(e.classe));const sectionLabel=isMater?'MAT':'PRI';selectHtml+='<option value="'+e.id+'">'+e.nom+' '+(e.prenom||'')+' ('+e.classe+' - '+sectionLabel+') - '+(e.parentCode||'Sans code')+'</option>';});
+select.innerHTML=selectHtml;
+});
+
+window.selectFamilyMemberRattacher=function(eleveId){const eleve=rattacherSearchResults.find(e=>e.id===eleveId);if(eleve){document.getElementById('rattacherFamilyCodeSelect').value=eleveId;previewRattachement(eleve);}};
+
+document.getElementById('rattacherFamilyCodeSelect').addEventListener('change',function(){const eleveId=this.value;if(!eleveId){document.getElementById('rattacherPreview').style.display='none';document.getElementById('confirmRattacherFamille').disabled=true;return;}const eleve=rattacherSearchResults.find(e=>e.id===eleveId);if(eleve)previewRattachement(eleve);});
+
+function previewRattachement(eleve){
+if(!eleve||!eleve.parentCode){document.getElementById('rattacherPreview').style.display='none';document.getElementById('confirmRattacherFamille').disabled=true;return;}
+rattacherSelectedEleve=eleve;
+const isMater=eleve.classe&&(eleve.classe.startsWith('Niveau')||classesMaternelle.includes(eleve.classe));
+const sectionLabel=isMater?'⚪ MATERNELLE':'🔵 PRIMAIRE';
+document.getElementById('rattacherPreviewContent').innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;"><div style="background:rgba(15,23,42,0.5);border-radius:8px;padding:10px;text-align:center;border:1px solid rgba(255,215,0,0.2);"><div style="font-size:10px;color:#94a3b8;">👤 ÉLÈVE ACTUEL</div><div style="font-weight:bold;color:#ffd700;margin-top:4px;">'+rattacherEleveNom+'</div><div style="font-size:12px;color:#ef4444;">Code: '+rattacherCodeActuel+'</div></div><div style="background:rgba(16,185,129,0.15);border-radius:8px;padding:10px;text-align:center;border:1px solid #10b981;"><div style="font-size:10px;color:#94a3b8;">👨‍👩‍👧‍👦 FAMILLE</div><div style="font-weight:bold;color:#10b981;margin-top:4px;">'+eleve.nom+' '+(eleve.prenom||'')+'</div><div style="font-size:10px;color:#94a3b8;margin-top:2px;">'+sectionLabel+' - '+eleve.classe+'</div><div style="font-size:14px;font-family:monospace;color:#10b981;">Code: '+eleve.parentCode+'</div></div></div><div style="text-align:center;margin-top:8px;font-size:12px;color:#94a3b8;">⬇️ L\'élève <strong style="color:#ffd700;">'+rattacherEleveNom+'</strong> sera rattaché à <strong style="color:#10b981;">'+eleve.nom+' '+(eleve.prenom||'')+'</strong></div>';
+document.getElementById('rattacherPreview').style.display='block';
+document.getElementById('confirmRattacherFamille').disabled=false;
+}
+
+document.getElementById('confirmRattacherFamille').onclick=async function(){
+if(!rattacherSelectedEleve||!rattacherSelectedEleve.parentCode){toast('Veuillez sélectionner un frère/sœur valide','error');return;}
+const nouveauCode=rattacherSelectedEleve.parentCode;
+const isMater=rattacherSelectedEleve.classe&&(rattacherSelectedEleve.classe.startsWith('Niveau')||classesMaternelle.includes(rattacherSelectedEleve.classe));
+const sectionLabel=isMater?'MATERNELLE':'PRIMAIRE';
+const confirmMessage='🔗 Êtes-vous sûr de vouloir rattacher <strong>'+rattacherEleveNom+'</strong> à la famille de <strong>'+rattacherSelectedEleve.nom+' '+(rattacherSelectedEleve.prenom||'')+'</strong> ('+sectionLabel+') ?<br><br>Le code passera de <span style="color:#ef4444;font-family:monospace;">'+rattacherCodeActuel+'</span> à <span style="color:#10b981;font-family:monospace;font-size:18px;">'+nouveauCode+'</span>';
+document.getElementById('rattacherFamilleModal').classList.remove('show');
+if(!await showConfirm(confirmMessage)){document.getElementById('rattacherFamilleModal').classList.add('show');return;}
+try{
+let ref=getEleveRefBySpace('primaire',rattacherEleveId);
+let snap=await getDoc(ref);
+if(!snap.exists()){
+ref=getEleveRefBySpace('maternelle',rattacherEleveId);
+snap=await getDoc(ref);
+}
+if(snap.exists()){
+await updateDoc(ref,{parentCode:nouveauCode});
+}
+const idx=localEleves.findIndex(e=>e.id===rattacherEleveId);
+if(idx!==-1)localEleves[idx].parentCode=nouveauCode;
+const idxP=localElevesPrimaire.findIndex(e=>e.id===rattacherEleveId);
+if(idxP!==-1)localElevesPrimaire[idxP].parentCode=nouveauCode;
+const idxM=localElevesMaternelle.findIndex(e=>e.id===rattacherEleveId);
+if(idxM!==-1)localElevesMaternelle[idxM].parentCode=nouveauCode;
+cacheData.timestamp=0;
+toast('✅ '+rattacherEleveNom+' rattaché à la famille avec le code '+nouveauCode,'success');
+await afficherEleves();
+}catch(error){toast('Erreur lors du rattachement','error');console.error(error);}
+};
+
+document.getElementById('cancelRattacherFamille').onclick=function(){document.getElementById('rattacherFamilleModal').classList.remove('show');};
 
 const editNomModalHTML=`
 <div class="modal-overlay" id="editNomModal">
