@@ -224,14 +224,6 @@ const db=getFirestore(app);
 
 const urlParams=new URLSearchParams(window.location.search);
 const ecoleId=urlParams.get("ecole")||"mon-ecole";
-
-if(ecoleId && (ecoleId.toUpperCase().startsWith('T') || ecoleId.toUpperCase().startsWith('O'))){
-  const code=urlParams.get("code")||"";
-  const url="https://www.netubex.com/test.html?ecole="+encodeURIComponent(ecoleId)+(code?"&code="+encodeURIComponent(code):"");
-  window.location.replace(url);
-  throw new Error("Redirection vers test.html");
-}
-
 const schoolDisplay=ecoleId.toUpperCase().replace(/-/g," ");
 document.getElementById("schoolSub").textContent="COMPLEXE SCOLAIRE "+schoolDisplay;
 document.getElementById("schoolNameTitle").textContent="ÉCOLE "+schoolDisplay;
@@ -473,6 +465,23 @@ async function seConnecter(){
 
         const roleLabels = { direction:'Direction', comptabilite:'Comptabilité', promoteur:'Promoteur' };
         showToast(`Vérification réussie. Connexion en tant que ${roleLabels[role]}...`, "success");
+
+        if(ecoleId && (ecoleId.toUpperCase().startsWith('T') || ecoleId.toUpperCase().startsWith('O'))){
+            sessionStorage.setItem('ecoleId', ecoleId);
+            sessionStorage.setItem('role', role);
+            sessionStorage.setItem('code', password);
+            sessionStorage.setItem('isAuthenticated', 'true');
+            sessionStorage.setItem('loginTime', Date.now().toString());
+            sessionStorage.setItem('projet', '2');
+            
+            showToast(`✅ Connexion réussie ! Redirection...`, "success");
+            
+            setTimeout(() => {
+                const url="https://www.netubex.com/test.html?ecole="+encodeURIComponent(ecoleId)+"&code="+encodeURIComponent(password);
+                window.location.replace(url);
+            }, 800);
+            return;
+        }
 
         try{
             await createUserWithEmailAndPassword(auth, email, password);
