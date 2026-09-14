@@ -168,7 +168,7 @@ body{background:var(--wa-bg);color:var(--wa-text);min-height:100vh;font-size:14p
 <div class="card-header">🎯 Migration des données Firestore</div>
 <div class="card-body">
 <div class="info orange">
-Copie toutes les sous-collections d'une école de <b>SOURCE A</b> vers <b>SOURCE B</b>. SOURCE A reste intacte.
+Copie toutes les sous-collections d'une école de <b>SOURCE A</b> vers <b>SOURCE B</b> avec récursion complète (sous-collections imbriquées incluses). SOURCE A reste intacte.
 </div>
 <div class="form-group-db">
 <label>École source (SOURCE A)</label>
@@ -376,6 +376,50 @@ function afficherFormulairesEcole(ecole){
     '<div class="list-item"><div><div class="name">🏫 Direction</div><div class="meta">direction.'+escapeHtml(ecole)+'@netubex.com</div></div><input type="text" id="pwdDirection" placeholder="Mot de passe"></div>';
 }
 
+async function copierSousCollections(refSource, refDest, stats){
+  const sousCols=await refSource.listCollections().catch(()=>[]);
+  for(const colRef of sousCols){
+    stats.cols++;
+    const colName=colRef.id;
+    try{
+      const docsSnap=await getDocs(colRef);
+      if(docsSnap.empty)continue;
+      for(const d of docsSnap.docs){
+        try{
+          const dstDocRef=doc(refDest,colName,d.id);
+          await setDoc(dstDocRef,d.data());
+          stats.docs++;
+          await copierSousCollections(d.ref,dstDocRef,stats);
+        }catch(e){
+          stats.errs++;
+        }
+      }
+    }catch(e){
+      stats.errs++;
+    }
+  }
+  return stats;
+}
+
+async function copierCollectionComplete(srcColRef,dstColRef,stats){
+  try{
+    const snap=await getDocs(srcColRef);
+    for(const d of snap.docs){
+      try{
+        const dstDocRef=doc(dstColRef,d.id);
+        await setDoc(dstDocRef,d.data());
+        stats.docs++;
+        await copierSousCollections(d.ref,dstDocRef,stats);
+      }catch(e){
+        stats.errs++;
+      }
+    }
+  }catch(e){
+    stats.errs++;
+  }
+  return stats;
+}
+
 async function migrerDonnees(){
   const src=$('sourceSelect').value;
   const dst=$('destId').value.trim();
@@ -394,15 +438,19 @@ async function migrerDonnees(){
   $('migrProgressBar').style.width='0%';
   hideBox('migrResultBox');
   const cols=getCols(mode);
-  let total=0,errs=0,idx=0;
+  const stats={docs:0,cols:0,errs:0};
+  let idx=0;
   try{
     logTo('migrLogBox','🚀 Migration démarrée','info');
     logTo('migrLogBox','Source : '+src,'info');
     logTo('migrLogBox','Destination : '+dst,'info');
+    logTo('migrLogBox','Mode : '+mode,'info');
+    logTo('migrLogBox','Récursion : ACTIVÉE (sous-collections incluses)','ok');
     logTo('migrLogBox','','info');
     const srcDoc=await getDoc(doc(dbA,'ecoles',src));
     if(!srcDoc.exists()){logTo('migrLogBox','❌ École source introuvable','err');btn.disabled=false;return;}
     await setDoc(doc(dbB,'ecoles',dst),srcDoc.data());
+    stats.docs++;
     logTo('migrLogBox','✅ Document école copié','ok');
     for(const c of cols){
       idx++;
@@ -410,26 +458,24 @@ async function migrerDonnees(){
       logTo('migrLogBox','');
       logTo('migrLogBox','📂 '+c,'info');
       try{
-        const s=await getDocs(collection(dbA,'ecoles',src,c));
-        if(s.empty){logTo('migrLogBox','   ⏭️ Vide','warn');continue;}
-        let count=0;
-        for(const d of s.docs){
-          try{
-            await setDoc(doc(dbB,'ecoles',dst,c,d.id),d.data());
-            count++;total++;
-          }catch(e){errs++;logTo('migrLogBox','   ❌ '+d.id+' : '+e.message,'err');}
-        }
-        logTo('migrLogBox','   ✅ '+count+'/'+s.size+' copiés','ok');
+        const srcColRef=collection(dbA,'ecoles',src,c);
+        const dstColRef=collection(dbB,'ecoles',dst,c);
+        const before=stats.docs;
+        await copierCollectionComplete(srcColRef,dstColRef,stats);
+        const diff=stats.docs-before;
+        if(diff===0){logTo('migrLogBox','   ⏭️ Vide','warn');}
+        else{logTo('migrLogBox','   ✅ '+diff+' document(s) copié(s) (avec sous-collections)','ok');}
       }catch(e){logTo('migrLogBox','   ⚠️ '+e.message,'warn');}
     }
     logTo('migrLogBox','');
     logTo('migrLogBox','═══════════════════════','info');
     logTo('migrLogBox','✅ MIGRATION TERMINÉE','ok');
-    logTo('migrLogBox','📊 Documents copiés : '+total,'ok');
-    if(errs>0)logTo('migrLogBox','⚠️ Erreurs : '+errs,'warn');
+    logTo('migrLogBox','📊 Documents copiés : '+stats.docs,'ok');
+    logTo('migrLogBox','📁 Sous-collections traitées : '+stats.cols,'ok');
+    if(stats.errs>0)logTo('migrLogBox','⚠️ Erreurs : '+stats.errs,'warn');
     showBox('migrResultBox');
-    $('migrResultBox').className='result-box success';
-    $('migrResultBox').innerHTML='<strong>✅ Copie réussie</strong><br>École <b>'+escapeHtml(dst)+'</b> dans SOURCE B<br>Documents : <b>'+total+'</b>'+(errs>0?'<br>Erreurs : '+errs:'');
+    $('migrResultBox').className='result-box '+(stats.errs===0?'success':'error');
+    $('migrResultBox').innerHTML='<strong>✅ Copie réussie</strong><br>École <b>'+escapeHtml(dst)+'</b> dans SOURCE B<br>Documents : <b>'+stats.docs+'</b><br>Sous-collections : <b>'+stats.cols+'</b>'+(stats.errs>0?'<br>Erreurs : '+stats.errs:'');
   }catch(e){
     logTo('migrLogBox','❌ ERREUR : '+e.message,'err');
     showBox('migrResultBox');
