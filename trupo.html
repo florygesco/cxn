@@ -8,7 +8,7 @@
 <meta name="referrer" content="no-referrer">
 <title>NeTubeX</title>
 <script type="importmap">
-{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"}}
+{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js","firebase/storage":"https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js"}}
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -221,6 +221,31 @@ img{-webkit-user-drag:none}
 </head>
 <body>
 
+<div id="loginOverlay" style="position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0a0a1a,#1a1a3e,#0d0d2b);padding:16px;transition:opacity .4s ease">
+    <div style="background:rgba(20,20,50,0.97);backdrop-filter:blur(30px);border-radius:28px;border:2px solid rgba(255,255,255,0.06);padding:36px 28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+        <div style="text-align:center;margin-bottom:24px">
+            <div style="width:72px;height:72px;background:linear-gradient(135deg,#f7971e,#ffd200);border-radius:20px;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:32px;font-weight:900;color:#000">N</div>
+            <h1 style="font-size:28px;font-weight:900;margin-top:14px;color:#fff">NeTube<span style="color:#ffd200">X</span></h1>
+            <p style="font-size:13px;color:rgba(255,255,255,0.4);margin-top:4px">Connectez-vous pour continuer</p>
+        </div>
+        <div style="margin-bottom:16px">
+            <label style="display:block;color:rgba(255,255,255,0.5);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">✉️ Adresse email</label>
+            <input type="email" id="loginEmail" value="aimerance@gmail.com" placeholder="exemple@mail.com" autocomplete="username" style="width:100%;padding:14px 18px;background:rgba(255,255,255,0.05);border:2px solid rgba(255,255,255,0.06);border-radius:14px;color:#fff;font-size:16px;outline:none" />
+        </div>
+        <div style="margin-bottom:16px">
+            <label style="display:block;color:rgba(255,255,255,0.5);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🔒 Mot de passe</label>
+            <div style="position:relative">
+                <input type="password" id="loginPassword" value="273647" placeholder="••••••••" autocomplete="current-password" style="width:100%;padding:14px 48px 14px 18px;background:rgba(255,255,255,0.05);border:2px solid rgba(255,255,255,0.06);border-radius:14px;color:#fff;font-size:16px;outline:none" />
+                <button type="button" id="togglePwd" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:rgba(255,255,255,0.3);font-size:18px;cursor:pointer;padding:6px;border-radius:50%">👁️</button>
+            </div>
+        </div>
+        <button id="loginBtn" style="width:100%;padding:14px;border-radius:14px;background:linear-gradient(180deg,#f7971e,#d68910);color:#000;font-size:16px;font-weight:800;border:none;cursor:pointer">🔓 Se connecter</button>
+        <div id="loginError" style="color:#e74c3c;font-size:13px;text-align:center;min-height:20px;margin-top:12px"></div>
+        <div id="loginSuccess" style="color:#2ecc71;font-size:13px;text-align:center;min-height:20px;margin-top:4px"></div>
+        <div style="text-align:center;margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);font-size:11px;color:rgba(255,255,255,0.25)">🔐 Accès sécurisé · NeTubeX SARL</div>
+    </div>
+</div>
+
 <div class="topbar">
     <div class="brand">
         <div class="logo"><img src="https://www.netubex.com/favicon.png.png" alt="NeTubeX" /></div>
@@ -389,9 +414,12 @@ img{-webkit-user-drag:none}
 <div class="modal-overlay" id="confirmModal"><div class="modal-card"><h3>⚠️ Confirmation</h3><div id="confirmMessage" style="text-align:center;padding:16px;font-size:17px;color:rgba(255,255,255,0.5);"></div><div class="modal-buttons"><button class="btn btn-danger" id="confirmYes">OUI</button><button class="btn btn-outline" id="confirmNo">NON</button></div></div></div>
 
 <div class="toast-container" id="toastContainer"></div>
+
 <script type="module">
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, doc, getDocs, updateDoc, onSnapshot } from "firebase/firestore";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, onSnapshot, runTransaction } from "firebase/firestore";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const firebaseConfigA = { apiKey: "AIzaSyDX430AIfzzgfq3o8tXHwQfIptgWOZ-K8c", authDomain: "gesco-67c43.firebaseapp.com", projectId: "gesco-67c43", storageBucket: "gesco-67c43.firebasestorage.app", messagingSenderId: "333004443566", appId: "1:333004443566:web:de41f60000e418dce9023f" };
 const firebaseConfigB = { apiKey: "AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw", authDomain: "gesco-2.firebaseapp.com", projectId: "gesco-2", storageBucket: "gesco-2.firebasestorage.app", messagingSenderId: "36319988765", appId: "1:36319988765:web:e8cd823804596495248af4" };
@@ -400,6 +428,12 @@ const appA = initializeApp(firebaseConfigA, 'sourceA');
 const appB = initializeApp(firebaseConfigB, 'sourceB');
 const dbA = getFirestore(appA);
 const dbB = getFirestore(appB);
+const authA = getAuth(appA);
+const authB = getAuth(appB);
+const storageB = getStorage(appB);
+
+const NX_ADMIN_EMAIL = "aimerance@gmail.com";
+const NX_ADMIN_PASSWORD = "273647";
 
 let activeSource = 'a';
 let allData = { schools: [], teachers: [], sheets: [] };
@@ -407,8 +441,9 @@ let membersA = [], membersB = [], membersC = [];
 let toastTimeout = null;
 let unsubscribeListeners = [];
 let charts = {};
-let exportHistorique = JSON.parse(localStorage.getItem('netubex_exports_a') || '[]');
-let dernierExport = JSON.parse(localStorage.getItem('netubex_dernier_export_a') || 'null');
+let exportHistorique = [];
+let dernierExport = null;
+let unsubscribeHistorique = null;
 
 const frequenceHoraires = [
     { numero: '01', heure: '08h45' },
@@ -431,12 +466,15 @@ const FINAL_START_MINUTES = 15 * 60 + 20;
 
 let audioContext = null;
 let lastAlertCreneau = null;
-let jourActuel = new Date().getDate();
+let jourActuel = new Date().toISOString().split('T')[0];
 
 function getDb() { return activeSource === 'a' ? dbA : dbB; }
 function escapeHtml(s) { if (!s) return ""; return String(s).replace(/[&<>]/g, m => m === "&" ? "&amp;" : m === "<" ? "&lt;" : "&gt;"); }
 function genererIdUnique(prefix) { return prefix + '-' + Date.now().toString().slice(-6) + '-' + Math.random().toString(36).substring(2, 6).toUpperCase(); }
 function masquerCode(code) { if (!code) return '---'; return '•'.repeat(Math.min(code.length, 6)); }
+
+function getDateJour() { return new Date().toISOString().split('T')[0]; }
+function getDocIdHistorique() { return 'source_' + activeSource; }
 
 function toast(msg, type) {
     type = type || "success";
@@ -775,9 +813,106 @@ function updateCompteurLive() {
     }
 }
 
-function enregistrerExport(nomEcole) {
-    const status = isExportAutorise();
+async function initialiserDocHistorique() {
+    const db = getDb();
+    const docId = getDocIdHistorique();
+    const jour = getDateJour();
+    const docRef = doc(db, 'historique_copies', docId);
+    try {
+        const snap = await getDoc(docRef);
+        if (!snap.exists()) {
+            await setDoc(docRef, { source: activeSource, jour: jour, copies: [], derniereMaj: Date.now() });
+        } else {
+            const data = snap.data();
+            if (data.jour !== jour) {
+                await setDoc(docRef, { source: activeSource, jour: jour, copies: [], derniereMaj: Date.now() });
+            }
+        }
+    } catch (e) { console.error(e); }
+}
+
+function ecouterHistoriqueFirebase() {
+    if (unsubscribeHistorique) { unsubscribeHistorique(); unsubscribeHistorique = null; }
+    const db = getDb();
+    const docRef = doc(db, 'historique_copies', getDocIdHistorique());
+    unsubscribeHistorique = onSnapshot(docRef, (d) => {
+        exportHistorique = [];
+        dernierExport = null;
+        if (d.exists()) {
+            const data = d.data();
+            if (data.jour === getDateJour() && Array.isArray(data.copies)) {
+                exportHistorique = data.copies;
+                if (exportHistorique.length > 0) dernierExport = exportHistorique[exportHistorique.length - 1];
+            }
+        }
+        if (document.getElementById('frequenceModal').classList.contains('show')) updateFrequenceModal();
+        updateExportButton();
+    });
+}
+
+async function enregistrerExportFirebase(nomEcole, heureCreneau) {
+    const db = getDb();
+    const docRef = doc(db, 'historique_copies', getDocIdHistorique());
+    const jour = getDateJour();
     const maintenant = new Date();
+    try {
+        const snap = await getDoc(docRef);
+        const nouvelleCopie = {
+            ecole: nomEcole || 'Établissement',
+            creneau: heureCreneau,
+            heureReelle: getHeureActuelle(),
+            timestamp: maintenant.getTime(),
+            dateLisible: maintenant.toLocaleString('fr-FR')
+        };
+        if (!snap.exists()) {
+            await setDoc(docRef, { source: activeSource, jour: jour, copies: [nouvelleCopie], derniereMaj: maintenant.getTime() });
+            return true;
+        }
+        const data = snap.data();
+        const copiesActuelles = (data.jour === jour && Array.isArray(data.copies)) ? data.copies : [];
+        if (copiesActuelles.some(c => c.creneau === heureCreneau)) {
+            toast('⚠️ Ce créneau (' + heureCreneau + ') a déjà été sauvegardé', 'warning');
+            return false;
+        }
+        copiesActuelles.push(nouvelleCopie);
+        await setDoc(docRef, { source: activeSource, jour: jour, copies: copiesActuelles, derniereMaj: maintenant.getTime() });
+        return true;
+    } catch (e) {
+        console.error(e);
+        toast('❌ Erreur enregistrement Firebase', 'error');
+        return false;
+    }
+}
+
+async function envoyerAuChatAdmin(nomEcole, typeEnvoi, details) {
+    if (details.creneau !== '15h30') return;
+    const minutesActuelles = getMinutesActuelles();
+    const minutes1520 = 15 * 60 + 20;
+    const minutes1530 = 15 * 60 + 30;
+    if (minutesActuelles < minutes1520 || minutesActuelles > minutes1530) return;
+    try {
+        const now = Date.now();
+        const heure = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        const CHAT_REF_ADMIN = doc(dbB, "communication", "chat_support_dsi");
+        const TTL = 24 * 60 * 60 * 1000;
+        let texteMessage = '';
+        if (typeEnvoi === 'copie') {
+            texteMessage = "🔐 COPIE DE SÉCURITÉ (15h30)\n━━━━━━━━━━━━━━━━━\n🏫 " + (nomEcole || 'Non spécifié') + "\n📡 " + (activeSource === 'a' ? 'SOURCE A' : 'SOURCE B') + "\n🕐 " + (details.heureReelle || heure) + "\n📄 " + (details.filename || '—') + "\n🔗 " + (details.url || '');
+        } else {
+            texteMessage = "📊 RAPPORT D'AUDIT (15h30)\n━━━━━━━━━━━━━━━━━\n🏫 " + (nomEcole || 'Non spécifié') + "\n📡 " + (activeSource === 'a' ? 'SOURCE A' : 'SOURCE B') + "\n🕐 " + (details.heureReelle || heure) + "\n🔗 " + (details.url || '');
+        }
+        await runTransaction(dbB, async tx => {
+            const snap = await tx.get(CHAT_REF_ADMIN);
+            const data = snap.exists() ? snap.data() : { messages: [], nonLusSupport: 0 };
+            let msgs = (data.messages || []).filter(m => !m.expireAt || m.expireAt > now);
+            msgs.push({ id: crypto.randomUUID(), texte: texteMessage, expediteur: 'direction', auteur: 'Système', timestamp: now, expireAt: now + TTL, heure: heure, lu: false });
+            tx.set(CHAT_REF_ADMIN, { messages: msgs, nonLusSupport: (data.nonLusSupport || 0) + 1, nonLusDirection: 0, updatedAt: now });
+        });
+    } catch (e) { console.warn(e); }
+}
+
+async function enregistrerExport(nomEcole) {
+    const status = isExportAutorise();
     let heureCreneau = null;
     if (status.autorise && status.creneau) { heureCreneau = status.creneau.heure; }
     else {
@@ -794,17 +929,13 @@ function enregistrerExport(nomEcole) {
         if (meilleurCreneau) heureCreneau = meilleurCreneau.heure;
         else heureCreneau = getHeureActuelle();
     }
-    const dejaExporte = exportHistorique.some(e => e.creneau === heureCreneau);
-    if (dejaExporte) { toast('⚠️ Ce créneau (' + heureCreneau + ') a déjà été sauvegardé', 'warning'); return; }
-    const exportData = { nom: nomEcole || 'Établissement', creneau: heureCreneau, heureReelle: getHeureActuelle(), date: maintenant.toLocaleString() };
-    exportHistorique.push(exportData);
-    dernierExport = exportData;
-    localStorage.setItem('netubex_exports_' + activeSource, JSON.stringify(exportHistorique));
-    localStorage.setItem('netubex_dernier_export_' + activeSource, JSON.stringify(dernierExport));
-    if (document.getElementById('frequenceModal').classList.contains('show')) updateFrequenceModal();
-    updateExportButton();
-    if (status.autorise) toast('✅ Copie enregistrée pour le créneau ' + heureCreneau, 'success');
-    else toast('⚠️ Copie en dehors des créneaux (heure : ' + getHeureActuelle() + ')', 'warning');
+    const ok = await enregistrerExportFirebase(nomEcole, heureCreneau);
+    if (ok) {
+        if (document.getElementById('frequenceModal').classList.contains('show')) updateFrequenceModal();
+        updateExportButton();
+        if (status.autorise) toast('✅ Copie enregistrée pour le créneau ' + heureCreneau, 'success');
+        else toast('⚠️ Copie en dehors des créneaux', 'warning');
+    }
 }
 
 function updateClock() {
@@ -815,15 +946,15 @@ setInterval(updateClock, 1000);
 updateClock();
 setInterval(() => { updateExportButton(); if (document.getElementById('frequenceModal').classList.contains('show')) updateFrequenceModal(); }, 30000);
 setInterval(updateCompteurLive, 1000);
-setInterval(() => {
-    const jourMaintenant = new Date().getDate();
+setInterval(async () => {
+    const jourMaintenant = getDateJour();
     if (jourMaintenant !== jourActuel) {
         jourActuel = jourMaintenant;
         lastAlertCreneau = null;
         exportHistorique = [];
         dernierExport = null;
-        localStorage.removeItem('netubex_exports_' + activeSource);
-        localStorage.removeItem('netubex_dernier_export_' + activeSource);
+        await initialiserDocHistorique();
+        ecouterHistoriqueFirebase();
     }
 }, 60000);
 
@@ -1112,7 +1243,13 @@ async function exportFullSchool(schoolId, schoolName, num) {
         link.download = filename;
         document.body.appendChild(link); link.click(); document.body.removeChild(link);
         URL.revokeObjectURL(link.href);
-        enregistrerExport(schoolName);
+        await enregistrerExport(schoolName);
+        const status = isExportAutorise();
+        envoyerAuChatAdmin(schoolName, 'copie', {
+            creneau: status.autorise && status.creneau ? status.creneau.heure : getHeureActuelle(),
+            heureReelle: getHeureActuelle(),
+            filename: filename
+        });
     } catch (e) { toast('❌ Erreur copie : ' + e.message, 'error'); }
 }
 
@@ -1273,6 +1410,12 @@ async function genererRapportPdf(schoolId, schoolName) {
         const ref = buildReference().replace(/\//g, '-');
         pdf.save('Rapport_Audit_' + (schoolName || 'etablissement').replace(/[^a-z0-9]/gi, '_') + '_' + ref + '.pdf');
         container.innerHTML = '';
+        const status = isExportAutorise();
+        envoyerAuChatAdmin(schoolName, 'rapport', {
+            creneau: status.autorise && status.creneau ? status.creneau.heure : getHeureActuelle(),
+            heureReelle: getHeureActuelle(),
+            refRapport: ref
+        });
     } catch (e) {}
     finally { if (btn) { btn.disabled = false; btn.textContent = '📥 TÉLÉCHARGER LE PDF'; } }
 }
@@ -1292,13 +1435,14 @@ document.querySelectorAll('.source-btn').forEach(btn => {
         document.querySelectorAll('.source-btn').forEach(b => b.classList.remove('active'));
         this.classList.add('active');
         activeSource = this.dataset.source;
-        exportHistorique = JSON.parse(localStorage.getItem('netubex_exports_' + activeSource) || '[]');
-        dernierExport = JSON.parse(localStorage.getItem('netubex_dernier_export_' + activeSource) || 'null');
         lastAlertCreneau = null;
+        exportHistorique = [];
+        dernierExport = null;
         document.getElementById('sourceStatus').textContent = activeSource === 'a' ? '🔵 SOURCE A' : '🟢 SOURCE B';
         document.getElementById('sourceStatus').className = activeSource;
         document.querySelectorAll('.source-badge').forEach(el => { el.textContent = activeSource === 'a' ? 'SOURCE A' : 'SOURCE B'; });
         setupRealtimeListeners();
+        initialiserDocHistorique().then(() => ecouterHistoriqueFirebase());
     });
 });
 
@@ -1368,7 +1512,85 @@ document.addEventListener('click', function unlockAudio() {
     document.removeEventListener('click', unlockAudio);
 }, { once: true });
 
-function init() { setupRealtimeListeners(); document.getElementById('tabEcoles').style.display = 'block'; updateExportButton(); }
+const loginOverlay = document.getElementById('loginOverlay');
+const loginEmail = document.getElementById('loginEmail');
+const loginPassword = document.getElementById('loginPassword');
+const loginBtn = document.getElementById('loginBtn');
+const loginError = document.getElementById('loginError');
+const loginSuccess = document.getElementById('loginSuccess');
+const togglePwd = document.getElementById('togglePwd');
+
+togglePwd?.addEventListener('click', function() {
+    const inp = document.getElementById('loginPassword');
+    if (inp.type === 'password') { inp.type = 'text'; this.textContent = '🙈'; }
+    else { inp.type = 'password'; this.textContent = '👁️'; }
+});
+
+async function creerCompteSur(auth, label) {
+    try {
+        await createUserWithEmailAndPassword(auth, NX_ADMIN_EMAIL, NX_ADMIN_PASSWORD);
+        console.log("✅ Compte créé sur Source " + label);
+    } catch (e) {
+        if (e.code === 'auth/email-already-in-use') {
+            console.log("ℹ️ Compte déjà existant sur Source " + label);
+        } else {
+            console.warn("⚠️ Création Source " + label + " :", e.code);
+        }
+    }
+}
+
+(async () => {
+    await creerCompteSur(authA, 'A');
+    await creerCompteSur(authB, 'B');
+})();
+
+async function handleLogin() {
+    const email = loginEmail.value.trim();
+    const password = loginPassword.value.trim();
+    loginError.textContent = '';
+    loginSuccess.textContent = '';
+    if (!email || !password) { loginError.textContent = '❌ Veuillez remplir tous les champs'; return; }
+    loginBtn.disabled = true;
+    loginBtn.textContent = '⏳ Connexion...';
+    try {
+        try {
+            await signInWithEmailAndPassword(authA, email, password);
+            loginSuccess.textContent = '✅ Connecté';
+        } catch (e) {
+            await signInWithEmailAndPassword(authB, email, password);
+            loginSuccess.textContent = '✅ Connecté';
+        }
+        loginOverlay.style.opacity = '0';
+        setTimeout(() => { loginOverlay.style.display = 'none'; }, 400);
+        sessionStorage.setItem('netubex_logged', 'true');
+        sessionStorage.setItem('netubex_email', email);
+    } catch (e) {
+        let msg = '❌ Identifiants incorrects';
+        if (e.code === 'auth/user-not-found') msg = '❌ Utilisateur introuvable';
+        else if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') msg = '❌ Mot de passe incorrect';
+        else if (e.code === 'auth/invalid-email') msg = '❌ Email invalide';
+        else if (e.code === 'auth/too-many-requests') msg = '❌ Trop de tentatives. Réessayez plus tard';
+        loginError.textContent = msg;
+        loginBtn.disabled = false;
+        loginBtn.textContent = '🔓 Se connecter';
+    }
+}
+
+loginBtn?.addEventListener('click', handleLogin);
+loginPassword?.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleLogin(); });
+loginEmail?.addEventListener('keydown', (e) => { if (e.key === 'Enter') loginPassword.focus(); });
+
+if (sessionStorage.getItem('netubex_logged') === 'true') {
+    loginOverlay.style.display = 'none';
+}
+
+async function init() {
+    setupRealtimeListeners();
+    document.getElementById('tabEcoles').style.display = 'block';
+    await initialiserDocHistorique();
+    ecouterHistoriqueFirebase();
+    updateExportButton();
+}
 init();
 </script>
 </body>
