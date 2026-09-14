@@ -203,6 +203,8 @@ import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,setPers
 import{getFirestore,doc,getDoc}from"firebase/firestore";
 const IS_INSIDE_IFRAME=(window.self!==window.top);
 if(IS_INSIDE_IFRAME){
+let _ecoleFromIframe="";
+try{_ecoleFromIframe=new URLSearchParams(window.location.search).get("ecole")||sessionStorage.getItem('_e')||""}catch(e){}
 try{sessionStorage.clear()}catch(e){}
 try{
 const _tmpApp=initializeApp({apiKey:"AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",authDomain:"gesco-2.firebaseapp.com",projectId:"gesco-2",storageBucket:"gesco-2.firebasestorage.app",messagingSenderId:"36319988765",appId:"1:36319988765:web:e8cd823804596495248af4"},"__logout_tmp__");
@@ -210,7 +212,8 @@ const _tmpAuth=getAuth(_tmpApp);
 await signOut(_tmpAuth).catch(()=>{});
 }catch(e){}
 try{
-window.top.location.replace(window.location.origin+window.location.pathname);
+const _cleanUrl=window.location.origin+window.location.pathname+(_ecoleFromIframe?"?ecole="+encodeURIComponent(_ecoleFromIframe):"");
+window.top.location.replace(_cleanUrl);
 }catch(e){
 document.body.innerHTML='<div style="padding:40px;text-align:center;font-family:Inter,sans-serif"><h2 style="margin-bottom:10px">Déconnexion réussie</h2><p style="color:#666">Redirection en cours…</p></div>';
 }
@@ -315,7 +318,7 @@ sessionStorage.setItem('code',password);
 sessionStorage.setItem('isAuthenticated','true');
 sessionStorage.setItem('loginTime',Date.now().toString());
 sessionStorage.setItem('email',email);
-window.history.replaceState({},'',window.location.pathname);
+window.history.replaceState({},'','/?ecole='+encodeURIComponent(ecoleId));
 toast('Connexion réussie en tant que '+roleLabels[role],"success");
 setTimeout(()=>{activateHostMode()},500);
 }catch(error){
@@ -376,7 +379,7 @@ const loginTime=parseInt(sessionStorage.getItem('loginTime')||'0',10);
 const sessionAge=Date.now()-loginTime;
 const MAX_AGE=30*60*1000;
 if(isAuth&&ecoleIdS&&role&&sessionAge<MAX_AGE){
-if(urlParams.get("ecole")){window.history.replaceState({},'',window.location.pathname)}
+if(urlParams.get("ecole")){window.history.replaceState({},'','/?ecole='+encodeURIComponent(ecoleIdS))}
 activateHostMode();
 }else{
 document.body.classList.remove('iframe-active');
