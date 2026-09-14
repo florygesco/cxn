@@ -344,13 +344,14 @@ img{-webkit-user-drag:none}
             <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:14px;"><span style="color:rgba(255,255,255,0.3);">🔺 MAXIMUM :</span><span style="color:#5dade2;font-weight:700;">12h00</span></div>
             <div style="display:flex;justify-content:space-between;padding:4px 0;padding-top:8px;border-top:1px solid rgba(255,255,255,0.04);"><span style="color:rgba(255,255,255,0.3);">🕐 DERNIÈRE COPIE :</span><span style="color:#2ecc71;font-weight:700;" id="lastBackupTime">Aucune copie</span></div>
             <div style="display:flex;justify-content:space-between;padding:4px 0;padding-top:8px;border-top:1px solid rgba(255,255,255,0.04);"><span style="color:rgba(255,255,255,0.3);">⏱️ CRÉNEAU :</span><span style="font-weight:700;" id="creneauActuel">⏳ En attente...</span></div>
+            <div style="display:flex;justify-content:space-between;padding:6px 0;padding-top:8px;border-top:1px solid rgba(255,255,255,0.04);"><span style="color:rgba(255,255,255,0.3);">⏳ PROCHAINE COPIE DANS :</span><span style="font-weight:900;font-family:monospace;font-size:16px;" id="compteurLive">--:--</span></div>
             <div style="display:flex;justify-content:space-between;padding:4px 0;padding-top:8px;border-top:1px solid rgba(255,255,255,0.04);"><span style="color:rgba(255,255,255,0.3);">⏱️ TOLÉRANCE :</span><span style="color:#ffd200;font-weight:700;" id="toleranceInfo">5 min (dernier créneau: 10 min)</span></div>
         </div>
         <div id="exportStatusContainer" style="background:rgba(46,204,113,0.05);border-radius:12px;padding:12px 16px;border:1px solid rgba(46,204,113,0.1);margin-bottom:16px;display:none;">
             <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:14px;"><span style="color:rgba(255,255,255,0.5);">📊 Dernière copie :</span><span style="color:#fff;font-weight:700;" id="lastExportInfo">-</span></div>
             <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:14px;"><span style="color:rgba(255,255,255,0.5);">✅ Statut :</span><span style="color:#2ecc71;font-weight:700;" id="exportStatusText">✅ Copie effectuée selon la fréquence</span></div>
         </div>
-        <div class="modal-buttons"><button class="btn btn-refresh btn-sm" onclick="updateFrequenceModal()">🔄 RAFRAÎCHIR</button><button class="btn btn-outline" onclick="document.getElementById('frequenceModal').classList.remove('show')">❌ FERMER</button></div>
+        <div class="modal-buttons"><button class="btn btn-outline" onclick="document.getElementById('frequenceModal').classList.remove('show')">❌ FERMER</button></div>
     </div>
 </div>
 
@@ -387,7 +388,8 @@ img{-webkit-user-drag:none}
 
 <div class="modal-overlay" id="confirmModal"><div class="modal-card"><h3>⚠️ Confirmation</h3><div id="confirmMessage" style="text-align:center;padding:16px;font-size:17px;color:rgba(255,255,255,0.5);"></div><div class="modal-buttons"><button class="btn btn-danger" id="confirmYes">OUI</button><button class="btn btn-outline" id="confirmNo">NON</button></div></div></div>
 
-<div class="toast-container" id="toastContainer"></div><script type="module">
+<div class="toast-container" id="toastContainer"></div>
+<script type="module">
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, doc, getDocs, updateDoc, onSnapshot } from "firebase/firestore";
 
@@ -426,6 +428,10 @@ const frequenceHoraires = [
 const TOLERANCE_MINUTES = 5;
 const TOLERANCE_DERNIER = 10;
 const FINAL_START_MINUTES = 15 * 60 + 20;
+
+let audioContext = null;
+let lastAlertCreneau = null;
+let jourActuel = new Date().getDate();
 
 function getDb() { return activeSource === 'a' ? dbA : dbB; }
 function escapeHtml(s) { if (!s) return ""; return String(s).replace(/[&<>]/g, m => m === "&" ? "&amp;" : m === "<" ? "&lt;" : "&gt;"); }
@@ -527,6 +533,93 @@ function getProchainCreneau() {
         if (diff > 0 && diff < ecartMin) { ecartMin = diff; prochain = f; }
     }
     return prochain;
+}
+
+function getSecondesRestantes() {
+    const maintenant = new Date();
+    const secondesActuelles = maintenant.getHours() * 3600 + maintenant.getMinutes() * 60 + maintenant.getSeconds();
+    const sec1520 = FINAL_START_MINUTES * 60;
+    const sec1530 = heureEnMinutes('15h30') * 60;
+    if (secondesActuelles >= sec1520 && secondesActuelles <= sec1530) {
+        return { reste: 0, enCours: true, creneau: '15h30', tolerance: TOLERANCE_DERNIER };
+    }
+    let meilleur = null;
+    let ecartMin = Infinity;
+    for (const f of frequenceHoraires) {
+        let secCreneau;
+        if (f.heure === '15h30') { secCreneau = sec1520; }
+        else { secCreneau = heureEnMinutes(f.heure) * 60; }
+        if (secCreneau > secondesActuelles) {
+            const ecart = secCreneau - secondesActuelles;
+            if (ecart < ecartMin) {
+                ecartMin = ecart;
+                meilleur = { ...f, secondes: secCreneau, tolerance: f.heure === '15h30' ? TOLERANCE_DERNIER : TOLERANCE_MINUTES };
+            }
+        }
+    }
+    if (meilleur) { return { reste: ecartMin, enCours: false, creneau: meilleur.heure, tolerance: meilleur.tolerance }; }
+    for (const f of frequenceHoraires) {
+        const secCreneau = (f.heure === '15h30' ? FINAL_START_MINUTES : heureEnMinutes(f.heure)) * 60;
+        const tolerance = f.heure === '15h30' ? TOLERANCE_DERNIER : TOLERANCE_MINUTES;
+        const diff = secondesActuelles - secCreneau;
+        if (diff >= 0 && diff <= tolerance * 60) {
+            return { reste: 0, enCours: true, creneau: f.heure, tolerance: tolerance, ecoule: diff };
+        }
+    }
+    return { reste: null, enCours: false };
+}
+
+function formatSecondes(s) {
+    if (s === null || s < 0) return '--:--';
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    if (h > 0) { return h + 'h ' + String(m).padStart(2, '0') + 'm ' + String(sec).padStart(2, '0') + 's'; }
+    return String(m).padStart(2, '0') + 'm ' + String(sec).padStart(2, '0') + 's';
+}
+
+function jouerBip(duree, frequence) {
+    duree = duree || 0.15;
+    frequence = frequence || 880;
+    try {
+        if (!audioContext) { audioContext = new (window.AudioContext || window.webkitAudioContext)(); }
+        if (audioContext.state === 'suspended') audioContext.resume();
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.type = 'sine';
+        osc.frequency.value = frequence;
+        gain.gain.setValueAtTime(0.001, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.3, audioContext.currentTime + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duree);
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + duree);
+    } catch (e) {}
+}
+
+function jouerAlerte() {
+    jouerBip(0.15, 880);
+    setTimeout(() => jouerBip(0.15, 1100), 200);
+    setTimeout(() => jouerBip(0.25, 880), 400);
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+}
+
+function flashPopup() {
+    const modal = document.querySelector('#frequenceModal .modal-card');
+    if (!modal) return;
+    modal.style.transition = 'box-shadow 0.3s ease, border-color 0.3s ease';
+    let count = 0;
+    const interval = setInterval(() => {
+        modal.style.boxShadow = count % 2 === 0 ? '0 0 40px 8px rgba(255,215,0,0.7)' : '0 0 0 0 rgba(255,215,0,0)';
+        modal.style.borderColor = count % 2 === 0 ? 'rgba(255,215,0,0.8)' : 'rgba(255,255,255,0.06)';
+        count++;
+        if (count >= 6) {
+            clearInterval(interval);
+            modal.style.boxShadow = '';
+            modal.style.borderColor = '';
+        }
+    }, 300);
 }
 
 function isHeureExportee(heure) { return exportHistorique.some(e => e.creneau === heure); }
@@ -643,8 +736,44 @@ window.updateFrequenceModal = function() {
         }
     }
     document.getElementById('toleranceInfo').textContent = '5 min (dernier créneau: ' + TOLERANCE_DERNIER + ' min)';
+    updateCompteurLive();
     updateExportButton();
 };
+
+function updateCompteurLive() {
+    const el = document.getElementById('compteurLive');
+    if (!el) return;
+    if (!document.getElementById('frequenceModal').classList.contains('show')) return;
+    const info = getSecondesRestantes();
+    if (info.enCours) {
+        el.textContent = '🔄 EN COURS (' + info.creneau + ')';
+        el.style.color = '#ffd200';
+        el.style.textShadow = '0 0 12px rgba(255,215,0,0.6)';
+        if (lastAlertCreneau !== 'start-' + info.creneau) {
+            lastAlertCreneau = 'start-' + info.creneau;
+            jouerAlerte();
+            flashPopup();
+            toast('🔄 Créneau ' + info.creneau + ' EN COURS — copie autorisée', 'success');
+        }
+    } else if (info.reste !== null) {
+        const s = Math.ceil(info.reste);
+        el.textContent = formatSecondes(s);
+        if (s <= 60) { el.style.color = '#e74c3c'; el.style.textShadow = '0 0 12px rgba(231,76,60,0.6)'; }
+        else if (s <= 300) { el.style.color = '#e67e22'; el.style.textShadow = '0 0 12px rgba(230,126,34,0.5)'; }
+        else { el.style.color = '#5dade2'; el.style.textShadow = '0 0 10px rgba(93,173,226,0.4)'; }
+        if (s <= 30 && s > 0 && lastAlertCreneau !== 'pre-' + info.creneau) {
+            lastAlertCreneau = 'pre-' + info.creneau;
+            jouerBip(0.2, 1000);
+            setTimeout(() => jouerBip(0.2, 1200), 250);
+            if (navigator.vibrate) navigator.vibrate(150);
+            toast('⏰ Créneau ' + info.creneau + ' dans 30 secondes !', 'warning');
+        }
+    } else {
+        el.textContent = '✅ TERMINÉ';
+        el.style.color = '#2ecc71';
+        el.style.textShadow = 'none';
+    }
+}
 
 function enregistrerExport(nomEcole) {
     const status = isExportAutorise();
@@ -685,6 +814,18 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 setInterval(() => { updateExportButton(); if (document.getElementById('frequenceModal').classList.contains('show')) updateFrequenceModal(); }, 30000);
+setInterval(updateCompteurLive, 1000);
+setInterval(() => {
+    const jourMaintenant = new Date().getDate();
+    if (jourMaintenant !== jourActuel) {
+        jourActuel = jourMaintenant;
+        lastAlertCreneau = null;
+        exportHistorique = [];
+        dernierExport = null;
+        localStorage.removeItem('netubex_exports_' + activeSource);
+        localStorage.removeItem('netubex_dernier_export_' + activeSource);
+    }
+}, 60000);
 
 function updateSelectors() {
     ['ensEcoleFilter', 'codesFilterEcole'].forEach(id => {
@@ -1153,6 +1294,7 @@ document.querySelectorAll('.source-btn').forEach(btn => {
         activeSource = this.dataset.source;
         exportHistorique = JSON.parse(localStorage.getItem('netubex_exports_' + activeSource) || '[]');
         dernierExport = JSON.parse(localStorage.getItem('netubex_dernier_export_' + activeSource) || 'null');
+        lastAlertCreneau = null;
         document.getElementById('sourceStatus').textContent = activeSource === 'a' ? '🔵 SOURCE A' : '🟢 SOURCE B';
         document.getElementById('sourceStatus').className = activeSource;
         document.querySelectorAll('.source-badge').forEach(el => { el.textContent = activeSource === 'a' ? 'SOURCE A' : 'SOURCE B'; });
@@ -1204,10 +1346,27 @@ if (fullscreenBtn) {
     });
 }
 
-document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+document.addEventListener('contextmenu', function(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+    e.preventDefault();
+    updateFrequenceModal();
+    document.getElementById('frequenceModal').classList.add('show');
+    updateCompteurLive();
+});
+
 document.addEventListener('keydown', function(e) {
     if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) || (e.ctrlKey && e.key === 'u')) { e.preventDefault(); return false; }
 });
+
+document.addEventListener('click', function unlockAudio() {
+    if (!audioContext) {
+        try {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioContext.state === 'suspended') audioContext.resume();
+        } catch (e) {}
+    }
+    document.removeEventListener('click', unlockAudio);
+}, { once: true });
 
 function init() { setupRealtimeListeners(); document.getElementById('tabEcoles').style.display = 'block'; updateExportButton(); }
 init();
