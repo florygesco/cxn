@@ -81,8 +81,8 @@ input{-webkit-user-select:text!important;user-select:text!important}
 .login-support-line a{color:#b91c1c;text-decoration:none;font-weight:700}
 .login-copyright{margin-top:6px;font-size:.68rem;color:rgba(26,26,46,0.35);text-align:center;letter-spacing:.3px}
 .toast-container{position:fixed;top:20px;right:20px;z-index:30000;display:flex;flex-direction:column;gap:12px;pointer-events:none;max-width:380px}
-.toast-notification{background:rgba(255,255,255,0.98);backdrop-filter:blur(12px);border-radius:16px;padding:18px 24px;min-width:300px;max-width:380px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,0.12);border-left:4px solid #10b981;transform:translateX(400px);transition:transform 0.3s ease;pointer-events:auto}
-.toast-notification.show{transform:translateX(0)}
+.toast-notification{background:rgba(255,255,255,0.98);backdrop-filter:blur(12px);border-radius:16px;padding:18px 24px;min-width:300px;max-width:380px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,0.12);border-left:4px solid #10b981;transform:translateX(400px);transition:transform 0.3s ease, opacity 0.3s ease;pointer-events:auto;opacity:0}
+.toast-notification.show{transform:translateX(0);opacity:1}
 .toast-notification.error{border-left-color:#ef4444}
 .toast-notification.warning{border-left-color:#f59e0b}
 .toast-notification.info{border-left-color:#dc2626}
@@ -267,7 +267,8 @@ document.getElementById("footerSchoolName").textContent = schoolDisplayFull;
 document.title = "Connexion - " + schoolDisplayFull;
 
 let tentatives = 0;
-let hostLoaderTimeout = null;
+let toastActif = null;
+let toastTimeout = null;
 
 function getSalutation() {
 const h = new Date().getHours();
@@ -292,14 +293,26 @@ setTimeout(type, 75);
 function toast(message, type = "success") {
 const c = document.getElementById("toastContainer");
 if (!c) return;
+if (toastTimeout) { clearTimeout(toastTimeout); toastTimeout = null; }
+if (toastActif && toastActif.parentNode) {
+toastActif.remove();
+toastActif = null;
+}
 const icons = { success: "✅", error: "❌", warning: "⚠️", info: "ℹ️" };
 const titles = { success: "Succès", error: "Erreur", warning: "Attention", info: "Information" };
 const el = document.createElement("div");
 el.className = `toast-notification ${type}`;
 el.innerHTML = `<div class="toast-icon">${icons[type] || "ℹ️"}</div><div class="toast-content"><div class="toast-title">${titles[type]}</div><div class="toast-message">${message}</div></div>`;
 c.appendChild(el);
+toastActif = el;
 requestAnimationFrame(() => el.classList.add("show"));
-setTimeout(() => { el.classList.remove("show"); setTimeout(() => el.remove(), 400); }, 3500);
+toastTimeout = setTimeout(() => {
+el.classList.remove("show");
+setTimeout(() => {
+if (el.parentNode) el.remove();
+if (toastActif === el) toastActif = null;
+}, 400);
+}, 3500);
 }
 
 function showHostLoader() {
@@ -356,7 +369,7 @@ return null;
 function prefetchApps() {
 if (window._prefetched) return;
 window._prefetched = true;
-['/schooldirect', '/schoolcompte', '/schoolpromo'].forEach(url => {
+['/schooldirect', '/schoolcompte', '/schoolprom'].forEach(url => {
 const link = document.createElement('link');
 link.rel = 'prefetch';
 link.href = url;
@@ -419,8 +432,7 @@ document.getElementById("loginPassword").disabled = true;
 return;
 }
 
-const roleLabels = { direction: 'Direction', comptabilite: 'Comptabilité', promoteur: 'Promoteur' };
-toast('Vérification réussie. Connexion en tant que ' + roleLabels[role] + '…', "success");
+const roleLabels = { direction: 'Direction', comptabilite: 'Comptable', promoteur: 'Promoteur' };
 
 try {
 await createUserWithEmailAndPassword(auth, email, password);
@@ -447,7 +459,7 @@ sessionStorage.setItem('email', email);
 
 window.history.replaceState({}, '', window.location.pathname);
 
-toast('✅ Connexion réussie en tant que ' + roleLabels[role] + ' !', "success");
+toast('Connexion réussie en tant que ' + roleLabels[role], "success");
 
 setTimeout(() => { activateHostMode(); }, 500);
 
@@ -478,7 +490,7 @@ let pageUrl = '';
 switch (role) {
 case 'direction':    pageUrl = '/schooldirect';   break;
 case 'comptabilite': pageUrl = '/schoolcompte';   break;
-case 'promoteur':    pageUrl = '/schoolpromo';    break;
+case 'promoteur':    pageUrl = '/schoolprom';     break;
 default: pageUrl = '';
 }
 
@@ -515,7 +527,7 @@ if (height > window.innerHeight) iframe.style.height = height + 'px';
 
 iframe.addEventListener('load', onIframeLoad);
 
-hostLoaderTimeout = setTimeout(() => {
+setTimeout(() => {
 if (!loaded) hideHostLoader();
 }, 15000);
 
