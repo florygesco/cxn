@@ -993,12 +993,26 @@ Cette action va <strong>écrire</strong> dans la base Firestore. Toutes les donn
 <script type="module">
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, onSnapshot, runTransaction } from "firebase/firestore";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+
+// ═══════════════════════════════════════════════════════════════════
+// 🔥 CORRECTION CRITIQUE : L'AUTH FIREBASE EST CHARGÉE DYNAMIQUEMENT
+// ═══════════════════════════════════════════════════════════════════
+// ⚠️ On N'IMPORTE PLUS getAuth ni signInWithEmailAndPassword au niveau
+//    du module, car cela créerait une instance Firebase Auth PARTAGÉE
+//    qui écraserait la session de l'Espace Comptabilité.
+//
+//    À la place, on crée une instance Firebase TEMPORAIRE ISOLÉE
+//    au moment de la connexion, puis on la détruit immédiatement.
+// ═══════════════════════════════════════════════════════════════════
 
 const firebaseConfig = {apiKey:"AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",authDomain:"gesco-2.firebaseapp.com",projectId:"gesco-2",storageBucket:"gesco-2.firebasestorage.app",messagingSenderId:"36319988765",appId:"1:36319988765:web:e8cd823804596495248af4"};
+
+// Instance PRINCIPALE (utilisée uniquement pour Firestore)
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const auth = getAuth(app);
+
+// ⚠️ SUPPRIMÉ : const auth = getAuth(app);
+//    → On n'utilise PLUS l'auth partagée pour éviter les conflits
 
 const LOGO_URL = "https://www.netubex.com/favicon.ico";
 const NX_CODE = "NXTheone";
@@ -1083,6 +1097,11 @@ function showConfirm(msg){
   });
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// 🔥 FONCTION DE CONNEXION CORRIGÉE
+// Utilise une instance Firebase TEMPORAIRE ISOLÉE
+// Ne touche PAS à la session Firebase partagée de la Comptabilité
+// ═══════════════════════════════════════════════════════════════════
 async function handleLogin(){
   const email = document.getElementById("loginEmail").value.trim();
   const password = document.getElementById("loginPassword").value.trim();
@@ -1093,11 +1112,38 @@ async function handleLogin(){
   if(!email||!password){err.textContent="❌ Veuillez remplir tous les champs";return}
   btn.disabled = true;
   btn.classList.add("loading");
+  
   try{
-    const cred = await signInWithEmailAndPassword(auth,email,password);
+    // 🔥 Import DYNAMIQUE des fonctions Firebase Auth
+    const { initializeApp: initTempApp, deleteApp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js");
+    const { getAuth: getTempAuth, signInWithEmailAndPassword: signInTemp, signOut: signOutTemp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js");
+    
+    // Créer une app Firebase temporaire avec un nom UNIQUE
+    const tempAppName = "netubex-dsi-temp-" + Date.now() + "-" + Math.random().toString(36).substring(2,8);
+    const tempApp = initTempApp(firebaseConfig, tempAppName);
+    const tempAuth = getTempAuth(tempApp);
+    
+    // Se connecter sur cette instance ISOLÉE
+    const cred = await signInTemp(tempAuth, email, password);
+    
+    if (!cred || !cred.user) {
+      throw new Error("Connexion échouée");
+    }
+    
     suc.textContent = "✅ Connexion réussie";
-    currentUser = {email:cred.user.email};
-    sessionStorage.setItem("adminSession",JSON.stringify({email:cred.user.email,timestamp:Date.now()}));
+    currentUser = {email: cred.user.email};
+    // ⚠️ Stockage LOCAL (pas Firebase) → n'affecte pas la session partagée
+    localStorage.setItem("netubex_dsi_session", JSON.stringify({email: cred.user.email, timestamp: Date.now()}));
+    
+    // 🔑 ÉTAPE CRITIQUE : Déconnecter et détruire l'instance temporaire
+    // Cela NETTOIE complètement l'auth isolée sans toucher à la session partagée
+    try {
+      await signOutTemp(tempAuth);
+    } catch(e){}
+    try {
+      await deleteApp(tempApp);
+    } catch(e){}
+    
     setTimeout(()=>{
       document.getElementById("loginOverlay").classList.add("hidden");
       document.getElementById("dashboardContent").classList.add("visible");
@@ -1105,8 +1151,14 @@ async function handleLogin(){
       document.getElementById("userAvatar").textContent = cred.user.email.charAt(0).toUpperCase();
       loadAllData();
     },600);
+    
   }catch(e){
-    err.textContent = "❌ Identifiants incorrects";
+    console.error("Erreur connexion:", e);
+    let msg = "❌ Identifiants incorrects";
+    if(e.code === "auth/invalid-email") msg = "❌ Email invalide";
+    else if(e.code === "auth/user-not-found") msg = "❌ Compte introuvable";
+    else if(e.code === "auth/too-many-requests") msg = "❌ Trop de tentatives. Réessayez plus tard";
+    err.textContent = msg;
   }finally{
     btn.disabled = false;
     btn.classList.remove("loading");
@@ -1115,7 +1167,7 @@ async function handleLogin(){
 
 function logout(){
   currentUser = null;
-  sessionStorage.removeItem("adminSession");
+  localStorage.removeItem("netubex_dsi_session");
   document.getElementById("dashboardContent").classList.remove("visible");
   document.getElementById("loginOverlay").classList.remove("hidden");
   document.getElementById("loginEmail").value="";
@@ -1971,17 +2023,21 @@ document.getElementById("togglePassword")?.addEventListener("click",function(){
 });
 document.getElementById("logoutBtn")?.addEventListener("click",logout);
 
-const saved = sessionStorage.getItem("adminSession");
+// 🔥 Restauration de session : utilise localStorage (isolé de Firebase Auth)
+const saved = localStorage.getItem("netubex_dsi_session");
 if(saved){
   try{
     const s = JSON.parse(saved);
-    if(s.email&&s.timestamp>Date.now()-3600000){
+    // Session valide pendant 7 jours
+    if(s.email && s.timestamp > Date.now() - 7*24*3600000){
       currentUser = {email:s.email};
       document.getElementById("loginOverlay").classList.add("hidden");
       document.getElementById("dashboardContent").classList.add("visible");
       document.getElementById("userName").textContent = s.email;
       document.getElementById("userAvatar").textContent = s.email.charAt(0).toUpperCase();
       loadAllData();
+    } else {
+      localStorage.removeItem("netubex_dsi_session");
     }
   }catch(e){}
 }
