@@ -42,6 +42,11 @@ body{background:var(--bg);color:var(--text);min-height:100vh;font-size:16px;over
 ::-webkit-scrollbar-thumb:hover{background:var(--green)}
 .hidden{display:none !important}
 
+.quota-warning{background:linear-gradient(135deg,#ffbc38,#f39c12);color:#000;padding:12px 20px;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:3px solid #d68910}
+.quota-warning .content{display:flex;align-items:center;gap:10px;flex:1}
+.quota-warning .icon{font-size:20px}
+.quota-warning .close-btn{background:rgba(0,0,0,.15);border:none;color:#000;padding:6px 14px;border-radius:10px;font-weight:800;cursor:pointer;font-size:12px}
+
 #loginOverlay{position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--bg) 0%,var(--panel) 100%);padding:24px;transition:opacity .4s ease}
 #loginOverlay.hidden{opacity:0;pointer-events:none}
 .login-card{background:var(--panel);border-radius:var(--radius-xl);padding:56px 48px;max-width:520px;width:100%;border:1px solid var(--border);box-shadow:var(--shadow-lg)}
@@ -101,7 +106,7 @@ body{background:var(--bg);color:var(--text);min-height:100vh;font-size:16px;over
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
 .main{display:flex;flex-direction:column;min-width:0;background:var(--bg)}
-.topbar{background:var(--header);padding:20px 36px;display:flex;justify-content:space-between;align-items:center;gap:20px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50}
+.topbar{background:var(--header);padding:20px 36px;display:flex;justify-content:space-between;align-items:center;gap:20px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;flex-wrap:wrap}
 .topbar h1{font-size:24px;font-weight:800;color:var(--text);letter-spacing:-.5px}
 .topbar .breadcrumb{font-size:12px;color:var(--text-2);margin-top:4px;font-weight:500}
 .topbar .actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -576,6 +581,16 @@ font-weight:700;
 </head>
 <body>
 
+<div class="quota-warning" id="quotaWarning">
+  <div class="content">
+    <span class="icon">⚠️</span>
+    <div>
+      <strong>Protection du quota Firestore :</strong> Le bouton "Rafraîchir" est limité à 1 clic/5 min. Cela évite de bloquer la Comptabilité.
+    </div>
+  </div>
+  <button class="close-btn" onclick="document.getElementById('quotaWarning').style.display='none'">✕</button>
+</div>
+
 <div id="loginOverlay">
 <div class="login-card">
 <div class="logo">
@@ -648,7 +663,7 @@ font-weight:700;
 <div class="status-pill"><span class="dot"></span> BDD connectée</div>
 <button class="btn btn-outline btn-icon" id="themeToggle" title="Mode clair / sombre">☀️</button>
 <button class="btn btn-warning btn-icon" id="clearCacheBtn" title="Vider le cache">🗑️</button>
-<button class="btn btn-outline btn-icon" id="refreshAllBtn" title="Rafraîchir">⟳</button>
+<button class="btn btn-outline btn-icon" id="refreshAllBtn" title="Rafraîchir (limité)">⟳</button>
 </div>
 </header>
 
@@ -813,12 +828,12 @@ font-weight:700;
 
 <section class="panel" id="panelCounter">
 <div class="card">
-<div class="card-header"><h2>🔢 Compteur global des élèves</h2><button class="btn btn-outline btn-sm" id="refreshCounterBtn">⟳</button></div>
+<div class="card-header"><h2>🔢 Compteur global des élèves (temps réel)</h2><button class="btn btn-outline btn-sm" id="refreshCounterBtn">⟳</button></div>
 <div class="card-body">
 <div class="counter-hero">
 <div class="hero-value" id="counterTotal">0</div>
-<div class="hero-label">👥 Total élèves (basé sur codes parents)</div>
-<div class="hero-refresh" id="counterRefreshTime">Dernière mise à jour : —</div>
+<div class="hero-label">👥 Total élèves (temps réel)</div>
+<div class="hero-refresh" id="counterRefreshTime">🟢 En attente...</div>
 </div>
 <div class="counter-grid">
 <div class="counter-box"><div class="counter-value c-a" id="counterA">0</div><div class="counter-label">📘 Secondaire</div><div class="counter-sub">compta_eleves</div></div>
@@ -832,11 +847,11 @@ font-weight:700;
 
 <section class="panel" id="panelRapport">
 <div class="card">
-<div class="card-header"><h2>📊 Générer un rapport PDF</h2></div>
+<div class="card-header"><h2>📊 Générer un rapport PDF (temps réel)</h2></div>
 <div class="card-body">
 <div class="rapport-info">
-<strong>📄 Rapport officiel d'effectifs</strong><br />
-Générez un PDF professionnel destiné à la Direction Administrative et Comptabilité.
+<strong>📄 Rapport officiel d'effectifs · TEMPS RÉEL</strong><br />
+Les chiffres sont chargés <strong>en direct</strong> au moment de la génération du PDF, garantissant des données exactes et à jour.
 </div>
 <div class="rapport-form">
 <div class="field">
@@ -849,7 +864,7 @@ Générez un PDF professionnel destiné à la Direction Administrative et Compta
 </div>
 </div>
 <div class="rapport-actions">
-<button class="btn-download" id="telechargerPdfBtn"><span class="btn-icon">📥</span> Télécharger le PDF</button>
+<button class="btn-download" id="telechargerPdfBtn"><span class="btn-icon">📥</span> Télécharger le PDF (temps réel)</button>
 </div>
 </div>
 </div>
@@ -872,7 +887,10 @@ Générez un PDF professionnel destiné à la Direction Administrative et Compta
 <div class="card">
 <div class="card-header"><h2>🔍 Diagnostic des écoles</h2><button class="btn btn-outline btn-sm" id="refreshDiagnosticBtn">⟳</button></div>
 <div class="card-body">
-<div id="diagnosticContainer"><div class="empty-state">⏳ Chargement du diagnostic...</div></div>
+<div class="rapport-info" style="background:rgba(255,188,56,.08);border-color:rgba(255,188,56,.2);">
+⚠️ <strong>Attention :</strong> cette fonction est <strong>coûteuse en lectures Firestore</strong> (~11 800 par analyse). Utilisez-la <strong>rarement</strong>.
+</div>
+<div id="diagnosticContainer"><div class="empty-state">Cliquez sur ⟳ pour lancer le diagnostic</div></div>
 </div>
 </div>
 </section>
@@ -883,7 +901,7 @@ Générez un PDF professionnel destiné à la Direction Administrative et Compta
 <div class="card-body">
 <div class="rapport-info" style="background:rgba(255,188,56,.08);border-color:rgba(255,188,56,.2);">
 <strong style="color:var(--warn);">⚠️ Attention — Opération critique</strong><br />
-Cette action va <strong>écrire</strong> dans la base Firestore. Toutes les données du fichier JSON seront injectées dans les collections correspondantes de l'école cible. Un <strong>code d'accès</strong> est requis pour lancer la restauration.
+Cette action va <strong>écrire</strong> dans la base Firestore. Un <strong>code d'accès</strong> est requis.
 </div>
 <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;">
 <input type="file" id="restoreFileInput" accept=".json,application/json" style="display:none;" />
@@ -994,32 +1012,18 @@ Cette action va <strong>écrire</strong> dans la base Firestore. Toutes les donn
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, onSnapshot, runTransaction } from "firebase/firestore";
 
-// ═══════════════════════════════════════════════════════════════════
-// 🔥 CORRECTION CRITIQUE : L'AUTH FIREBASE EST CHARGÉE DYNAMIQUEMENT
-// ═══════════════════════════════════════════════════════════════════
-// ⚠️ On N'IMPORTE PLUS getAuth ni signInWithEmailAndPassword au niveau
-//    du module, car cela créerait une instance Firebase Auth PARTAGÉE
-//    qui écraserait la session de l'Espace Comptabilité.
-//
-//    À la place, on crée une instance Firebase TEMPORAIRE ISOLÉE
-//    au moment de la connexion, puis on la détruit immédiatement.
-// ═══════════════════════════════════════════════════════════════════
-
 const firebaseConfig = {apiKey:"AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",authDomain:"gesco-2.firebaseapp.com",projectId:"gesco-2",storageBucket:"gesco-2.firebasestorage.app",messagingSenderId:"36319988765",appId:"1:36319988765:web:e8cd823804596495248af4"};
-
-// Instance PRINCIPALE (utilisée uniquement pour Firestore)
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-
-// ⚠️ SUPPRIMÉ : const auth = getAuth(app);
-//    → On n'utilise PLUS l'auth partagée pour éviter les conflits
 
 const LOGO_URL = "https://www.netubex.com/favicon.ico";
 const NX_CODE = "NXTheone";
 const CACHE_KEY = "netubex_dashboard_cache";
 const CACHE_TIME_KEY = "netubex_cache_time";
-const CACHE_DURATION = 24 * 60 * 60 * 1000;
+// ⚡ CACHE 7 JOURS (au lieu de 24h)
+const CACHE_DURATION = 7 * 24 * 60 * 60 * 1000;
 const CHAT_TTL = 24 * 60 * 60 * 1000;
+const REFRESH_COOLDOWN = 5 * 60 * 1000; // 5 minutes entre 2 refresh manuels
 
 let allData = { schools: [], teachers: [], sheets: [], students: [], codes: [], parentCodes: [], enseignants: [], abandons: [] };
 let membersA = [], membersB = [], membersC = [];
@@ -1032,6 +1036,7 @@ let chatUnsub = null;
 let chatMsgs = [];
 let restoreData = null;
 let restoreFileName = "";
+let compteurUnsubscribe = null;
 
 function getDb(){return db}
 function escapeHtml(s){if(!s)return"";return String(s).replace(/[&<>"]/g,m=>m==="&"?"&amp;":m==="<"?"&lt;":m===">"?"&gt;":"&quot;")}
@@ -1057,8 +1062,8 @@ function clearCache(){
     localStorage.removeItem(CACHE_TIME_KEY);
     allData = {schools:[],teachers:[],sheets:[],students:[],codes:[],parentCodes:[],enseignants:[],abandons:[]};
     membersA=[];membersB=[];membersC=[];
-    loadAllData();
-    showToast("Cache vidé","success");
+    loadAllData(true);
+    showToast("Cache vidé - rechargement en cours","success");
   }catch(e){}
 }
 
@@ -1097,11 +1102,6 @@ function showConfirm(msg){
   });
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 🔥 FONCTION DE CONNEXION CORRIGÉE
-// Utilise une instance Firebase TEMPORAIRE ISOLÉE
-// Ne touche PAS à la session Firebase partagée de la Comptabilité
-// ═══════════════════════════════════════════════════════════════════
 async function handleLogin(){
   const email = document.getElementById("loginEmail").value.trim();
   const password = document.getElementById("loginPassword").value.trim();
@@ -1112,37 +1112,23 @@ async function handleLogin(){
   if(!email||!password){err.textContent="❌ Veuillez remplir tous les champs";return}
   btn.disabled = true;
   btn.classList.add("loading");
-  
   try{
-    // 🔥 Import DYNAMIQUE des fonctions Firebase Auth
     const { initializeApp: initTempApp, deleteApp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js");
     const { getAuth: getTempAuth, signInWithEmailAndPassword: signInTemp, signOut: signOutTemp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js");
     
-    // Créer une app Firebase temporaire avec un nom UNIQUE
     const tempAppName = "netubex-dsi-temp-" + Date.now() + "-" + Math.random().toString(36).substring(2,8);
     const tempApp = initTempApp(firebaseConfig, tempAppName);
     const tempAuth = getTempAuth(tempApp);
     
-    // Se connecter sur cette instance ISOLÉE
     const cred = await signInTemp(tempAuth, email, password);
-    
-    if (!cred || !cred.user) {
-      throw new Error("Connexion échouée");
-    }
+    if (!cred || !cred.user) throw new Error("Connexion échouée");
     
     suc.textContent = "✅ Connexion réussie";
     currentUser = {email: cred.user.email};
-    // ⚠️ Stockage LOCAL (pas Firebase) → n'affecte pas la session partagée
     localStorage.setItem("netubex_dsi_session", JSON.stringify({email: cred.user.email, timestamp: Date.now()}));
     
-    // 🔑 ÉTAPE CRITIQUE : Déconnecter et détruire l'instance temporaire
-    // Cela NETTOIE complètement l'auth isolée sans toucher à la session partagée
-    try {
-      await signOutTemp(tempAuth);
-    } catch(e){}
-    try {
-      await deleteApp(tempApp);
-    } catch(e){}
+    try { await signOutTemp(tempAuth); } catch(e){}
+    try { await deleteApp(tempApp); } catch(e){}
     
     setTimeout(()=>{
       document.getElementById("loginOverlay").classList.add("hidden");
@@ -1150,10 +1136,9 @@ async function handleLogin(){
       document.getElementById("userName").textContent = cred.user.email;
       document.getElementById("userAvatar").textContent = cred.user.email.charAt(0).toUpperCase();
       loadAllData();
+      demarrerSurveillanceCompteur();
     },600);
-    
   }catch(e){
-    console.error("Erreur connexion:", e);
     let msg = "❌ Identifiants incorrects";
     if(e.code === "auth/invalid-email") msg = "❌ Email invalide";
     else if(e.code === "auth/user-not-found") msg = "❌ Compte introuvable";
@@ -1168,6 +1153,7 @@ async function handleLogin(){
 function logout(){
   currentUser = null;
   localStorage.removeItem("netubex_dsi_session");
+  if(compteurUnsubscribe){compteurUnsubscribe();compteurUnsubscribe=null;}
   document.getElementById("dashboardContent").classList.remove("visible");
   document.getElementById("loginOverlay").classList.remove("hidden");
   document.getElementById("loginEmail").value="";
@@ -1176,26 +1162,87 @@ function logout(){
   document.getElementById("loginSuccess").textContent="";
 }
 
-function updateGlobalCounters(){
-  const total = allData.parentCodes.length;
-  const a = allData.parentCodes.filter(p=>p.section==="secondary").length;
-  const b = allData.parentCodes.filter(p=>p.section==="primary").length;
-  const c = allData.parentCodes.filter(p=>p.section==="nursery").length;
-  const setTxt = (id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v};
-  setTxt("countA",a);setTxt("countB",b);setTxt("countC",c);
-  setTxt("counterA",a);setTxt("counterB",b);setTxt("counterC",c);
-  setTxt("counterTotal",total);setTxt("counterCodes",total);
-  setTxt("countTab9",total);setTxt("mtCount1",allData.schools.length);
-  setTxt("mtCount2",membersA.length);setTxt("mtCount3",membersB.length);setTxt("mtCount4",membersC.length);
-  setTxt("mtCount5",allData.teachers.length);setTxt("mtCount6",allData.sheets.length);
-  const elTime = document.getElementById("counterRefreshTime");
-  if(elTime){elTime.textContent = "Dernière mise à jour : " + new Date().toLocaleTimeString("fr-FR")}
+// ═══════════════════════════════════════════════════════════════
+// 📡 SURVEILLANCE TEMPS RÉEL DU COMPTEUR CODES PARENTS
+// ═══════════════════════════════════════════════════════════════
+async function demarrerSurveillanceCompteur(){
+  if(compteurUnsubscribe){compteurUnsubscribe();compteurUnsubscribe=null;}
+  console.log("📡 [ADMIN] Démarrage surveillance compteur temps réel");
+  
+  const ecolesSnap = await getDocs(collection(db, "ecoles"));
+  const ecolesIds = ecolesSnap.docs.map(d => d.id);
+  if(ecolesIds.length === 0){return;}
+  
+  const compteurs = {};
+  const listeners = [];
+  
+  ecolesIds.forEach(ecoleId => {
+    compteurs[ecoleId] = { secondary: 0, primary: 0, nursery: 0 };
+    
+    const unsubA = onSnapshot(collection(db, "ecoles", ecoleId, "compta_eleves"), (snap) => {
+      let count = 0;
+      snap.forEach(d => { const data = d.data(); if(data.nom && data.parentCode && !data.abandon) count++; });
+      compteurs[ecoleId].secondary = count;
+      mettreAJourCompteurGlobal(compteurs);
+    }, (err) => console.error("Erreur écoute:", err));
+    listeners.push(unsubA);
+    
+    const unsubB = onSnapshot(collection(db, "ecoles", ecoleId, "prima_eleves"), (snap) => {
+      let count = 0;
+      snap.forEach(d => { const data = d.data(); if(data.nom && data.parentCode && !data.abandon) count++; });
+      compteurs[ecoleId].primary = count;
+      mettreAJourCompteurGlobal(compteurs);
+    }, (err) => console.error("Erreur écoute:", err));
+    listeners.push(unsubB);
+    
+    const unsubC = onSnapshot(collection(db, "ecoles", ecoleId, "mater_eleves"), (snap) => {
+      let count = 0;
+      snap.forEach(d => { const data = d.data(); if(data.nom && data.parentCode && !data.abandon) count++; });
+      compteurs[ecoleId].nursery = count;
+      mettreAJourCompteurGlobal(compteurs);
+    }, (err) => console.error("Erreur écoute:", err));
+    listeners.push(unsubC);
+  });
+  
+  compteurUnsubscribe = () => { listeners.forEach(unsub => { try { unsub(); } catch(e) {} }); };
+  console.log("✅ [ADMIN] Surveillance active sur " + ecolesIds.length + " école(s)");
 }
 
-async function loadAllData(){
+function mettreAJourCompteurGlobal(compteurs){
+  let totalA = 0, totalB = 0, totalC = 0;
+  Object.values(compteurs).forEach(c => { totalA += c.secondary; totalB += c.primary; totalC += c.nursery; });
+  const total = totalA + totalB + totalC;
+  const setTxt = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
+  setTxt("counterA", totalA);
+  setTxt("counterB", totalB);
+  setTxt("counterC", totalC);
+  setTxt("counterCodes", total);
+  setTxt("counterTotal", total);
+  setTxt("countA", totalA);
+  setTxt("countB", totalB);
+  setTxt("countC", totalC);
+  setTxt("countTab9", total);
+  setTxt("countTab10", total);
+  const elTime = document.getElementById("counterRefreshTime");
+  if(elTime){elTime.textContent = "🟢 Temps réel : " + new Date().toLocaleTimeString("fr-FR");}
+}
+
+function updateGlobalCounters(){
+  const setTxt = (id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v};
+  setTxt("mtCount1",allData.schools.length);
+  setTxt("mtCount2",membersA.length);
+  setTxt("mtCount3",membersB.length);
+  setTxt("mtCount4",membersC.length);
+  setTxt("mtCount5",allData.teachers.length);
+  setTxt("mtCount6",allData.sheets.length);
+}
+
+async function loadAllData(forceRefresh = false){
   try{
     const cached = getCache();
-    if(cached && isCacheValid() && cached.allData && Array.isArray(cached.allData.schools)){
+    
+    if(!forceRefresh && cached && isCacheValid() && cached.allData && Array.isArray(cached.allData.schools)){
+      console.log("📦 [ADMIN] Cache utilisé - 0 lecture Firestore");
       const uniqueSchools = [];
       const seen = new Set();
       cached.allData.schools.forEach(s=>{if(s&&s.id&&!seen.has(s.id)){seen.add(s.id);uniqueSchools.push(s)}});
@@ -1212,6 +1259,8 @@ async function loadAllData(){
       updateDashboard();
       return;
     }
+    
+    console.log("🔄 [ADMIN] Cache invalide - rechargement Firestore");
     const snap = await getDocs(collection(db,"ecoles"));
     allData = {schools:[],teachers:[],sheets:[],students:[],codes:[],parentCodes:[],enseignants:[],abandons:[]};
     membersA=[];membersB=[];membersC=[];
@@ -1714,8 +1763,6 @@ function updateTabCounts(){
   setTxt("countTab6",allData.sheets.length);
   setTxt("countTab7",allData.codes.length);
   setTxt("countTab8",allData.enseignants?allData.enseignants.length:0);
-  setTxt("countTab10",allData.parentCodes.length);
-  setTxt("countTab9",allData.parentCodes.length);
   setTxt("mtCount1",allData.schools.length);
   setTxt("mtCount2",membersA.length);
   setTxt("mtCount3",membersB.length);
@@ -1806,79 +1853,141 @@ function buildDateLongue(){
   return n.getDate()+" "+m[n.getMonth()]+" "+n.getFullYear();
 }
 
-function buildPdfHtml(){
+// ═══════════════════════════════════════════════════════════════
+// 🔥 GÉNÉRATION PDF EN TEMPS RÉEL
+// Recharge uniquement les données de l'école choisie
+// ═══════════════════════════════════════════════════════════════
+async function telechargerPdf(){
   const ecoleId = document.getElementById("rapportEcoleSelect")?.value;
-  if(!ecoleId)return null;
-  const school = allData.schools.find(s=>s.id===ecoleId);
-  if(!school)return null;
-  const a = membersA.filter(m=>m.ecoleId===ecoleId).length;
-  const b = membersB.filter(m=>m.ecoleId===ecoleId).length;
-  const c = membersC.filter(m=>m.ecoleId===ecoleId).length;
-  const ab = allData.abandons.filter(x=>x.ecoleId===ecoleId).length;
-  const ta = a+b+c;
+  if(!ecoleId){showToast("Veuillez sélectionner une école","warning");return}
+  
+  const btn = document.getElementById("telechargerPdfBtn");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="btn-icon">⏳</span> Actualisation des données...';
+  
+  try{
+    console.log("🔄 [ADMIN] Rechargement temps réel pour:", ecoleId);
+    
+    const [comptaSnap, primaSnap, materSnap, ecoleSnap] = await Promise.all([
+      getDocs(collection(db, "ecoles", ecoleId, "compta_eleves")).catch(()=>null),
+      getDocs(collection(db, "ecoles", ecoleId, "prima_eleves")).catch(()=>null),
+      getDocs(collection(db, "ecoles", ecoleId, "mater_eleves")).catch(()=>null),
+      getDoc(doc(db, "ecoles", ecoleId)).catch(()=>null)
+    ]);
+    
+    let countA = 0, countB = 0, countC = 0, countAbandons = 0;
+    
+    if(comptaSnap){
+      comptaSnap.forEach(d => {
+        const data = d.data();
+        if(data.nom && data.parentCode){
+          if(data.abandon) countAbandons++;
+          else countA++;
+        }
+      });
+    }
+    if(primaSnap){
+      primaSnap.forEach(d => {
+        const data = d.data();
+        if(data.nom && data.parentCode){
+          if(data.abandon) countAbandons++;
+          else countB++;
+        }
+      });
+    }
+    if(materSnap){
+      materSnap.forEach(d => {
+        const data = d.data();
+        if(data.nom && data.parentCode){
+          if(data.abandon) countAbandons++;
+          else countC++;
+        }
+      });
+    }
+    
+    const ecoleData = ecoleSnap && ecoleSnap.exists() ? ecoleSnap.data() : {};
+    console.log("✅ Données temps réel:", {countA, countB, countC, countAbandons});
+    
+    btn.innerHTML = '<span class="btn-icon">📄</span> Génération du PDF...';
+    
+    const html = buildPdfHtmlAvecDonnees(ecoleId, ecoleData, countA, countB, countC, countAbandons);
+    if(!html){
+      btn.disabled = false;
+      btn.innerHTML = '<span class="btn-icon">📥</span> Télécharger le PDF (temps réel)';
+      return;
+    }
+    
+    const container = document.getElementById("pdfContainer");
+    container.innerHTML = html;
+    await new Promise(r => setTimeout(r, 300));
+    
+    const el = document.getElementById("pdfA4");
+    const canvas = await html2canvas(el, {scale:2, useCORS:true, allowTaint:false, backgroundColor:"#ffffff", logging:false, width:794, height:1123});
+    const imgData = canvas.toDataURL("image/jpeg", 0.95);
+    const {jsPDF} = window.jspdf;
+    const pdf = new jsPDF({unit:"mm", format:"a4", orientation:"portrait"});
+    pdf.addImage(imgData, "JPEG", 0, 0, 210, 297);
+    
+    const schoolName = ecoleData.nom || ecoleId;
+    const nom = "Rapport_" + schoolName.replace(/[^a-z0-9]/gi,"_") + "_" + new Date().toISOString().slice(0,10) + ".pdf";
+    pdf.save(nom);
+    
+    container.innerHTML = "";
+    showToast("✅ PDF généré avec les données en temps réel","success");
+  }catch(e){
+    console.error("Erreur PDF:", e);
+    showToast("Erreur : " + e.message, "error");
+  }finally{
+    btn.disabled = false;
+    btn.innerHTML = '<span class="btn-icon">📥</span> Télécharger le PDF (temps réel)';
+  }
+}
+
+function buildPdfHtmlAvecDonnees(ecoleId, school, countA, countB, countC, countAbandons){
+  if(!school || Object.keys(school).length === 0){
+    const fallback = allData.schools.find(s => s.id === ecoleId);
+    if(!fallback) return null;
+    school = fallback;
+  }
+  
+  const ta = countA + countB + countC;
   const ref = buildReference();
   const dl = buildDateLongue();
-  const ville = school.ville||school.province||"";
-  const ld = ville?ville+", le "+dl:"Le "+dl;
-  const statutL = school.actif===false?"Inactive":(school.masque?"Masquée":"Active");
-  const statutC = school.actif===false?"status-inactive":(school.masque?"status-hidden":"status-active");
+  const ville = school.ville || school.province || "";
+  const ld = ville ? ville + ", le " + dl : "Le " + dl;
+  const statutL = school.actif === false ? "Inactive" : (school.masque ? "Masquée" : "Active");
+  const statutC = school.actif === false ? "status-inactive" : (school.masque ? "status-hidden" : "status-active");
+  
   return '<div class="pdf-a4" id="pdfA4">'
     + '<div class="header-band">'
-    + '<div class="logo-circle"><img src="'+LOGO_URL+'" alt="NeTubeX" crossorigin="anonymous" /></div>'
+    + '<div class="logo-circle"><img src="' + LOGO_URL + '" alt="NeTubeX" crossorigin="anonymous" /></div>'
     + '<div class="header-text"><h1>Direction Stratégique et Innovation</h1><div class="divider"></div><h2>NeTubeX SARL</h2><div class="subtitle">Société à Responsabilité Limitée · République Démocratique du Congo</div></div>'
     + "</div>"
     + '<div class="body-content">'
-    + '<div class="ref-row"><div class="ref-item"><span class="ref-label">Référence</span><span class="ref-value">'+escapeHtml(ref)+'</span></div><div class="ref-item source-item"><span class="ref-label">BDD</span><span class="source-value">BDD</span></div></div>'
-    + '<div class="lieu-date">'+escapeHtml(ld)+"</div>"
+    + '<div class="ref-row"><div class="ref-item"><span class="ref-label">Référence</span><span class="ref-value">' + escapeHtml(ref) + '</span></div><div class="ref-item source-item"><span class="ref-label">BDD</span><span class="source-value">TEMPS RÉEL</span></div></div>'
+    + '<div class="lieu-date">' + escapeHtml(ld) + "</div>"
     + '<div class="destinataire-block"><div class="dest-label">À l\'attention de</div><div class="dest-name">Monsieur MAKANGILA KITEMA DIEU MERCI</div><div class="dest-function">Directeur de l\'Administration et Comptabilité</div></div>'
     + '<div class="objet-box"><div class="objet-label">Objet</div><div class="objet-text">Transmission du rapport d\'effectifs scolaires</div></div>'
-    + '<div class="corps">Monsieur l\'Associé,<br /><br />Dans le cadre du suivi régulier des effectifs scolaires, nous avons l\'honneur de vous transmettre le rapport d\'effectifs de l\'établissement <strong>'+escapeHtml(school.nom)+"</strong>, arrêté à la date du présent document.</div>"
+    + '<div class="corps">Monsieur l\'Associé,<br /><br />Dans le cadre du suivi régulier des effectifs scolaires, nous avons l\'honneur de vous transmettre le rapport d\'effectifs de l\'établissement <strong>' + escapeHtml(school.nom) + "</strong>, arrêté à la date du présent document.</div>"
     + '<div class="section-header"><div class="section-icon">🏫</div><div class="section-title">Identification de l\'établissement</div><div class="section-line"></div></div>'
     + '<table class="pdf-table">'
-    + "<tr><td class=\"label-cell\">Dénomination</td><td class=\"value-cell\">"+escapeHtml(school.nom||"-")+"</td><td class=\"label-cell\">Province</td><td class=\"value-cell\">"+escapeHtml(school.province||"-")+"</td></tr>"
-    + "<tr><td class=\"label-cell\">Ville</td><td class=\"value-cell\">"+escapeHtml(school.ville||"-")+"</td><td class=\"label-cell\">PROMOTEUR</td><td class=\"value-cell\">"+escapeHtml(school.directeur||"-")+"</td></tr>"
-    + "<tr><td class=\"label-cell\">Statut</td><td class=\"value-cell "+statutC+"\" colspan=\"3\">"+statutL+"</td></tr>"
+    + "<tr><td class=\"label-cell\">Dénomination</td><td class=\"value-cell\">" + escapeHtml(school.nom || "-") + "</td><td class=\"label-cell\">Province</td><td class=\"value-cell\">" + escapeHtml(school.province || "-") + "</td></tr>"
+    + "<tr><td class=\"label-cell\">Ville</td><td class=\"value-cell\">" + escapeHtml(school.ville || "-") + "</td><td class=\"label-cell\">PROMOTEUR</td><td class=\"value-cell\">" + escapeHtml(school.directeur || "-") + "</td></tr>"
+    + "<tr><td class=\"label-cell\">Statut</td><td class=\"value-cell " + statutC + "\" colspan=\"3\">" + statutL + "</td></tr>"
     + "</table>"
     + '<div class="section-header"><div class="section-icon">👥</div><div class="section-title">Effectifs par section</div><div class="section-line"></div></div>'
     + '<table class="pdf-table effectifs-table">'
-    + '<tr><td class="label-cell">📘 Membres actifs — Section A (Secondaire)</td><td class="value-cell">'+a+"</td></tr>"
-    + '<tr><td class="label-cell">📗 Membres actifs — Section B (Primaire)</td><td class="value-cell">'+b+"</td></tr>"
-    + '<tr><td class="label-cell">📙 Membres actifs — Section C (Maternelle)</td><td class="value-cell">'+c+"</td></tr>"
-    + '<tr class="total-abandons"><td class="label-cell">⚠️ Total abandons</td><td class="value-cell">'+ab+"</td></tr>"
-    + '<tr class="total-actifs"><td class="label-cell">✅ TOTAL MEMBRES ACTIFS</td><td class="value-cell">'+ta+"</td></tr>"
+    + '<tr><td class="label-cell">📘 Membres actifs — Section A (Secondaire)</td><td class="value-cell">' + countA + "</td></tr>"
+    + '<tr><td class="label-cell">📗 Membres actifs — Section B (Primaire)</td><td class="value-cell">' + countB + "</td></tr>"
+    + '<tr><td class="label-cell">📙 Membres actifs — Section C (Maternelle)</td><td class="value-cell">' + countC + "</td></tr>"
+    + '<tr class="total-abandons"><td class="label-cell">⚠️ Total abandons</td><td class="value-cell">' + countAbandons + "</td></tr>"
+    + '<tr class="total-actifs"><td class="label-cell">✅ TOTAL MEMBRES ACTIFS</td><td class="value-cell">' + ta + "</td></tr>"
     + "</table>"
     + '<div class="conclusion">Le présent rapport fait foi des effectifs arrêtés à la date ci-dessus mentionnée.</div>'
     + '<div class="signature-block"><div class="sig-inner"><div class="sig-title">Pour la Direction Stratégique et Innovation,</div><div class="sig-line"><div class="sig-name">NGENDA LUSANGA FLORY</div><div class="sig-function">Directeur</div></div></div></div>'
     + "</div>"
-    + '<div class="footer-band"><div class="footer-left">NeTubeX SARL · Direction Stratégique et Innovation</div><div class="footer-center">Réf. '+escapeHtml(ref)+'</div><div class="footer-right">Page 1/1</div></div>'
+    + '<div class="footer-band"><div class="footer-left">NeTubeX SARL · Direction Stratégique et Innovation</div><div class="footer-center">Réf. ' + escapeHtml(ref) + '</div><div class="footer-right">Page 1/1</div></div>'
     + "</div>";
-}
-
-async function telechargerPdf(){
-  const ecoleId = document.getElementById("rapportEcoleSelect")?.value;
-  if(!ecoleId){showToast("Veuillez sélectionner une école","warning");return}
-  const btn = document.getElementById("telechargerPdfBtn");
-  btn.disabled = true;
-  btn.innerHTML = '<span class="btn-icon">⏳</span> Génération...';
-  try{
-    const html = buildPdfHtml();
-    if(!html){btn.disabled = false;btn.innerHTML = '<span class="btn-icon">📥</span> Télécharger le PDF';return}
-    const container = document.getElementById("pdfContainer");
-    container.innerHTML = html;
-    await new Promise(r=>setTimeout(r,300));
-    const el = document.getElementById("pdfA4");
-    const canvas = await html2canvas(el,{scale:2,useCORS:true,allowTaint:false,backgroundColor:"#ffffff",logging:false,width:794,height:1123});
-    const imgData = canvas.toDataURL("image/jpeg",0.95);
-    const {jsPDF} = window.jspdf;
-    const pdf = new jsPDF({unit:"mm",format:"a4",orientation:"portrait"});
-    pdf.addImage(imgData,"JPEG",0,0,210,297);
-    const school = allData.schools.find(s=>s.id===ecoleId);
-    const nom = "Rapport_"+(school.nom||"ecole").replace(/[^a-z0-9]/gi,"_")+"_"+new Date().toISOString().slice(0,10)+".pdf";
-    pdf.save(nom);
-    container.innerHTML = "";
-    showToast("PDF téléchargé","success");
-  }catch(e){showToast("Erreur : "+e.message,"error")}
-  finally{btn.disabled = false;btn.innerHTML = '<span class="btn-icon">📥</span> Télécharger le PDF'}
 }
 
 const panelTitles = {
@@ -1890,8 +1999,8 @@ const panelTitles = {
   panelSheets:{title:"📄 Fiches",bread:"Tableau de bord · Fiches"},
   panelCodes:{title:"🔐 Codes & Emails",bread:"Tableau de bord · Codes"},
   panelEnseignants:{title:"👨‍🏫 Enseignants",bread:"Tableau de bord · Enseignants"},
-  panelCounter:{title:"🔢 Compteur",bread:"Tableau de bord · Compteur global"},
-  panelRapport:{title:"📊 Rapport PDF",bread:"Tableau de bord · Génération PDF"},
+  panelCounter:{title:"🔢 Compteur (temps réel)",bread:"Tableau de bord · Compteur"},
+  panelRapport:{title:"📊 Rapport PDF (temps réel)",bread:"Tableau de bord · PDF"},
   panelParentCodes:{title:"🔑 Codes Parents",bread:"Tableau de bord · Codes parents"},
   panelDiagnostic:{title:"🔍 Diagnostic",bread:"Tableau de bord · Diagnostic"},
   panelRestore:{title:"♻️ Restauration",bread:"Système · Restauration JSON"},
@@ -2023,12 +2132,10 @@ document.getElementById("togglePassword")?.addEventListener("click",function(){
 });
 document.getElementById("logoutBtn")?.addEventListener("click",logout);
 
-// 🔥 Restauration de session : utilise localStorage (isolé de Firebase Auth)
 const saved = localStorage.getItem("netubex_dsi_session");
 if(saved){
   try{
     const s = JSON.parse(saved);
-    // Session valide pendant 7 jours
     if(s.email && s.timestamp > Date.now() - 7*24*3600000){
       currentUser = {email:s.email};
       document.getElementById("loginOverlay").classList.add("hidden");
@@ -2036,6 +2143,7 @@ if(saved){
       document.getElementById("userName").textContent = s.email;
       document.getElementById("userAvatar").textContent = s.email.charAt(0).toUpperCase();
       loadAllData();
+      demarrerSurveillanceCompteur();
     } else {
       localStorage.removeItem("netubex_dsi_session");
     }
@@ -2045,8 +2153,26 @@ if(saved){
 document.getElementById("refreshEcolesBtn")?.addEventListener("click",loadSchools);
 document.getElementById("refreshTeachersBtn")?.addEventListener("click",loadTeachers);
 document.getElementById("refreshEnsBtn")?.addEventListener("click",loadEnseignants);
-document.getElementById("refreshAllBtn")?.addEventListener("click",()=>{loadAllData();showToast("Données actualisées","success")});
-document.getElementById("refreshCounterBtn")?.addEventListener("click",updateGlobalCounters);
+
+// ⚡ BOUTON RAFRAÎCHIR avec cooldown de 5 minutes
+document.getElementById("refreshAllBtn")?.addEventListener("click",async ()=>{
+  const dernierRefresh = localStorage.getItem("netubex_dernier_refresh");
+  const maintenant = Date.now();
+  if(dernierRefresh && (maintenant - parseInt(dernierRefresh)) < REFRESH_COOLDOWN){
+    const reste = Math.ceil((REFRESH_COOLDOWN - (maintenant - parseInt(dernierRefresh))) / 1000);
+    const min = Math.floor(reste / 60);
+    const sec = reste % 60;
+    showToast("⏳ Patientez " + min + "min " + sec + "s (protection quota Firestore)","warning");
+    return;
+  }
+  localStorage.removeItem(CACHE_KEY);
+  localStorage.removeItem(CACHE_TIME_KEY);
+  localStorage.setItem("netubex_dernier_refresh", maintenant.toString());
+  await loadAllData(true);
+  showToast("Données actualisées","success");
+});
+
+document.getElementById("refreshCounterBtn")?.addEventListener("click",()=>{showToast("Le compteur est déjà en temps réel ✅","info")});
 document.getElementById("clearCacheBtn")?.addEventListener("click",clearCache);
 document.getElementById("refreshDiagnosticBtn")?.addEventListener("click",chargerDiagnostic);
 document.getElementById("telechargerPdfBtn")?.addEventListener("click",telechargerPdf);
@@ -2325,7 +2451,7 @@ restoreRunBtn?.addEventListener("click",async()=>{
     localStorage.removeItem(CACHE_TIME_KEY);
     logRestore("","#0f0");
     logRestore("🔄 Rechargement des données...","#0ff");
-    await loadAllData();
+    await loadAllData(true);
     logRestore("✅ Données rechargées","#0f0");
     showToast("Restauration réussie : "+totalWritten+" documents","success");
   }catch(err){
