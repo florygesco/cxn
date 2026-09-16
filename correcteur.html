@@ -6,13 +6,14 @@
 <style>
 body{font-family:Arial,sans-serif;background:#0a0e1a;color:#fff;padding:20px;margin:0}
 h1{color:#ffd700;text-align:center}
+h2{color:#10b981;margin-top:24px}
 .box{max-width:900px;margin:0 auto;background:#1a2332;border-radius:16px;padding:24px;border:1px solid #ffd700}
-textarea{width:100%;height:300px;background:#0f172a;color:#0f0;border:1px solid #334155;border-radius:8px;padding:12px;font-family:monospace;font-size:12px;box-sizing:border-box}
+textarea{width:100%;height:280px;background:#0f172a;color:#0f0;border:1px solid #334155;border-radius:8px;padding:12px;font-family:monospace;font-size:11px;box-sizing:border-box}
 button{background:#ffd700;color:#0a0e1a;border:none;padding:14px 32px;border-radius:10px;font-size:16px;font-weight:bold;cursor:pointer;margin:8px;box-shadow:0 4px 0 #b45309}
 button:active{transform:translateY(3px);box-shadow:0 1px 0 #b45309}
-button.dl{background:#10b981;color:#fff;box-shadow:0 4px 0 #065f46}
-button.dl:active{box-shadow:0 1px 0 #065f46}
-.status{padding:12px;border-radius:8px;margin:12px 0;text-align:center;font-weight:bold}
+button.copy{background:#10b981;color:#fff;box-shadow:0 4px 0 #065f46}
+button.copy:active{box-shadow:0 1px 0 #065f46}
+.status{padding:14px;border-radius:8px;margin:12px 0;text-align:center;font-weight:bold;white-space:pre-line}
 .status.ok{background:#065f46;color:#a7f3d0}
 .status.err{background:#7f1d1d;color:#fecaca}
 .status.info{background:#1e3a8a;color:#bfdbfe}
@@ -26,20 +27,33 @@ ol{line-height:1.8}
 <div style="background:#1e3a8a;padding:16px;border-radius:8px;margin-bottom:16px">
 <strong>📖 Mode d'emploi :</strong>
 <ol>
-<li>Ouvrez votre fichier d'application (celui qui est cassé ou à corriger)</li>
+<li>Ouvrez votre fichier d'application dans le Bloc-notes</li>
 <li>Faites <b>Ctrl+A</b> puis <b>Ctrl+C</b> pour tout copier</li>
-<li>Collez ci-dessous (clic dans la zone, puis <b>Ctrl+V</b>)</li>
+<li>Collez ci-dessous dans la 1ère zone (clic dans la zone, puis <b>Ctrl+V</b>)</li>
 <li>Cliquez sur <b>🔧 CORRIGER</b></li>
-<li>Cliquez sur <b>💾 TÉLÉCHARGER</b></li>
+<li>Le code corrigé apparaît dans la 2ème zone</li>
+<li>Cliquez sur <b>📋 COPIER LE CODE CORRIGÉ</b> puis collez-le dans votre fichier</li>
 </ol>
 </div>
+
+<h2>📥 1) Collez votre code ici</h2>
 <textarea id="input" placeholder="Collez votre code ici (Ctrl+V)"></textarea>
+
 <div style="text-align:center">
 <button onclick="corriger()">🔧 CORRIGER</button>
-<button id="btnDl" class="dl hidden" onclick="telecharger()">💾 TÉLÉCHARGER LE FICHIER CORRIGÉ</button>
 </div>
+
 <div id="status" class="status info">En attente de votre code…</div>
+
+<div id="resultat" class="hidden">
+<h2>📤 2) Code corrigé (à copier)</h2>
+<textarea id="output" readonly></textarea>
+<div style="text-align:center">
+<button class="copy" onclick="copier()">📋 COPIER LE CODE CORRIGÉ</button>
 </div>
+</div>
+</div>
+
 <script>
 let codeCorrige = "";
 
@@ -59,29 +73,27 @@ function corriger() {
   let code = input;
   let corrections = [];
 
-  // ----- CORRECTION 1 : Cache 5 minutes -----
+  // CORRECTION 1 : Cache 5 minutes
   if (code.includes('dureeCache:43200000')) {
     code = code.replace('dureeCache:43200000', 'dureeCache:300000');
-    corrections.push('✅ Cache réduit à 5 minutes (au lieu de 12h)');
+    corrections.push('✅ Cache réduit à 5 minutes');
   }
 
-  // ----- CORRECTION 2 : Supprimer onSnapshot -----
+  // CORRECTION 2 : Supprimer onSnapshot
   const snapshotRegex = /if\(unsubscribeFirebase\)\{unsubscribeFirebase\(\);\}\s*const q=query\(collection\(db,"ecoles",ECOLET_ID,"compta_eleves"\)\);[\s\S]*?console\.error\('Erreur synchronisation Firebase:',error\);\s*\}\);/;
   if (snapshotRegex.test(code)) {
     code = code.replace(snapshotRegex, '// onSnapshot désactivé (économie de lectures)');
-    corrections.push('✅ onSnapshot supprimé (économie ~40 000 lectures/jour)');
+    corrections.push('✅ onSnapshot supprimé (~40 000 lectures économisées/jour)');
   }
 
-  // ----- CORRECTION 3 : Retirer l'appel en cascade -----
-  if (code.includes('html+=\'</div>\';cont.innerHTML=html;await mettreAJourStatsDetaillees();}')) {
-    code = code.replace(
-      "html+='</div>';cont.innerHTML=html;await mettreAJourStatsDetaillees();}",
-      "html+='</div>';cont.innerHTML=html;}"
-    );
-    corrections.push('✅ Appel en cascade retiré (économie de lectures)');
+  // CORRECTION 3 : Retirer appel en cascade
+  const cascade = "html+='</div>';cont.innerHTML=html;await mettreAJourStatsDetaillees();}";
+  if (code.includes(cascade)) {
+    code = code.replace(cascade, "html+='</div>';cont.innerHTML=html;}");
+    corrections.push('✅ Appel en cascade retiré');
   }
 
-  // ----- CORRECTION 4 : Bouton Rafraîchir -----
+  // CORRECTION 4 : Bouton Rafraîchir
   const oldRefreshRegex = /document\.getElementById\('refreshHeaderBtn'\)\.addEventListener\('click',function\(\)\{applyClickEffect\(this\);window\.location\.reload\(\);\}\);/;
   const newRefresh = `document.getElementById('refreshHeaderBtn').addEventListener('click',async function(){
 applyClickEffect(this);
@@ -96,10 +108,10 @@ toast('✅ Données rafraîchies','success');
 });`;
   if (oldRefreshRegex.test(code)) {
     code = code.replace(oldRefreshRegex, newRefresh);
-    corrections.push('✅ Bouton Rafraîchir mis à jour (rechargement manuel)');
+    corrections.push('✅ Bouton Rafraîchir mis à jour');
   }
 
-  // ----- CORRECTION 5 : Retry sur la transaction de paiement -----
+  // CORRECTION 5 : Retry paiement
   const paiementRegex = /async function enregistrerPaiementMinerval\(eleveId,mois,montant\)\{[\s\S]*?return result;\}catch\(error\)\{console\.error\('Erreur paiement:',error\);toast\('Erreur lors du paiement','error'\);return false;\}\}/;
   const newPaiement = `async function enregistrerPaiementMinerval(eleveId,mois,montant,tentative=1){
 const id='compta_'+eleveId;
@@ -146,27 +158,22 @@ return false;
   }
 
   if (corrections.length === 0) {
-    setStatus('⚠️ Aucune correction appliquée. Vérifiez que vous avez collé le bon fichier (le code complet de votre application).', 'err');
+    setStatus('⚠️ Aucune correction appliquée.\nVérifiez que vous avez bien collé le code complet de votre application.', 'err');
     return;
   }
 
   codeCorrige = code;
-  document.getElementById('btnDl').classList.remove('hidden');
-  setStatus('✅ ' + corrections.length + ' correction(s) appliquée(s) :\n\n' + corrections.join('\n'), 'ok');
+  document.getElementById('output').value = code;
+  document.getElementById('resultat').classList.remove('hidden');
+  setStatus('✅ 'Ctrl + corrections.length + ' correction(s) appliquée(s) :\n\n' + corrections.join('\n'), 'ok');
 }
 
-function telecharger() {
-  if (!codeCorrige) return;
-  const blob = new Blob([codeCorrige], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'app-corrigee.html';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  setStatus('✅ Fichier téléchargé ! Remplacez votre ancien fichier par celui-ci.', 'ok');
+function copier() {
+  const out = document.getElementById('output');
+  out.select();
+  out.setSelectionRange(0, 999999);
+  document.execCommand('copy');
+  setStatus('✅ Code copié ! Collez-le maintenant dans votre fichier (Ctrl+A puis Ctrl+V pour remplacer tout).', 'ok');
 }
 </script>
 </body>
