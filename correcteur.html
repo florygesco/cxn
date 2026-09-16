@@ -2,39 +2,27 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Correcteur Automatique</title>
+<title>Correcteur</title>
 <style>
 body{font-family:Arial,sans-serif;background:#0a0e1a;color:#fff;padding:20px;margin:0}
 h1{color:#ffd700;text-align:center}
-h2{color:#10b981;margin-top:24px}
+h2{color:#10b981;margin-top:24px;font-size:18px}
 .box{max-width:900px;margin:0 auto;background:#1a2332;border-radius:16px;padding:24px;border:1px solid #ffd700}
-textarea{width:100%;height:280px;background:#0f172a;color:#0f0;border:1px solid #334155;border-radius:8px;padding:12px;font-family:monospace;font-size:11px;box-sizing:border-box}
-button{background:#ffd700;color:#0a0e1a;border:none;padding:14px 32px;border-radius:10px;font-size:16px;font-weight:bold;cursor:pointer;margin:8px;box-shadow:0 4px 0 #b45309}
+textarea{width:100%;height:250px;background:#0f172a;color:#0f0;border:1px solid #334155;border-radius:8px;padding:12px;font-family:monospace;font-size:11px;box-sizing:border-box}
+button{background:#ffd700;color:#0a0e1a;border:none;padding:16px 40px;border-radius:10px;font-size:18px;font-weight:bold;cursor:pointer;margin:8px;box-shadow:0 4px 0 #b45309}
 button:active{transform:translateY(3px);box-shadow:0 1px 0 #b45309}
 button.copy{background:#10b981;color:#fff;box-shadow:0 4px 0 #065f46}
-button.copy:active{box-shadow:0 1px 0 #065f46}
-.status{padding:14px;border-radius:8px;margin:12px 0;text-align:center;font-weight:bold;white-space:pre-line}
+.status{padding:14px;border-radius:8px;margin:12px 0;text-align:center;font-weight:bold;white-space:pre-line;font-size:14px}
 .status.ok{background:#065f46;color:#a7f3d0}
 .status.err{background:#7f1d1d;color:#fecaca}
 .status.info{background:#1e3a8a;color:#bfdbfe}
 .hidden{display:none}
-ol{line-height:1.8}
 </style>
 </head>
 <body>
 <div class="box">
-<h1>🔧 Correcteur Automatique</h1>
-<div style="background:#1e3a8a;padding:16px;border-radius:8px;margin-bottom:16px">
-<strong>📖 Mode d'emploi :</strong>
-<ol>
-<li>Ouvrez votre fichier d'application dans le Bloc-notes</li>
-<li>Faites <b>Ctrl+A</b> puis <b>Ctrl+C</b> pour tout copier</li>
-<li>Collez ci-dessous dans la 1ère zone (clic dans la zone, puis <b>Ctrl+V</b>)</li>
-<li>Cliquez sur <b>🔧 CORRIGER</b></li>
-<li>Le code corrigé apparaît dans la 2ème zone</li>
-<li>Cliquez sur <b>📋 COPIER LE CODE CORRIGÉ</b> puis collez-le dans votre fichier</li>
-</ol>
-</div>
+<h1>🔧 Correcteur</h1>
+<p style="text-align:center;color:#94a3b8">Collez votre code en haut → cliquez CORRIGER → copiez le code corrigé en bas</p>
 
 <h2>📥 1) Collez votre code ici</h2>
 <textarea id="input" placeholder="Collez votre code ici (Ctrl+V)"></textarea>
@@ -43,10 +31,10 @@ ol{line-height:1.8}
 <button onclick="corriger()">🔧 CORRIGER</button>
 </div>
 
-<div id="status" class="status info">En attente de votre code…</div>
+<div id="status" class="status info">En attente…</div>
 
 <div id="resultat" class="hidden">
-<h2>📤 2) Code corrigé (à copier)</h2>
+<h2>📤 2) Code corrigé</h2>
 <textarea id="output" readonly></textarea>
 <div style="text-align:center">
 <button class="copy" onclick="copier()">📋 COPIER LE CODE CORRIGÉ</button>
@@ -55,125 +43,97 @@ ol{line-height:1.8}
 </div>
 
 <script>
-let codeCorrige = "";
+var codeCorrige = "";
 
-function setStatus(msg, type) {
-  const el = document.getElementById('status');
+function afficherStatus(msg, type) {
+  var el = document.getElementById('status');
   el.textContent = msg;
   el.className = 'status ' + type;
 }
 
 function corriger() {
-  const input = document.getElementById('input').value;
-  if (!input || input.length < 1000) {
-    setStatus('❌ Veuillez coller votre code complet (Ctrl+A puis Ctrl+C dans votre fichier)', 'err');
+  var input = document.getElementById('input').value;
+  if (!input || input.length < 500) {
+    afficherStatus('❌ Collez d\'abord votre code complet dans la zone du haut', 'err');
     return;
   }
 
-  let code = input;
-  let corrections = [];
+  var code = input;
+  var journal = [];
 
-  // CORRECTION 1 : Cache 5 minutes
-  if (code.includes('dureeCache:43200000')) {
+  // 1. Cache 5 minutes
+  if (code.indexOf('dureeCache:43200000') !== -1) {
     code = code.replace('dureeCache:43200000', 'dureeCache:300000');
-    corrections.push('✅ Cache réduit à 5 minutes');
+    journal.push('✔ Cache passé à 5 minutes');
   }
 
-  // CORRECTION 2 : Supprimer onSnapshot
-  const snapshotRegex = /if\(unsubscribeFirebase\)\{unsubscribeFirebase\(\);\}\s*const q=query\(collection\(db,"ecoles",ECOLET_ID,"compta_eleves"\)\);[\s\S]*?console\.error\('Erreur synchronisation Firebase:',error\);\s*\}\);/;
-  if (snapshotRegex.test(code)) {
-    code = code.replace(snapshotRegex, '// onSnapshot désactivé (économie de lectures)');
-    corrections.push('✅ onSnapshot supprimé (~40 000 lectures économisées/jour)');
-  }
-
-  // CORRECTION 3 : Retirer appel en cascade
-  const cascade = "html+='</div>';cont.innerHTML=html;await mettreAJourStatsDetaillees();}";
-  if (code.includes(cascade)) {
+  // 2. Retirer l'appel en cascade
+  var cascade = "html+='</div>';cont.innerHTML=html;await mettreAJourStatsDetaillees();}";
+  if (code.indexOf(cascade) !== -1) {
     code = code.replace(cascade, "html+='</div>';cont.innerHTML=html;}");
-    corrections.push('✅ Appel en cascade retiré');
+    journal.push('✔ Appel en cascade retiré');
   }
 
-  // CORRECTION 4 : Bouton Rafraîchir
-  const oldRefreshRegex = /document\.getElementById\('refreshHeaderBtn'\)\.addEventListener\('click',function\(\)\{applyClickEffect\(this\);window\.location\.reload\(\);\}\);/;
-  const newRefresh = `document.getElementById('refreshHeaderBtn').addEventListener('click',async function(){
-applyClickEffect(this);
-cacheData.timestamp=0;
-await getAllComptaEleves(true);
-await afficherListeEleves();
-await mettreAJourStatsDetaillees();
-await afficherCartesIdentite();
-await afficherParentCodes();
-await window.afficherFraisInscription();
-toast('✅ Données rafraîchies','success');
-});`;
-  if (oldRefreshRegex.test(code)) {
-    code = code.replace(oldRefreshRegex, newRefresh);
-    corrections.push('✅ Bouton Rafraîchir mis à jour');
+  // 3. Désactiver onSnapshot (remplacement simple)
+  var debut = code.indexOf('const q=query(collection(db,"ecoles",ECOLET_ID,"compta_eleves"));');
+  var fin = code.indexOf("console.error('Erreur synchronisation Firebase:',error);");
+  if (debut !== -1 && fin !== -1 && fin > debut) {
+    var finBloc = code.indexOf('});', fin);
+    if (finBloc !== -1) {
+      var avant = code.substring(0, debut);
+      var apres = code.substring(finBloc + 3);
+      code = avant + '// onSnapshot désactivé' + apres;
+      journal.push('✔ onSnapshot désactivé');
+    }
   }
 
-  // CORRECTION 5 : Retry paiement
-  const paiementRegex = /async function enregistrerPaiementMinerval\(eleveId,mois,montant\)\{[\s\S]*?return result;\}catch\(error\)\{console\.error\('Erreur paiement:',error\);toast\('Erreur lors du paiement','error'\);return false;\}\}/;
-  const newPaiement = `async function enregistrerPaiementMinerval(eleveId,mois,montant,tentative=1){
-const id='compta_'+eleveId;
-const ref=doc(db,"ecoles",ECOLET_ID,"compta_eleves",id);
-try{
-let result=false;
-await runTransaction(db,async(transaction)=>{
-const snap=await transaction.get(ref);
-if(!snap.exists()){toast('Élève introuvable','error');return;}
-const d=snap.data();
-const actuel=d.paiements?.[mois]||{montant:0,date:null,historique:[]};
-const minervalMensuel=d.exonere?0:(d.minerval||45000);
-const dejaPaye=actuel.montant||0;
-if(dejaPaye>=minervalMensuel){toast('⚠️ Ce mois est déjà entièrement payé','warning');return;}
-const reste=minervalMensuel-dejaPaye;
-const montantEffectif=Math.min(montant,reste);
-const nouveauMontant=dejaPaye+montantEffectif;
-const maintenant=new Date();
-const dateStr=maintenant.toISOString().slice(0,19).replace('T',' ');
-const histItem={montant:montantEffectif,date:dateStr,nouveauTotal:nouveauMontant,timestamp:Date.now()};
-const nvHist=[...(actuel.historique||[]),histItem];
-const paiementsMisAJour={...(d.paiements||{})};
-paiementsMisAJour[mois]={montant:nouveauMontant,date:dateStr,historique:nvHist,lastUpdate:Date.now()};
-transaction.update(ref,{paiements:paiementsMisAJour,dernierPaiement:dateStr});
-const idx=localEleves.findIndex(e=>e.id===eleveId);
-if(idx!==-1){localEleves[idx].paiements=paiementsMisAJour;if(currentEleve&&currentEleve.id===eleveId){currentEleve.paiements=paiementsMisAJour;}}
-toast('✅ Paiement de '+formatNbSimple(montantEffectif)+' FC enregistré pour '+mois,"success");
-result=true;
-});
-return result;
-}catch(error){
-if(error.code==='aborted'&&tentative<3){
-await new Promise(r=>setTimeout(r,300*tentative));
-return enregistrerPaiementMinerval(eleveId,mois,montant,tentative+1);
-}
-console.error('Erreur paiement:',error);
-toast('Erreur lors du paiement : '+error.message,'error');
-return false;
-}
-}`;
-  if (paiementRegex.test(code)) {
-    code = code.replace(paiementRegex, newPaiement);
-    corrections.push('✅ Paiement avec retry automatique (débloque les paiements)');
+  // 4. Bouton Rafraîchir
+  var oldRefresh = "document.getElementById('refreshHeaderBtn').addEventListener('click',function(){applyClickEffect(this);window.location.reload();});";
+  var newRefresh = "document.getElementById('refreshHeaderBtn').addEventListener('click',async function(){applyClickEffect(this);cacheData.timestamp=0;await getAllComptaEleves(true);await afficherListeEleves();await mettreAJourStatsDetaillees();await afficherCartesIdentite();await afficherParentCodes();await window.afficherFraisInscription();toast('Donnees rafraichies','success');});";
+  if (code.indexOf(oldRefresh) !== -1) {
+    code = code.replace(oldRefresh, newRefresh);
+    journal.push('✔ Bouton Rafraîchir mis à jour');
   }
 
-  if (corrections.length === 0) {
-    setStatus('⚠️ Aucune correction appliquée.\nVérifiez que vous avez bien collé le code complet de votre application.', 'err');
+  // 5. Retry paiement : chercher le début de la fonction et la remplacer
+  var debutPaiement = code.indexOf("async function enregistrerPaiementMinerval(eleveId,mois,montant){");
+  if (debutPaiement !== -1) {
+    // Trouver la fin de la fonction (première occurrence de "return false;}}" après le début)
+    var marqueurFin = "console.error('Erreur paiement:',error);toast('Erreur lors du paiement','error');return false;}}";
+    var finPaiement = code.indexOf(marqueurFin, debutPaiement);
+    if (finPaiement !== -1) {
+      var finReelle = finPaiement + marqueurFin.length;
+      var nouvelleFonction = "async function enregistrerPaiementMinerval(eleveId,mois,montant,tentative){tentative=tentative||1;var id='compta_'+eleveId;var ref=doc(db,\"ecoles\",ECOLET_ID,\"compta_eleves\",id);try{var result=false;await runTransaction(db,async function(transaction){var snap=await transaction.get(ref);if(!snap.exists()){toast('Eleve introuvable','error');return;}var d=snap.data();var actuel=(d.paiements&&d.paiements[mois])||{montant:0,date:null,historique:[]};var minervalMensuel=d.exonere?0:(d.minerval||45000);var dejaPaye=actuel.montant||0;if(dejaPaye>=minervalMensuel){toast('Ce mois est deja entierement paye','warning');return;}var reste=minervalMensuel-dejaPaye;var montantEffectif=Math.min(montant,reste);var nouveauMontant=dejaPaye+montantEffectif;var maintenant=new Date();var dateStr=maintenant.toISOString().slice(0,19).replace('T',' ');var histItem={montant:montantEffectif,date:dateStr,nouveauTotal:nouveauMontant,timestamp:Date.now()};var nvHist=(actuel.historique||[]).concat([histItem]);var paiementsMisAJour=Object.assign({},d.paiements||{});paiementsMisAJour[mois]={montant:nouveauMontant,date:dateStr,historique:nvHist,lastUpdate:Date.now()};transaction.update(ref,{paiements:paiementsMisAJour,dernierPaiement:dateStr});var idx=localEleves.findIndex(function(e){return e.id===eleveId;});if(idx!==-1){localEleves[idx].paiements=paiementsMisAJour;if(currentEleve&&currentEleve.id===eleveId){currentEleve.paiements=paiementsMisAJour;}}toast('Paiement de '+formatNbSimple(montantEffectif)+' FC enregistre pour '+mois,'success');result=true;});return result;}catch(error){if(error.code==='aborted'&&tentative<3){await new Promise(function(r){setTimeout(r,300*tentative);});return enregistrerPaiementMinerval(eleveId,mois,montant,tentative+1);}console.error('Erreur paiement:',error);toast('Erreur lors du paiement : '+error.message,'error');return false;}}";
+      code = code.substring(0, debutPaiement) + nouvelleFonction + code.substring(finReelle);
+      journal.push('✔ Paiement avec retry automatique');
+    }
+  }
+
+  if (journal.length === 0) {
+    afficherStatus('⚠️ Aucune correction trouvée. Le fichier collé ne correspond pas au code attendu.', 'err');
     return;
   }
 
   codeCorrige = code;
   document.getElementById('output').value = code;
   document.getElementById('resultat').classList.remove('hidden');
-  setStatus('✅ 'Ctrl + corrections.length + ' correction(s) appliquée(s) :\n\n' + corrections.join('\n'), 'ok');
+  afficherStatus('✅ ' + journal.length + ' correction(s) appliquée(s) :\n' + journal.join('\n'), 'ok');
 }
 
 function copier() {
-  const out = document.getElementById('output');
+  var out = document.getElementById('output');
+  out.focus();
   out.select();
-  out.setSelectionRange(0, 999999);
-  document.execCommand('copy');
-  setStatus('✅ Code copié ! Collez-le maintenant dans votre fichier (Ctrl+A puis Ctrl+V pour remplacer tout).', 'ok');
+  try {
+    var ok = document.execCommand('copy');
+    if (ok) {
+      afficherStatus('✅ Code copié ! Collez-le dans votre fichier (Ctrl+A puis Ctrl+V).', 'ok');
+    } else {
+      afficherStatus('⚠️ Sélectionnez le code manuellement puis faites Ctrl+C', 'err');
+    }
+  } catch (e) {
+    afficherStatus('⚠️ Sélectionnez le code manuellement puis faites Ctrl+C', 'err');
+  }
 }
 </script>
 </body>
