@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0a0e1a">
+<title>GESTION DE SCOLARITÉ</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{--b1:#0a0e1a;--b2:rgba(18,25,45,.92);--b3:rgba(20,28,48,.9);--b4:#1e293b;--bh:rgba(59,130,246,.12);--a1:#3b82f6;--a2:#06b6d4;--ok:#10b981;--wr:#f59e0b;--er:#ef4444;--t1:#f1f5f9;--t2:#cbd5e1;--t3:#94a3b8;--bd:rgba(59,130,246,.25);--gh:linear-gradient(135deg,#0f2b44 0%,#071a2c 100%);--ga:linear-gradient(135deg,#3b82f6,#2563eb);}
+body.lm{--b1:#f0f4f8;--b2:rgba(255,255,255,.95);--b3:rgba(255,255,255,.98);--b4:#e8eef5;--bh:rgba(59,130,246,.08);--t1:#1e293b;--t2:#334155;--t3:#64748b;--bd:rgba(59,130,246,.2);--gh:linear-gradient(135deg,#dbeafe 0%,#bfdbfe 100%);}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;touch-action:pan-x pan-y}
+html,body{height:100%;background:var(--b1);font-family:Inter,sans-serif;overflow-x:hidden;color:var(--t1);transition:background .3s,color .3s}
+body{overscroll-behavior:none}
+input,textarea{-webkit-user-select:text!important;user-select:text!important}
+.container{max-width:1400px;margin:0 auto;padding:20px}
+.card{background:var(--b3);backdrop-filter:blur(10px);border-radius:20px;margin-bottom:20px;overflow:hidden;border:1px solid var(--bd)}
+.card-header{padding:14px 20px;background:var(--gh);color:var(--t1);font-weight:700;display:flex;justify-content:space-between;align-items:center}
+.card-header .hl{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.school-header{background:var(--gh);border-radius:20px;padding:24px;text-align:center;margin-bottom:20px;border:1px solid var(--bd)}
+.school-name{font-size:24px;font-weight:800;background:var(--ga);-webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:1px}
+.school-sub{font-size:11px;opacity:.8;margin-top:4px;color:var(--t3)}
+.tabs-container{overflow-x:auto;margin-bottom:20px;white-space:nowrap;-webkit-overflow-scrolling:touch}
+.tabs{display:inline-flex;gap:6px}
+.tab{background:transparent;border:1px solid var(--bd);padding:9px 20px;border-radius:40px;font-size:13px;cursor:pointer;color:var(--t3);transition:all .2s;font-family:Inter,sans-serif}
+.tab:hover{background:var(--bh);border-color:var(--a1);color:var(--t1)}
+.tab.active{background:var(--ga);color:#fff;border-color:transparent;box-shadow:0 4px 15px rgba(59,130,246,.35)}
+.tab-content{display:none;animation:fi .25s}
+.tab-content.active{display:block}
+@keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.main-nav{display:flex;gap:12px;margin-bottom:20px;background:var(--b2);border-radius:20px;padding:8px;border:1px solid var(--bd);overflow:hidden}
+.main-nav-btn{flex:1;padding:14px 20px;border-radius:16px;border:none;font-size:15px;font-weight:700;cursor:pointer;transition:all .3s;background:transparent;color:var(--t3);font-family:Inter,sans-serif;text-align:center}
+.main-nav-btn:hover{background:var(--bh);color:var(--t1)}
+.main-nav-btn.active{background:var(--ga);color:#fff;box-shadow:0 4px 15px rgba(59,130,246,.35)}
+.main-nav-btn[data-space=titulaire].active{background:linear-gradient(135deg,#06b6d4,#0891b2);box-shadow:0 4px 15px rgba(6,182,212,.35)}
+.space-content{display:none}
+.space-content.active{display:block;animation:fi .3s}
+.form-grid{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:768px){.form-grid{grid-template-columns:repeat(3,1fr)}}
+.form-field{display:flex;flex-direction:column;gap:6px}
+.form-field label{font-size:11px;font-weight:600;color:var(--t2)}
+.form-field input,.form-field select{background:var(--b4);border:1px solid var(--bd);border-radius:12px;padding:10px 14px;color:var(--t1);font-family:Inter,sans-serif}
+.form-field input:focus,.form-field select:focus{outline:none;border-color:var(--a1);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+.hidden-field{display:none!important}
+.field-required label::after{content:" *";color:var(--er)}
+.btn{background:var(--ga);color:#fff;border:none;padding:10px 20px;border-radius:40px;font-weight:600;cursor:pointer;font-size:13px;display:inline-flex;align-items:center;gap:8px;transition:all .2s;font-family:Inter,sans-serif}
+.btn:hover{opacity:.92;transform:translateY(-1px);box-shadow:0 6px 20px rgba(59,130,246,.3)}
+.btn-sm{padding:6px 14px;font-size:12px}
+.btn-danger{background:linear-gradient(135deg,#ef4444,#dc2626)}
+.btn-success{background:linear-gradient(135deg,#10b981,#059669)}
+.btn-secondary{background:#475569}
+.btn-primary{background:var(--ga)}
+.table-wrapper{overflow-x:auto;touch-action:pan-x pan-y}
+.student-table{width:100%;border-collapse:collapse;font-size:12px;min-width:1400px}
+.student-table th{background:var(--b4);padding:12px 6px;border-bottom:2px solid var(--a1);font-size:11px;color:var(--t1)}
+.student-table td{border-bottom:1px solid var(--bd);padding:8px 4px;color:var(--t2)}
+.footer-note{text-align:center;padding:12px;font-size:11px;color:var(--t3)}
+.fiche-selector{background:var(--b2);margin:0;padding:18px 28px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--bd)}
+.fiche-selector label{color:var(--t1)}
+.fiche-selector select{flex:1;padding:12px 18px;border-radius:14px;background:var(--b4);border:1px solid var(--bd);color:var(--t1);font-size:14px}
+.modal-fullscreen{position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(20px);z-index:20000;display:flex;align-items:center;justify-content:center;visibility:hidden;opacity:0;transition:all .2s}
+.modal-fullscreen.show{visibility:visible;opacity:1}
+.modal-content{background:var(--b3);border-radius:32px;width:90%;max-width:95vw;padding:24px;border:1px solid var(--bd);max-height:90vh;overflow-y:auto}
+.toast-container{position:fixed;top:20px;right:20px;z-index:30000;display:flex;flex-direction:column;gap:12px;pointer-events:none}
+.toast-notification{background:var(--b2);backdrop-filter:blur(12px);border-radius:16px;padding:18px 24px;min-width:340px;max-width:380px;display:flex;align-items:center;gap:12px;box-shadow:0 4px 20px rgba(0,0,0,.3);border-left:4px solid var(--ok);transform:translateX(400px);transition:transform .3s;pointer-events:auto}
+.toast-notification.show{transform:translateX(0)}
+.toast-notification.error{border-left-color:var(--er)}
+.toast-notification.warning{border-left-color:var(--wr)}
+.toast-icon{font-size:18px}
+.toast-content{flex:1}
+.toast-title{font-weight:700;font-size:16px;color:var(--t1);margin-bottom:4px}
+.toast-message{font-size:14px;color:var(--t2);line-height:1.4}
+.empty-state{text-align:center;padding:40px;color:var(--t3)}
+.eleve-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.eleve-row span{flex:2;color:var(--t1);padding:8px;font-weight:500}
+.epreuve-box{background:var(--b4);border-radius:16px;padding:12px;margin-bottom:12px}
+.epreuve-list{display:flex;flex-wrap:wrap;gap:8px}
+.epreuve-item{display:flex;align-items:center;gap:8px;background:var(--b2);padding:6px 12px;border-radius:40px}
+.epreuve-item input{background:var(--b4);border:1px solid var(--bd);color:var(--t1);padding:4px 8px;border-radius:20px}
+.prof-config{background:var(--b4);border-radius:16px;padding:16px;margin-top:16px;border:1px solid var(--bd)}
+.prof-config h3{font-size:13px;margin-bottom:12px;color:var(--t1)}
+.prof-config .note-max-row{display:flex;align-items:center;gap:15px;flex-wrap:wrap;margin-bottom:15px}
+.prof-config .note-max-row label{color:var(--t2);font-size:12px}
+.prof-config .note-max-row input{width:100px;padding:8px;border-radius:12px;background:var(--b4);color:var(--t1);border:1px solid var(--bd)}
+.prof-config .btn-group{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'><polyline points='6 9 12 15 18 9'></polyline></svg>");background-repeat:no-repeat;background-position:right 12px center;background-size:14px;padding-right:32px!important}
+.tab-content .card>div:not(.card-header):not(.fiche-selector):not(.table-wrapper){padding:20px}
+.tab-content .card .table-wrapper{padding:0 20px 20px 20px}
+.light-mode-toggle-btn{background:rgba(59,130,246,.1);border:1px solid var(--bd);border-radius:40px;padding:12px 16px;color:var(--t1);cursor:pointer;font-size:15px;transition:all .3s;display:flex;align-items:center;gap:8px;width:100%!important;font-family:Inter,sans-serif;font-weight:600;justify-content:center}
+.cotation-toolbar{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:22px 28px;background:var(--b4);border-bottom:1px solid var(--bd);flex-wrap:wrap}
+.cotation-toolbar-left{display:flex;gap:14px;flex:1;flex-wrap:wrap;align-items:center;min-width:300px}
+.cotation-toolbar-right{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.cotation-search{flex:1;min-width:280px;padding:16px 24px;border-radius:40px;background:var(--b2);border:1px solid var(--bd);color:var(--t1);font-size:15px;font-family:Inter,sans-serif;outline:none}
+.cotation-search:focus{border-color:var(--a1);box-shadow:0 0 0 3px rgba(59,130,246,.2)}
+.btn-sort-alpha{display:inline-flex;align-items:center;gap:6px;padding:14px 22px;border-radius:40px;background:transparent;border:1.5px solid var(--a1);color:var(--a1);font-weight:600;font-size:13.5px;cursor:pointer;font-family:Inter,sans-serif;white-space:nowrap}
+.btn-sort-alpha.active{background:var(--a1);color:#fff}
+.btn-save-professional{display:inline-flex;align-items:center;gap:10px;padding:14px 30px;border-radius:40px;border:none;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-weight:700;font-size:14px;cursor:pointer;font-family:Inter,sans-serif;letter-spacing:.5px;transition:all .3s;box-shadow:0 4px 15px rgba(16,185,129,.35)}
+.btn-save-professional:disabled{opacity:.5;cursor:not-allowed}
+.btn-save-professional.saving{background:linear-gradient(135deg,#f59e0b,#d97706)}
+.btn-export-pdf{display:inline-flex;align-items:center;gap:8px;padding:14px 24px;border-radius:40px;border:none;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-weight:700;font-size:13.5px;cursor:pointer;font-family:Inter,sans-serif;letter-spacing:.5px;box-shadow:0 4px 15px rgba(220,38,38,.35)}
+.cotation-table-wrapper{padding:0 28px 28px 28px}
+.cotation-table th{padding:18px 12px;font-size:11.5px;font-weight:700;position:sticky;top:0;z-index:2}
+.cotation-table td{padding:14px 10px;vertical-align:middle}
+.cotation-table input[type=number]{width:72px;padding:12px 8px;border-radius:10px;background:var(--b4);border:2px solid var(--bd);color:var(--t1);text-align:center;font-size:15px;font-weight:700;font-family:Inter,sans-serif}
+.cotation-table input[type=number]:focus{outline:none;border-color:var(--a1);box-shadow:0 0 0 3px rgba(59,130,246,.2)}
+.cotation-table td:nth-child(2) span{display:inline-block;padding:10px 16px;background:var(--b4);border-radius:10px;color:var(--t1);border:1px solid var(--bd);font-weight:600;font-size:13.5px;min-width:200px}
+.cotation-table td:nth-child(3) span{display:inline-block;padding:10px 16px;background:var(--b4);border-radius:10px;color:var(--t1);border:1px solid var(--bd);font-weight:700;font-size:13.5px;min-width:50px;text-align:center}
+.cotation-table tr:hover td{background:var(--bh)}
+.cotation-table td.col-moy{background:var(--b2);font-weight:700;color:var(--a2);text-align:center}
+.cotation-table td.col-tot{background:rgba(59,130,246,.1);font-weight:700;color:var(--a1);text-align:center}
+.period-filter{display:flex;gap:10px;padding:20px 28px;background:var(--b2);border-bottom:1px solid var(--bd);flex-wrap:wrap;align-items:center}
+.period-filter-label{font-size:12.5px;color:var(--t3);font-weight:600;margin-right:6px}
+.period-btn{padding:12px 24px;border-radius:40px;border:1.5px solid var(--bd);background:transparent;color:var(--t2);font-weight:600;font-size:13.5px;cursor:pointer;font-family:Inter,sans-serif;white-space:nowrap}
+.period-btn.active{background:var(--ga);color:#fff;border-color:transparent}
+.period-btn[data-period=all].active{background:linear-gradient(135deg,#06b6d4,#0891b2)}
+.page-loader{position:fixed;inset:0;background:linear-gradient(135deg,#0a0e1a,#0f172a);z-index:999999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:24px;transition:opacity .4s,visibility .4s}
+.page-loader.hidden{opacity:0;visibility:hidden;pointer-events:none}
+.page-loader-spinner{width:64px;height:64px;border:4px solid rgba(59,130,246,.15);border-top-color:#3b82f6;border-right-color:#06b6d4;border-radius:50%;animation:pls .9s linear infinite}
+.page-loader-text{font-size:15px;font-weight:600;letter-spacing:1.5px;background:linear-gradient(135deg,#3b82f6,#06b6d4);-webkit-background-clip:text;background-clip:text;color:transparent}
+@keyframes pls{to{transform:rotate(360deg)}}
+@media(max-width:768px){.cotation-toolbar{flex-direction:column;align-items:stretch}.cotation-toolbar-left,.cotation-toolbar-right{width:100%}.btn-save-professional,.btn-export-pdf{width:100%;justify-content:center}}
+.login-overlay{position:fixed;inset:0;background:#0a0e1a;z-index:10000;display:flex;align-items:center;justify-content:center;padding:15px;overflow-y:auto}
+.login-shell{display:grid;grid-template-columns:1fr 1fr;width:100%;max-width:960px;background:var(--b3);border:1px solid var(--bd);border-radius:24px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.4)}
+.side-panel{position:relative;background:linear-gradient(160deg,#0f2b44,#071a2c);padding:48px 40px;display:flex;flex-direction:column;justify-content:space-between}
+.side-brand{position:relative;z-index:2;display:flex;align-items:center;gap:12px}
+.side-brand-logo{width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:22px;border:1px solid rgba(59,130,246,.3)}
+.side-brand-text .sbt-main{font-size:.95rem;font-weight:800;color:#f1f5f9}
+.side-brand-text .sbt-sub{font-size:.65rem;font-weight:600;color:#94a3b8;letter-spacing:1.6px;text-transform:uppercase;margin-top:2px;display:block}
+.side-content{position:relative;z-index:2;margin:auto 0}
+.side-tag{display:inline-flex;align-items:center;gap:6px;background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.35);color:#60a5fa;padding:5px 14px;border-radius:20px;font-size:.65rem;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:20px}
+.side-tag .dot{width:6px;height:6px;border-radius:50%;background:#3b82f6}
+.side-content h2{font-size:1.85rem;font-weight:900;line-height:1.15;letter-spacing:-.8px;margin-bottom:14px;color:#f1f5f9}
+.side-content h2 span{color:#60a5fa}
+.side-content p{font-size:.9rem;line-height:1.7;color:#cbd5e1;max-width:340px}
+.side-features{position:relative;z-index:2;display:flex;flex-direction:column;gap:12px;margin-top:24px}
+.side-feature{display:flex;align-items:center;gap:10px;font-size:.82rem;color:#cbd5e1;font-weight:600}
+.side-feature i{width:24px;height:24px;border-radius:7px;background:rgba(59,130,246,.18);border:1px solid rgba(59,130,246,.3);display:flex;align-items:center;justify-content:center;color:#60a5fa;font-size:.7rem;flex-shrink:0;font-style:normal;font-weight:700}
+.side-footer{position:relative;z-index:2;padding-top:20px;border-top:1px solid rgba(255,255,255,.08);font-size:.72rem;color:#94a3b8;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.side-footer a{color:#60a5fa;text-decoration:none;font-weight:600}
+.form-panel{background:var(--b1);padding:48px 40px;display:flex;flex-direction:column;justify-content:center}
+.form-header{margin-bottom:26px}
+.form-header .fh-eyebrow{font-size:.68rem;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:#60a5fa;margin-bottom:10px;display:block}
+.form-header h1{font-size:1.55rem;font-weight:900;color:var(--t1);letter-spacing:-.6px;margin-bottom:8px}
+.form-header p{font-size:.85rem;color:var(--t3);line-height:1.6}
+.login-logo-zone{display:flex;align-items:center;gap:16px;background:var(--b4);border:1px solid var(--bd);border-radius:16px;padding:16px 18px;margin-bottom:22px}
+.login-logo-wrapper{width:64px;height:64px;border-radius:14px;background:var(--b2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:28px}
+.salutation-block{flex:1;min-width:0}
+.salutation-block .sb-label{font-size:.68rem;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--t3);margin-bottom:4px}
+.salutation-block .salutation{color:#60a5fa;font-size:.95rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.salutation-block .cursor{display:inline-block;width:2px;height:15px;background:#60a5fa;margin-left:2px;vertical-align:middle;animation:bl 1s step-end infinite}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:0}}
+.login-form-group{margin-bottom:20px}
+.login-form-group label{display:block;font-size:.68rem;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--t3);margin-bottom:8px}
+.login-input-wrap{position:relative;display:flex;align-items:center}
+.login-input-wrap .fi-icon{position:absolute;left:16px;color:var(--t3);font-size:.95rem;pointer-events:none}
+.login-input-wrap input{width:100%;padding:15px 18px 15px 46px;background:var(--b4);border:1.5px solid var(--bd);border-radius:12px;color:var(--t1);font-size:1.05rem;font-weight:700;letter-spacing:6px;outline:none;font-family:Inter,sans-serif}
+.login-input-wrap input:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+.btn-submit{width:100%;padding:15px;border:none;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;font-size:.88rem;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;cursor:pointer;font-family:Inter,sans-serif;box-shadow:0 8px 24px rgba(59,130,246,.3)}
+.btn-submit:disabled{opacity:.6;cursor:not-allowed}
+.login-form-footer{margin-top:22px;padding-top:20px;border-top:1px solid var(--bd);display:flex;flex-direction:column;gap:12px}
+.login-support-line{display:flex;align-items:center;justify-content:center;font-size:.75rem;color:var(--t3);flex-wrap:wrap;gap:8px}
+.login-support-line a{color:#60a5fa;text-decoration:none;font-weight:700}
+.login-copyright{margin-top:6px;font-size:.68rem;color:var(--t3);text-align:center}
+@media(max-width:820px){.login-shell{grid-template-columns:1fr;max-width:460px}.side-panel{display:none}.form-panel{padding:36px 26px}}
+</style>
+</head>
+<body>
+<div id="pageLoader" class="page-loader"><div class="page-loader-spinner"></div><div class="page-loader-text">NETUBEX SARL...</div></div>
+<div class="container" id="mainApp" style="display:none">
+<div class="school-header"><div class="school-name" id="schoolNameHeader">COMPLEXE SCOLAIRE</div><div class="school-sub" id="schoolSubHeader">Année scolaire 2026-2027</div><div style="font-size:13px;margin-top:8px;color:var(--t1)">SYSTÈME DE GESTION DE SCOLARITÉ</div></div>
+<div class="main-nav"><button class="main-nav-btn active" data-space="professeur">👨‍🏫 ESPACE PROFESSEUR</button><button class="main-nav-btn" data-space="titulaire">📋 ESPACE TITULAIRE</button></div>
+<div id="spaceProfesseur" class="space-content active">
+<div class="tabs-container"><div class="tabs" id="tabsProfesseur">
+<button class="tab active" data-tab="tabProf">ESPACE PROFESSEUR</button>
+<button class="tab" data-tab="tabCotation">📘 FICHES DE COTATION</button>
+<button class="tab" data-tab="tabParams">PARAMETRES</button>
+</div></div>
+<div id="tabProf" class="tab-content active">
+<div class="card">
+<div class="card-header"><div class="hl"><span>GESTION DES FICHES</span></div></div>
+<div class="fiche-selector"><label>Fiche active :</label><select id="ficheSelect"></select></div>
+<div class="form-grid">
+<div class="form-field field-required"><label>CLASSE</label><select id="classeSelect"><option value="">-- Sélectionner --</option><option value="7ème EB">7ème EB</option><option value="8ème EB">8ème EB</option><option value="1ère Année">1ère Année</option><option value="2ème Année">2ème Année</option><option value="3ème Année">3ème Année</option><option value="4ème Année">4ème Année</option></select></div>
+<div class="form-field" id="optionField"><label>OPTION</label><select id="optionSelect"><option value="">-- Sélectionner --</option><option value="SCIENCES">SCIENCES</option><option value="PEDAGOGIE GENERALE">PÉDAGOGIE GÉNÉRALE</option><option value="COMMERCIALE ET GESTION">COMMERCIALE ET GESTION</option><option value="ELECTRICITE">ÉLECTRICITÉ</option><option value="MECANIQUE GENERALE">MÉCANIQUE GÉNÉRALE</option><option value="COUPE ET COUTURE">COUPE ET COUTURE</option></select></div>
+<div class="form-field field-required"><label>MATIÈRE (COURS)</label><input type="text" id="coursInput" placeholder="ex: Mathématiques"></div>
+<div class="form-field"><label>ANNÉE SCOLAIRE</label><input type="text" id="anneeInput" value="2026-2027" readonly></div>
+</div>
+<div class="prof-config"><h3>CONFIGURATION</h3><div class="note-max-row"><label>Note max / période :</label><input type="number" id="p1MaxConfig" value="20" step="1"></div>
+<div class="btn-group"><button class="btn btn-success" id="creerFicheBtn">📝 CRÉER</button><button class="btn btn-primary" id="modifierFicheBtn" style="display:none">✏️ MODIFIER</button><button class="btn btn-danger" id="supprimerFicheBtn" style="display:none">🗑️ SUPPRIMER</button><button class="btn btn-secondary" id="viderChampsBtn">🧹 EFFACER</button></div>
+</div>
+<div style="padding:20px;border-top:1px solid var(--bd);margin-top:20px">
+<h3 style="color:var(--a1);margin-bottom:15px">📚 ÉPREUVES PAR PÉRIODE</h3>
+<div id="epreuvesContainer"></div>
+<div class="btn-group"><button class="btn btn-sm" id="addEpreuve1">+ P1</button><button class="btn btn-sm" id="addEpreuve2">+ P2</button><button class="btn btn-sm" id="addEpreuve3">+ P3</button><button class="btn btn-sm" id="addEpreuve4">+ P4</button></div>
+</div>
+<div style="padding:20px;border-top:1px solid var(--bd)">
+<h3 style="color:var(--a1);margin-bottom:15px">👥 LISTE DES ÉLÈVES</h3>
+<div id="elevesListContainer" style="max-height:300px;overflow-y:auto;margin-bottom:15px"></div>
+<button class="btn btn-success" id="rechargerElevesBtn" style="width:100%">🔄 RECHARGER</button>
+<div id="ficheStats" style="margin-top:12px;padding:12px;background:var(--b4);border-radius:12px;font-size:13px;color:var(--t2)"><div id="ficheStatsContent"></div></div>
+</div>
+</div>
+</div>
+<div id="tabCotation" class="tab-content">
+<div class="card">
+<div class="card-header"><div class="hl"><span>📘 FICHE DE COTATION</span><span id="cotationFicheInfo" style="font-size:12px;color:var(--a1);font-weight:500;margin-left:12px"></span></div><span id="cotationStatusBadge" style="font-size:11px;padding:4px 12px;border-radius:20px;background:rgba(16,185,129,.15);color:#10b981;font-weight:600">✓ À JOUR</span></div>
+<div class="fiche-selector"><label>📄 Fiche :</label><select id="cotationFicheSelector"></select></div>
+<div class="period-filter"><span class="period-filter-label">📅 Période :</span><button class="period-btn active" data-period="all">📚 Tout</button><button class="period-btn" data-period="1">P1</button><button class="period-btn" data-period="2">P2</button><button class="period-btn" data-period="3">P3</button><button class="period-btn" data-period="4">P4</button></div>
+<div class="cotation-toolbar">
+<div class="cotation-toolbar-left"><input type="text" id="searchInput" placeholder="Rechercher un élève..." class="cotation-search"><button class="btn-sort-alpha" id="sortAlphaBtn">🔤 Tri alphabétique</button></div>
+<div class="cotation-toolbar-right"><span id="cotationSaveStatus" style="font-size:12px;color:var(--t3);margin-right:8px">Prêt</span><button class="btn-export-pdf" id="exportCotationPdfBtn"><span>📄</span><span>PDF</span></button><button class="btn-save-professional" id="saveCotationBtn"><span class="btn-save-icon">💾</span><span class="btn-save-text">TOUT ENREGISTRER</span></button></div>
+</div>
+<div class="table-wrapper cotation-table-wrapper"><table class="student-table cotation-table" id="cotationTable"><thead id="cotationHeader"></thead><tbody id="cotationBody"></tbody></table></div>
+</div>
+</div>
+<div id="tabParams" class="tab-content">
+<div class="card">
+<div class="card-header"><div class="hl"><span>⚙️ PARAMÈTRES</span></div></div>
+<div style="padding:20px;display:flex;flex-direction:column;gap:20px">
+<div style="background:var(--b4);border-radius:16px;padding:20px;border:1px solid var(--bd)">
+<h3 style="color:var(--a1);font-size:15px;margin-bottom:4px">⚡ ACTIONS</h3>
+<p style="color:var(--t3);font-size:12px;margin-bottom:16px">Gérer votre session et vos préférences</p>
+<div style="display:grid;grid-template-columns:1fr;gap:10px">
+<button class="btn btn-danger" id="logoutBtnParam" style="padding:12px;background:#dc2626;width:100%">🚪 DÉCONNEXION</button>
+<button class="light-mode-toggle-btn" id="lightModeToggle" style="padding:12px">☀️ MODE CLAIR</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div id="spaceTitulaire" class="space-content">
+<div class="titulaire-container">
+<div class="bg-fixed"></div>
+<div class="bg-overlay"></div>
+<div class="container-titu">
+<div class="welcome-banner"><span>📋 ESPACE TITULAIRE — Extraits de bulletin</span><span style="font-size:12px;color:var(--t3)">Recherchez un élève pour générer son extrait</span></div>
+<div class="search-card">
+<div class="search-box">
+<div class="input-group"><label>NOM COMPLET DE L'ÉLÈVE</label><input type="text" id="titulaireSearchNom" placeholder="Ex: KASONGO Jean"></div>
+<div class="input-group"><label>CLASSE</label><select id="titulaireSearchClasse"><option value="">-- Toutes les classes --</option></select></div>
+<button class="btn-primary" id="titulaireSearchBtn">🔍 Rechercher l'élève</button>
+</div>
+</div>
+<div class="result-card" id="titulaireResultCard">
+<div class="eleve-info" id="titulaireEleveInfo"></div>
+<button class="btn-export" id="exportTitulaireRelevePdfBtn" type="button">📄 Exporter l'extrait de bulletin en PDF</button>
+</div>
+</div>
+</div>
+</div>
+<div class="footer-note" id="footerNote">Année scolaire 2026-2027</div>
+</div>
+<div class="toast-container" id="toastContainer"></div>
+<script type="importmap">
+{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js","firebase/analytics":"https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js"}}<script type="module">
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where } from "firebase/firestore";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "firebase/auth";
+import { getAnalytics } from "firebase/analytics";
+
+const firebaseConfig={apiKey:"AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",authDomain:"gesco-2.firebaseapp.com",projectId:"gesco-2",storageBucket:"gesco-2.firebasestorage.app",messagingSenderId:"36319988765",appId:"1:36319988765:web:e8cd823804596495248af4"};
+const app=initializeApp(firebaseConfig);
+const db=getFirestore(app);
+const auth=getAuth(app);
+const analytics=getAnalytics(app);
+
+function nrmId(raw){return String(raw||'').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Z0-9_]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');}
+const urlParams=new URLSearchParams(window.location.search);
+const schoolId=urlParams.get('ecole');
+if(!schoolId){window.location.href='/schoolchoice';throw new Error('redirect');}
+const ECOLET_ID=nrmId(schoolId);
+
+document.addEventListener('keydown',function(e){if(e.key==='F12'){e.preventDefault();return false}if(e.ctrlKey&&e.shiftKey&&['I','J','C'].includes(e.key)){e.preventDefault();return false}if(e.ctrlKey&&['U','S','P'].includes(e.key)){e.preventDefault();return false}});
+
+const SC={PROFESSEURS:'professeurs',FICHES:'fiches',COMPTEUR:'compteur',CONFIG:'config',COMPTA_ELEVES:'compta_eleves'};
+
+async function verifierEcoleAutorisee(){try{const d=await getDoc(doc(db,"ecoles",ECOLET_ID));return d.exists()}catch(e){return false}}
+const estAutorisee=await verifierEcoleAutorisee();
+if(!estAutorisee){document.body.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0a0e1a;color:#fff;flex-direction:column;padding:20px;text-align:center;"><div style="font-size:64px;margin-bottom:20px;">🚫</div><h1 style="color:#ef4444;margin-bottom:10px;">Accès non autorisé</h1><p style="color:#94a3b8;max-width:400px;">L'établissement <strong>${ECOLET_ID}</strong> n'est pas enregistré.</p></div>`;throw new Error('École non autorisée')}
+
+const schoolNameForDisplay=schoolId.toUpperCase().replace(/-/g,' ');
+document.getElementById('schoolNameHeader').textContent='COMPLEXE SCOLAIRE '+schoolNameForDisplay;
+document.getElementById('schoolSubHeader').textContent='Année scolaire 2026-2027';
+document.getElementById('footerNote').textContent='COMPLEXE SCOLAIRE '+schoolNameForDisplay+' | Année scolaire 2026-2027';
+
+let currentProf=null,currentFicheId=null,currentFiche=null,toutesFiches=[],isCreatingFiche=false;
+let isUpdatingSelectors=false,champsModifiables=false,modificationsNonEnregistrees=false;
+let periodeActive="all",localEleves=[],toutesFichesCompletTitu=[],triAlphabetiqueActif=false;
+let eleveCourantTitu=null,ficheCouranteTitu=null;
+
+function toast(m,t="success"){const c=document.getElementById("toastContainer");if(!c)return;const ic={success:"✅",error:"❌",warning:"⚠️",info:"ℹ️"};const tt={success:"Succès",error:"Erreur",warning:"Attention",info:"Information"};const cl={success:"#10b981",error:"#ef4444",warning:"#f59e0b",info:"#3b82f6"};const el=document.createElement("div");el.className=`toast-notification ${t}`;el.innerHTML=`<div class="toast-icon">${ic[t]||"ℹ️"}</div><div class="toast-content"><div class="toast-title" style="color:${cl[t]}">${tt[t]}</div><div class="toast-message">${m}</div></div>`;c.appendChild(el);requestAnimationFrame(()=>el.classList.add("show"));setTimeout(()=>{el.classList.remove("show");setTimeout(()=>el.remove(),400)},3000)}
+
+function esc(s){if(!s)return'';return s.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))}
+
+function showStyledConfirm(title,message,onConfirm,onCancel){let d=document.createElement('div');d.className='modal-fullscreen';d.innerHTML=`<div class="modal-content" style="max-width:500px;text-align:center;padding:32px;border-radius:28px;"><div style="font-size:48px;margin-bottom:16px;">⚠️</div><h3 style="color:#f59e0b;margin-bottom:16px;font-size:20px;font-weight:700;">${title}</h3><p style="color:var(--t2);margin-bottom:24px;line-height:1.8;font-size:14px;text-align:left;">${message}</p><div style="display:flex;gap:14px;justify-content:center;"><button id="styledConfirmCancel" style="background:#334155;color:#fff;border:none;padding:10px 28px;border-radius:40px;cursor:pointer;font-weight:600;font-size:14px;">Annuler</button><button id="styledConfirmOk" style="background:#dc2626;color:#fff;border:none;padding:10px 28px;border-radius:40px;cursor:pointer;font-weight:600;font-size:14px;">Confirmer</button></div></div>`;document.body.appendChild(d);setTimeout(()=>d.classList.add('show'),10);d.querySelector('#styledConfirmOk').onclick=()=>{d.remove();if(onConfirm)onConfirm()};d.querySelector('#styledConfirmCancel').onclick=()=>{d.remove();if(onCancel)onCancel()}}
+
+function marquerModifications(){modificationsNonEnregistrees=true;const se=document.getElementById('cotationSaveStatus');const sb=document.getElementById('cotationStatusBadge');if(se){se.textContent='⚠️ Non enregistré';se.style.color='#f59e0b'}if(sb){sb.textContent='⚠️ NON ENREGISTRÉ';sb.style.background='rgba(245,158,11,.15)';sb.style.color='#f59e0b'}}
+
+function getNomComplet(e){const n=e.nomOrigine||e.nom||'';const p=e.postnomOrigine||e.postnom||'';const pr=e.prenomOrigine||e.prenom||'';if(!n&&!p&&!pr)return e.nom||'Élève';const r=[];if(n)r.push(n);if(p)r.push(p);if(pr)r.push(pr);return r.join(' ')}
+
+function normaliserClasse(nc){if(!nc)return'';const c={'7eme EB':'7ème EB','7ème EB':'7ème EB','7eme':'7ème EB','7ème':'7ème EB','8eme EB':'8ème EB','8ème EB':'8ème EB','8eme':'8ème EB','8ème':'8ème EB','1ere Annee':'1ère Année','1ère Année':'1ère Année','1ere':'1ère Année','1ère':'1ère Année','2eme Annee':'2ème Année','2ème Année':'2ème Année','2eme':'2ème Année','2ème':'2ème Année','3eme Annee':'3ème Année','3ème Année':'3ème Année','3eme':'3ème Année','3ème':'3ème Année','4eme Annee':'4ème Année','4ème Année':'4ème Année','4eme':'4ème Année','4ème':'4ème Année'};return c[nc.trim().replace(/\s+/g,' ')]||nc.trim()}
+
+async function getAllComptaEleves(){try{const snap=await getDocs(collection(db,"ecoles",ECOLET_ID,SC.COMPTA_ELEVES));localEleves=[];for(const ds of snap.docs){const d=ds.data();if(d._type==='config'||d._type==='settings'||d._type==='inscription')continue;if(!d.nom)continue;localEleves.push({id:d.eleveId||ds.id,nom:d.nom||'',postnom:d.postnom||'',prenom:d.prenom||'',sexe:d.sexe||"M",classe:normaliserClasse(d.classe),option:d.option||"",abandon:d.abandon||false})}return localEleves}catch(e){return[]}}
+
+async function loadAllFiches(){if(!currentProf)return[];try{const snap=await getDocs(collection(db,"ecoles",ECOLET_ID,SC.FICHES));const fiches=[];const monId=currentProf.id;const monProfId=currentProf.profId||currentProf.id;for(const ds of snap.docs){const data=ds.data();if(!data._type&&(data.profId===monId||data.profId===monProfId)){fiches.push({id:ds.id,cours:data.cours||'',classe:data.classe||'',option:data.option||'',numeroRef:data.numeroRef||null})}}fiches.sort((a,b)=>(a.numeroRef||999)-(b.numeroRef||999));return fiches}catch(e){return[]}}
+
+async function getNextFicheNumero(){let nv=1;try{const docRef=doc(db,"ecoles",ECOLET_ID,SC.COMPTEUR,"global");const docSnap=await getDoc(docRef);if(docSnap.exists())nv=(docSnap.data().valeur||0)+1;await setDoc(docRef,{valeur:nv})}catch(e){nv=Date.now()}return nv}
+
+async function saveCurrentFiche(){if(!currentProf||!currentFicheId||!currentFiche)return;currentFiche.lastModified=new Date();try{await setDoc(doc(db,"ecoles",ECOLET_ID,SC.FICHES,currentFicheId),currentFiche)}catch(e){console.error(e)}}
+
+async function refreshSelectors(selectedId=null){if(isUpdatingSelectors)return;isUpdatingSelectors=true;try{toutesFiches=await loadAllFiches();const selectorIds=['ficheSelect','cotationFicheSelector'];for(const s of selectorIds){const sel=document.getElementById(s);if(!sel)continue;sel.innerHTML='<option value="">-- Choisir une fiche --</option>';for(const f of toutesFiches){const opt=document.createElement('option');opt.value=f.id;const refa=f.numeroRef?'F'+String(f.numeroRef).padStart(3,'0'):'Nouvelle';const optText=f.option?' ('+f.option+')':'';opt.textContent=refa+' - '+(f.cours||'?')+' - '+(f.classe||'?')+optText;sel.appendChild(opt)}if(selectedId&&toutesFiches.some(f=>f.id===selectedId))sel.value=selectedId;else if(currentFicheId&&toutesFiches.some(f=>f.id===currentFicheId))sel.value=currentFicheId;sel.onchange=function(){if(!isUpdatingSelectors&&this.value)selectFiche(this.value)}}}finally{setTimeout(()=>{isUpdatingSelectors=false},50)}}
+
+async function selectFiche(id){if(!id||isCreatingFiche)return;currentFicheId=id;try{const docSnap=await getDoc(doc(db,"ecoles",ECOLET_ID,SC.FICHES,id));if(docSnap.exists()){const data=docSnap.data();if(!data._type){currentFiche=data;if(currentProf)currentFiche.titulaire=currentProf.nom;document.getElementById('classeSelect').value=currentFiche.classe||'';mettreAJourSelectOptions(currentFiche.classe||'');document.getElementById('optionSelect').value=currentFiche.option||'';document.getElementById('coursInput').value=currentFiche.cours||'';document.getElementById('p1MaxConfig').value=currentFiche.p1Max||20;toggleOptionField();afficherEpreuves();afficherEleves();afficherCotation();mettreAJourCompteurEleves();mettreAJourStatsFiche();setChampsModifiables(false);mettreAJourBoutons();const infoEl=document.getElementById('cotationFicheInfo');if(infoEl)infoEl.textContent='📄 '+(currentFiche.cours||'')+' — '+(currentFiche.classe||'')+(currentFiche.option?' ('+currentFiche.option+')':'');const statusBadge=document.getElementById('cotationStatusBadge');if(statusBadge){statusBadge.textContent='✓ À JOUR';statusBadge.style.background='rgba(16,185,129,.15)';statusBadge.style.color='#10b981'}const statusEl=document.getElementById('cotationSaveStatus');if(statusEl){statusEl.textContent='Prêt';statusEl.style.color=''}modificationsNonEnregistrees=false}}}catch(e){toast("Erreur chargement fiche",'error')}}
+
+function toggleOptionField(){let c=document.getElementById('classeSelect').value;let o=document.getElementById('optionField');if(c==='7ème EB'||c==='8ème EB'){o.classList.add('hidden-field');document.getElementById('optionSelect').value=''}else if(c&&c!==''){o.classList.remove('hidden-field')}else{o.classList.add('hidden-field')}}
+
+function mettreAJourSelectOptions(c){let s=document.getElementById('optionSelect');if(!s)return;let opts=[];if(c==='7ème EB'||c==='8ème EB')opts=[];else opts=["SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","COUPE ET COUTURE"];if(opts.length===0){s.value='';return}if(currentFiche&&currentFiche.option&&opts.includes(currentFiche.option))s.value=currentFiche.option;else if(opts.length>0&&s.value==='')s.value=opts[0]}
+
+function mettreAJourCompteurEleves(){const c=document.getElementById('eleveCount');if(c&&currentFiche)c.textContent=currentFiche.eleves?.length||0}
+
+function afficherEleves(){let c=document.getElementById('elevesListContainer');if(!c)return;if(!currentFiche){c.innerHTML='<div class="empty-state">Aucune fiche sélectionnée</div>';return}c.innerHTML='';let ev=currentFiche.eleves||[];for(let i=0;i<ev.length;i++){let d=document.createElement('div');d.className='eleve-row';const nomComplet=getNomComplet(ev[i]);d.innerHTML=`<span>${esc(nomComplet)}</span><span style="flex:0;color:var(--t3);padding:8px;">${ev[i].sexe||'M'}</span><span style="flex:0;color:var(--a1);font-size:11px;padding:8px;">🔒 Importé</span>`;c.appendChild(d)}if(ev.length===0)c.innerHTML+='<div class="empty-state">Aucun élève inscrit</div>';mettreAJourCompteurEleves()}
+
+function getPeriodeMax(){return currentFiche.p1Max||20}
+function getExamMax(){return getPeriodeMax()*2}
+function getTotalSemestreMax(){return getPeriodeMax()*4}
+function getTotalAnnuelMax(){return getPeriodeMax()*8}
+
+function calcMoy(p,notes){let eps=currentFiche.epreuvesParPeriode?.[p]||[];if(!eps.length||!notes?.length)return 0;let sn=0,sm=0;for(let i=0;i<eps.length;i++){sn+=(notes[i]||0);sm+=(eps[i].max||1)}if(sm===0)return 0;let nm=currentFiche.p1Max||20;return Math.round(Math.min(nm,(sn/sm)*nm))}
+
+function getNoteClass(note,maxNote){if(maxNote===0)return'';const r=note/maxNote;if(r>=.8)return'note-excellent';if(r>=.7)return'note-bien';if(r>=.5)return'note-moyen';return'note-insuffisant'}
+
+function afficherCotation(){let th=document.getElementById('cotationHeader');let tb=document.getElementById('cotationBody');if(!currentFiche||!th||!tb)return;let ev=currentFiche.eleves||[];let elevesFiltres=[...ev];const st=(document.getElementById('searchInput')?.value||'').toLowerCase().trim();if(st)elevesFiltres=elevesFiltres.filter(e=>((e.nom||'')+' '+(e.postnom||'')+' '+(e.prenom||'')).toLowerCase().includes(st));if(triAlphabetiqueActif)elevesFiltres.sort((a,b)=>(a.nom||'').localeCompare(b.nom||''));if(!elevesFiltres.length){th.innerHTML='';tb.innerHTML='<tr><td class="empty-state">Aucun élève</td></tr>';return}
+let pM=getPeriodeMax(),eM=getExamMax(),tsM=getTotalSemestreMax(),taM=getTotalAnnuelMax();
+let h=['<th>N°</th><th>NOMS COMPLETS</th><th>SEXE</th>'];
+let e1=currentFiche.epreuvesParPeriode?.[1]||[];let e2=currentFiche.epreuvesParPeriode?.[2]||[];let e3=currentFiche.epreuvesParPeriode?.[3]||[];let e4=currentFiche.epreuvesParPeriode?.[4]||[];
+const aP1=(periodeActive==="all"||periodeActive==="1"),aP2=(periodeActive==="all"||periodeActive==="2"),aP3=(periodeActive==="all"||periodeActive==="3"),aP4=(periodeActive==="all"||periodeActive==="4");
+const aES1=(periodeActive==="all"||periodeActive==="1"||periodeActive==="2"),aES2=(periodeActive==="all"||periodeActive==="3"||periodeActive==="4");
+const aTS1=aES1,aTS2=aES2,aT=(periodeActive==="all");
+if(aP1){for(let ep of e1)h.push('<th>'+ep.nom+'<br>P1 /'+ep.max+'</th>');h.push('<th>MOY P1<br>/'+pM+'</th>')}
+if(aP2){for(let ep of e2)h.push('<th>'+ep.nom+'<br>P2 /'+ep.max+'</th>');h.push('<th>MOY P2<br>/'+pM+'</th>')}
+if(aES1)h.push('<th>EXAM S1<br>/'+eM+'</th>');
+if(aTS1)h.push('<th>TOT S1<br>/'+tsM+'</th>');
+if(aP3){for(let ep of e3)h.push('<th>'+ep.nom+'<br>P3 /'+ep.max+'</th>');h.push('<th>MOY P3<br>/'+pM+'</th>')}
+if(aP4){for(let ep of e4)h.push('<th>'+ep.nom+'<br>P4 /'+ep.max+'</th>');h.push('<th>MOY P4<br>/'+pM+'</th>')}
+if(aES2)h.push('<th>EXAM S2<br>/'+eM+'</th>');
+if(aTS2)h.push('<th>TOT S2<br>/'+tsM+'</th>');
+if(aT)h.push('<th>TOTAL<br>/'+taM+'</th>');
+th.innerHTML=h.join('');tb.innerHTML='';
+for(let i=0;i<elevesFiltres.length;i++){let e=elevesFiltres[i];if(!e.notes)e.notes={p1:[],p2:[],p3:[],p4:[],exam1:0,exam2:0};
+let p1=calcMoy(1,e.notes.p1),p2=calcMoy(2,e.notes.p2),p3=calcMoy(3,e.notes.p3),p4=calcMoy(4,e.notes.p4);
+let ex1=e.notes.exam1||0,ex2=e.notes.exam2||0;let ts1=p1+p2+ex1,ts2=p3+p4+ex2,tot=ts1+ts2;const nomComplet=getNomComplet(e);
+let r='<tr>';r+='<td style="text-align:center">'+String(i+1).padStart(2,'0')+'</td>';
+r+='<td style="text-align:left"><span>'+esc(nomComplet)+'</span></td>';
+r+='<td style="text-align:center"><span>'+(e.sexe||'M')+'</span></td>';
+if(aP1){for(let ei=0;ei<e1.length;ei++){let val=e.notes.p1?.[ei]||0;r+='<td><input type="number" step="0.5" min="0" max="'+(e1[ei]?.max||20)+'" value="'+val+'" onchange="window.updNote('+i+',1,'+ei+',this.value)" class="'+getNoteClass(val,e1[ei]?.max||20)+'"></td>'}r+='<td class="col-moy">'+p1+'</td>'}
+if(aP2){for(let ei=0;ei<e2.length;ei++){let val=e.notes.p2?.[ei]||0;r+='<td><input type="number" step="0.5" min="0" max="'+(e2[ei]?.max||20)+'" value="'+val+'" onchange="window.updNote('+i+',2,'+ei+',this.value)" class="'+getNoteClass(val,e2[ei]?.max||20)+'"></td>'}r+='<td class="col-moy">'+p2+'</td>'}
+if(aES1)r+='<td><input type="number" step="0.5" min="0" max="'+eM+'" value="'+ex1+'" onchange="window.updExam('+i+',1,this.value)" class="'+getNoteClass(ex1,eM)+'"></td>';
+if(aTS1)r+='<td class="col-tot">'+ts1+'</td>';
+if(aP3){for(let ei=0;ei<e3.length;ei++){let val=e.notes.p3?.[ei]||0;r+='<td><input type="number" step="0.5" min="0" max="'+(e3[ei]?.max||20)+'" value="'+val+'" onchange="window.updNote('+i+',3,'+ei+',this.value)" class="'+getNoteClass(val,e3[ei]?.max||20)+'"></td>'}r+='<td class="col-moy">'+p3+'</td>'}
+if(aP4){for(let ei=0;ei<e4.length;ei++){let val=e.notes.p4?.[ei]||0;r+='<td><input type="number" step="0.5" min="0" max="'+(e4[ei]?.max||20)+'" value="'+val+'" onchange="window.updNote('+i+',4,'+ei+',this.value)" class="'+getNoteClass(val,e4[ei]?.max||20)+'"></td>'}r+='<td class="col-moy">'+p4+'</td>'}
+if(aES2)r+='<td><input type="number" step="0.5" min="0" max="'+eM+'" value="'+ex2+'" onchange="window.updExam('+i+',2,this.value)" class="'+getNoteClass(ex2,eM)+'"></td>';
+if(aTS2)r+='<td class="col-tot">'+ts2+'</td>';
+if(aT)r+='<td class="col-tot">'+tot+'</td>';
+r+='</tr>';tb.innerHTML+=r}}
+
+window.updNote=function(i,p,epi,v){if(!currentFiche)return;let va=parseFloat(v)||0;let me=currentFiche.epreuvesParPeriode[p]?.[epi]?.max||20;if(va>me)va=me;if(va<0)va=0;if(!currentFiche.eleves[i].notes)currentFiche.eleves[i].notes={p1:[],p2:[],p3:[],p4:[],exam1:0,exam2:0};if(!currentFiche.eleves[i].notes['p'+p])currentFiche.eleves[i].notes['p'+p]=[];currentFiche.eleves[i].notes['p'+p][epi]=va;afficherCotation();marquerModifications()};
+
+window.updExam=function(i,s,v){if(!currentFiche)return;let va=parseFloat(v)||0;let me=getExamMax();if(va>me)va=me;if(va<0)va=0;if(!currentFiche.eleves[i].notes)currentFiche.eleves[i].notes={p1:[],p2:[],p3:[],p4:[],exam1:0,exam2:0};if(s===1)currentFiche.eleves[i].notes.exam1=va;else currentFiche.eleves[i].notes.exam2=va;afficherCotation();marquerModifications()};
+
+document.querySelectorAll('.period-btn').forEach(btn=>{btn.addEventListener('click',function(){document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active');periodeActive=this.dataset.period;afficherCotation()})});
+
+function afficherEpreuves(){let c=document.getElementById('epreuvesContainer');if(!c)return;if(!currentFiche){c.innerHTML='<div class="empty-state">Aucune fiche sélectionnée</div>';return}c.innerHTML='';for(let p=1;p<=4;p++){let b=document.createElement('div');b.className='epreuve-box';b.innerHTML='<h4 style="color:var(--a1);margin-bottom:10px">PERIODE '+p+'</h4><div class="epreuve-list" id="listEpreuve'+p+'"></div>';c.appendChild(b);let ld=document.getElementById('listEpreuve'+p);if(ld){ld.innerHTML='';let eps=currentFiche.epreuvesParPeriode?.[p]||[];for(let i=0;i<eps.length;i++){let d=document.createElement('div');d.className='epreuve-item';d.innerHTML='<input type="text" value="'+eps[i].nom+'" onchange="window.updEpreuve('+p+','+i+',\'nom\',this.value)" style="width:100px"><input type="number" value="'+eps[i].max+'" onchange="window.updEpreuve('+p+','+i+',\'max\',this.value)" style="width:55px"><span style="cursor:pointer;color:#ef4444" onclick="window.delEpreuve('+p+','+i+')">X</span>';ld.appendChild(d)}if(eps.length===0)ld.innerHTML='<span style="font-size:12px;color:var(--t3)">Aucune épreuve</span>'}}}
+
+window.updEpreuve=function(p,i,f,v){if(!currentFiche)return;if(f==='nom')currentFiche.epreuvesParPeriode[p][i].nom=v;else currentFiche.epreuvesParPeriode[p][i].max=parseFloat(v)||20;afficherCotation();marquerModifications()};
+window.delEpreuve=function(p,i){if(!currentFiche)return;currentFiche.epreuvesParPeriode[p].splice(i,1);afficherEpreuves();afficherCotation();marquerModifications()};
+
+function addEpreuve(p){if(!currentFiche){toast("Aucune fiche sélectionnée",'error');return}if(!currentFiche.epreuvesParPeriode[p])currentFiche.epreuvesParPeriode[p]=[];currentFiche.epreuvesParPeriode[p].push({nom:"Epreuve "+(currentFiche.epreuvesParPeriode[p].length+1),max:currentFiche.p1Max||20});afficherEpreuves();afficherCotation();toast("Epreuve P"+p+" ajoutée",'success');marquerModifications()}
+
+function setChampsModifiables(actif){champsModifiables=actif;const ci=document.getElementById('coursInput');const pm=document.getElementById('p1MaxConfig');if(ci){ci.disabled=!actif;ci.style.opacity=actif?'1':'.7'}if(pm){pm.disabled=!actif;pm.style.opacity=actif?'1':'.7'}const mb=document.getElementById('modifierFicheBtn');if(mb){if(actif){mb.innerHTML='💾 METTRE À JOUR';mb.style.background='#16a34a'}else{mb.innerHTML='✏️ MODIFIER';mb.style.background=''}}}
+
+function mettreAJourBoutons(){const cb=document.getElementById('creerFicheBtn');const mb=document.getElementById('modifierFicheBtn');const sb=document.getElementById('supprimerFicheBtn');const vb=document.getElementById('viderChampsBtn');if(currentFicheId&&currentFiche){cb.style.display='none';mb.style.display='inline-flex';sb.style.display='inline-flex';vb.style.display='inline-flex';if(!champsModifiables)setChampsModifiables(false)}else{cb.style.display='inline-flex';mb.style.display='none';sb.style.display='none';vb.style.display='inline-flex';champsModifiables=true;setChampsModifiables(true)}}
+
+function viderChamps(){document.getElementById('classeSelect').value='';document.getElementById('optionSelect').value='';document.getElementById('coursInput').value='';document.getElementById('p1MaxConfig').value=20;toggleOptionField();champsModifiables=true;currentFiche=null;currentFicheId=null;setChampsModifiables(true);mettreAJourBoutons()}
+
+function mettreAJourStatsFiche(){const container=document.getElementById('ficheStatsContent');if(!container||!currentFiche)return;const eleves=currentFiche.eleves||[];container.innerHTML=`<div style="display:flex;gap:20px;flex-wrap:wrap"><div><span style="color:var(--t3)">👥 Total élèves :</span><span style="color:var(--t1);font-weight:600"> ${eleves.length}</span></div></div>`}
+
+async function showLogin(){const ancien=document.getElementById('loginOverlay');if(ancien)ancien.remove();let d=document.createElement('div');d.className='login-overlay';d.id='loginOverlay';d.innerHTML=`<div class="login-shell"><aside class="side-panel"><div class="side-brand"><div class="side-brand-logo">🏫</div><div class="side-brand-text"><span class="sbt-main">${schoolNameForDisplay}</span><span class="sbt-sub">Gestion de Scolarité</span></div></div><div class="side-content"><span class="side-tag"><span class="dot"></span> Espace Enseignant</span><h2>Accédez à votre <span>espace de travail</span>.</h2><p>Interface dédiée aux enseignants et titulaires de ${schoolNameForDisplay}.</p><div class="side-features"><div class="side-feature"><i>✓</i> Accès sécurisé</div><div class="side-feature"><i>✓</i> Gestion en temps réel</div><div class="side-feature"><i>✓</i> Assistance dédiée</div></div></div><div class="side-footer"><span>© 2026 — ${schoolNameForDisplay}</span><span>Support : <a href="tel:+243845048412">+243 845 048 412</a></span></div></aside><main class="form-panel"><div class="form-header"><span class="fh-eyebrow">Connexion sécurisée</span><h1>Espace Enseignant</h1><p>Saisissez votre code confidentiel pour accéder.</p></div><div class="login-logo-zone"><div class="login-logo-wrapper">🏫</div><div class="salutation-block"><div class="sb-label">Bienvenue</div><div class="salutation"><span id="typedText"></span><span class="cursor"></span></div></div></div><div class="login-form-group"><label for="loginPassword">Code d'accès</label><div class="login-input-wrap"><span class="fi-icon">🔒</span><input type="password" id="loginPassword" placeholder="••••••" maxlength="20" autocomplete="off"></div></div><button id="loginBtn" class="btn-submit">Se connecter</button><div class="login-form-footer"><div class="login-support-line"><span>Un problème ?</span><a href="tel:+243845048412">Contacter le support</a></div><div class="login-copyright">© 2026 — ${schoolNameForDisplay}</div></div></main></div>`;document.body.appendChild(d);
+const st=(()=>{const h=new Date().getHours();if(h>=5&&h<12)return"Bonjour, à vous";if(h>=12&&h<18)return"Bon après-midi, à vous";if(h>=18&&h<22)return"Bonsoir, à vous";return"Content de vous revoir"})();
+const tt=d.querySelector('#typedText');let i=0;setTimeout(()=>{(function type(){if(i<st.length){tt.textContent+=st.charAt(i++);setTimeout(type,75)}})()},400);
+const pwd=d.querySelector('#loginPassword');const btn=d.querySelector('#loginBtn');
+btn.onclick=async function(){const code=pwd.value.trim();if(!code){toast("Veuillez entrer votre code",'error');return}btn.disabled=true;btn.textContent='Connexion...';pwd.disabled=true;
+try{const snap=await getDocs(collection(db,"ecoles",ECOLET_ID,SC.PROFESSEURS));let fp=null;snap.forEach(ds=>{const data=ds.data();const sd=(data.school||'').toUpperCase();if(sd===ECOLET_ID.toUpperCase()&&data.code===code&&data.actif!==false){fp={id:ds.id,profId:data.profId||ds.id,nom:data.nom,code:code,email:data.emailProf||data.email}}});
+if(!fp){toast("Code incorrect",'error');btn.disabled=false;btn.textContent='Se connecter';pwd.disabled=false;pwd.value='';pwd.focus();return}
+if(!fp.email){toast("Email non configuré. Contactez l'admin.",'error');btn.disabled=false;btn.textContent='Se connecter';pwd.disabled=false;return}
+try{await signInWithEmailAndPassword(auth,fp.email,code)}catch(ae){if(ae.code==='auth/user-not-found'){try{await createUserWithEmailAndPassword(auth,fp.email,code)}catch(ce){if(ce.code!=='auth/email-already-in-use')throw ce;await signInWithEmailAndPassword(auth,fp.email,code)}}else if(ae.code==='auth/wrong-password'){throw new Error("Code incorrect")}else{throw ae}}
+const profDoc=await getDoc(doc(db,"ecoles",ECOLET_ID,SC.PROFESSEURS,fp.id));if(!profDoc.exists()||profDoc.data().actif===false){toast("Compte désactivé",'error');await signOut(auth);btn.disabled=false;btn.textContent='Se connecter';pwd.disabled=false;return}
+btn.textContent='✅ Connexion réussie !';currentProf={id:fp.id,profId:fp.profId,nom:fp.nom,code:code,email:fp.email,createdAt:Date.now()};localStorage.setItem('gloria_session_prof',JSON.stringify({id:fp.id,profId:fp.profId,nom:fp.nom,code:code,school:ECOLET_ID}));
+setTimeout(async()=>{d.remove();document.getElementById('mainApp').style.display='block';toutesFiches=await loadAllFiches();if(toutesFiches.length)await selectFiche(toutesFiches[0].id);await refreshSelectors();toast("Bienvenue "+currentProf.nom,'success')},800)
+}catch(err){console.error(err);let msg="Code incorrect";if(err.message==="Code incorrect")msg="Code incorrect";else if(err.code==='auth/wrong-password')msg="Code incorrect";else if(err.code==='auth/too-many-requests')msg="Trop de tentatives";toast(msg,'error');btn.disabled=false;btn.textContent='Se connecter';pwd.disabled=false;pwd.value='';pwd.focus()}};
+pwd.addEventListener('keypress',e=>{if(e.key==='Enter')btn.click()});pwd.focus()}
+
+async function restaurerSession(){let session=localStorage.getItem('gloria_session_prof');if(session){try{let prof=JSON.parse(session);if((prof.school||'').toUpperCase()!==ECOLET_ID.toUpperCase()){localStorage.removeItem('gloria_session_prof');return false}const snap=await getDoc(doc(db,"ecoles",ECOLET_ID,SC.PROFESSEURS,prof.id));if(!snap.exists()){localStorage.removeItem('gloria_session_prof');return false}if(snap.data().actif===false){localStorage.removeItem('gloria_session_prof');return false}currentProf={id:prof.id,profId:prof.profId||prof.id,nom:prof.nom,code:prof.code};document.getElementById('mainApp').style.display='block';toutesFiches=await loadAllFiches();if(toutesFiches.length)await selectFiche(toutesFiches[0].id);await refreshSelectors();toast("Bienvenue "+currentProf.nom,'success');return true}catch(e){}}return false}
+
+document.getElementById('logoutBtnParam').addEventListener('click',function(){showStyledConfirm("Déconnexion","Êtes-vous sûr de vouloir vous déconnecter ?",async function(){try{await signOut(auth)}catch(e){}localStorage.removeItem('gloria_session_prof');localStorage.removeItem('theme-preference');document.getElementById('mainApp').style.display='none';showLogin();toast("Vous êtes déconnecté",'success')},function(){toast("Déconnexion annulée",'info')})});
+
+document.getElementById('creerFicheBtn').addEventListener('click',async function(){if(isCreatingFiche)return;const classe=document.getElementById('classeSelect').value;const option=document.getElementById('optionSelect').value;const cours=(document.getElementById('coursInput')?.value||'').trim();const titulaire=currentProf?currentProf.nom:'';if(!classe){toast("Veuillez sélectionner une classe",'error');return}if(!cours){toast("Veuillez saisir la matière",'error');return}let fop=(classe==='7ème EB'||classe==='8ème EB')?'':option;if(classe!=='7ème EB'&&classe!=='8ème EB'&&!option){toast("Veuillez sélectionner une option",'error');return}
+const fe=await loadAllFiches();const doub=fe.find(f=>f.cours===cours&&f.classe===classe&&(f.option||'')===fop);if(doub){toast(`⚠️ La matière "${cours}" existe déjà`, 'warning');return}
+isCreatingFiche=true;const btn=this;btn.disabled=true;btn.innerHTML='⏳ CRÉATION...';
+try{const nid='f'+Date.now()+'_'+Math.random().toString(36).substr(2,4);const nnum=await getNextFicheNumero();const now=new Date();await getAllComptaEleves();
+let elevesFiltres=localEleves.filter(e=>{if(!e||e.abandon)return false;if(e.classe!==classe)return false;if(fop==='TOUTES'||fop==='')return true;if(fop&&e.option!==fop)return false;return true});
+if(elevesFiltres.length===0){showStyledConfirm('🚫 CRÉATION IMPOSSIBLE',`Aucun élève inscrit pour :<br>• Classe : <strong>${classe}</strong><br>${fop?'• Option : <strong>'+fop+'</strong>':''}<br><br>Contactez l'administration.`,null,null);btn.disabled=false;btn.innerHTML='📝 CRÉER';isCreatingFiche=false;return}
+let eleves=elevesFiltres.map(e=>({id:e.id||Date.now()+Math.random(),nom:e.nom||'',postnom:e.postnom||'',prenom:e.prenom||'',sexe:e.sexe||'M',notes:{p1:[],p2:[],p3:[],p4:[],exam1:0,exam2:0}}));
+const p1Max=parseFloat(document.getElementById('p1MaxConfig').value)||20;
+const nouvelleFiche={profId:currentProf.id,ficheId:nid,cours,classe,option:fop,titulaire,anneeScolaire:"2026-2027",p1Max,numeroRef:nnum,dateCreation:now,lastModified:now,epreuvesParPeriode:{1:[{nom:"Interrogation",max:p1Max}],2:[{nom:"Interrogation",max:p1Max}],3:[{nom:"Interrogation",max:p1Max}],4:[{nom:"Interrogation",max:p1Max}]},eleves,school:ECOLET_ID};
+await setDoc(doc(db,"ecoles",ECOLET_ID,SC.FICHES,nid),nouvelleFiche);currentFiche=nouvelleFiche;currentFicheId=nid;
+document.getElementById('classeSelect').value='';document.getElementById('optionSelect').value='';document.getElementById('coursInput').value='';document.getElementById('p1MaxConfig').value=20;toggleOptionField();
+await refreshSelectors(nid);afficherEpreuves();afficherEleves();afficherCotation();mettreAJourCompteurEleves();mettreAJourStatsFiche();toast(`✅ Fiche "${cours}" créée avec ${eleves.length} élève(s)`,'success');mettreAJourBoutons();
+const infoEl=document.getElementById('cotationFicheInfo');if(infoEl)infoEl.textContent='📄 '+cours+' — '+classe+(fop?' ('+fop+')':'')}catch(e){console.error(e);toast("❌ Erreur création",'error')}finally{btn.disabled=false;btn.innerHTML='📝 CRÉER';isCreatingFiche=false}});
+
+document.getElementById('modifierFicheBtn').addEventListener('click',async function(){if(!currentFicheId||!currentFiche){toast("Aucune fiche sélectionnée",'error');return}if(!champsModifiables){setChampsModifiables(true);toast("✏️ Mode modification activé",'info');return}try{const cours=document.getElementById('coursInput').value.trim();const p1Max=parseFloat(document.getElementById('p1MaxConfig').value)||20;if(!cours){toast("Veuillez renseigner la matière",'error');return}currentFiche.cours=cours;currentFiche.p1Max=p1Max;currentFiche.lastModified=new Date();await setDoc(doc(db,"ecoles",ECOLET_ID,SC.FICHES,currentFicheId),currentFiche);toast("✅ Fiche mise à jour",'success');await refreshSelectors(currentFicheId);setChampsModifiables(false)}catch(e){toast("❌ Erreur",'error')}});
+
+document.getElementById('supprimerFicheBtn').addEventListener('click',function(){if(!currentFicheId||!currentFiche){toast("Aucune fiche sélectionnée",'error');return}const ficheNom=currentFiche.cours||'Fiche';const ficheClasse=currentFiche.classe||'';showStyledConfirm(`🗑️ SUPPRIMER "${ficheNom}" - ${ficheClasse}`,`⚠️ ATTENTION : Cette fiche sera supprimée DÉFINITIVEMENT.<br><br>Toutes les notes et tous les élèves seront perdus.<br><br>Confirmez-vous ?`,async function(){try{await deleteDoc(doc(db,"ecoles",ECOLET_ID,SC.FICHES,currentFicheId));const ficheCours=currentFiche.cours;currentFiche=null;currentFicheId=null;viderChamps();await refreshSelectors();mettreAJourBoutons();afficherEpreuves();afficherEleves();afficherCotation();toast(`🗑️ Fiche "${ficheCours}" supprimée`,'warning')}catch(e){toast("❌ Erreur",'error')}},function(){toast("Suppression annulée",'info')})});
+
+document.getElementById('viderChampsBtn').addEventListener('click',function(){viderChamps();refreshSelectors();afficherEpreuves();afficherEleves();afficherCotation();toast("🧹 Champs vidés",'info')});
+
+document.getElementById('rechargerElevesBtn').onclick=async function(){if(!currentFiche){toast("Aucune fiche sélectionnée",'error');return}const btn=this;btn.disabled=true;btn.innerHTML='⏳ SYNCHRONISATION...';try{const classe=currentFiche.classe;const option=currentFiche.option;if(!classe){toast("Classe non configurée",'error');btn.disabled=false;btn.innerHTML='🔄 RECHARGER';return}await getAllComptaEleves();let elevesFiltres=localEleves.filter(e=>{if(e.abandon)return false;if(e.classe!==classe)return false;if(option==='TOUTES'||!option)return true;if(option&&e.option!==option)return false;return true});const notesExistantes={};if(currentFiche.eleves)currentFiche.eleves.forEach(e=>{if(e.id&&e.notes)notesExistantes[e.id]=e.notes});currentFiche.eleves=elevesFiltres.map(e=>({id:e.id||Date.now()+Math.random(),nom:e.nom||'',postnom:e.postnom||'',prenom:e.prenom||'',sexe:e.sexe||'M',notes:notesExistantes[e.id]||{p1:[],p2:[],p3:[],p4:[],exam1:0,exam2:0}}));await saveCurrentFiche();afficherEleves();afficherCotation();mettreAJourCompteurEleves();mettreAJourStatsFiche();toast(`✅ ${elevesFiltres.length} élève(s) synchronisé(s)`,'success');btn.disabled=false;btn.innerHTML='🔄 RECHARGER'}catch(e){toast("❌ Erreur",'error');btn.disabled=false;btn.innerHTML='🔄 RECHARGER'}};
+
+document.getElementById('classeSelect').onchange=function(){if(!isCreatingFiche&&currentFiche&&champsModifiables)currentFiche.classe=this.value;toggleOptionField();mettreAJourSelectOptions(this.value)};
+document.getElementById('optionSelect').onchange=function(){if(!isCreatingFiche&&currentFiche&&champsModifiables)currentFiche.option=this.value};
+document.getElementById('p1MaxConfig').onchange=function(){if(!isCreatingFiche&&currentFiche&&champsModifiables){currentFiche.p1Max=parseFloat(this.value)||20;afficherCotation()}};
+document.getElementById('coursInput').oninput=function(){if(!isCreatingFiche&&currentFiche&&champsModifiables)currentFiche.cours=this.value};
+
+document.getElementById('saveCotationBtn').addEventListener('click',async function(){if(!currentFicheId||!currentFiche){toast('❌ Aucune fiche sélectionnée','error');return}const btn=this;const statusEl=document.getElementById('cotationSaveStatus');const statusBadge=document.getElementById('cotationStatusBadge');btn.disabled=true;btn.classList.add('saving');btn.querySelector('.btn-save-text').textContent='ENREGISTREMENT...';btn.querySelector('.btn-save-icon').textContent='⏳';if(statusEl)statusEl.textContent='Enregistrement...';if(statusBadge){statusBadge.textContent='⏳ SAUVEGARDE...';statusBadge.style.background='rgba(245,158,11,.15)';statusBadge.style.color='#f59e0b'}
+try{await saveCurrentFiche();await new Promise(r=>setTimeout(r,400));btn.classList.remove('saving');btn.classList.add('saved');btn.querySelector('.btn-save-text').textContent='ENREGISTRÉ ✓';btn.querySelector('.btn-save-icon').textContent='✅';if(statusEl){const now=new Date();statusEl.textContent='Enregistré à '+now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});statusEl.style.color='#10b981'}if(statusBadge){statusBadge.textContent='✓ À JOUR';statusBadge.style.background='rgba(16,185,129,.15)';statusBadge.style.color='#10b981'}toast('💾 Fiche enregistrée','success');modificationsNonEnregistrees=false;setTimeout(()=>{btn.classList.remove('saved');btn.querySelector('.btn-save-text').textContent='TOUT ENREGISTRER';btn.querySelector('.btn-save-icon').textContent='💾';btn.disabled=false},2000)}catch(e){btn.classList.remove('saving');btn.querySelector('.btn-save-text').textContent='ERREUR';btn.querySelector('.btn-save-icon').textContent='❌';toast('❌ Erreur enregistrement','error');setTimeout(()=>{btn.querySelector('.btn-save-text').textContent='TOUT ENREGISTRER';btn.querySelector('.btn-save-icon').textContent='💾';btn.disabled=false},2000)}});
+
+document.getElementById('exportCotationPdfBtn').addEventListener('click',async function(){if(!currentFiche){toast("Aucune fiche sélectionnée",'error');return}if(!currentFiche.eleves||currentFiche.eleves.length===0){toast("Aucun élève",'error');return}const btn=this;btn.disabled=true;btn.innerHTML='<span>⏳</span><span>...</span>';
+try{const{jsPDF}=window.jspdf;const pdf=new jsPDF('landscape','mm','a4');const rn=currentFiche.numeroRef?'F'+String(currentFiche.numeroRef).padStart(3,'0'):'???';const pM=getPeriodeMax(),eM=getExamMax(),tsM=getTotalSemestreMax(),taM=getTotalAnnuelMax();
+pdf.setFontSize(14);pdf.setFont('helvetica','bold');pdf.setTextColor(15,43,68);pdf.text('COMPLEXE SCOLAIRE '+schoolNameForDisplay,148,20,{align:'center'});
+pdf.setFontSize(10);pdf.setFont('helvetica','normal');pdf.setTextColor(100,100,100);pdf.text('GESTION SCOLAIRE',148,27,{align:'center'});
+pdf.setFontSize(12);pdf.setFont('helvetica','bold');pdf.setTextColor(59,130,246);pdf.text('FICHE DE COTATION',148,37,{align:'center'});
+pdf.setFontSize(9);pdf.setFont('helvetica','normal');pdf.setTextColor(0,0,0);pdf.text("Année scolaire : "+(currentFiche.anneeScolaire||'2026-2027'),14,50);pdf.text("Référence : "+rn,14,57);pdf.text("Cours : "+(currentFiche.cours||''),14,64);pdf.text("Classe : "+(currentFiche.classe||''),14,71);let y=78;if(currentFiche.option&&currentFiche.option!==''){pdf.text("Option : "+currentFiche.option,14,y);y+=7}pdf.text("Titulaire : "+(currentProf?currentProf.nom:''),14,y);
+const hd=[['N°','NOMS COMPLETS','SEXE','P1/'+pM,'P2/'+pM,'EXAM S1/'+eM,'TOT S1/'+tsM,'P3/'+pM,'P4/'+pM,'EXAM S2/'+eM,'TOT S2/'+tsM,'TOTAL/'+taM]];const bd=[['MAX','','',pM,pM,eM,tsM,pM,pM,eM,tsM,taM]];
+for(let i=0;i<currentFiche.eleves.length;i++){const e=currentFiche.eleves[i];const n=e.notes||{};const p1=calcMoy(1,n.p1),p2=calcMoy(2,n.p2),p3=calcMoy(3,n.p3),p4=calcMoy(4,n.p4);const ex1=n.exam1||0,ex2=n.exam2||0;bd.push([(i+1).toString(),getNomComplet(e).toUpperCase(),e.sexe==='F'?'F':'M',p1,p2,ex1,p1+p2+ex1,p3,p4,ex2,p3+p4+ex2,p1+p2+ex1+p3+p4+ex2])}
+pdf.autoTable({head:hd,body:bd,startY:y+10,theme:'grid',styles:{fontSize:8,cellPadding:2,halign:'center',textColor:[0,0,0]},headStyles:{fillColor:[59,130,246],textColor:[255,255,255],fontStyle:'bold'},alternateRowStyles:{fillColor:[245,245,245]}});pdf.save("Fiche_Cotation_"+rn+"_"+(currentFiche.cours||'cours')+".pdf");toast("📄 PDF exporté",'success')}catch(e){console.error(e);toast("Erreur export PDF",'error')}finally{btn.disabled=false;btn.innerHTML='<span>📄</span><span>PDF</span>'}});
+
+document.getElementById('sortAlphaBtn').addEventListener('click',function(){triAlphabetiqueActif=!triAlphabetiqueActif;this.classList.toggle('active',triAlphabetiqueActif);this.textContent=triAlphabetiqueActif?'🔽 Tri activé':'🔤 Tri alphabétique';afficherCotation()});
+document.getElementById('searchInput').addEventListener('input',function(){afficherCotation()});
+document.getElementById('addEpreuve1').onclick=function(){addEpreuve(1)};document.getElementById('addEpreuve2').onclick=function(){addEpreuve(2)};document.getElementById('addEpreuve3').onclick=function(){addEpreuve(3)};document.getElementById('addEpreuve4').onclick=function(){addEpreuve(4)};
+
+async function chargerToutesFichesTitu(){try{const snap=await getDocs(collection(db,"ecoles",ECOLET_ID,SC.FICHES));toutesFichesCompletTitu=[];for(const ds of snap.docs){const d=ds.data();if(d._type)continue;if(!d.eleves||!d.cours||!d.classe)continue;toutesFichesCompletTitu.push({id:ds.id,cours:d.cours,classe:d.classe,option:d.option||'',eleves:d.eleves||[],p1Max:d.p1Max||20,epreuvesParPeriode:d.epreuvesParPeriode||{1:[],2:[],3:[],4:[]}})}
+const classeSet=new Set();toutesFichesCompletTitu.forEach(f=>classeSet.add(f.classe));const sel=document.getElementById('titulaireSearchClasse');if(sel){sel.innerHTML='<option value="">-- Toutes les classes --</option>';Array.from(classeSet).sort().forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;sel.appendChild(o)})}}catch(e){console.error(e)}}
+
+function calcMoyPeriodeTitu(periode,eleve,fiche){const eps=fiche.epreuvesParPeriode?.[periode]||[];const notes=eleve.notes?.['p'+periode]||[];if(!eps.length)return 0;let sn=0,sm=0;for(let i=0;i<eps.length;i++){sn+=(notes[i]||0);sm+=(eps[i].max||1)}if(sm===0)return 0;const nm=fiche.p1Max||20;return Math.round(Math.min(nm,(sn/sm)*nm))}
+
+function calculerBulletin(eleveId,classe,option){const fiches=toutesFichesCompletTitu.filter(f=>f.classe===classe&&(option?f.option===option:true));if(!fiches.length)return null;
+const lignes=fiches.map(f=>{const eleve=f.eleves.find(e=>e.id===eleveId);if(!eleve)return{nom:f.cours,maxP1:f.p1Max||20,maxP2:f.p1Max||20,maxExam:(f.p1Max||20)*2,maxTotal:(f.p1Max||20)*8,p1:0,p2:0,exam1:0,totS1:0,p3:0,p4:0,exam2:0,totS2:0,tg:0,manquant:true};const p1=calcMoyPeriodeTitu(1,eleve,f);const p2=calcMoyPeriodeTitu(2,eleve,f);const exam1=eleve.notes?.exam1||0;const p3=calcMoyPeriodeTitu(3,eleve,f);const p4=calcMoyPeriodeTitu(4,eleve,f);const exam2=eleve.notes?.exam2||0;const totS1=p1+p2+exam1;const totS2=p3+p4+exam2;const tg=totS1+totS2;return{nom:f.cours,maxP1:f.p1Max||20,maxP2:f.p1Max||20,maxExam:(f.p1Max||20)*2,maxTotal:(f.p1Max||20)*8,p1,p2,exam1,totS1,p3,p4,exam2,totS2,tg,manquant:false}});
+const totaux=lignes.reduce((s,l)=>s+(l.tg||0),0);const maximaGeneral=lignes.reduce((s,l)=>s+(l.maxTotal||0),0);const pourcentage=maximaGeneral>0?(totaux/maximaGeneral)*100:0;
+const tousIds=new Set();fiches.forEach(f=>f.eleves.forEach(e=>tousIds.add(e.id)));
+const classement=[];tousIds.forEach(id=>{let tot=0;fiches.forEach(f=>{const eleve=f.eleves.find(e=>e.id===id);if(!eleve)return;const p1=calcMoyPeriodeTitu(1,eleve,f),p2=calcMoyPeriodeTitu(2,eleve,f);const exam1=eleve.notes?.exam1||0;const p3=calcMoyPeriodeTitu(3,eleve,f),p4=calcMoyPeriodeTitu(4,eleve,f);const exam2=eleve.notes?.exam2||0;tot+=p1+p2+exam1+p3+p4+exam2});classement.push({id,total:tot})});
+classement.sort((a,b)=>b.total-a.total);const place=classement.findIndex(e=>e.id===eleveId)+1;const nombreEleves=classement.length;
+const application=pourcentage>=60?'B':'AB';const conduite='B';let decision='PASSE';if(pourcentage<50)decision='DOUBLE';
+return{lignes,totaux,maximaGeneral,pourcentage:parseFloat(pourcentage.toFixed(1)),place,nombreEleves,application,conduite,decision}}
+
+document.getElementById('titulaireSearchBtn').onclick=function(){const nom=document.getElementById('titulaireSearchNom').value.trim();const classeFiltre=document.getElementById('titulaireSearchClasse').value;if(!nom){toast("Veuillez entrer un nom",'error');return}const nomLower=nom.toLowerCase();const rc=document.getElementById('titulaireResultCard');const eleveInfoDiv=document.getElementById('titulaireEleveInfo');
+let eleveTrouve=null;let ficheSource=null;for(const f of toutesFichesCompletTitu){if(classeFiltre&&f.classe!==classeFiltre)continue;for(const e of f.eleves){const nomComplet=getNomComplet(e).toLowerCase();if(nomComplet.includes(nomLower)){eleveTrouve=e;ficheSource=f;break}}if(eleveTrouve)break}
+if(!eleveTrouve){rc.classList.remove('show');toast("❌ Aucun élève trouvé",'error');return}
+eleveInfoDiv.innerHTML=`<div><span>👤 Élève :</span><span>${esc(getNomComplet(eleveTrouve))}</span></div><div><span>⚧ Sexe :</span><span>${eleveTrouve.sexe==='F'?'Féminin':'Masculin'}</span></div><div><span>📚 Classe :</span><span>${ficheSource.classe}${ficheSource.option?' ('+ficheSource.option+')':''}</span></div>`;
+eleveCourantTitu=eleveTrouve;ficheCouranteTitu=ficheSource;rc.classList.add('show');toast("✅ Élève trouvé",'success')};
+
+document.getElementById('exportTitulaireRelevePdfBtn').onclick=async function(){if(!eleveCourantTitu||!ficheCouranteTitu){toast("⚠️ Veuillez d'abord rechercher un élève",'error');return}const btn=this;btn.disabled=true;btn.innerHTML='⏳ Génération du PDF...';
+try{const bulletin=calculerBulletin(eleveCourantTitu.id,ficheCouranteTitu.classe,ficheCouranteTitu.option);if(!bulletin){toast("❌ Aucune donnée disponible",'error');btn.disabled=false;btn.innerHTML="📄 Exporter l'extrait de bulletin en PDF";return}
+const{jsPDF}=window.jspdf;const pdf=new jsPDF('portrait','mm','a4');
+const info={nom:getNomComplet(eleveCourantTitu),sexe:eleveCourantTitu.sexe,classe:ficheCouranteTitu.classe,option:ficheCouranteTitu.option,anneeScolaire:'2026-2027',ecole:schoolNameForDisplay};
+pdf.setFontSize(12);pdf.setFont('helvetica','bold');pdf.setTextColor(0,0,0);pdf.text('RÉPUBLIQUE DÉMOCRATIQUE DU CONGO',105,15,{align:'center'});
+pdf.setFontSize(8);pdf.setFont('helvetica','normal');pdf.text("MINISTÈRE DE L'ÉDUCATION NATIONALE ET NOUVELLE CITOYENNETÉ",105,20,{align:'center'});
+pdf.setFontSize(10);pdf.setFont('helvetica','bold');pdf.text('EXTRAIT DE BULLETIN',105,28,{align:'center'});
+pdf.setFontSize(8);pdf.setFont('helvetica','normal');pdf.text("Année scolaire "+info.anneeScolaire,105,33,{align:'center'});
+pdf.setFontSize(8);pdf.text('École : '+info.ecole,14,42);pdf.text('Élève : '+info.nom.toUpperCase(),14,48);pdf.text('Classe : '+info.classe+(info.option?' / '+info.option:''),14,54);pdf.text('Sexe : '+(info.sexe==='F'?'F':'M'),140,54);
+const headers=[[{content:'BRANCHES',rowSpan:2,styles:{halign:'left',valign:'middle'}},{content:'PREMIER SEMESTRE',colSpan:4,styles:{halign:'center'}},{content:'SECOND SEMESTRE',colSpan:4,styles:{halign:'center'}},{content:'T.G.',rowSpan:2,styles:{halign:'center',valign:'middle'}}],['1ère P','2ème P','EXAM','TOT','3ème P','4ème P','EXAM','TOT']];
+const body=[];const ROUGE=[220,20,20];
+bulletin.lignes.forEach(l=>{body.push([{content:'MAXIMA',styles:{fontStyle:'bold',fillColor:[240,240,240],textColor:ROUGE}},{content:l.maxP1,styles:{fontStyle:'bold',fillColor:[240,240,240],textColor:ROUGE}},{content:l.maxP2,styles:{fontStyle:'bold',fillColor:[240,240,240],textColor:ROUGE}},{content:l.maxExam,styles:{fontStyle:'bold',fillColor:[240,240,240],textColor:ROUGE}},{content:l.maxP1+l.maxP2+l.maxExam,styles:{fontStyle:'bold',fillColor:[240,240,240],textColor:ROUGE}},{content:l.maxP1,styles:{fontStyle:'bold',fillColor:[240,240,240],textColor:ROUGE}},{content:l.maxP2,styles:{fontStyle:'bold',fillColor:[240,240,240],textColor:ROUGE}},{content:l.maxExam,styles:{fontStyle:'bold',fillColor:[240,240,240],textColor:ROUGE}},{content:l.maxP1+l.maxP2+l.maxExam,styles:{fontStyle:'bold',fillColor:[240,240,240],textColor:ROUGE}},{content:l.maxTotal,styles:{fontStyle:'bold',fillColor:[240,240,240],textColor:ROUGE}}]);
+if(l.manquant){body.push([{content:l.nom+' (non saisi)',styles:{textColor:[180,0,0]}},'—','—','—','—','—','—','—','—','—'])}else{body.push([{content:l.nom},l.p1,l.p2,l.exam1,l.totS1,l.p3,l.p4,l.exam2,l.totS2,l.tg])}});
+body.push([{content:'MAXIMA GÉNÉRAUX',colSpan:9,styles:{fontStyle:'bold',fillColor:[254,243,199],textColor:ROUGE,halign:'left'}},{content:bulletin.maximaGeneral,styles:{fontStyle:'bold',fillColor:[254,243,199],textColor:ROUGE}}]);
+body.push([{content:'TOTAUX',colSpan:9,styles:{fontStyle:'bold',fillColor:[254,243,199],halign:'left'}},{content:bulletin.totaux,styles:{fontStyle:'bold',fillColor:[254,243,199]}}]);
+body.push([{content:'POURCENTAGE',colSpan:9,styles:{fontStyle:'bold',fillColor:[220,252,231],halign:'left'}},{content:bulletin.pourcentage+'%',styles:{fontStyle:'bold',fillColor:[220,252,231]}}]);
+body.push([{content:"PLACE / NBRE D'ÉLÈVES",colSpan:9,styles:{fontStyle:'bold',fillColor:[243,232,255],halign:'left'}},{content:bulletin.place+' / '+bulletin.nombreEleves,styles:{fontStyle:'bold',fillColor:[243,232,255]}}]);
+pdf.autoTable({head:headers,body:body,startY:60,theme:'grid',tableWidth:182,styles:{fontSize:7,cellPadding:1,halign:'center',textColor:[0,0,0],lineColor:[0,0,0],lineWidth:.2},headStyles:{fillColor:[230,230,230],textColor:[0,0,0],fontStyle:'bold',fontSize:6.5},columnStyles:{0:{halign:'left',cellWidth:45},1:{cellWidth:15},2:{cellWidth:15},3:{cellWidth:15},4:{cellWidth:15},5:{cellWidth:15},6:{cellWidth:15},7:{cellWidth:15},8:{cellWidth:15},9:{cellWidth:17}}});
+let finalY=pdf.lastAutoTable.finalY+10;pdf.setFontSize(9);pdf.setTextColor(0,0,0);pdf.setFont('helvetica','bold');pdf.text('DÉCISION :',14,finalY);
+pdf.setFont('helvetica','normal');pdf.text(bulletin.decision==='PASSE'?"L'élève passe dans la classe supérieure":"L'élève double la classe",20,finalY+6);
+finalY+=20;pdf.setFontSize(8);pdf.text("Signature du titulaire",25,finalY);pdf.text("Sceau de l'École",90,finalY);pdf.text("Chef d'Établissement",145,finalY);
+pdf.setFontSize(7);pdf.setTextColor(100,100,100);pdf.text("Note importante : Ce document ne remplace pas le bulletin officiel.",105,finalY+15,{align:'center'});
+pdf.save('Extrait_Bulletin_'+info.nom.replace(/\s/g,'_')+'.pdf');toast("📄 Extrait exporté",'success');
+btn.disabled=false;btn.innerHTML="📄 Exporter l'extrait de bulletin en PDF"}catch(e){console.error(e);toast("❌ Erreur export : "+e.message,'error');btn.disabled=false;btn.innerHTML="📄 Exporter l'extrait de bulletin en PDF"}};
+
+function toggleLightMode(){document.body.classList.toggle('lm');const isLight=document.body.classList.contains('lm');const btn=document.getElementById('lightModeToggle');if(btn)btn.innerHTML=isLight?'🌙 MODE SOMBRE':'☀️ MODE CLAIR';localStorage.setItem('theme-preference',isLight?'light':'dark')}
+if(localStorage.getItem('theme-preference')==='light'){document.body.classList.add('lm');const btn=document.getElementById('lightModeToggle');if(btn)btn.innerHTML='🌙 MODE SOMBRE'}
+document.getElementById('lightModeToggle').addEventListener('click',toggleLightMode);
+
+document.querySelectorAll('#tabsProfesseur .tab').forEach(tab=>{tab.addEventListener('click',function(){document.querySelectorAll('#tabsProfesseur .tab').forEach(t=>t.classList.remove('active'));this.classList.add('active');document.querySelectorAll('#spaceProfesseur .tab-content').forEach(c=>c.classList.remove('active'));const target=document.getElementById(this.dataset.tab);if(target)target.classList.add('active')})});
+document.querySelectorAll('.main-nav-btn').forEach(btn=>{btn.addEventListener('click',function(){document.querySelectorAll('.main-nav-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active');document.querySelectorAll('.space-content').forEach(s=>s.classList.remove('active'));const space=this.dataset.space;document.getElementById('space'+space.charAt(0).toUpperCase()+space.slice(1)).classList.add('active');if(space==='titulaire')chargerToutesFichesTitu()})});
+
+const restored=await restaurerSession();
+if(!restored)showLogin();
+setTimeout(()=>{const loader=document.getElementById('pageLoader');if(loader)loader.classList.add('hidden');setTimeout(()=>{if(loader)loader.remove()},500)},800);
+</script>
+</body>
+</html>
+</script>
