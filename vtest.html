@@ -287,6 +287,7 @@ import { initializeApp } from "firebase/app";
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc } from "firebase/firestore";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { getAnalytics } from "firebase/analytics";
+import { demarrerSuiviActivite } from './activite.js';
 
 const firebaseConfig = {
 apiKey: "AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",
@@ -326,6 +327,7 @@ if (schoolSubElement) schoolSubElement.textContent = `Année scolaire 2026-2027`
 if (footerElement && schoolId) footerElement.textContent = `COMPLEXE SCOLAIRE ${schoolNameForDisplay} | Année scolaire 2026-2027`;
 
 let currentProf = null, currentFicheId = null, currentFiche = null, toutesFiches = [], isCreatingFiche = false;
+let arreterSuivi = null;
 let isUpdatingSelectors = false;
 let champsModifiables = false;
 let optionsParClasse = {
@@ -448,6 +450,8 @@ async function restaurerSession() {
             const actif = await verifierCompteActif(prof.id);
             if (!actif) { localStorage.removeItem('gloria_session_prof'); return false; }
             currentProf = { id: prof.id, nom: prof.nom, code: prof.code, createdAt: prof.createdAt || Date.now() };
+            if (arreterSuivi) arreterSuivi();
+            arreterSuivi = demarrerSuiviActivite(db, ECOLET_ID, schoolNameForDisplay, currentProf.id, currentProf.nom);
             document.getElementById('mainApp').style.display = 'block';
             toutesFiches = await loadAllFiches();
             if (toutesFiches.length) await selectFiche(toutesFiches[0].id);
@@ -905,6 +909,8 @@ async function showLogin() {
             await signInWithEmailAndPassword(auth, fp.email, c);
             currentProf = { id: fp.id, nom: fp.nom, code: c, email: fp.email, createdAt: Date.now() };
             sauvegarderSession(currentProf);
+            if (arreterSuivi) arreterSuivi();
+            arreterSuivi = demarrerSuiviActivite(db, ECOLET_ID, schoolNameForDisplay, currentProf.id, currentProf.nom);
             document.getElementById('loginOverlay').remove();
             document.getElementById('mainApp').style.display = 'block';
             toutesFiches = await loadAllFiches();
@@ -1239,6 +1245,7 @@ document.getElementById('creerFicheBtn').addEventListener('click', async functio
         afficherEpreuves();
         afficherEleves();
         afficherCotation();
+        setChampsModifiables(false);
         toast(`✅ Fiche "${cours}" - ${classe} créée avec ${eleves.length} élève(s)`, 'success');
         mettreAJourBoutons();
     } catch (error) {
@@ -1437,6 +1444,7 @@ document.getElementById('addEpreuve4').onclick = function() { addEpreuve(4); };
 document.getElementById('logoutBtnParam').addEventListener('click', function() {
     showStyledConfirm("Déconnexion", "Êtes-vous sûr de vouloir vous déconnecter ?<br><br>Toutes les modifications non sauvegardées seront perdues.",
         async function() {
+            if (arreterSuivi) { arreterSuivi(); arreterSuivi = null; }
             localStorage.removeItem('gloria_session_prof');
             localStorage.removeItem('theme-preference');
             document.cookie.split(";").forEach(function(c) { document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); });
