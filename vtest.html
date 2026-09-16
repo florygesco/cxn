@@ -559,17 +559,14 @@ async function loadAllFiches() {
     } catch (e) { return []; }
 }
 
-async function getNextFicheNumero() {
-    let nv = 1;
-    if (navigator.onLine) {
-        try {
-            const docRef = doc(db, "ecoles", ECOLET_ID, SC.COMPTEUR, "global");
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) nv = (docSnap.data().valeur || 0) + 1;
-            await setDoc(docRef, { valeur: nv });
-        } catch (e) { nv = Date.now(); }
-    } else nv = Date.now();
-    return nv;
+function getNextNumeroLocal() {
+    let maxNum = 0;
+    toutesFiches.forEach(f => {
+        if (f.numeroRef && typeof f.numeroRef === 'number' && f.numeroRef > maxNum && f.numeroRef < 999999) {
+            maxNum = f.numeroRef;
+        }
+    });
+    return maxNum + 1;
 }
 
 async function saveCurrentFiche() {
@@ -1226,18 +1223,22 @@ document.getElementById('creerFicheBtn').addEventListener('click', async functio
     if (!classe) { toast("Veuillez sélectionner une classe", 'error'); return; }
     if (classe !== '7ème EB' && classe !== '8ème EB' && !option) { toast("Veuillez sélectionner une option", 'error'); return; }
     const fop = (classe === '7ème EB' || classe === '8ème EB') ? '' : option;
-    const fichesExistantes = await loadAllFiches();
-    const doublon = fichesExistantes.find(f => f.cours === cours && f.classe === classe && (f.option || '') === fop);
+
+    const doublon = toutesFiches.find(f => f.cours === cours && f.classe === classe && (f.option || '') === fop);
     if (doublon) { toast("⚠️ Une fiche identique existe déjà !", 'warning'); return; }
+
     isCreatingFiche = true;
     const btn = this;
     btn.disabled = true;
     btn.innerHTML = '⏳ CRÉATION...';
     try {
         const nid = 'f' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
-        const nnum = await getNextFicheNumero();
+        const nnum = getNextNumeroLocal();
         const now = new Date();
-        await getAllComptaEleves();
+
+        if (!localEleves || localEleves.length === 0) {
+            try { await getAllComptaEleves(); } catch (e) { localEleves = localEleves || []; }
+        }
         const elevesCompta = localEleves || [];
         let elevesFiltres = elevesCompta.filter(e => {
             if (!e) return false;
@@ -1247,6 +1248,7 @@ document.getElementById('creerFicheBtn').addEventListener('click', async functio
             if (fop && e.option !== fop) return false;
             return true;
         });
+
         if (elevesFiltres.length === 0) {
             showStyledConfirm('🚫 CRÉATION IMPOSSIBLE', `⚠️ Aucun élève inscrit n'a été trouvé pour :<br><br>• Classe : <strong>${classe}</strong><br>${fop ? `• Option : <strong>${fop}</strong>` : ''}<br><br>📌 Veuillez contacter la comptabilité ou la direction.`);
             btn.disabled = false;
@@ -1254,6 +1256,7 @@ document.getElementById('creerFicheBtn').addEventListener('click', async functio
             isCreatingFiche = false;
             return;
         }
+
         let eleves = elevesFiltres.map(e => ({
             id: e.id || Date.now() + Math.random(),
             nom: e.nom || '', postnom: e.postnom || '', prenom: e.prenom || '',
@@ -1262,6 +1265,7 @@ document.getElementById('creerFicheBtn').addEventListener('click', async functio
             notes: { p1: [], p2: [], p3: [], p4: [], exam1: 0, exam2: 0 },
             eleveId: e.id, importeLe: new Date().toISOString(), source: "auto"
         }));
+
         const nouvelleFiche = {
             profId: currentProf.id, ficheId: nid, cours: cours, classe: classe, option: fop,
             titulaire: titulaire, anneeScolaire: "2026-2027", p1Max: parseFloat(noteMax) || 20,
@@ -1269,10 +1273,13 @@ document.getElementById('creerFicheBtn').addEventListener('click', async functio
             epreuvesParPeriode: { 1: [{ nom: "Interrogation", max: 20 }], 2: [{ nom: "Interrogation", max: 20 }], 3: [{ nom: "Interrogation", max: 20 }], 4: [{ nom: "Interrogation", max: 20 }] },
             eleves: eleves, school: ECOLET_ID
         };
-        if (navigator.onLine) { await setDoc(doc(db, "ecoles", ECOLET_ID, SC.FICHES, nid), nouvelleFiche); }
-        else { toast("❌ Pas de connexion", 'error'); return; }
+
+        await setDoc(doc(db, "ecoles", ECOLET_ID, SC.FICHES, nid), nouvelleFiche);
+
         currentFiche = nouvelleFiche;
         currentFicheId = nid;
+        toutesFiches.push({ id: nid, cours: cours, classe: classe, option: fop, numeroRef: nnum });
+
         document.getElementById('coursInput').value = '';
         document.getElementById('classeSelect').value = '';
         document.getElementById('optionSelect').value = '';
@@ -1286,7 +1293,12 @@ document.getElementById('creerFicheBtn').addEventListener('click', async functio
         toast(`✅ Fiche "${cours}" - ${classe} créée avec ${eleves.length} élève(s)`, 'success');
         mettreAJourBoutons();
     } catch (error) {
-        toast("❌ Erreur lors de la création", 'error');
+        console.error('❌ CRÉATION FICHE:', error);
+        let msg = 'Erreur lors de la création';
+        if (error.code === 'permission-denied') msg = "Permission refusée. Contactez l'administrateur.";
+        else if (error.code === 'unavailable') msg = "Pas de connexion. Vérifiez votre réseau.";
+        else if (error.message) msg = error.message;
+        toast("❌ " + msg, 'error');
     } finally {
         btn.disabled = false;
         btn.innerHTML = '📝 CRÉER';
@@ -1340,9 +1352,11 @@ document.getElementById('supprimerFicheBtn').addEventListener('click', function(
                 btn.innerHTML = '⏳ SUPPRESSION...';
                 await deleteDoc(doc(db, "ecoles", ECOLET_ID, SC.FICHES, currentFicheId));
                 const ficheCours = currentFiche.cours;
+                const suppId = currentFicheId;
                 currentFiche = null;
                 currentFicheId = null;
                 champsModifiables = false;
+                toutesFiches = toutesFiches.filter(f => f.id !== suppId);
                 viderChamps();
                 await refreshSelectors();
                 mettreAJourBoutons();
@@ -1377,7 +1391,7 @@ document.getElementById('rechargerElevesBtn').onclick = async function() {
         const classe = currentFiche.classe;
         const option = currentFiche.option;
         if (!classe) { toast("Veuillez d'abord configurer la classe", 'error'); btn.disabled = false; btn.innerHTML = '🔄 RECHARGER'; return; }
-        await getAllComptaEleves();
+        try { await getAllComptaEleves(); } catch (e) {}
         const elevesCompta = localEleves || [];
         let elevesFiltres = elevesCompta.filter(e => {
             if (e.abandon) return false;
