@@ -36,11 +36,8 @@ export function demarrerSuiviActivite(db, ecoleId, ecoleNom, profId, profNom) {
   }
 
   function surVisibilite() {
-    if (document.hidden) {
-      envoyer(false);
-    } else {
-      envoyer(true);
-    }
+    if (document.hidden) envoyer(false);
+    else envoyer(true);
   }
 
   function surFermeture() {
