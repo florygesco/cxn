@@ -12,7 +12,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;touch-action:pan-x pan-y;}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;}
 html,body{height:100%;background:#0a0e1a;font-family:'Inter',sans-serif;overflow-x:hidden;}
 body{overscroll-behavior:none;-webkit-overscroll-behavior:none;}
 .container{max-width:1400px;margin:0 auto;padding:20px;}
@@ -59,7 +59,16 @@ body{overscroll-behavior:none;-webkit-overscroll-behavior:none;}
 .btn-primary:hover{background:#0f2b44;}
 .btn-warning{background:#b45309;color:#fff;}
 .btn-warning:hover{background:#c2410c;}
-.table-wrapper{overflow-x:auto;touch-action:pan-x pan-y;}
+.table-wrapper{
+  width:100%;
+  max-width:100%;
+  overflow-x:auto;
+  overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;
+  touch-action:pan-x pan-y;
+  overscroll-behavior-x:contain;
+  display:block;
+}
 .student-table{width:100%;border-collapse:collapse;font-size:12px;min-width:1400px;}
 .student-table th{background:#0f172a;padding:12px 6px;border-bottom:2px solid #334155;font-size:11px;color:#fff;}
 .student-table td{border-bottom:1px solid #334155;padding:8px 4px;color:#e2e8f0;}
@@ -150,7 +159,7 @@ body{overscroll-behavior:none;-webkit-overscroll-behavior:none;}
 .titulaire-container .eleve-info div span:last-child{font-weight:700;margin-left:12px;color:#ffd700;}
 .titulaire-container .btn-export{background:linear-gradient(135deg,#10b981,#059669);color:white;border:none;padding:12px 24px;border-radius:40px;font-size:13px;font-weight:600;cursor:pointer;margin-top:20px;width:100%;}
 select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");background-repeat:no-repeat;background-position:right 12px center;background-size:14px;padding-right:32px !important;}
-.tab-content .card{overflow-x:hidden;}
+.tab-content .card{overflow:visible;}
 #loadingScreen{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,#0a0e1a,#0f172a);z-index:99999;align-items:center;justify-content:center;flex-direction:column;gap:24px;font-family:'Inter',sans-serif;}
 #loadingScreen.show{display:flex;}
 #loadingScreen .brand{color:#fff;font-size:22px;font-weight:700;letter-spacing:1px;}
@@ -186,6 +195,24 @@ body.light-mode .login-overlay{background:radial-gradient(circle at 20% 30%,rgba
 body.light-mode .login-card{background:linear-gradient(160deg,#d5d9e2,#c0c5ce) !important;}
 body.light-mode .login-card h2{background:linear-gradient(135deg,#1a365d,#4a6fa5) !important;-webkit-background-clip:text !important;background-clip:text !important;color:transparent !important;}
 body.light-mode .login-error{background:rgba(185,28,28,0.08) !important;color:#b91c1c !important;}
+
+#tabCotation .table-wrapper{
+  overflow-x:auto !important;
+  overflow-y:hidden !important;
+  -webkit-overflow-scrolling:touch;
+  touch-action:pan-x pan-y !important;
+  overscroll-behavior-x:contain;
+  cursor:grab;
+}
+#tabCotation .table-wrapper:active{cursor:grabbing;}
+#tabCotation .student-table{min-width:1400px !important;width:max-content;}
+#tabCotation .student-table input,
+#tabCotation .student-table select{
+  touch-action:manipulation;
+  -webkit-user-select:text;
+  user-select:text;
+}
+#cotationTable input[type="number"]{touch-action:manipulation;}
 </style>
 </head>
 <body>
@@ -265,7 +292,7 @@ body.light-mode .login-error{background:rgba(185,28,28,0.08) !important;color:#b
 </div>
 <div style="padding:0 28px 28px 28px;">
 <label style="display:block;font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;">Tableau des notes</label>
-<div class="table-wrapper" style="border-radius:16px;overflow:hidden;border:1px solid rgba(59,130,246,0.15);box-shadow:0 8px 32px -12px rgba(0,0,0,0.4);">
+<div class="table-wrapper" style="border-radius:16px;border:1px solid rgba(59,130,246,0.15);box-shadow:0 8px 32px -12px rgba(0,0,0,0.4);">
 <table class="student-table" id="cotationTable"><thead id="cotationHeader"></thead><tbody id="cotationBody"></tbody></table>
 </div>
 </div>
@@ -1332,6 +1359,27 @@ document.addEventListener('contextmenu', function(e) {
     if (btnProf.classList.contains('active')) btnTitu.click();
     else btnProf.click();
 });
+
+(function initDragScroll() {
+    const wrapper = document.querySelector('#tabCotation .table-wrapper');
+    if (!wrapper) return;
+    let isDown = false, startX = 0, scrollLeft = 0;
+    wrapper.addEventListener('mousedown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+        isDown = true;
+        wrapper.style.cursor = 'grabbing';
+        startX = e.pageX - wrapper.offsetLeft;
+        scrollLeft = wrapper.scrollLeft;
+    });
+    wrapper.addEventListener('mouseleave', () => { isDown = false; wrapper.style.cursor = 'grab'; });
+    wrapper.addEventListener('mouseup', () => { isDown = false; wrapper.style.cursor = 'grab'; });
+    wrapper.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - wrapper.offsetLeft;
+        wrapper.scrollLeft = scrollLeft - (x - startX) * 1.5;
+    });
+})();
 
 let sessionRestored = await restaurerSession();
 if (!sessionRestored) showLogin();
