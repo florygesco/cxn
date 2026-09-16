@@ -21,6 +21,12 @@ body{overscroll-behavior:none;}
 .school-header{background:linear-gradient(135deg,#0f2b44,#071a2c);border-radius:20px;padding:20px;text-align:center;margin-bottom:20px;}
 .school-name{font-size:22px;font-weight:700;background:linear-gradient(135deg,#fff,#94a3b8);-webkit-background-clip:text;background-clip:text;color:transparent;}
 .school-sub{font-size:11px;opacity:0.8;margin-top:4px;color:#cbd5e1;}
+.prof-card{background:linear-gradient(135deg,rgba(30,58,95,0.95),rgba(15,43,68,0.95));border-radius:16px;padding:12px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px;border:1px solid rgba(96,165,250,0.3);box-shadow:0 4px 20px -8px rgba(59,130,246,0.4);transition:opacity 0.4s ease,transform 0.4s ease,max-height 0.4s ease,margin 0.4s ease,padding 0.4s ease;}
+.prof-card.cachee{opacity:0;transform:translateY(-10px) scale(0.98);pointer-events:none;margin-bottom:0;max-height:0;padding-top:0;padding-bottom:0;overflow:hidden;border-width:0;}
+.prof-avatar{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#60a5fa,#a78bfa);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.prof-info{flex:1;text-align:left;min-width:0;}
+.prof-role{font-size:10px;font-weight:700;color:#60a5fa;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:1px;}
+.prof-name{font-size:15px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .tabs-container{overflow-x:auto;margin-bottom:20px;white-space:nowrap;-webkit-overflow-scrolling:touch;}
 .tabs{display:inline-flex;gap:6px;}
 .tab{background:transparent;border:1px solid #334155;padding:9px 20px;border-radius:40px;font-size:13px;cursor:pointer;color:#cbd5e1;transition:all 0.2s;}
@@ -195,6 +201,9 @@ body.light-mode .login-card{background:linear-gradient(160deg,#d5d9e2,#c0c5ce) !
 body.light-mode .login-card h2{background:linear-gradient(135deg,#1a365d,#4a6fa5) !important;-webkit-background-clip:text !important;background-clip:text !important;color:transparent !important;}
 body.light-mode .login-error{background:rgba(185,28,28,0.08) !important;color:#b91c1c !important;}
 body.light-mode .particle{opacity:0.3 !important;}
+body.light-mode .prof-card{background:linear-gradient(135deg,#d5d9e2,#c0c5ce) !important;border-color:rgba(26,54,93,0.3) !important;}
+body.light-mode .prof-name{color:#0d1117 !important;}
+body.light-mode .prof-role{color:#1a365d !important;}
 #tabCotation .table-wrapper{overflow-x:auto !important;overflow-y:hidden !important;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y !important;overscroll-behavior-x:contain;cursor:grab;}
 #tabCotation .table-wrapper:active{cursor:grabbing;}
 #tabCotation .student-table{min-width:1400px !important;width:max-content;}
@@ -205,6 +214,13 @@ body.light-mode .particle{opacity:0.3 !important;}
 <div id="loadingScreen" class="show"><div class="brand">NeTubeX SARL</div><div class="spinner"></div></div>
 <div class="container" id="mainApp" style="display:none">
 <div class="school-header"><div class="school-name" id="schoolNameHeader">COMPLEXE SCOLAIRE</div><div class="school-sub" id="schoolSubHeader">CHARGEMENT...</div><div style="font-size:13px;margin-top:8px;color:#fff;">GESTION DE SCOLARITÉ</div></div>
+<div class="prof-card" id="profCard">
+<div class="prof-avatar">👨‍🏫</div>
+<div class="prof-info">
+<div class="prof-role">PROFESSEUR</div>
+<div class="prof-name" id="profCardName">—</div>
+</div>
+</div>
 <div class="main-nav"><button class="main-nav-btn active" data-space="professeur">👨‍🏫 ESPACE PROFESSEUR</button><button class="main-nav-btn" data-space="titulaire">📋 ESPACE TITULAIRE</button></div>
 <div id="spaceProfesseur" class="space-content active">
 <div class="tabs-container"><div class="tabs" id="tabsProfesseur">
@@ -369,6 +385,46 @@ let localEleves = [];
 let toutesFichesCompletTitu = [];
 let triAlphabetiqueActif = false;
 let periodeFilterCotation = 'all';
+let profCardInterval = null;
+let profCardTimeout = null;
+
+function afficherCarteProf(nom) {
+    const card = document.getElementById('profCard');
+    const nameEl = document.getElementById('profCardName');
+    if (!card || !nameEl) return;
+    nameEl.textContent = (nom || 'PROFESSEUR').toUpperCase();
+    card.classList.remove('cachee');
+    demarrerCycleCarteProf();
+}
+
+function demarrerCycleCarteProf() {
+    if (profCardInterval) clearInterval(profCardInterval);
+    if (profCardTimeout) clearTimeout(profCardTimeout);
+    const card = document.getElementById('profCard');
+    if (!card) return;
+    function cycle() {
+        if (!card.classList.contains('cachee')) {
+            profCardTimeout = setTimeout(() => {
+                card.classList.add('cachee');
+            }, 5000);
+        }
+    }
+    cycle();
+    profCardInterval = setInterval(cycle, 8000);
+}
+
+function arreterCycleCarteProf() {
+    if (profCardInterval) { clearInterval(profCardInterval); profCardInterval = null; }
+    if (profCardTimeout) { clearTimeout(profCardTimeout); profCardTimeout = null; }
+    const card = document.getElementById('profCard');
+    if (card) card.classList.add('cachee');
+}
+
+function reprendreCycleCarteProf() {
+    const card = document.getElementById('profCard');
+    if (card) card.classList.remove('cachee');
+    demarrerCycleCarteProf();
+}
 
 function toast(message, type = "success") {
     const container = document.getElementById("toastContainer");
@@ -479,6 +535,7 @@ async function restaurerSession() {
             if (!actif) { localStorage.removeItem('gloria_session_prof'); return false; }
             currentProf = { id: prof.id, nom: prof.nom, code: prof.code, createdAt: prof.createdAt || Date.now() };
             document.getElementById('mainApp').style.display = 'block';
+            afficherCarteProf(currentProf.nom);
             toutesFiches = await loadAllFiches();
             if (toutesFiches.length) await selectFiche(toutesFiches[0].id);
             await refreshSelectors();
@@ -768,7 +825,7 @@ function afficherCotation() {
     if (pf === 'all') { h.push('<th>EXAM S1<br>/' + e1m + '</th>'); h.push('<th>TOT S1<br>/' + ts1m + '</th>'); }
     if (pf === 'all' || pf === '3') { for (let ep of e3) h.push('<th>' + ep.nom + '<br>P3 /' + ep.max + '</th>'); h.push('<th>MOY P3<br>/' + p3m + '</th>'); }
     if (pf === 'all' || pf === '4') { for (let ep of e4) h.push('<th>' + ep.nom + '<br>P4 /' + ep.max + '</th>'); h.push('<th>MOY P4<br>/' + p4m + '</th>'); }
-    if (pf === 'all') { h.push('<th>EXAM S2<br>/' + e2m + '</th>'); h.push('<th>TOT S2<br>/' + ts2m + '</th>'); h.push('<th>TOTAL<br>/' + tam + '</th>'); h.push('<th>📝 APPRÉCIATION</th>'); }
+    if (pf === 'all') { h.push('<th>EXAM S2<br>/' + e2m + '</th>'); h.push('<th>TOT S2<br/>/' + ts2m + '</th>'); h.push('<th>TOTAL<br>/' + tam + '</th>'); h.push('<th>📝 APPRÉCIATION</th>'); }
     th.innerHTML = h.join('');
     tb.innerHTML = '';
     for (let i = 0; i < elevesFiltres.length; i++) {
@@ -943,6 +1000,7 @@ async function showLogin() {
             sauvegarderSession(currentProf);
             document.getElementById('loginOverlay').remove();
             document.getElementById('mainApp').style.display = 'block';
+            afficherCarteProf(currentProf.nom);
             toutesFiches = await loadAllFiches();
             if (toutesFiches.length) await selectFiche(toutesFiches[0].id);
             await refreshSelectors();
@@ -1176,8 +1234,11 @@ document.querySelectorAll('.main-nav-btn').forEach(btn => {
         const space = this.dataset.space;
         document.getElementById('space' + space.charAt(0).toUpperCase() + space.slice(1)).classList.add('active');
         if (space === 'professeur') {
+            reprendreCycleCarteProf();
             document.querySelectorAll('#tabsProfesseur .tab').forEach((t, i) => { t.classList.toggle('active', i === 0); });
             document.querySelectorAll('#spaceProfesseur .tab-content').forEach((c, i) => { c.classList.toggle('active', i === 0); });
+        } else {
+            arreterCycleCarteProf();
         }
     });
 });
@@ -1223,10 +1284,8 @@ document.getElementById('creerFicheBtn').addEventListener('click', async functio
     if (!classe) { toast("Veuillez sélectionner une classe", 'error'); return; }
     if (classe !== '7ème EB' && classe !== '8ème EB' && !option) { toast("Veuillez sélectionner une option", 'error'); return; }
     const fop = (classe === '7ème EB' || classe === '8ème EB') ? '' : option;
-
     const doublon = toutesFiches.find(f => f.cours === cours && f.classe === classe && (f.option || '') === fop);
     if (doublon) { toast("⚠️ Une fiche identique existe déjà !", 'warning'); return; }
-
     isCreatingFiche = true;
     const btn = this;
     btn.disabled = true;
@@ -1235,7 +1294,6 @@ document.getElementById('creerFicheBtn').addEventListener('click', async functio
         const nid = 'f' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
         const nnum = getNextNumeroLocal();
         const now = new Date();
-
         if (!localEleves || localEleves.length === 0) {
             try { await getAllComptaEleves(); } catch (e) { localEleves = localEleves || []; }
         }
@@ -1248,7 +1306,6 @@ document.getElementById('creerFicheBtn').addEventListener('click', async functio
             if (fop && e.option !== fop) return false;
             return true;
         });
-
         if (elevesFiltres.length === 0) {
             showStyledConfirm('🚫 CRÉATION IMPOSSIBLE', `⚠️ Aucun élève inscrit n'a été trouvé pour :<br><br>• Classe : <strong>${classe}</strong><br>${fop ? `• Option : <strong>${fop}</strong>` : ''}<br><br>📌 Veuillez contacter la comptabilité ou la direction.`);
             btn.disabled = false;
@@ -1256,7 +1313,6 @@ document.getElementById('creerFicheBtn').addEventListener('click', async functio
             isCreatingFiche = false;
             return;
         }
-
         let eleves = elevesFiltres.map(e => ({
             id: e.id || Date.now() + Math.random(),
             nom: e.nom || '', postnom: e.postnom || '', prenom: e.prenom || '',
@@ -1265,7 +1321,6 @@ document.getElementById('creerFicheBtn').addEventListener('click', async functio
             notes: { p1: [], p2: [], p3: [], p4: [], exam1: 0, exam2: 0 },
             eleveId: e.id, importeLe: new Date().toISOString(), source: "auto"
         }));
-
         const nouvelleFiche = {
             profId: currentProf.id, ficheId: nid, cours: cours, classe: classe, option: fop,
             titulaire: titulaire, anneeScolaire: "2026-2027", p1Max: parseFloat(noteMax) || 20,
@@ -1273,25 +1328,26 @@ document.getElementById('creerFicheBtn').addEventListener('click', async functio
             epreuvesParPeriode: { 1: [{ nom: "Interrogation", max: 20 }], 2: [{ nom: "Interrogation", max: 20 }], 3: [{ nom: "Interrogation", max: 20 }], 4: [{ nom: "Interrogation", max: 20 }] },
             eleves: eleves, school: ECOLET_ID
         };
-
         await setDoc(doc(db, "ecoles", ECOLET_ID, SC.FICHES, nid), nouvelleFiche);
-
         currentFiche = nouvelleFiche;
         currentFicheId = nid;
-        toutesFiches.push({ id: nid, cours: cours, classe: classe, option: fop, numeroRef: nnum });
-
+        if (!toutesFiches.find(f => f.id === nid)) {
+            toutesFiches.push({ id: nid, cours: cours, classe: classe, option: fop, numeroRef: nnum });
+        }
+        isCreatingFiche = false;
         document.getElementById('coursInput').value = '';
         document.getElementById('classeSelect').value = '';
         document.getElementById('optionSelect').value = '';
         document.getElementById('p1MaxConfig').value = 20;
         toggleOptionField();
         await refreshSelectors(nid);
+        await selectFiche(nid);
         afficherEpreuves();
         afficherEleves();
         afficherCotation();
         setChampsModifiables(false);
-        toast(`✅ Fiche "${cours}" - ${classe} créée avec ${eleves.length} élève(s)`, 'success');
         mettreAJourBoutons();
+        toast(`✅ Fiche "${cours}" - ${classe} créée avec ${eleves.length} élève(s)`, 'success');
     } catch (error) {
         console.error('❌ CRÉATION FICHE:', error);
         let msg = 'Erreur lors de la création';
@@ -1497,6 +1553,7 @@ document.getElementById('logoutBtnParam').addEventListener('click', function() {
         async function() {
             try {
                 if (arreterSuivi) { arreterSuivi(); arreterSuivi = null; }
+                arreterCycleCarteProf();
             } catch (e) {}
             localStorage.removeItem('gloria_session_prof');
             localStorage.removeItem('theme-preference');
