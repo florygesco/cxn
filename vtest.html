@@ -225,6 +225,12 @@ body.light-mode .floating-btn.logout{background:linear-gradient(135deg,rgba(220,
 #reloadTitulaireFichesBtn:hover{transform:scale(1.03);box-shadow:0 8px 24px -8px rgba(16,185,129,0.5);}
 #reloadTitulaireFichesBtn.loading{pointer-events:none;opacity:0.7;}
 #reloadTitulaireFichesBtn.loading::before{content:'';display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite;margin-right:6px;}
+/* 🆕 Liste des élèves Titulaire */
+.eleve-nom-item{display:flex;align-items:center;gap:12px;padding:14px 18px;margin-bottom:8px;border-radius:14px;background:rgba(45,55,72,0.5);border:1px solid rgba(59,130,246,0.15);cursor:pointer;color:#fff;font-weight:600;font-size:15px;transition:all 0.15s;}
+.eleve-nom-item:hover{background:rgba(59,130,246,0.2);border-color:rgba(59,130,246,0.4);transform:translateX(3px);}
+.eleve-nom-item:active{transform:scale(0.99);}
+body.light-mode .eleve-nom-item{background:rgba(255,255,255,0.5);color:#0d1117;border-color:rgba(26,54,93,0.15);}
+body.light-mode .eleve-nom-item:hover{background:rgba(26,54,93,0.15);}
 </style>
 </head>
 <body>
@@ -326,7 +332,21 @@ body.light-mode .floating-btn.logout{background:linear-gradient(135deg,rgba(220,
 </div>
 <div id="titulaireStatsInfo" style="font-size:12px;color:#94a3b8;padding:10px 16px;background:rgba(59,130,246,0.05);border-radius:12px;margin-bottom:16px;text-align:center;"></div>
 <div class="readonly-banner"><span>🔒 Mode consultation</span><span>Recherche dans toute l'école</span></div>
-<div id="titulaireViewRecherche"><div class="search-card"><div class="search-box"><div class="input-group"><label>NOM COMPLET DE L'ÉLÈVE</label><input type="text" id="titulaireSearchNom" placeholder="Ex: KASONGO Jean - Recherche dans toute l'école"></div><button class="btn-primary" id="titulaireSearchBtn">🔍 Rechercher</button></div></div><div class="result-card" id="titulaireResultCard" style="display:none;"><button class="btn-export" id="exportTitulaireRelevePdfBtn">📄 Exporter l'extrait de bulletin</button></div></div>
+<div id="titulaireViewRecherche">
+<div class="search-card">
+<div class="search-box">
+<div class="input-group">
+<label>RECHERCHER UN ÉLÈVE</label>
+<input type="text" id="titulaireSearchNom" placeholder="Tapez un nom..." autocomplete="off">
+</div>
+<button class="btn-primary" id="titulaireSearchBtn">🔍</button>
+</div>
+<div id="titulaireStatsListe" style="margin-top:14px;font-size:12px;color:#94a3b8;"></div>
+</div>
+<div class="result-card" id="titulaireResultCard">
+<div id="titulaireListeEleves" style="max-height:60vh;overflow-y:auto;"></div>
+</div>
+</div>
 </div></div></div>
 </div>
 <div class="footer-note" id="footerNote">CHARGEMENT... | Année scolaire 2026-2027</div>
@@ -336,6 +356,7 @@ body.light-mode .floating-btn.logout{background:linear-gradient(135deg,rgba(220,
 <button class="floating-btn" id="floatingThemeBtn" title="Mode clair/sombre">☀️</button>
 </div>
 <div class="toast-container" id="toastContainer"></div>
+<button id="exportTitulaireRelevePdfBtn" style="display:none;"></button>
 <script type="importmap">
 {"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js","firebase/analytics":"https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js"}}
 </script>
@@ -410,9 +431,7 @@ async function getSchoolLogo(ecoleId) {
             return data.logoUrl || null;
         }
         return null;
-    } catch (error) {
-        return null;
-    }
+    } catch (error) { return null; }
 }
 
 function afficherCarteProf(nom) {
@@ -459,7 +478,7 @@ function clearAllToasts() {
     });
 }
 
-function escapeHtml(s) { if (!s) return ''; return s.replace(/[&<>]/g, function(m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]; }); }
+function escapeHtml(s) { if (!s) return ''; return s.replace(/[&<>"']/g, function(m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]; }); }
 
 function showConfirm(msg, onOk) { let d = document.createElement('div'); d.className = 'modal-fullscreen'; d.innerHTML = '<div class="modal-content" style="max-width:350px;text-align:center;"><p style="color:#fff;margin-bottom:20px;">' + msg + '</p><div style="display:flex;gap:12px;margin-top:20px;justify-content:center;"><button class="btn" id="confirmOk" style="background:#ef4444;">Confirmer</button><button class="btn btn-outline" id="confirmCancel">Annuler</button></div></div>'; document.body.appendChild(d); setTimeout(function() { d.classList.add('show'); }, 10); d.querySelector('#confirmOk').onclick = function() { d.remove(); if (onOk) onOk(); }; d.querySelector('#confirmCancel').onclick = function() { d.remove(); }; }
 
@@ -507,12 +526,40 @@ function getNomComplet(eleve) {
     const nom = eleve.nomOrigine || eleve.nom || '';
     const postnom = eleve.postnomOrigine || eleve.postnom || '';
     const prenom = eleve.prenomOrigine || eleve.prenom || '';
-    if (!nom && !postnom && !prenom) return eleve.nom || 'Élève';
+    if (!nom && !postnom && !prenom) return eleve.nomComplet || eleve.nom || 'Élève';
     let result = [];
     if (nom) result.push(nom);
     if (postnom) result.push(postnom);
     if (prenom) result.push(prenom);
     return result.join(' ');
+}
+
+// 🆕 Normalisation avancée
+function normaliserNom(s) {
+    return (s || '')
+        .toString()
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[''`\-]/g, ' ')
+        .replace(/[^a-z0-9\s]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+// 🆕 Tous les noms possibles pour un élève
+function getTousLesNoms(eleve) {
+    const champs = [
+        eleve.nom, eleve.postnom, eleve.prenom,
+        eleve.nomOrigine, eleve.postnomOrigine, eleve.prenomOrigine,
+        eleve.nomComplet,
+        [eleve.nom, eleve.postnom, eleve.prenom].filter(Boolean).join(' '),
+        [eleve.prenom, eleve.nom, eleve.postnom].filter(Boolean).join(' '),
+        [eleve.nom, eleve.prenom].filter(Boolean).join(' '),
+        [eleve.postnom, eleve.prenom].filter(Boolean).join(' ')
+    ];
+    return champs
+        .filter(v => v && v.toString().trim() !== '')
+        .map(v => normaliserNom(v));
 }
 
 function normaliserClasse(nomClasse) {
@@ -1105,12 +1152,15 @@ async function loadAllFichesFromFirebaseTitu() {
             if (data.school && data.school !== ECOLET_ID) continue;
             const classe = data.classe || '';
             if (classesExclues.includes(classe)) continue;
+            // ✅ Filtre allégé : accepte tous les élèves non abandonnés avec un nom
             const elevesValides = (data.eleves || []).filter(e => {
                 if (!e) return false;
                 if (e.abandon === true) return false;
                 if (e.abandonne === true) return false;
-                if (!e.nom || e.nom.trim() === '') return false;
-                if (!aDesNotesSaisies(e)) return false;
+                const aUnNom = (e.nom && e.nom.trim() !== '') ||
+                               (e.nomComplet && e.nomComplet.trim() !== '') ||
+                               (e.nomOrigine && e.nomOrigine.trim() !== '');
+                if (!aUnNom) return false;
                 return true;
             });
             if (elevesValides.length === 0) continue;
@@ -1146,44 +1196,156 @@ function updateTitulaireStats() {
 
 async function chargerFichesPourRechercheTitu() {
     toutesFichesCompletTitu = await loadAllFichesFromFirebaseTitu();
-    if (typeof updateTitulaireStats === 'function') {
-        updateTitulaireStats();
-    }
+    updateTitulaireStats();
 }
 
-function rechercherEleveTitu(nom) {
-    const nomLower = nom.toLowerCase().trim();
-    if (!nomLower) return [];
+// 🆕 Recherche approfondie : trouve l'élève quel que soit l'ordre/accents/format
+function rechercherEleveTitu(nomRecherche, classeFiltre = '') {
+    const recherche = normaliserNom(nomRecherche);
+    if (!recherche) return [];
+
+    const motsRecherche = recherche.split(' ').filter(Boolean);
     const resultats = [];
+
     for (const f of toutesFichesCompletTitu) {
+        if (classeFiltre && f.classe !== classeFiltre) continue;
+
         for (const e of f.eleves) {
-            const nomComplet = getNomComplet(e).toLowerCase();
-            if (nomComplet.includes(nomLower)) {
+            const nomsPossibles = getTousLesNoms(e);
+            const matchExact = nomsPossibles.some(n => n.includes(recherche));
+            const matchMots = motsRecherche.every(mot =>
+                nomsPossibles.some(n => n.includes(mot))
+            );
+
+            if (matchExact || matchMots) {
                 const notes = getNotesForEleveTitu(e, f);
                 const identifiant = getNomComplet(e);
-                resultats.push({ nomEleve: identifiant, sexe: e.sexe, cours: f.cours, classe: f.classe, option: f.option || '', p1: notes.p1, p2: notes.p2, p3: notes.p3, p4: notes.p4, exam1: notes.exam1, exam2: notes.exam2, totalS1: notes.totalS1, totalS2: notes.totalS2, total: notes.total, pMax: notes.pMax, _id: identifiant + '_' + f.id + '_' + f.cours });
+                resultats.push({
+                    nomEleve: identifiant,
+                    sexe: e.sexe,
+                    cours: f.cours,
+                    classe: f.classe,
+                    option: f.option || '',
+                    p1: notes.p1, p2: notes.p2, p3: notes.p3, p4: notes.p4,
+                    exam1: notes.exam1, exam2: notes.exam2,
+                    totalS1: notes.totalS1, totalS2: notes.totalS2, total: notes.total,
+                    pMax: notes.pMax,
+                    _id: identifiant + '_' + f.id + '_' + f.cours
+                });
             }
         }
     }
-    resultats.sort((a, b) => (a.cours || '').localeCompare(b.cours || ''));
+
+    // Tri : commence par la recherche, puis alphabétique
+    resultats.sort((a, b) => {
+        const aNorm = normaliserNom(a.nomEleve);
+        const bNorm = normaliserNom(b.nomEleve);
+        const aDebute = aNorm.startsWith(motsRecherche[0]) ? 0 : 1;
+        const bDebute = bNorm.startsWith(motsRecherche[0]) ? 0 : 1;
+        if (aDebute !== bDebute) return aDebute - bDebute;
+        const cmp = aNorm.localeCompare(bNorm);
+        if (cmp !== 0) return cmp;
+        return (a.cours || '').localeCompare(b.cours || '');
+    });
+
     return resultats;
 }
 
-document.getElementById('titulaireSearchBtn')?.addEventListener('click', () => {
-    const nom = document.getElementById('titulaireSearchNom').value;
-    if (!nom.trim()) { toast("Veuillez entrer un nom d'élève", 'error'); return; }
-    const resultats = rechercherEleveTitu(nom);
-    if (resultats.length === 0) { toast("Aucun élève trouvé dans toute l'école", 'error'); return; }
-    window.derniersResultatsTitu = resultats;
-    window.nomEleveRechercheTitu = resultats[0].nomEleve;
-    window.sexeEleveTitu = resultats[0].sexe;
-    window.classesEleveTitu = [...new Set(resultats.map(r => `${r.classe}${r.option ? ' (' + r.option + ')' : ''}`))].join(', ');
-    toast(`✅ Élève trouvé : ${resultats[0].nomEleve}. Génération du PDF…`, 'success');
-    document.getElementById('exportTitulaireRelevePdfBtn').click();
-});
+// 🆕 Liste UNIQUE des élèves (nom + sexe) avec toutes leurs lignes de cours
+function getElevesUniquesTitu(filtre = '') {
+    const recherche = normaliserNom(filtre);
+    const mots = recherche.split(' ').filter(Boolean);
+    const map = new Map();
 
+    for (const f of toutesFichesCompletTitu) {
+        for (const e of f.eleves) {
+            const nomComplet = getNomComplet(e);
+            const nomNorm = normaliserNom(nomComplet);
+
+            if (mots.length > 0) {
+                const nomsPossibles = getTousLesNoms(e);
+                const matchMots = mots.every(m => nomsPossibles.some(n => n.includes(m)));
+                if (!matchMots) continue;
+            }
+
+            if (!map.has(nomNorm)) {
+                map.set(nomNorm, { nomEleve: nomComplet, sexe: e.sexe || 'M', lignes: [] });
+            }
+            const notes = getNotesForEleveTitu(e, f);
+            map.get(nomNorm).lignes.push({
+                cours: f.cours,
+                classe: f.classe,
+                option: f.option || '',
+                p1: notes.p1, p2: notes.p2, p3: notes.p3, p4: notes.p4,
+                exam1: notes.exam1, exam2: notes.exam2,
+                totalS1: notes.totalS1, totalS2: notes.totalS2, total: notes.total,
+                pMax: notes.pMax
+            });
+        }
+    }
+
+    const eleves = [...map.values()];
+    eleves.sort((a, b) => a.nomEleve.localeCompare(b.nomEleve));
+    return eleves;
+}
+
+// 🆕 Affiche la liste des noms (juste les noms)
+function afficherListeTitulaire(filtre = '') {
+    const card = document.getElementById('titulaireResultCard');
+    const container = document.getElementById('titulaireListeEleves');
+    const stats = document.getElementById('titulaireStatsListe');
+    if (!card || !container) return;
+
+    const eleves = getElevesUniquesTitu(filtre);
+
+    if (eleves.length === 0) {
+        container.innerHTML = '<div class="empty-state">Aucun élève trouvé</div>';
+        card.style.display = 'block';
+        if (stats) stats.textContent = '0 élève';
+        return;
+    }
+
+    container.innerHTML = eleves.map(e => `
+        <div class="eleve-nom-item" onclick="window.exporterEleveTitu('${escapeHtml(e.nomEleve).replace(/'/g, "\\'")}')">
+            <span style="font-size:18px;">${e.sexe === 'F' ? '👧' : '👦'}</span>
+            <span>${escapeHtml(e.nomEleve)}</span>
+        </div>
+    `).join('');
+
+    card.style.display = 'block';
+    if (stats) stats.textContent = `${eleves.length} élève(s)`;
+}
+
+// 🆕 Export au clic sur un nom
+window.exporterEleveTitu = function(nomEleve) {
+    const tous = getElevesUniquesTitu('');
+    const cible = tous.find(e => e.nomEleve === nomEleve);
+    if (!cible) { toast("Élève introuvable", 'error'); return; }
+
+    window.derniersResultatsTitu = cible.lignes.map(l => ({
+        nomEleve: cible.nomEleve,
+        sexe: cible.sexe,
+        cours: l.cours,
+        classe: l.classe,
+        option: l.option,
+        p1: l.p1, p2: l.p2, p3: l.p3, p4: l.p4,
+        exam1: l.exam1, exam2: l.exam2,
+        totalS1: l.totalS1, totalS2: l.totalS2, total: l.total,
+        pMax: l.pMax
+    }));
+
+    window.nomEleveRechercheTitu = cible.nomEleve;
+    window.sexeEleveTitu = cible.sexe;
+    window.classesEleveTitu = [...new Set(cible.lignes.map(l => `${l.classe}${l.option ? ' (' + l.option + ')' : ''}`))].join(', ');
+
+    toast(`📄 Génération de l'extrait pour ${cible.nomEleve}…`, 'success');
+    document.getElementById('exportTitulaireRelevePdfBtn').click();
+};
+
+// Handler export PDF
 document.getElementById('exportTitulaireRelevePdfBtn')?.addEventListener('click', async () => {
-    if (window.derniersResultatsTitu?.length) {
+    if (!window.derniersResultatsTitu?.length) { toast("Aucune donnée à exporter", 'error'); return; }
+    try {
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF('landscape', 'mm', 'a4');
         const logoUrl = await getSchoolLogo(ECOLET_ID);
@@ -1197,8 +1359,7 @@ document.getElementById('exportTitulaireRelevePdfBtn')?.addEventListener('click'
                     pdf.addImage(imgData, 'JPEG', 10, 10, 30, 30);
                 };
                 reader.readAsDataURL(blob);
-            } catch (e) {
-            }
+            } catch (e) {}
         }
         pdf.setFillColor(255, 255, 255);
         pdf.rect(0, 0, 297, 210, 'F');
@@ -1259,24 +1420,24 @@ document.getElementById('exportTitulaireRelevePdfBtn')?.addEventListener('click'
                 { content: r.total, styles: { fillColor: couleurTotal, fontStyle: 'bold' } }
             ]);
         }
-        const totalP1 = window.derniersResultatsTitu.reduce((sum, r) => sum + (r.p1 || 0), 0);
-        const totalP2 = window.derniersResultatsTitu.reduce((sum, r) => sum + (r.p2 || 0), 0);
-        const totalExam1 = window.derniersResultatsTitu.reduce((sum, r) => sum + (r.exam1 || 0), 0);
-        const totalTotS1 = window.derniersResultatsTitu.reduce((sum, r) => sum + (r.totalS1 || 0), 0);
-        const totalP3 = window.derniersResultatsTitu.reduce((sum, r) => sum + (r.p3 || 0), 0);
-        const totalP4 = window.derniersResultatsTitu.reduce((sum, r) => sum + (r.p4 || 0), 0);
-        const totalExam2 = window.derniersResultatsTitu.reduce((sum, r) => sum + (r.exam2 || 0), 0);
-        const totalTotS2 = window.derniersResultatsTitu.reduce((sum, r) => sum + (r.totalS2 || 0), 0);
-        const totalGeneral = window.derniersResultatsTitu.reduce((sum, r) => sum + (r.total || 0), 0);
-        const totalMaxP1 = window.derniersResultatsTitu.reduce((sum, r) => sum + (r.pMax || 20), 0);
-        const totalMaxP2 = window.derniersResultatsTitu.reduce((sum, r) => sum + (r.pMax || 20), 0);
-        const totalMaxExam1 = window.derniersResultatsTitu.reduce((sum, r) => sum + ((r.pMax || 20) * 2), 0);
-        const totalMaxTotS1 = window.derniersResultatsTitu.reduce((sum, r) => sum + ((r.pMax || 20) * 4), 0);
-        const totalMaxP3 = window.derniersResultatsTitu.reduce((sum, r) => sum + (r.pMax || 20), 0);
-        const totalMaxP4 = window.derniersResultatsTitu.reduce((sum, r) => sum + (r.pMax || 20), 0);
-        const totalMaxExam2 = window.derniersResultatsTitu.reduce((sum, r) => sum + ((r.pMax || 20) * 2), 0);
-        const totalMaxTotS2 = window.derniersResultatsTitu.reduce((sum, r) => sum + ((r.pMax || 20) * 4), 0);
-        const totalMaxGeneral = window.derniersResultatsTitu.reduce((sum, r) => sum + ((r.pMax || 20) * 8), 0);
+        const totalP1 = window.derniersResultatsTitu.reduce((s, r) => s + (r.p1 || 0), 0);
+        const totalP2 = window.derniersResultatsTitu.reduce((s, r) => s + (r.p2 || 0), 0);
+        const totalExam1 = window.derniersResultatsTitu.reduce((s, r) => s + (r.exam1 || 0), 0);
+        const totalTotS1 = window.derniersResultatsTitu.reduce((s, r) => s + (r.totalS1 || 0), 0);
+        const totalP3 = window.derniersResultatsTitu.reduce((s, r) => s + (r.p3 || 0), 0);
+        const totalP4 = window.derniersResultatsTitu.reduce((s, r) => s + (r.p4 || 0), 0);
+        const totalExam2 = window.derniersResultatsTitu.reduce((s, r) => s + (r.exam2 || 0), 0);
+        const totalTotS2 = window.derniersResultatsTitu.reduce((s, r) => s + (r.totalS2 || 0), 0);
+        const totalGeneral = window.derniersResultatsTitu.reduce((s, r) => s + (r.total || 0), 0);
+        const totalMaxP1 = window.derniersResultatsTitu.reduce((s, r) => s + (r.pMax || 20), 0);
+        const totalMaxP2 = window.derniersResultatsTitu.reduce((s, r) => s + (r.pMax || 20), 0);
+        const totalMaxExam1 = window.derniersResultatsTitu.reduce((s, r) => s + ((r.pMax || 20) * 2), 0);
+        const totalMaxTotS1 = window.derniersResultatsTitu.reduce((s, r) => s + ((r.pMax || 20) * 4), 0);
+        const totalMaxP3 = window.derniersResultatsTitu.reduce((s, r) => s + (r.pMax || 20), 0);
+        const totalMaxP4 = window.derniersResultatsTitu.reduce((s, r) => s + (r.pMax || 20), 0);
+        const totalMaxExam2 = window.derniersResultatsTitu.reduce((s, r) => s + ((r.pMax || 20) * 2), 0);
+        const totalMaxTotS2 = window.derniersResultatsTitu.reduce((s, r) => s + ((r.pMax || 20) * 4), 0);
+        const totalMaxGeneral = window.derniersResultatsTitu.reduce((s, r) => s + ((r.pMax || 20) * 8), 0);
         body.push([
             { content: 'TOTAL POINTS', styles: { fillColor: couleurOr, textColor: [0, 0, 0], fontStyle: 'bold' } },
             { content: totalP1, styles: { fillColor: couleurOr, textColor: [0, 0, 0], fontStyle: 'bold' } },
@@ -1315,27 +1476,22 @@ document.getElementById('exportTitulaireRelevePdfBtn')?.addEventListener('click'
         pdf.setFont('helvetica', 'italic');
         pdf.setFontSize(8);
         pdf.setTextColor(120, 120, 120);
-        pdf.text(
-            'NB : Les matières non mentionnées dans cet extrait signifient que l\'élève n\'a pas encore obtenu de points dans cette matière,',
-            14,
-            finalY + 10
-        );
-        pdf.text(
-            'ou que le professeur n\'a pas encore procédé à l\'évaluation.',
-            14,
-            finalY + 15
-        );
+        pdf.text("NB : Les matières non mentionnées dans cet extrait signifient que l'élève n'a pas encore obtenu de points dans cette matière,", 14, finalY + 10);
+        pdf.text("ou que le professeur n'a pas encore procédé à l'évaluation.", 14, finalY + 15);
 
         pdf.save('Extrait_Bulletin_' + window.nomEleveRechercheTitu.replace(/\s/g, '_') + '.pdf');
         clearAllToasts();
         toast("✅ Extrait de bulletin exporté avec succès");
-    } else toast("Aucun résultat à exporter", 'error');
+    } catch (e) { toast("Erreur lors de la génération du PDF", 'error'); }
 });
 
+// 🆕 Initialisation Titulaire avec message corrigé
 async function initTitulaire() {
-    document.getElementById('titulaireWelcomeMessage').innerHTML = `${getGreetingTitu()} Espace Titulaire - Recherche dans toute l'école`;
+    document.getElementById('titulaireWelcomeMessage').innerHTML =
+        `${getGreetingTitu()}, recherchez un élève dans toute l'école`;
     await chargerFichesPourRechercheTitu();
     updateTitulaireStats();
+    afficherListeTitulaire('');
 }
 
 document.getElementById('reloadTitulaireFichesBtn')?.addEventListener('click', async function() {
@@ -1345,6 +1501,7 @@ document.getElementById('reloadTitulaireFichesBtn')?.addEventListener('click', a
     try {
         await chargerFichesPourRechercheTitu();
         updateTitulaireStats();
+        afficherListeTitulaire(document.getElementById('titulaireSearchNom')?.value || '');
         toast(`✅ ${toutesFichesCompletTitu.length} fiche(s) chargée(s)`, 'success');
     } catch (error) {
         toast("❌ Erreur de synchronisation", 'error');
@@ -1352,6 +1509,18 @@ document.getElementById('reloadTitulaireFichesBtn')?.addEventListener('click', a
         btn.classList.remove('loading');
         btn.innerHTML = '🔄 Recharger les fiches';
     }
+});
+
+// 🆕 Recherche en temps réel
+document.getElementById('titulaireSearchNom')?.addEventListener('input', function() {
+    afficherListeTitulaire(this.value);
+});
+
+// 🆕 Bouton rechercher : recharge puis filtre
+document.getElementById('titulaireSearchBtn')?.addEventListener('click', async () => {
+    toast("🔄 Synchronisation…", 'info');
+    await chargerFichesPourRechercheTitu();
+    afficherListeTitulaire(document.getElementById('titulaireSearchNom').value);
 });
 
 document.querySelectorAll('.main-nav-btn').forEach(btn => {
@@ -1369,6 +1538,7 @@ document.querySelectorAll('.main-nav-btn').forEach(btn => {
             arreterCycleCarteProf();
             try {
                 await chargerFichesPourRechercheTitu();
+                afficherListeTitulaire(document.getElementById('titulaireSearchNom')?.value || '');
             } catch (e) { }
         }
     });
