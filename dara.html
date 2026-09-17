@@ -1011,10 +1011,12 @@ Cette action va <strong>écrire</strong> dans la base Firestore. Un <strong>code
 <script type="module">
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, onSnapshot, runTransaction } from "firebase/firestore";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 
 const firebaseConfig = {apiKey:"AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",authDomain:"gesco-2.firebaseapp.com",projectId:"gesco-2",storageBucket:"gesco-2.firebasestorage.app",messagingSenderId:"36319988765",appId:"1:36319988765:web:e8cd823804596495248af4"};
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 const LOGO_URL = "https://www.netubex.com/favicon.ico";
 const NX_CODE = "NXTheone";
@@ -1112,22 +1114,12 @@ async function handleLogin(){
   btn.disabled = true;
   btn.classList.add("loading");
   try{
-    const { initializeApp: initTempApp, deleteApp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js");
-    const { getAuth: getTempAuth, signInWithEmailAndPassword: signInTemp, signOut: signOutTemp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js");
-    
-    const tempAppName = "netubex-dsi-temp-" + Date.now() + "-" + Math.random().toString(36).substring(2,8);
-    const tempApp = initTempApp(firebaseConfig, tempAppName);
-    const tempAuth = getTempAuth(tempApp);
-    
-    const cred = await signInTemp(tempAuth, email, password);
+    const cred = await signInWithEmailAndPassword(auth, email, password);
     if (!cred || !cred.user) throw new Error("Connexion échouée");
     
     suc.textContent = "✅ Connexion réussie";
-    currentUser = {email: cred.user.email};
-    localStorage.setItem("netubex_dsi_session", JSON.stringify({email: cred.user.email, timestamp: Date.now()}));
-    
-    try { await signOutTemp(tempAuth); } catch(e){}
-    try { await deleteApp(tempApp); } catch(e){}
+    currentUser = {email: cred.user.email, uid: cred.user.uid};
+    localStorage.setItem("netubex_dsi_session", JSON.stringify({email: cred.user.email, uid: cred.user.uid, timestamp: Date.now()}));
     
     setTimeout(()=>{
       document.getElementById("loginOverlay").classList.add("hidden");
@@ -1141,6 +1133,8 @@ async function handleLogin(){
     let msg = "❌ Identifiants incorrects";
     if(e.code === "auth/invalid-email") msg = "❌ Email invalide";
     else if(e.code === "auth/user-not-found") msg = "❌ Compte introuvable";
+    else if(e.code === "auth/wrong-password") msg = "❌ Mot de passe incorrect";
+    else if(e.code === "auth/invalid-credential") msg = "❌ Email ou mot de passe incorrect";
     else if(e.code === "auth/too-many-requests") msg = "❌ Trop de tentatives. Réessayez plus tard";
     err.textContent = msg;
   }finally{
@@ -1149,7 +1143,10 @@ async function handleLogin(){
   }
 }
 
-function logout(){
+async function logout(){
+  try{
+    await signOut(auth);
+  }catch(e){}
   currentUser = null;
   localStorage.removeItem("netubex_dsi_session");
   if(compteurUnsubscribe){compteurUnsubscribe();compteurUnsubscribe=null;}
@@ -2152,23 +2149,23 @@ document.getElementById("togglePassword")?.addEventListener("click",function(){
 });
 document.getElementById("logoutBtn")?.addEventListener("click",logout);
 
-const saved = localStorage.getItem("netubex_dsi_session");
-if(saved){
-  try{
-    const s = JSON.parse(saved);
-    if(s.email && s.timestamp > Date.now() - 7*24*3600000){
-      currentUser = {email:s.email};
-      document.getElementById("loginOverlay").classList.add("hidden");
-      document.getElementById("dashboardContent").classList.add("visible");
-      document.getElementById("userName").textContent = s.email;
-      document.getElementById("userAvatar").textContent = s.email.charAt(0).toUpperCase();
-      loadAllData();
-      demarrerSurveillanceCompteur();
-    } else {
-      localStorage.removeItem("netubex_dsi_session");
-    }
-  }catch(e){}
-}
+onAuthStateChanged(auth, (user) => {
+  const saved = localStorage.getItem("netubex_dsi_session");
+  if(user && saved){
+    try{
+      const s = JSON.parse(saved);
+      if(s.email && s.timestamp > Date.now() - 7*24*3600000){
+        currentUser = {email: user.email, uid: user.uid};
+        document.getElementById("loginOverlay").classList.add("hidden");
+        document.getElementById("dashboardContent").classList.add("visible");
+        document.getElementById("userName").textContent = user.email;
+        document.getElementById("userAvatar").textContent = user.email.charAt(0).toUpperCase();
+        loadAllData();
+        demarrerSurveillanceCompteur();
+      }
+    }catch(e){}
+  }
+});
 
 document.getElementById("refreshEcolesBtn")?.addEventListener("click",loadSchools);
 document.getElementById("refreshTeachersBtn")?.addEventListener("click",loadTeachers);
