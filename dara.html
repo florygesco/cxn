@@ -793,7 +793,7 @@ font-weight:700;
 </div>
 <div class="table-wrapper">
 <table>
-<thead><tr><th>#</th><th>Matière</th><th>Classe</th><th>Option</th><th>Professeur</th><th>École</th></tr></thead>
+<thead><tr><th>#</th><th>Matière</th><th>Classe</th><th>Option</th><th>Professeur</th><th>École</th><th>Actions</th></tr></thead>
 <tbody id="sheetsBody"></tbody>
 </table>
 </div>
@@ -1020,10 +1020,9 @@ const LOGO_URL = "https://www.netubex.com/favicon.ico";
 const NX_CODE = "NXTheone";
 const CACHE_KEY = "netubex_dashboard_cache";
 const CACHE_TIME_KEY = "netubex_cache_time";
-// ⚡ CACHE 7 JOURS (au lieu de 24h)
 const CACHE_DURATION = 7 * 24 * 60 * 60 * 1000;
 const CHAT_TTL = 24 * 60 * 60 * 1000;
-const REFRESH_COOLDOWN = 5 * 60 * 1000; // 5 minutes entre 2 refresh manuels
+const REFRESH_COOLDOWN = 5 * 60 * 1000;
 
 let allData = { schools: [], teachers: [], sheets: [], students: [], codes: [], parentCodes: [], enseignants: [], abandons: [] };
 let membersA = [], membersB = [], membersC = [];
@@ -1162,9 +1161,6 @@ function logout(){
   document.getElementById("loginSuccess").textContent="";
 }
 
-// ═══════════════════════════════════════════════════════════════
-// 📡 SURVEILLANCE TEMPS RÉEL DU COMPTEUR CODES PARENTS
-// ═══════════════════════════════════════════════════════════════
 async function demarrerSurveillanceCompteur(){
   if(compteurUnsubscribe){compteurUnsubscribe();compteurUnsubscribe=null;}
   console.log("📡 [ADMIN] Démarrage surveillance compteur temps réel");
@@ -1693,12 +1689,40 @@ function loadSheets(){
   let sheets = allData.sheets;
   if(filter!=="all")sheets = sheets.filter(s=>s.ecoleId===filter);
   if(search)sheets = sheets.filter(s=>s.cours?.toLowerCase().includes(search)||s.titulaire?.toLowerCase().includes(search));
-  if(!sheets.length){container.innerHTML='<tr><td colspan="6" class="empty-state">📄 Aucune fiche trouvée</td></tr>';return}
+  if(!sheets.length){container.innerHTML='<tr><td colspan="7" class="empty-state">📄 Aucune fiche trouvée</td></tr>';return}
   let html = "";
   sheets.forEach((s,i)=>{
-    html += "<tr><td>"+(i+1)+"</td><td><strong>"+escapeHtml(s.cours)+"</strong></td><td>"+escapeHtml(s.classe||"-")+"</td><td>"+escapeHtml(s.option||"-")+"</td><td>"+escapeHtml(s.titulaire||"-")+"</td><td>"+escapeHtml(s.ecoleNom)+"</td></tr>";
+    html += "<tr>"
+      + "<td>"+(i+1)+"</td>"
+      + "<td><strong>"+escapeHtml(s.cours)+"</strong></td>"
+      + "<td>"+escapeHtml(s.classe||"-")+"</td>"
+      + "<td>"+escapeHtml(s.option||"-")+"</td>"
+      + "<td>"+escapeHtml(s.titulaire||"-")+"</td>"
+      + "<td>"+escapeHtml(s.ecoleNom)+"</td>"
+      + '<td><button class="btn btn-danger btn-sm delete-sheet" data-sheet-id="'+s.id+'" data-ecole-id="'+s.ecoleId+'" title="Supprimer la fiche">🗑️</button></td>'
+      + "</tr>";
   });
   container.innerHTML = html;
+  container.querySelectorAll(".delete-sheet").forEach(btn=>{
+    btn.addEventListener("click",async function(){
+      const sid = this.dataset.sheetId;
+      const eid = this.dataset.ecoleId;
+      const sheet = allData.sheets.find(x=>x.id===sid&&x.ecoleId===eid);
+      if(!sheet)return;
+      if(!await showCodeModal())return;
+      const titre = escapeHtml(sheet.cours) + " - " + escapeHtml(sheet.classe||"");
+      if(!await showConfirm("⚠️ <strong>Supprimer la fiche</strong><br><br><strong>"+titre+"</strong><br><br>Cette action est <strong>définitive</strong> et irréversible.<br><br>Confirmer la suppression ?"))return;
+      try{
+        await deleteDoc(doc(db,"ecoles",eid,"fiches",sid));
+        allData.sheets = allData.sheets.filter(x=>!(x.id===sid&&x.ecoleId===eid));
+        setCache({allData,membersA,membersB,membersC});
+        loadSheets();
+        updateCounters();
+        updateTabCounts();
+        showToast("Fiche supprimée définitivement","success");
+      }catch(e){showToast("Erreur : "+e.message,"error")}
+    });
+  });
 }
 
 function loadCodesEmails(){
@@ -1853,10 +1877,6 @@ function buildDateLongue(){
   return n.getDate()+" "+m[n.getMonth()]+" "+n.getFullYear();
 }
 
-// ═══════════════════════════════════════════════════════════════
-// 🔥 GÉNÉRATION PDF EN TEMPS RÉEL
-// Recharge uniquement les données de l'école choisie
-// ═══════════════════════════════════════════════════════════════
 async function telechargerPdf(){
   const ecoleId = document.getElementById("rapportEcoleSelect")?.value;
   if(!ecoleId){showToast("Veuillez sélectionner une école","warning");return}
@@ -2154,7 +2174,6 @@ document.getElementById("refreshEcolesBtn")?.addEventListener("click",loadSchool
 document.getElementById("refreshTeachersBtn")?.addEventListener("click",loadTeachers);
 document.getElementById("refreshEnsBtn")?.addEventListener("click",loadEnseignants);
 
-// ⚡ BOUTON RAFRAÎCHIR avec cooldown de 5 minutes
 document.getElementById("refreshAllBtn")?.addEventListener("click",async ()=>{
   const dernierRefresh = localStorage.getItem("netubex_dernier_refresh");
   const maintenant = Date.now();
