@@ -215,6 +215,9 @@ body.light-mode .prof-role{color:#1a365d !important;}
 body.light-mode .floating-btn{background:linear-gradient(135deg,rgba(200,204,212,0.95),rgba(176,181,192,0.95));color:#0d1117;border-color:rgba(26,54,93,0.3);}
 body.light-mode .floating-btn.logout{background:linear-gradient(135deg,rgba(220,38,38,0.95),rgba(185,28,28,0.95));color:#fff;}
 @media (max-width:480px){.floating-actions{right:10px;gap:10px;}.floating-btn{width:46px;height:46px;font-size:19px;}}
+#reloadTitulaireFichesBtn:hover{transform:scale(1.03);box-shadow:0 8px 24px -8px rgba(16,185,129,0.5);}
+#reloadTitulaireFichesBtn.loading{pointer-events:none;opacity:0.7;}
+#reloadTitulaireFichesBtn.loading::before{content:'';display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite;margin-right:6px;}
 </style>
 </head>
 <body>
@@ -309,7 +312,15 @@ body.light-mode .floating-btn.logout{background:linear-gradient(135deg,rgba(220,
 </div>
 </div>
 <div id="spaceTitulaire" class="space-content">
-<div class="titulaire-container"><div class="bg-fixed"></div><div class="bg-overlay"></div><div class="container-titu"><div id="titulaireFichesView"><div class="welcome-banner"><span id="titulaireWelcomeMessage"></span></div><div class="readonly-banner"><span>🔒 Mode consultation</span><span>Recherche dans toute l'école</span></div><div id="titulaireViewRecherche"><div class="search-card"><div class="search-box"><div class="input-group"><label>NOM COMPLET DE L'ÉLÈVE</label><input type="text" id="titulaireSearchNom" placeholder="Ex: KASONGO Jean - Recherche dans toute l'école"></div><button class="btn-primary" id="titulaireSearchBtn">🔍 Rechercher</button></div></div><div class="result-card" id="titulaireResultCard" style="display:none;"><button class="btn-export" id="exportTitulaireRelevePdfBtn">📄 Exporter l'extrait de bulletin</button></div></div></div></div></div>
+<div class="titulaire-container"><div class="bg-fixed"></div><div class="bg-overlay"></div><div class="container-titu"><div id="titulaireFichesView">
+<div class="welcome-banner">
+<span id="titulaireWelcomeMessage"></span>
+<button id="reloadTitulaireFichesBtn" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;padding:10px 22px;border-radius:40px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:8px;font-family:'Inter',sans-serif;">🔄 Recharger les fiches</button>
+</div>
+<div id="titulaireStatsInfo" style="font-size:12px;color:#94a3b8;padding:10px 16px;background:rgba(59,130,246,0.05);border-radius:12px;margin-bottom:16px;text-align:center;"></div>
+<div class="readonly-banner"><span>🔒 Mode consultation</span><span>Recherche dans toute l'école</span></div>
+<div id="titulaireViewRecherche"><div class="search-card"><div class="search-box"><div class="input-group"><label>NOM COMPLET DE L'ÉLÈVE</label><input type="text" id="titulaireSearchNom" placeholder="Ex: KASONGO Jean - Recherche dans toute l'école"></div><button class="btn-primary" id="titulaireSearchBtn">🔍 Rechercher</button></div></div><div class="result-card" id="titulaireResultCard" style="display:none;"><button class="btn-export" id="exportTitulaireRelevePdfBtn">📄 Exporter l'extrait de bulletin</button></div></div>
+</div></div></div>
 </div>
 <div class="footer-note" id="footerNote">CHARGEMENT... | Année scolaire 2026-2027</div>
 </div>
@@ -1041,7 +1052,6 @@ async function loadAllFichesFromFirebaseTitu() {
         const snap = await getDocs(collection(db, "ecoles", ECOLET_ID, SC.FICHES));
         const fiches = [];
         const classesExclues = [
-            "Niveau 1", "Niveau 2", "Niveau 3",
             "1ère A", "1ère B", "2ème A", "2ème B",
             "3ème A", "3ème B", "4ème A", "4ème B",
             "5ème A", "5ème B", "6ème A", "6ème B"
@@ -1050,16 +1060,25 @@ async function loadAllFichesFromFirebaseTitu() {
             const data = doc.data();
             if (data._type === "prof") continue;
             if (!data.classe || !data.cours) continue;
+            if (data.deleted === true || data.supprime === true) continue;
+            if (data.corbeille === true) continue;
+            if (data.school && data.school !== ECOLET_ID) continue;
             const classe = data.classe || '';
-            if (classesExclues.includes(classe)) {
-                continue;
-            }
+            if (classesExclues.includes(classe)) continue;
+            const elevesValides = (data.eleves || []).filter(e => {
+                if (!e) return false;
+                if (e.abandon === true) return false;
+                if (e.abandonne === true) return false;
+                if (!e.nom || e.nom.trim() === '') return false;
+                return true;
+            });
+            if (elevesValides.length === 0) continue;
             fiches.push({
                 id: doc.id,
                 cours: data.cours,
                 classe: data.classe,
                 option: data.option || '',
-                eleves: data.eleves || [],
+                eleves: elevesValides,
                 p1Max: data.p1Max || 20,
                 epreuvesParPeriode: data.epreuvesParPeriode || { 1: [], 2: [], 3: [], 4: [] },
                 numeroRef: data.numeroRef || 0,
@@ -1070,11 +1089,26 @@ async function loadAllFichesFromFirebaseTitu() {
             });
         }
         return fiches;
-    } catch (e) { console.error(e); return []; }
+    } catch (e) { 
+        console.error("Erreur chargement fiches titulaire:", e); 
+        return []; 
+    }
+}
+
+function updateTitulaireStats() {
+    const totalFiches = toutesFichesCompletTitu.length;
+    const totalEleves = toutesFichesCompletTitu.reduce((sum, f) => sum + (f.eleves?.length || 0), 0);
+    const infoEl = document.getElementById('titulaireStatsInfo');
+    if (infoEl) {
+        infoEl.textContent = `📊 ${totalFiches} fiche(s) active(s) • ${totalEleves} élève(s) inscrit(s)`;
+    }
 }
 
 async function chargerFichesPourRechercheTitu() {
     toutesFichesCompletTitu = await loadAllFichesFromFirebaseTitu();
+    if (typeof updateTitulaireStats === 'function') {
+        updateTitulaireStats();
+    }
 }
 
 function rechercherEleveTitu(nom) {
@@ -1245,10 +1279,28 @@ document.getElementById('exportTitulaireRelevePdfBtn')?.addEventListener('click'
 async function initTitulaire() {
     document.getElementById('titulaireWelcomeMessage').innerHTML = `${getGreetingTitu()} Espace Titulaire - Recherche dans toute l'école`;
     await chargerFichesPourRechercheTitu();
+    updateTitulaireStats();
 }
 
+document.getElementById('reloadTitulaireFichesBtn')?.addEventListener('click', async function() {
+    const btn = this;
+    btn.classList.add('loading');
+    btn.innerHTML = 'Chargement...';
+    try {
+        await chargerFichesPourRechercheTitu();
+        updateTitulaireStats();
+        toast(`✅ ${toutesFichesCompletTitu.length} fiche(s) chargée(s) depuis Firebase`, 'success');
+    } catch (error) {
+        console.error("Erreur rechargement:", error);
+        toast("❌ Erreur lors du rechargement", 'error');
+    } finally {
+        btn.classList.remove('loading');
+        btn.innerHTML = '🔄 Recharger les fiches';
+    }
+});
+
 document.querySelectorAll('.main-nav-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
+    btn.addEventListener('click', async function() {
         document.querySelectorAll('.main-nav-btn').forEach(b => b.classList.remove('active'));
         this.classList.add('active');
         document.querySelectorAll('.space-content').forEach(s => s.classList.remove('active'));
@@ -1260,6 +1312,9 @@ document.querySelectorAll('.main-nav-btn').forEach(btn => {
             document.querySelectorAll('#spaceProfesseur .tab-content').forEach((c, i) => { c.classList.toggle('active', i === 0); });
         } else {
             arreterCycleCarteProf();
+            try {
+                await chargerFichesPourRechercheTitu();
+            } catch (e) { console.error(e); }
         }
     });
 });
