@@ -1040,17 +1040,37 @@ async function loadAllFichesFromFirebaseTitu() {
     try {
         const snap = await getDocs(collection(db, "ecoles", ECOLET_ID, SC.FICHES));
         const fiches = [];
-        const classesSecondaire = ["7ème EB", "8ème EB", "1ère Année", "2ème Année", "3ème Année", "4ème Année"];
+        const classesExclues = [
+            "Niveau 1", "Niveau 2", "Niveau 3",
+            "1ère A", "1ère B", "2ème A", "2ème B",
+            "3ème A", "3ème B", "4ème A", "4ème B",
+            "5ème A", "5ème B", "6ème A", "6ème B"
+        ];
         for (const doc of snap.docs) {
             const data = doc.data();
             if (data._type === "prof") continue;
             if (!data.classe || !data.cours) continue;
-            const classeNormalisee = normaliserClasse(data.classe);
-            if (!classesSecondaire.includes(classeNormalisee)) continue;
-            fiches.push({ id: doc.id, cours: data.cours, classe: classeNormalisee, option: data.option || '', eleves: data.eleves || [], p1Max: data.p1Max || 20, epreuvesParPeriode: data.epreuvesParPeriode || { 1: [], 2: [], 3: [], 4: [] }, numeroRef: data.numeroRef || 0, titulaire: data.titulaire || '' });
+            const classe = data.classe || '';
+            if (classesExclues.includes(classe)) {
+                continue;
+            }
+            fiches.push({
+                id: doc.id,
+                cours: data.cours,
+                classe: data.classe,
+                option: data.option || '',
+                eleves: data.eleves || [],
+                p1Max: data.p1Max || 20,
+                epreuvesParPeriode: data.epreuvesParPeriode || { 1: [], 2: [], 3: [], 4: [] },
+                numeroRef: data.numeroRef || 0,
+                titulaire: data.titulaire || '',
+                profId: data.profId,
+                lastModified: data.lastModified || data.updatedAt || data.dateCreation || new Date(),
+                dateCreation: data.dateCreation
+            });
         }
         return fiches;
-    } catch (e) { return []; }
+    } catch (e) { console.error(e); return []; }
 }
 
 async function chargerFichesPourRechercheTitu() {
