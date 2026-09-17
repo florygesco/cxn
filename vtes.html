@@ -225,7 +225,6 @@ body.light-mode .floating-btn.logout{background:linear-gradient(135deg,rgba(220,
 #reloadTitulaireFichesBtn:hover{transform:scale(1.03);box-shadow:0 8px 24px -8px rgba(16,185,129,0.5);}
 #reloadTitulaireFichesBtn.loading{pointer-events:none;opacity:0.7;}
 #reloadTitulaireFichesBtn.loading::before{content:'';display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite;margin-right:6px;}
-/* Boutons élèves Titulaire */
 .eleve-btn{display:flex;align-items:center;gap:14px;width:100%;padding:16px 20px;margin-bottom:10px;border-radius:16px;background:linear-gradient(135deg,rgba(30,58,95,0.85),rgba(15,43,68,0.85));border:1.5px solid rgba(96,165,250,0.35);cursor:pointer;color:#fff;font-family:'Inter',sans-serif;font-size:15px;font-weight:600;text-align:left;transition:all 0.2s cubic-bezier(0.4,0,0.2,1);box-shadow:0 4px 12px -6px rgba(0,0,0,0.5);position:relative;overflow:hidden;}
 .eleve-btn::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,#60a5fa,#a78bfa);opacity:0;transition:opacity 0.2s;}
 .eleve-btn:hover{background:linear-gradient(135deg,rgba(59,130,246,0.35),rgba(30,58,95,0.95));border-color:#60a5fa;transform:translateX(4px);box-shadow:0 8px 24px -8px rgba(59,130,246,0.6),0 0 0 1px rgba(96,165,250,0.3) inset;}
@@ -521,29 +520,28 @@ function showStyledConfirm(title, message, onConfirm, onCancel) {
 }
 
 async function getAllComptaEleves() {
-    try {
-        const snap = await getDocs(collection(db, "ecoles", ECOLET_ID, SC.COMPTA_ELEVES));
-        localEleves = [];
-        for (const ds of snap.docs) {
-            const d = ds.data();
-            if (d._type === 'config' || d._type === 'settings' || d._type === 'inscription') continue;
-            if (!d.nom) continue;
-            const classeNormalisee = normaliserClasse(d.classe);
-            localEleves.push({
-                id: d.eleveId || ds.id,
-                nom: d.nom || '',
-                postnom: d.postnom || '',
-                prenom: d.prenom || '',
-                nomComplet: [d.nom || '', d.postnom || '', d.prenom || ''].filter(p => p.trim() !== '').join(' '),
-                sexe: d.sexe || "M",
-                classe: classeNormalisee,
-                option: d.option || "",
-                parentCode: d.parentCode || "",
-                abandon: d.abandon || false
-            });
-        }
-        return localEleves;
-    } catch (error) { return []; }
+    const snap = await getDocs(collection(db, "ecoles", ECOLET_ID, SC.COMPTA_ELEVES));
+    const nouvelleListe = [];
+    for (const ds of snap.docs) {
+        const d = ds.data();
+        if (d._type === 'config' || d._type === 'settings' || d._type === 'inscription') continue;
+        if (!d.nom) continue;
+        const classeNormalisee = normaliserClasse(d.classe);
+        nouvelleListe.push({
+            id: d.eleveId || ds.id,
+            nom: d.nom || '',
+            postnom: d.postnom || '',
+            prenom: d.prenom || '',
+            nomComplet: [d.nom || '', d.postnom || '', d.prenom || ''].filter(p => p.trim() !== '').join(' '),
+            sexe: d.sexe || "M",
+            classe: classeNormalisee,
+            option: d.option || "",
+            parentCode: d.parentCode || "",
+            abandon: d.abandon || false
+        });
+    }
+    localEleves = nouvelleListe;
+    return localEleves;
 }
 
 function getNomComplet(eleve) {
@@ -716,12 +714,17 @@ function getNextNumeroLocal() {
     return maxNum + 1;
 }
 
+// ✅ CORRIGÉ : refuse de sauvegarder une fiche vide + remonte le résultat
 async function saveCurrentFiche() {
-    if (!currentProf || !currentFicheId || !currentFiche) return;
+    if (!currentProf || !currentFicheId || !currentFiche) return false;
+    const nbEleves = (currentFiche.eleves || []).length;
+    if (nbEleves === 0) return false;
     currentFiche.lastModified = new Date();
-    if (navigator.onLine) {
-        try { await setDoc(doc(db, "ecoles", ECOLET_ID, SC.FICHES, currentFicheId), currentFiche); }
-        catch (e) { }
+    try {
+        await setDoc(doc(db, "ecoles", ECOLET_ID, SC.FICHES, currentFicheId), currentFiche);
+        return true;
+    } catch (e) {
+        return false;
     }
 }
 
@@ -1119,7 +1122,6 @@ function getNotesForEleveTitu(eleve, fiche) {
     return { p1, p2, p3, p4, exam1, exam2, totalS1: p1 + p2 + exam1, totalS2: p3 + p4 + exam2, total: p1 + p2 + exam1 + p3 + p4 + exam2, pMax };
 }
 
-// ✅ CORRECTION : exclusion des élèves abandonnés via compta_eleves
 async function loadAllFichesFromFirebaseTitu() {
     try {
         const idsAbandonnes = new Set();
@@ -1742,6 +1744,7 @@ document.getElementById('viderChampsBtn').addEventListener('click', function() {
     toast("🧹 Champs vidés.", 'info');
 });
 
+// ✅ CORRIGÉ : écriture Firebase AVANT affichage
 document.getElementById('rechargerElevesBtn').onclick = async function() {
     if (!currentFiche) { toast("Aucune fiche sélectionnée", 'error'); return; }
     const btn = this;
@@ -1751,7 +1754,12 @@ document.getElementById('rechargerElevesBtn').onclick = async function() {
         const classe = currentFiche.classe;
         const option = currentFiche.option;
         if (!classe) { toast("Veuillez d'abord configurer la classe", 'error'); btn.disabled = false; btn.innerHTML = '🔄 RECHARGER'; return; }
-        try { await getAllComptaEleves(); } catch (e) {}
+        try { await getAllComptaEleves(); } catch (e) {
+            btn.disabled = false;
+            btn.innerHTML = '🔄 RECHARGER';
+            toast("Vous avez une mauvaise connexion. Veuillez réessayer.", 'error');
+            return;
+        }
         const elevesCompta = localEleves || [];
         let elevesFiltres = elevesCompta.filter(e => {
             if (e.abandon) return false;
@@ -1760,12 +1768,24 @@ document.getElementById('rechargerElevesBtn').onclick = async function() {
             if (option && e.option !== option) return false;
             return true;
         });
+        // Protection : refuse de vider la liste
+        if (elevesFiltres.length === 0 && (currentFiche.eleves || []).length > 0) {
+            btn.disabled = false;
+            btn.innerHTML = '🔄 RECHARGER';
+            toast("Vous avez une mauvaise connexion. Veuillez réessayer.", 'error');
+            return;
+        }
         const notesExistantes = {};
         if (currentFiche.eleves) currentFiche.eleves.forEach(e => { if (e.id && e.notes) notesExistantes[e.id] = e.notes; });
         const anciensIds = new Set(currentFiche.eleves.map(e => e.id));
         const nouveauxIds = new Set(elevesFiltres.map(e => e.id));
         const ajoutes = elevesFiltres.filter(e => !anciensIds.has(e.id));
         const supprimes = currentFiche.eleves.filter(e => !nouveauxIds.has(e.id));
+        
+        // Sauvegarde de l'ancienne liste
+        const anciensEleves = JSON.parse(JSON.stringify(currentFiche.eleves || []));
+        
+        // Application de la nouvelle liste
         currentFiche.eleves = elevesFiltres.map(e => ({
             id: e.id || Date.now() + Math.random(),
             nom: e.nom || '', postnom: e.postnom || '', prenom: e.prenom || '',
@@ -1774,7 +1794,22 @@ document.getElementById('rechargerElevesBtn').onclick = async function() {
             notes: notesExistantes[e.id] || { p1: [], p2: [], p3: [], p4: [], exam1: 0, exam2: 0 },
             eleveId: e.id, importeLe: new Date().toISOString(), source: "reload"
         }));
-        await saveCurrentFiche();
+        
+        // 🔑 Écriture Firebase EN PREMIER
+        const sauvegardeOk = await saveCurrentFiche();
+        
+        if (!sauvegardeOk) {
+            // Firebase a refusé → restauration
+            currentFiche.eleves = anciensEleves;
+            afficherEleves();
+            afficherCotation();
+            btn.disabled = false;
+            btn.innerHTML = '🔄 RECHARGER';
+            toast("Vous avez une mauvaise connexion. Veuillez réessayer.", 'error');
+            return;
+        }
+        
+        // ✅ Firebase a accepté → affichage
         afficherEleves();
         afficherCotation();
         let message = [];
@@ -1785,9 +1820,9 @@ document.getElementById('rechargerElevesBtn').onclick = async function() {
         btn.disabled = false;
         btn.innerHTML = '🔄 RECHARGER';
     } catch (error) {
-        toast("❌ Erreur lors de la synchronisation", 'error');
         btn.disabled = false;
         btn.innerHTML = '🔄 RECHARGER';
+        toast("Vous avez une mauvaise connexion. Veuillez réessayer.", 'error');
     }
 };
 
