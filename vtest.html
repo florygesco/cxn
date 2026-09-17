@@ -684,6 +684,12 @@ async function refreshSelectors(selectedId = null) {
             else if (currentFicheId && toutesFiches.some(f => f.id === currentFicheId)) sel.value = currentFicheId;
             sel.onchange = function() { if (isUpdatingSelectors || isCreatingFiche) return; if (this.value) selectFiche(this.value); };
         }
+        if (currentFicheId) {
+            ['ficheSelect', 'epreuveFicheSelector', 'cotationFicheSelector'].forEach(sid => {
+                const el = document.getElementById(sid);
+                if (el && toutesFiches.some(f => f.id === currentFicheId)) el.value = currentFicheId;
+            });
+        }
     } finally {
         setTimeout(() => { isUpdatingSelectors = false; }, 50);
     }
@@ -1065,6 +1071,22 @@ function getNotesForEleveTitu(eleve, fiche) {
     return { p1, p2, p3, p4, exam1, exam2, totalS1: p1 + p2 + exam1, totalS2: p3 + p4 + exam2, total: p1 + p2 + exam1 + p3 + p4 + exam2, pMax };
 }
 
+function aDesNotesSaisies(eleve) {
+    if (!eleve || !eleve.notes) return false;
+    const n = eleve.notes;
+    const periodes = ['p1', 'p2', 'p3', 'p4'];
+    for (const p of periodes) {
+        if (Array.isArray(n[p])) {
+            for (const v of n[p]) {
+                if (typeof v === 'number' && v > 0) return true;
+            }
+        }
+    }
+    if (typeof n.exam1 === 'number' && n.exam1 > 0) return true;
+    if (typeof n.exam2 === 'number' && n.exam2 > 0) return true;
+    return false;
+}
+
 async function loadAllFichesFromFirebaseTitu() {
     try {
         const snap = await getDocs(collection(db, "ecoles", ECOLET_ID, SC.FICHES));
@@ -1088,6 +1110,7 @@ async function loadAllFichesFromFirebaseTitu() {
                 if (e.abandon === true) return false;
                 if (e.abandonne === true) return false;
                 if (!e.nom || e.nom.trim() === '') return false;
+                if (!aDesNotesSaisies(e)) return false;
                 return true;
             });
             if (elevesValides.length === 0) continue;
@@ -1287,6 +1310,22 @@ document.getElementById('exportTitulaireRelevePdfBtn')?.addEventListener('click'
             headStyles: { fillColor: [0, 51, 102], textColor: [255, 255, 255], fontStyle: 'bold' },
             alternateRowStyles: { fillColor: [245, 245, 245] }
         });
+
+        const finalY = pdf.lastAutoTable.finalY || 80;
+        pdf.setFont('helvetica', 'italic');
+        pdf.setFontSize(8);
+        pdf.setTextColor(120, 120, 120);
+        pdf.text(
+            'NB : Les matières non mentionnées dans cet extrait signifient que l\'élève n\'a pas encore obtenu de points dans cette matière,',
+            14,
+            finalY + 10
+        );
+        pdf.text(
+            'ou que le professeur n\'a pas encore procédé à l\'évaluation.',
+            14,
+            finalY + 15
+        );
+
         pdf.save('Extrait_Bulletin_' + window.nomEleveRechercheTitu.replace(/\s/g, '_') + '.pdf');
         clearAllToasts();
         toast("✅ Extrait de bulletin exporté avec succès");
@@ -1336,12 +1375,24 @@ document.querySelectorAll('.main-nav-btn').forEach(btn => {
 });
 
 document.querySelectorAll('#tabsProfesseur .tab').forEach(tab => {
-    tab.addEventListener('click', function() {
+    tab.addEventListener('click', async function() {
         document.querySelectorAll('#tabsProfesseur .tab').forEach(t => t.classList.remove('active'));
         this.classList.add('active');
         document.querySelectorAll('#spaceProfesseur .tab-content').forEach(c => c.classList.remove('active'));
         const target = document.getElementById(this.dataset.tab);
         if (target) target.classList.add('active');
+
+        const tabId = this.dataset.tab;
+        if (tabId === 'tabEpreuves' || tabId === 'tabCotation') {
+            const selectorId = tabId === 'tabEpreuves' ? 'epreuveFicheSelector' : 'cotationFicheSelector';
+            const sel = document.getElementById(selectorId);
+            if (sel && sel.value && (!currentFiche || currentFicheId !== sel.value)) {
+                await selectFiche(sel.value);
+            } else if (currentFiche) {
+                if (tabId === 'tabEpreuves') afficherEpreuves();
+                else afficherCotation();
+            }
+        }
     });
 });
 
