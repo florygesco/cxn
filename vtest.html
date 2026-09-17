@@ -73,9 +73,16 @@ body{overscroll-behavior:none;}
 .student-table input.note-bien{color:#22c55e;}
 .student-table input.note-excellent{color:#22c55e;}
 .footer-note{text-align:center;padding:12px;font-size:11px;color:#4a5568;}
-.fiche-selector{background:rgba(18,18,31,0.9);margin:0;padding:12px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid rgba(59,130,246,0.2);}
-.fiche-selector label{color:#fff;}
-.fiche-selector select{flex:1;padding:8px 12px;border-radius:14px;background:#2d3748;border:1px solid #334155;color:#fff;}
+.fiche-selector{background:rgba(18,18,31,0.9);margin:0;padding:16px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border-bottom:1px solid rgba(59,130,246,0.15);}
+.fiche-selector label{color:#94a3b8;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;}
+#ficheSelect,#epreuveFicheSelector,#cotationFicheSelector{width:100%;padding:14px 44px 14px 18px;border-radius:14px;background:linear-gradient(135deg,rgba(30,41,59,0.95),rgba(15,23,42,0.95));border:1px solid rgba(96,165,250,0.25);color:#e2e8f0;font-size:14px;font-weight:500;font-family:'Inter',sans-serif;cursor:pointer;outline:none;transition:all 0.25s cubic-bezier(0.4,0,0.2,1);box-shadow:0 4px 14px -6px rgba(0,0,0,0.5),0 0 0 1px rgba(255,255,255,0.02) inset;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%2360a5fa' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");background-repeat:no-repeat;background-position:right 16px center;background-size:16px;}
+#ficheSelect:hover,#epreuveFicheSelector:hover,#cotationFicheSelector:hover{border-color:rgba(96,165,250,0.55);background:linear-gradient(135deg,rgba(37,50,72,0.98),rgba(20,30,52,0.98));transform:translateY(-1px);box-shadow:0 8px 22px -8px rgba(59,130,246,0.45),0 0 0 1px rgba(96,165,250,0.15) inset;}
+#ficheSelect:focus,#epreuveFicheSelector:focus,#cotationFicheSelector:focus{border-color:#3b82f6;box-shadow:0 0 0 4px rgba(59,130,246,0.18),0 8px 22px -8px rgba(59,130,246,0.6);}
+#ficheSelect option,#epreuveFicheSelector option,#cotationFicheSelector option{background:#0f172a;color:#e2e8f0;padding:10px;font-size:13px;}
+body.light-mode #ficheSelect,body.light-mode #epreuveFicheSelector,body.light-mode #cotationFicheSelector{background:linear-gradient(135deg,#d5d9e2,#c0c5ce) !important;border-color:rgba(26,54,93,0.35) !important;color:#0d1117 !important;box-shadow:0 4px 14px -6px rgba(0,0,0,0.2);}
+body.light-mode #ficheSelect:hover,body.light-mode #epreuveFicheSelector:hover,body.light-mode #cotationFicheSelector:hover{border-color:rgba(26,54,93,0.6) !important;background:linear-gradient(135deg,#e0e4ec,#cdd2da) !important;}
+body.light-mode #ficheSelect option,body.light-mode #epreuveFicheSelector option,body.light-mode #cotationFicheSelector option{background:#e8ecf2;color:#0d1117;}
+body.light-mode .fiche-selector label{color:#2d3748;}
 .modal-fullscreen{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);z-index:20000;display:flex;align-items:center;justify-content:center;visibility:hidden;opacity:0;transition:all 0.2s;}
 .modal-fullscreen.show{visibility:visible;opacity:1;}
 .modal-content{background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:32px;width:90%;max-width:95vw;padding:24px;border:1px solid rgba(59,130,246,0.3);max-height:90vh;overflow-y:auto;}
@@ -278,7 +285,7 @@ body.light-mode .floating-btn.logout{background:linear-gradient(135deg,rgba(220,
 </div>
 <div style="padding:28px 28px 8px 28px;">
 <label style="display:block;font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">Fiche active</label>
-<select id="cotationFicheSelector" style="width:100%;padding:16px 22px;border-radius:16px;background:linear-gradient(135deg,rgba(30,41,59,0.9),rgba(15,23,42,0.9));border:1px solid rgba(59,130,246,0.25);color:#fff;font-size:14px;font-weight:500;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 12px rgba(0,0,0,0.15);"></select>
+<select id="cotationFicheSelector"></select>
 </div>
 <div style="padding:24px 28px 8px 28px;">
 <label style="display:block;font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">Recherche & filtres</label>
@@ -404,7 +411,6 @@ async function getSchoolLogo(ecoleId) {
         }
         return null;
     } catch (error) {
-        console.error("Erreur chargement logo:", error);
         return null;
     }
 }
@@ -439,6 +445,18 @@ function toast(message, type = "success") {
     container.appendChild(el);
     requestAnimationFrame(() => { el.classList.add("show"); });
     setTimeout(() => { el.classList.remove("show"); setTimeout(() => { if (el.parentNode) el.remove(); }, 400); }, 3500);
+}
+
+function clearAllToasts() {
+    const container = document.getElementById("toastContainer");
+    if (!container) return;
+    const toasts = container.querySelectorAll('.toast-notification');
+    toasts.forEach((el, index) => {
+        setTimeout(() => {
+            el.classList.remove('show');
+            setTimeout(() => { if (el.parentNode) el.remove(); }, 300);
+        }, index * 80);
+    });
 }
 
 function escapeHtml(s) { if (!s) return ''; return s.replace(/[&<>]/g, function(m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]; }); }
@@ -1089,9 +1107,8 @@ async function loadAllFichesFromFirebaseTitu() {
             });
         }
         return fiches;
-    } catch (e) { 
-        console.error("Erreur chargement fiches titulaire:", e); 
-        return []; 
+    } catch (e) {
+        return [];
     }
 }
 
@@ -1158,7 +1175,6 @@ document.getElementById('exportTitulaireRelevePdfBtn')?.addEventListener('click'
                 };
                 reader.readAsDataURL(blob);
             } catch (e) {
-                console.error("Erreur chargement logo PDF:", e);
             }
         }
         pdf.setFillColor(255, 255, 255);
@@ -1272,6 +1288,7 @@ document.getElementById('exportTitulaireRelevePdfBtn')?.addEventListener('click'
             alternateRowStyles: { fillColor: [245, 245, 245] }
         });
         pdf.save('Extrait_Bulletin_' + window.nomEleveRechercheTitu.replace(/\s/g, '_') + '.pdf');
+        clearAllToasts();
         toast("✅ Extrait de bulletin exporté avec succès");
     } else toast("Aucun résultat à exporter", 'error');
 });
@@ -1289,10 +1306,9 @@ document.getElementById('reloadTitulaireFichesBtn')?.addEventListener('click', a
     try {
         await chargerFichesPourRechercheTitu();
         updateTitulaireStats();
-        toast(`✅ ${toutesFichesCompletTitu.length} fiche(s) chargée(s) depuis Firebase`, 'success');
+        toast(`✅ ${toutesFichesCompletTitu.length} fiche(s) chargée(s)`, 'success');
     } catch (error) {
-        console.error("Erreur rechargement:", error);
-        toast("❌ Erreur lors du rechargement", 'error');
+        toast("❌ Erreur de synchronisation", 'error');
     } finally {
         btn.classList.remove('loading');
         btn.innerHTML = '🔄 Recharger les fiches';
@@ -1314,7 +1330,7 @@ document.querySelectorAll('.main-nav-btn').forEach(btn => {
             arreterCycleCarteProf();
             try {
                 await chargerFichesPourRechercheTitu();
-            } catch (e) { console.error(e); }
+            } catch (e) { }
         }
     });
 });
@@ -1445,7 +1461,6 @@ document.getElementById('creerFicheBtn').addEventListener('click', async functio
         mettreAJourBoutons();
         toast(`✅ Fiche "${cours}" - ${classe} créée avec ${eleves.length} élève(s)`, 'success');
     } catch (error) {
-        console.error('❌ CRÉATION FICHE:', error);
         let msg = 'Erreur lors de la création';
         if (error.code === 'permission-denied') msg = "Permission refusée. Contactez l'administrateur.";
         else if (error.code === 'unavailable') msg = "Pas de connexion. Vérifiez votre réseau.";
@@ -1519,7 +1534,6 @@ document.getElementById('supprimerFicheBtn').addEventListener('click', function(
                 afficherCotation();
                 toast(`✅ Fiche "${ficheCours}" supprimée.`, 'success');
             } catch (error) {
-                console.error("Erreur suppression:", error);
                 toast("❌ Erreur lors de la suppression", 'error');
             } finally {
                 btn.disabled = false;
