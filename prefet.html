@@ -597,7 +597,6 @@ const SCHOOL_DISPLAY_NAME = schoolId.toUpperCase();
 document.getElementById('schoolName').textContent = SCHOOL_DISPLAY_NAME;
 
 const PREFET_EMAIL = "prefet.bwacha@gmail.com";
-const PREFET_PASSWORD = "022300";
 
 const SESSION_KEY = 'prefet_session_active';
 const SESSION_TIMEOUT = 1000 * 60 * 60 * 24;
@@ -715,29 +714,56 @@ if (sessionEstActive()) marquerSessionActive();
 }, { passive: true });
 });
 
-async function assurerComptePrefet() {
+async function assurerComptePrefet(pwdSaisi) {
+let codeSecretFirestore, emailFirestore;
 try {
+const ref = doc(db, "ecoles", SCHOOL_ID, "settings", "prefet_auth");
+const snap = await getDoc(ref);
+if (!snap.exists()) {
+throw new Error("Configuration Préfet introuvable");
+}
+const data = snap.data();
+codeSecretFirestore = data.codeSecret;
+emailFirestore = data.email || PREFET_EMAIL;
+if (!codeSecretFirestore) {
+throw new Error("Code secret non configuré dans Firestore");
+}
+} catch (e) {
+throw new Error("Impossible de vérifier le mot de passe : " + e.message);
+}
+
+if (pwdSaisi !== codeSecretFirestore) {
+throw new Error("Mot de passe incorrect");
+}
+
 try {
-await signInWithEmailAndPassword(auth, PREFET_EMAIL, PREFET_PASSWORD);
+await signInWithEmailAndPassword(auth, emailFirestore, pwdSaisi);
 return true;
 } catch (loginErr) {
-const needCreate = loginErr.code === "auth/user-not-found" || loginErr.code === "auth/invalid-credential" || loginErr.code === "auth/invalid-login-credentials";
+const needCreate =
+loginErr.code === "auth/user-not-found" ||
+loginErr.code === "auth/invalid-credential" ||
+loginErr.code === "auth/invalid-login-credentials";
+
 if (needCreate) {
 try {
-await createUserWithEmailAndPassword(auth, PREFET_EMAIL, PREFET_PASSWORD);
+await createUserWithEmailAndPassword(auth, emailFirestore, pwdSaisi);
 try {
-await setDoc(doc(db, "ecoles", SCHOOL_ID, "settings", "prefet_auth"), { email: PREFET_EMAIL, createdAt: new Date().toISOString(), role: "prefet" }, { merge: true });
+await setDoc(
+doc(db, "ecoles", SCHOOL_ID, "settings", "prefet_auth_meta"),
+{ email: emailFirestore, role: "prefet", initializedAt: new Date().toISOString() },
+{ merge: true }
+);
 } catch (e) {}
 return true;
 } catch (createErr) {
-if (createErr.code === "auth/email-already-in-use") return false;
-return false;
+if (createErr.code === "auth/email-already-in-use") {
+throw new Error("Compte existant mais mot de passe incorrect");
+}
+throw new Error("Erreur de création : " + createErr.message);
 }
 }
-return false;
-}
-} catch (err) {
-return false;
+throw new Error("Erreur de connexion Firebase : " + loginErr.message);
 }
 }
 
@@ -1814,22 +1840,14 @@ btn.innerHTML = '<span class="spinner"></span> CONNEXION...';
 err.innerHTML = '';
 
 try {
-const accountOk = await assurerComptePrefet();
-if (!accountOk) throw new Error("Impossible d'initialiser le compte Préfet");
-
-if (pwd !== PREFET_PASSWORD) {
-throw new Error("Mot de passe incorrect");
-}
-
+await assurerComptePrefet(pwd);
 marquerSessionActive();
 document.getElementById('loginScreen').style.display = 'none';
 document.getElementById('appContainer').style.display = 'block';
-
 await init();
-
 } catch (e) {
 console.error(e);
-err.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + (e.message || 'Mot de passe incorrect');
+err.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + (e.message || 'Erreur');
 btn.disabled = false;
 btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> SE CONNECTER';
 document.getElementById('pwdInput').value = '';
@@ -1888,9 +1906,13 @@ initTheme();
 const sessionOk = sessionEstActive();
 
 if (sessionOk) {
-const accountOk = await assurerComptePrefet();
+await new Promise(resolve => {
+if (auth.currentUser) return resolve();
+const unsub = auth.onAuthStateChanged(() => { unsub(); resolve(); });
+setTimeout(() => { unsub(); resolve(); }, 1200);
+});
 
-if (accountOk) {
+if (auth.currentUser) {
 document.getElementById('loginScreen').style.display = 'none';
 document.getElementById('appContainer').style.display = 'block';
 marquerSessionActive();
