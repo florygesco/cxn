@@ -387,22 +387,11 @@ if (['A','E','I','O','U','T'].includes(firstLetter)) prefix = 'COMPLEXE SCOLAIRE
 document.getElementById('schoolNameHeader').textContent = prefix + schoolNameDisplay;
 document.getElementById('schoolSubHeader').textContent = 'Etablissement : ' + ECOLET_ID;
 
-/* =========================================================
-   SÉLECTION AUTOMATIQUE DU CONTENU AU FOCUS
-   → Quand on clique dans une cellule de note, tout le contenu
-     (le "0") est sélectionné. Taper remplace directement.
-   ========================================================= */
 document.addEventListener('focusin', function(e) {
     if (e.target.matches('#cotationBody input[type="number"]')) {
         requestAnimationFrame(() => e.target.select());
     }
 });
-
-/* =========================================================
-   RETOUR À "0" SI LA CELLULE EST QUITTÉE VIDE
-   → Si on efface le 0 et qu'on clique ailleurs sans rien saisir,
-     le 0 revient automatiquement (cahier propre).
-   ========================================================= */
 document.addEventListener('focusout', function(e) {
     if (e.target.matches('#cotationBody input[type="number"]')) {
         if (e.target.value === '' || e.target.value === null || e.target.value === undefined) {
@@ -1123,13 +1112,6 @@ else maxInput.value = '0';
 document.getElementById('correctionTrimestreSelect').addEventListener('change', () => correctionUpdateEpreuveList());
 document.getElementById('correctionPeriodeSelect').addEventListener('change', () => correctionUpdateEpreuveList());
 
-/* =========================================================
-   AFFICHAGE DU TABLEAU DE COTATION
-   - ZÉRO affiché par défaut dans chaque cellule
-   - Au focus, tout est sélectionné → taper remplace le 0
-   - Si on efface, le 0 ne revient PAS pendant la saisie
-   - Si on quitte la cellule vide, le 0 revient (focusout)
-   ========================================================= */
 function afficherCotation() {
 let th = document.getElementById('cotationHeader');
 let tb = document.getElementById('cotationBody');
@@ -1263,8 +1245,7 @@ function mettreAJourMoyenneLigne(i) {
 const e = currentFiche?.eleves?.[i];
 if (!e) return;
 const pMax = getPeriodeMax();
-const nbTrim = 3;
-for (let t = 1; t <= nbTrim; t++) {
+for (let t = 1; t <= 3; t++) {
 const p = isMaternelle() ? t : (t - 1) * 2 + 1;
 const cell = document.getElementById(`moy-p${p}-${i}`);
 if (cell) {
@@ -1284,12 +1265,7 @@ cell2.className = getNoteClass(m2, pMax);
 }
 }
 
-/* =========================================================
-   verifPlafond : NE REMET PLUS 0 QUAND LE CHAMP EST VIDE
-   → c'était la cause du "0 qui revient"
-   ========================================================= */
 window.verifPlafond = function(input, maxVal) {
-    // Si l'utilisateur efface → on ne touche à rien, il peut continuer à effacer
     if (input.value === '' || input.value === null || input.value === undefined) return;
     let va = parseFloat(input.value);
     if (isNaN(va)) return;
@@ -1303,13 +1279,7 @@ window.verifPlafond = function(input, maxVal) {
     if (va < 0) input.value = 0;
 };
 
-/* =========================================================
-   HANDLERS DE SAISIE DE NOTES
-   - Acceptent le vide sans forcer 0
-   - Le 0 reviendra au focusout si la cellule est vide
-   ========================================================= */
 window.updNoteMater = function(i, t, ei, v, inputEl) {
-    // Champ vide → on stocke 0 en mémoire, l'input reste vide
     if (v === '' || v === null || v === undefined) {
         if (!currentFiche.eleves[i].notes) currentFiche.eleves[i].notes = { p1:[],p2:[],p3:[],p4:[],p5:[],p6:[],exam1:0,exam2:0,exam3:0 };
         if (!currentFiche.eleves[i].notes['p' + t]) currentFiche.eleves[i].notes['p' + t] = [];
@@ -1642,6 +1612,7 @@ try {
 const { jsPDF } = window.jspdf;
 const pdf = new jsPDF('landscape', 'mm', 'a4');
 const rn = currentFiche.numeroRef ? formatNumero(currentFiche.numeroRef) : '???';
+const mat = isMaternelle();
 pdf.setFillColor(255,255,255);
 pdf.rect(0, 0, 297, 210, 'F');
 pdf.setFont('helvetica', 'bold');
@@ -1661,10 +1632,15 @@ pdf.setFontSize(9);
 pdf.setTextColor(0,0,0);
 pdf.text("Année scolaire : 2026-2027", 14, 50);
 pdf.text("Référence : " + rn, 14, 57);
+// ✅ MODIFICATION : Libellés "Activité/Niveau" pour maternelle, "Cours/Classe" pour primaire
+if (mat) {
+pdf.text("Activité : " + (currentFiche.cours || ''), 14, 64);
+pdf.text("Niveau : " + (currentFiche.classe || ''), 14, 71);
+} else {
 pdf.text("Cours : " + (currentFiche.cours || ''), 14, 64);
 pdf.text("Classe : " + (currentFiche.classe || ''), 14, 71);
+}
 pdf.text("Enseignant : " + (currentEnseignant ? currentEnseignant.nom : ''), 14, 78);
-const mat = isMaternelle();
 const pMax = getPeriodeMax();
 const examMax = pMax * 2;
 let hd, bd;
@@ -1674,21 +1650,20 @@ const libellesT = ['1er TRIMESTRE','2ème TRIMESTRE','3ème TRIMESTRE'];
 for (let t = 1; t <= 3; t++) {
 hd[0].push(libellesT[t-1] + ' /' + fmtInt(pMax));
 }
-hd[0].push('MOYENNE /' + fmtInt(pMax));
+// ✅ MODIFICATION : TOTAL au lieu de MOYENNE
+hd[0].push('TOTAL /' + fmtInt(pMax * 3));
 bd = [];
 for (let i = 0; i < currentFiche.eleves.length; i++) {
 const e = currentFiche.eleves[i];
 const row = [(i+1).toString(), getNomComplet(e).toUpperCase(), e.sexe === 'F' ? 'F' : 'M'];
-let sommeMoy = 0;
-let nbTrim = 0;
+let totalCumul = 0;
 for (let t = 1; t <= 3; t++) {
 let moy = calcMoy(t, e.notes?.['p' + t] || []);
 row.push(fmtInt(moy));
-sommeMoy += moy;
-nbTrim++;
+totalCumul += moy;
 }
-let moyGen = nbTrim > 0 ? Math.round(sommeMoy / nbTrim) : 0;
-row.push(fmtInt(moyGen));
+// ✅ MODIFICATION : Somme au lieu de moyenne
+row.push(fmtInt(totalCumul));
 bd.push(row);
 }
 } else {
@@ -1742,7 +1717,8 @@ maxRow.push(fmtInt(pMax * 6 + examMax * 3));
 for (let t = 1; t <= 3; t++) {
 maxRow.push(fmtInt(pMax));
 }
-maxRow.push(fmtInt(pMax));
+// ✅ MODIFICATION : MAX TOTAL = pMax × 3
+maxRow.push(fmtInt(pMax * 3));
 }
 allData.push(maxRow);
 bd.forEach(row => allData.push(row));
