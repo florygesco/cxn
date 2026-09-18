@@ -53,7 +53,8 @@ body{overscroll-behavior:none;}
 .student-table{width:100%;border-collapse:collapse;font-size:12px;min-width:900px;}
 .student-table th{background:#0f172a;padding:12px 6px;border-bottom:2px solid #334155;font-size:11px;color:#fff;white-space:nowrap;}
 .student-table td{border-bottom:1px solid #334155;padding:8px 4px;color:#e2e8f0;text-align:center;}
-.student-table input{width:55px;padding:6px;border-radius:8px;background:#2d3748;border:1px solid #334155;color:#fff;text-align:center;}
+.student-table input{width:55px;padding:6px;border-radius:8px;background:#2d3748;border:1px solid #334155;color:#fff;text-align:center;font-size:13px;font-weight:600;caret-color:#60a5fa;cursor:text;}
+.student-table input:focus{outline:none;border-color:#60a5fa;background:#1e293b;box-shadow:0 0 0 2px rgba(96,165,250,0.35);}
 .student-table input.note-insuffisant{color:#ef4444;}
 .student-table input.note-moyen{color:#f59e0b;}
 .student-table input.note-bien,.student-table input.note-excellent{color:#22c55e;}
@@ -385,6 +386,32 @@ const firstLetter = schoolNameDisplay.charAt(0).toUpperCase();
 if (['A','E','I','O','U','T'].includes(firstLetter)) prefix = 'COMPLEXE SCOLAIRE LE ';
 document.getElementById('schoolNameHeader').textContent = prefix + schoolNameDisplay;
 document.getElementById('schoolSubHeader').textContent = 'Etablissement : ' + ECOLET_ID;
+
+/* =========================================================
+   SÉLECTION AUTOMATIQUE DU CONTENU AU FOCUS
+   → Quand on clique dans une cellule de note, tout le contenu
+     (le "0") est sélectionné. Taper remplace directement.
+   ========================================================= */
+document.addEventListener('focusin', function(e) {
+    if (e.target.matches('#cotationBody input[type="number"]')) {
+        requestAnimationFrame(() => e.target.select());
+    }
+});
+
+/* =========================================================
+   RETOUR À "0" SI LA CELLULE EST QUITTÉE VIDE
+   → Si on efface le 0 et qu'on clique ailleurs sans rien saisir,
+     le 0 revient automatiquement (cahier propre).
+   ========================================================= */
+document.addEventListener('focusout', function(e) {
+    if (e.target.matches('#cotationBody input[type="number"]')) {
+        if (e.target.value === '' || e.target.value === null || e.target.value === undefined) {
+            e.target.value = '0';
+            e.target.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
+});
+
 let currentEnseignant = null;
 let currentFicheId = null;
 let currentFiche = null;
@@ -397,7 +424,7 @@ let correctionFiche = null;
 let correctionFicheId = null;
 let toastQueue = [];
 let isToastProcessing = false;
-let saveTimer = null; // ⏱️ debounce sauvegarde
+let saveTimer = null;
 
 const classesPrimaire = ["1ere A","1ere B","2eme A","2eme B","3eme A","3eme B","4eme A","4eme B","5eme A","5eme B","6eme A","6eme B"];
 const classesMaternelle = ["Niveau 1","Niveau 2","Niveau 3"];
@@ -518,7 +545,6 @@ if (ratio >= 0.7) return 'note-bien';
 if (ratio >= 0.5) return 'note-moyen';
 return 'note-insuffisant';
 }
-// ⏱️ Sauvegarde debouncée : évite d'écraser à chaque frappe
 function saveCurrentFicheDebounced() {
 if (!currentEnseignant || !currentFicheId || !currentFiche) return;
 if (saveTimer) clearTimeout(saveTimer);
@@ -1099,8 +1125,10 @@ document.getElementById('correctionPeriodeSelect').addEventListener('change', ()
 
 /* =========================================================
    AFFICHAGE DU TABLEAU DE COTATION
-   Les inputs n'ont PLUS de onchange qui rebuild le tableau.
-   On met à jour la moyenne de la ligne en direct.
+   - ZÉRO affiché par défaut dans chaque cellule
+   - Au focus, tout est sélectionné → taper remplace le 0
+   - Si on efface, le 0 ne revient PAS pendant la saisie
+   - Si on quitte la cellule vide, le 0 revient (focusout)
    ========================================================= */
 function afficherCotation() {
 let th = document.getElementById('cotationHeader');
@@ -1231,22 +1259,19 @@ tb.innerHTML += r;
 }
 }
 
-// ✅ Met à jour uniquement les cellules de moyenne d'une ligne (sans rebuild)
 function mettreAJourMoyenneLigne(i) {
 const e = currentFiche?.eleves?.[i];
 if (!e) return;
 const pMax = getPeriodeMax();
-const nbTrim = isMaternelle() ? 3 : 3;
+const nbTrim = 3;
 for (let t = 1; t <= nbTrim; t++) {
 const p = isMaternelle() ? t : (t - 1) * 2 + 1;
-// Période principale
 const cell = document.getElementById(`moy-p${p}-${i}`);
 if (cell) {
 const m = calcMoy(p, e.notes?.['p' + p] || []);
 cell.textContent = m;
 cell.className = getNoteClass(m, pMax);
 }
-// Deuxième période du trimestre (primaire uniquement)
 if (!isMaternelle()) {
 const p2 = (t - 1) * 2 + 2;
 const cell2 = document.getElementById(`moy-p${p2}-${i}`);
@@ -1259,71 +1284,101 @@ cell2.className = getNoteClass(m2, pMax);
 }
 }
 
+/* =========================================================
+   verifPlafond : NE REMET PLUS 0 QUAND LE CHAMP EST VIDE
+   → c'était la cause du "0 qui revient"
+   ========================================================= */
 window.verifPlafond = function(input, maxVal) {
-let va = parseInt(input.value);
-if (isNaN(va)) { input.value = 0; return; }
-if (va > maxVal) {
-input.value = Math.round(maxVal);
-input.style.borderColor = '#ef4444';
-input.style.backgroundColor = 'rgba(239,68,68,0.15)';
-setTimeout(() => { input.style.borderColor = ''; input.style.backgroundColor = ''; }, 800);
-toast(`⚠️ Note maximale autorisée : ${Math.round(maxVal)}`, 'warning');
-}
-if (va < 0) {
-input.value = 0;
-toast(`⚠️ Note minimale : 0`, 'warning');
-}
+    // Si l'utilisateur efface → on ne touche à rien, il peut continuer à effacer
+    if (input.value === '' || input.value === null || input.value === undefined) return;
+    let va = parseFloat(input.value);
+    if (isNaN(va)) return;
+    if (va > maxVal) {
+        input.value = Math.round(maxVal);
+        input.style.borderColor = '#ef4444';
+        input.style.backgroundColor = 'rgba(239,68,68,0.15)';
+        setTimeout(() => { input.style.borderColor = ''; input.style.backgroundColor = ''; }, 800);
+        toast(`⚠️ Note maximale autorisée : ${Math.round(maxVal)}`, 'warning');
+    }
+    if (va < 0) input.value = 0;
 };
 
-// ✅ HANDLER MATERNELLE — ne rebuild plus le tableau
+/* =========================================================
+   HANDLERS DE SAISIE DE NOTES
+   - Acceptent le vide sans forcer 0
+   - Le 0 reviendra au focusout si la cellule est vide
+   ========================================================= */
 window.updNoteMater = function(i, t, ei, v, inputEl) {
-let va = parseInt(v) || 0;
-let eps = currentFiche.epreuvesParPeriode?.[t] || [];
-let me = eps[ei]?.max || 4;
-if (va > me) { va = Math.round(me); toast(`⚠️ Note maximale : ${me}`, 'warning'); if (inputEl) inputEl.value = va; }
-if (va < 0) { va = 0; if (inputEl) inputEl.value = va; }
-if (!currentFiche.eleves[i].notes) currentFiche.eleves[i].notes = { p1:[],p2:[],p3:[],p4:[],p5:[],p6:[],exam1:0,exam2:0,exam3:0 };
-if (!currentFiche.eleves[i].notes['p' + t]) currentFiche.eleves[i].notes['p' + t] = [];
-currentFiche.eleves[i].notes['p' + t][ei] = va;
-if (inputEl) inputEl.className = getNoteClass(va, me);
-saveCurrentFicheDebounced();
-mettreAJourMoyenneLigne(i);
+    // Champ vide → on stocke 0 en mémoire, l'input reste vide
+    if (v === '' || v === null || v === undefined) {
+        if (!currentFiche.eleves[i].notes) currentFiche.eleves[i].notes = { p1:[],p2:[],p3:[],p4:[],p5:[],p6:[],exam1:0,exam2:0,exam3:0 };
+        if (!currentFiche.eleves[i].notes['p' + t]) currentFiche.eleves[i].notes['p' + t] = [];
+        currentFiche.eleves[i].notes['p' + t][ei] = 0;
+        if (inputEl) inputEl.className = '';
+        saveCurrentFicheDebounced();
+        mettreAJourMoyenneLigne(i);
+        return;
+    }
+    let va = parseInt(v) || 0;
+    let eps = currentFiche.epreuvesParPeriode?.[t] || [];
+    let me = eps[ei]?.max || 4;
+    if (va > me) { va = Math.round(me); if (inputEl) inputEl.value = va; toast(`⚠️ Note maximale : ${me}`, 'warning'); }
+    if (va < 0) { va = 0; if (inputEl) inputEl.value = va; }
+    if (!currentFiche.eleves[i].notes) currentFiche.eleves[i].notes = { p1:[],p2:[],p3:[],p4:[],p5:[],p6:[],exam1:0,exam2:0,exam3:0 };
+    if (!currentFiche.eleves[i].notes['p' + t]) currentFiche.eleves[i].notes['p' + t] = [];
+    currentFiche.eleves[i].notes['p' + t][ei] = va;
+    if (inputEl) inputEl.className = getNoteClass(va, me);
+    saveCurrentFicheDebounced();
+    mettreAJourMoyenneLigne(i);
 };
 
-// ✅ HANDLER PRIMAIRE — ne rebuild plus le tableau
 window.updNotePrimaire = function(i, p, ei, v, inputEl) {
-let va = parseInt(v) || 0;
-let eps = currentFiche.epreuvesParPeriode?.[p] || [];
-let me = eps[ei]?.max || 20;
-if (va > me) { va = Math.round(me); toast(`⚠️ Note maximale : ${me}`, 'warning'); if (inputEl) inputEl.value = va; }
-if (va < 0) { va = 0; if (inputEl) inputEl.value = va; }
-if (!currentFiche.eleves[i].notes) {
-currentFiche.eleves[i].notes = { p1:[],p2:[],p3:[],p4:[],p5:[],p6:[],exam1:0,exam2:0,exam3:0 };
-}
-if (!currentFiche.eleves[i].notes['p' + p]) {
-currentFiche.eleves[i].notes['p' + p] = [];
-}
-currentFiche.eleves[i].notes['p' + p][ei] = va;
-if (inputEl) inputEl.className = getNoteClass(va, me);
-saveCurrentFicheDebounced();
-mettreAJourMoyenneLigne(i);
+    if (v === '' || v === null || v === undefined) {
+        if (!currentFiche.eleves[i].notes) currentFiche.eleves[i].notes = { p1:[],p2:[],p3:[],p4:[],p5:[],p6:[],exam1:0,exam2:0,exam3:0 };
+        if (!currentFiche.eleves[i].notes['p' + p]) currentFiche.eleves[i].notes['p' + p] = [];
+        currentFiche.eleves[i].notes['p' + p][ei] = 0;
+        if (inputEl) inputEl.className = '';
+        saveCurrentFicheDebounced();
+        mettreAJourMoyenneLigne(i);
+        return;
+    }
+    let va = parseInt(v) || 0;
+    let eps = currentFiche.epreuvesParPeriode?.[p] || [];
+    let me = eps[ei]?.max || 20;
+    if (va > me) { va = Math.round(me); if (inputEl) inputEl.value = va; toast(`⚠️ Note maximale : ${me}`, 'warning'); }
+    if (va < 0) { va = 0; if (inputEl) inputEl.value = va; }
+    if (!currentFiche.eleves[i].notes) {
+        currentFiche.eleves[i].notes = { p1:[],p2:[],p3:[],p4:[],p5:[],p6:[],exam1:0,exam2:0,exam3:0 };
+    }
+    if (!currentFiche.eleves[i].notes['p' + p]) {
+        currentFiche.eleves[i].notes['p' + p] = [];
+    }
+    currentFiche.eleves[i].notes['p' + p][ei] = va;
+    if (inputEl) inputEl.className = getNoteClass(va, me);
+    saveCurrentFicheDebounced();
+    mettreAJourMoyenneLigne(i);
 };
 
-// ✅ HANDLER EXAMEN — ne rebuild plus le tableau
 window.updExam = function(i, t, v, inputEl) {
-let va = parseInt(v) || 0;
-let me = getExamMax(t);
-if (va > me) { va = Math.round(me); toast(`⚠️ Note maximale : ${me}`, 'warning'); if (inputEl) inputEl.value = va; }
-if (va < 0) { va = 0; if (inputEl) inputEl.value = va; }
-if (!currentFiche.eleves[i].notes) currentFiche.eleves[i].notes = { p1:[],p2:[],p3:[],p4:[],p5:[],p6:[],exam1:0,exam2:0,exam3:0 };
-currentFiche.eleves[i].notes['exam' + t] = va;
-if (inputEl) inputEl.className = getNoteClass(va, me);
-saveCurrentFicheDebounced();
+    if (v === '' || v === null || v === undefined) {
+        if (!currentFiche.eleves[i].notes) currentFiche.eleves[i].notes = { p1:[],p2:[],p3:[],p4:[],p5:[],p6:[],exam1:0,exam2:0,exam3:0 };
+        currentFiche.eleves[i].notes['exam' + t] = 0;
+        if (inputEl) inputEl.className = '';
+        saveCurrentFicheDebounced();
+        return;
+    }
+    let va = parseInt(v) || 0;
+    let me = getExamMax(t);
+    if (va > me) { va = Math.round(me); if (inputEl) inputEl.value = va; toast(`⚠️ Note maximale : ${me}`, 'warning'); }
+    if (va < 0) { va = 0; if (inputEl) inputEl.value = va; }
+    if (!currentFiche.eleves[i].notes) currentFiche.eleves[i].notes = { p1:[],p2:[],p3:[],p4:[],p5:[],p6:[],exam1:0,exam2:0,exam3:0 };
+    currentFiche.eleves[i].notes['exam' + t] = va;
+    if (inputEl) inputEl.className = getNoteClass(va, me);
+    saveCurrentFicheDebounced();
 };
 
 document.getElementById('saveCotationBtn')?.addEventListener('click', async function() {
 if (!currentFiche) { toast("Aucun cahier sélectionné", 'error'); return; }
-// Forcer la sauvegarde immédiate (annule le debounce en attente)
 if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
 const ok = await saveCurrentFiche();
 if (ok) toast('💾 Cahier enregistré', 'success');
