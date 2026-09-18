@@ -589,7 +589,7 @@ const schoolId = urlParams.get('ecole') || urlParams.get('school');
 
 if (!schoolId) {
 document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#fff;font-family:sans-serif;">École manquante dans l\'URL.</div>';
-throw new Error("École manquante");
+throw new Error("missing");
 }
 
 const SCHOOL_ID = schoolId.replace(/[^a-zA-Z0-9]/g, '_');
@@ -597,6 +597,7 @@ const SCHOOL_DISPLAY_NAME = schoolId.toUpperCase();
 document.getElementById('schoolName').textContent = SCHOOL_DISPLAY_NAME;
 
 const PREFET_EMAIL = "prefet.bwacha@gmail.com";
+const DEFAULT_PREFET_PASSWORD = "022300";
 
 const SESSION_KEY = 'prefet_session_active';
 const SESSION_TIMEOUT = 1000 * 60 * 60 * 24;
@@ -715,21 +716,26 @@ if (sessionEstActive()) marquerSessionActive();
 });
 
 async function assurerComptePrefet(pwdSaisi) {
-let codeSecretFirestore, emailFirestore;
-try {
 const ref = doc(db, "ecoles", SCHOOL_ID, "settings", "prefet_auth");
+let codeSecretFirestore, emailFirestore;
+
+try {
 const snap = await getDoc(ref);
-if (!snap.exists()) {
-throw new Error("Configuration Préfet introuvable");
-}
+if (snap.exists()) {
 const data = snap.data();
 codeSecretFirestore = data.codeSecret;
 emailFirestore = data.email || PREFET_EMAIL;
-if (!codeSecretFirestore) {
-throw new Error("Code secret non configuré dans Firestore");
+} else {
+codeSecretFirestore = DEFAULT_PREFET_PASSWORD;
+emailFirestore = PREFET_EMAIL;
+await setDoc(ref, {
+codeSecret: DEFAULT_PREFET_PASSWORD,
+email: emailFirestore,
+createdAt: new Date().toISOString()
+}, { merge: true });
 }
 } catch (e) {
-throw new Error("Impossible de vérifier le mot de passe : " + e.message);
+throw new Error("Service indisponible. Réessayez plus tard.");
 }
 
 if (pwdSaisi !== codeSecretFirestore) {
@@ -740,12 +746,12 @@ try {
 await signInWithEmailAndPassword(auth, emailFirestore, pwdSaisi);
 return true;
 } catch (loginErr) {
-const needCreate =
+const besoinCreation =
 loginErr.code === "auth/user-not-found" ||
 loginErr.code === "auth/invalid-credential" ||
 loginErr.code === "auth/invalid-login-credentials";
 
-if (needCreate) {
+if (besoinCreation) {
 try {
 await createUserWithEmailAndPassword(auth, emailFirestore, pwdSaisi);
 try {
@@ -758,12 +764,21 @@ doc(db, "ecoles", SCHOOL_ID, "settings", "prefet_auth_meta"),
 return true;
 } catch (createErr) {
 if (createErr.code === "auth/email-already-in-use") {
-throw new Error("Compte existant mais mot de passe incorrect");
+throw new Error("Mot de passe incorrect");
 }
-throw new Error("Erreur de création : " + createErr.message);
+if (createErr.code === "auth/weak-password") {
+throw new Error("Mot de passe trop court");
+}
+throw new Error("Service indisponible. Réessayez plus tard.");
 }
 }
-throw new Error("Erreur de connexion Firebase : " + loginErr.message);
+if (loginErr.code === "auth/network-request-failed") {
+throw new Error("Connexion au réseau impossible");
+}
+if (loginErr.code === "auth/too-many-requests") {
+throw new Error("Trop de tentatives. Patientez quelques minutes.");
+}
+throw new Error("Service indisponible. Réessayez plus tard.");
 }
 }
 
@@ -806,7 +821,7 @@ eleves.push(mapEleve(d, ds.id));
 eleves.sort((a, b) => (a.nom||'').localeCompare(b.nom||''));
 allStudents = eleves;
 return eleves;
-} catch (e) { console.error(e); return []; }
+} catch (e) { return []; }
 }
 
 async function chargerProfs() {
@@ -822,7 +837,7 @@ profs.push({ id: ds.id, nom: d.nom || '', sexe: d.sexe || 'M', presences: d.pres
 profs.sort((a, b) => (a.nom||'').localeCompare(b.nom||''));
 allProfs = profs;
 return profs;
-} catch (e) { console.error(e); return []; }
+} catch (e) { return []; }
 }
 
 async function chargerPaiementsPrefet() {
@@ -833,7 +848,7 @@ snap.forEach(ds => paiements.push({ id: ds.id, ...ds.data() }));
 paiements.sort((a, b) => new Date(b.datePaiement) - new Date(a.datePaiement));
 prefetPaiements = paiements;
 return paiements;
-} catch (e) { console.error(e); return []; }
+} catch (e) { return []; }
 }
 
 function ecouterPaiements() {
@@ -847,7 +862,7 @@ renderEleves();
 renderPayEleves();
 renderStats();
 updateRecouvrementPreview();
-});
+}, () => {});
 }
 
 function ecouterEleves() {
@@ -865,7 +880,7 @@ renderEleves();
 renderPayEleves();
 renderStats();
 updateRecouvrementPreview();
-});
+}, () => {});
 }
 
 function ecouterProfs() {
@@ -881,10 +896,10 @@ profs.push({ id: ds.id, nom: d.nom || '', sexe: d.sexe || 'M', presences: d.pres
 profs.sort((a, b) => (a.nom||'').localeCompare(b.nom||''));
 allProfs = profs;
 renderPresences();
-});
+}, () => {});
 }
 
-function calculerStatutPrefet(eleve, typeFrais, mois) {
+function calculerStatutPrefet(eleve, typeFrais) {
 let du = 0;
 
 if (typeFrais === 'exetat') {
@@ -951,7 +966,7 @@ const tousTypes = getTousTypes();
 tbody.innerHTML = list.map((e, i) => {
 let totalDu = 0, totalPaye = 0;
 tousTypes.forEach(t => {
-const s = calculerStatutPrefet(e, t, null);
+const s = calculerStatutPrefet(e, t);
 totalDu += s.du; totalPaye += s.paye;
 });
 let st;
@@ -1058,7 +1073,7 @@ const tousTypes = getTousTypes();
 let html = '';
 
 tousTypes.forEach(t => {
-const s = calculerStatutPrefet(eleve, t, null);
+const s = calculerStatutPrefet(eleve, t);
 const label = LABELS_TYPES[t] || t;
 let icone = '⭕';
 let suffix = '';
@@ -1102,7 +1117,7 @@ montantInput.max = 0;
 return;
 }
 
-const s = calculerStatutPrefet(eleve, typeFrais, null);
+const s = calculerStatutPrefet(eleve, typeFrais);
 const label = LABELS_TYPES[typeFrais] || typeFrais;
 
 let statut = '';
@@ -1190,7 +1205,7 @@ const label = (document.getElementById('payAutreLabel').value || '').trim();
 if (!label) { toast("Veuillez préciser le type de frais", "error"); return; }
 typeFrais = label;
 } else {
-const s = calculerStatutPrefet(currentStudent, typeFrais, null);
+const s = calculerStatutPrefet(currentStudent, typeFrais);
 if (s.du > 0 && s.reste <= 0) {
 toast("Ce type de frais est déjà entièrement payé", "warning");
 return;
@@ -1212,7 +1227,7 @@ toast("✅ Paiement enregistré — Réf. " + reference);
 document.getElementById('modalPaiement').classList.remove('show');
 currentStudent = null;
 } catch (e) {
-toast("Erreur : " + e.message, "error");
+toast("Enregistrement impossible. Réessayez.", "error");
 }
 };
 
@@ -1330,7 +1345,7 @@ typesFraisCustom = {};
 afficherTypesCustom();
 }
 } catch (e) {
-toast("Erreur chargement config", "error");
+toast("Chargement impossible", "error");
 }
 }
 
@@ -1518,7 +1533,7 @@ nouveau: { frais: { exetat, deletat, technique, custom: typesFraisCustom } }
 toast("✅ Configuration enregistrée");
 chargerConfigFrais();
 } catch (e) {
-toast("Erreur : " + e.message, "error");
+toast("Enregistrement impossible. Réessayez.", "error");
 }
 };
 
@@ -1568,20 +1583,20 @@ const tousTypes = getTousTypes();
 let list = getElevesFiltresRec();
 
 if (typeFrais === 'tous') {
-list = list.filter(e => tousTypes.some(t => matchStatutRec(calculerStatutPrefet(e, t, null), statut)));
+list = list.filter(e => tousTypes.some(t => matchStatutRec(calculerStatutPrefet(e, t), statut)));
 } else {
-list = list.filter(e => matchStatutRec(calculerStatutPrefet(e, typeFrais, null), statut));
+list = list.filter(e => matchStatutRec(calculerStatutPrefet(e, typeFrais), statut));
 }
 
 let totalPaye = 0, totalReste = 0;
 list.forEach(e => {
 if (typeFrais === 'tous') {
 tousTypes.forEach(t => {
-const s = calculerStatutPrefet(e, t, null);
+const s = calculerStatutPrefet(e, t);
 totalPaye += s.paye; totalReste += s.reste;
 });
 } else {
-const s = calculerStatutPrefet(e, typeFrais, null);
+const s = calculerStatutPrefet(e, typeFrais);
 totalPaye += s.paye; totalReste += s.reste;
 }
 });
@@ -1616,7 +1631,7 @@ typeFrais = label;
 const tousTypes = getTousTypes();
 let list = getElevesFiltresRec();
 if (typeFrais !== 'tous') {
-list = list.filter(e => matchStatutRec(calculerStatutPrefet(e, typeFrais, null), statut));
+list = list.filter(e => matchStatutRec(calculerStatutPrefet(e, typeFrais), statut));
 }
 
 if (list.length === 0) {
@@ -1681,11 +1696,11 @@ const body = list.map((e, i) => {
 let du = 0, paye = 0;
 if (typeFrais === 'tous') {
 tousTypes.forEach(t => {
-const s = calculerStatutPrefet(e, t, null);
+const s = calculerStatutPrefet(e, t);
 du += s.du; paye += s.paye;
 });
 } else {
-const s = calculerStatutPrefet(e, typeFrais, null);
+const s = calculerStatutPrefet(e, typeFrais);
 du = s.du; paye = s.paye;
 }
 const reste = Math.max(0, du - paye);
@@ -1737,11 +1752,11 @@ let totalDu = 0, totalPaye = 0, totalReste = 0;
 list.forEach(e => {
 if (typeFrais === 'tous') {
 tousTypes.forEach(t => {
-const s = calculerStatutPrefet(e, t, null);
+const s = calculerStatutPrefet(e, t);
 totalDu += s.du; totalPaye += s.paye; totalReste += s.reste;
 });
 } else {
-const s = calculerStatutPrefet(e, typeFrais, null);
+const s = calculerStatutPrefet(e, typeFrais);
 totalDu += s.du; totalPaye += s.paye; totalReste += s.reste;
 }
 });
@@ -1846,8 +1861,7 @@ document.getElementById('loginScreen').style.display = 'none';
 document.getElementById('appContainer').style.display = 'block';
 await init();
 } catch (e) {
-console.error(e);
-err.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + (e.message || 'Erreur');
+err.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + (e.message || 'Connexion impossible');
 btn.disabled = false;
 btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> SE CONNECTER';
 document.getElementById('pwdInput').value = '';
