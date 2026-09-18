@@ -111,16 +111,6 @@ body{overscroll-behavior:none;}
 .accordion-header.open .accordion-icon{transform:rotate(180deg);}
 .accordion-body{max-height:0;overflow:hidden;transition:max-height 0.35s ease;background:rgba(18,25,45,0.6);border-radius:16px;border:1px solid rgba(59,130,246,0.15);}
 .accordion-body.open{max-height:900px;}
-.cahier-list-item{background:linear-gradient(135deg,rgba(30,41,59,0.9),rgba(15,23,42,0.9));border-radius:14px;padding:14px 18px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid rgba(59,130,246,0.15);transition:all 0.2s;flex-wrap:wrap;}
-.cahier-list-item:hover{border-color:rgba(96,165,250,0.5);transform:translateX(3px);}
-.cahier-info{flex:1;min-width:180px;}
-.cahier-titre{color:#e2e8f0;font-weight:600;font-size:14px;margin-bottom:4px;}
-.cahier-meta{color:#94a3b8;font-size:11px;}
-.cahier-actions{display:flex;gap:8px;}
-.cahier-actions button{background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.3);color:#60a5fa;padding:6px 12px;border-radius:20px;font-size:14px;cursor:pointer;transition:all 0.2s;}
-.cahier-actions button:hover{background:rgba(96,165,250,0.25);}
-.cahier-actions button.delete{color:#ef4444;border-color:rgba(239,68,68,0.3);background:rgba(239,68,68,0.05);}
-.cahier-actions button.delete:hover{background:rgba(239,68,68,0.2);}
 .login-overlay-mix{position:fixed;top:0;left:0;right:0;bottom:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 15% 20%,rgba(245,158,11,0.15) 0%,transparent 40%),radial-gradient(circle at 85% 80%,rgba(16,185,129,0.15) 0%,transparent 40%),radial-gradient(circle at 50% 50%,#1e3a5f 0%,#0a0e1a 60%,#000 100%);overflow:hidden;padding:12px;}
 .login-overlay-mix::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background-image:radial-gradient(2px 2px at 20px 30px,rgba(255,255,255,0.25),transparent),radial-gradient(2px 2px at 40px 70px,rgba(245,158,11,0.3),transparent),radial-gradient(1px 1px at 90px 40px,rgba(16,185,129,0.35),transparent),radial-gradient(1px 1px at 130px 80px,rgba(255,255,255,0.2),transparent),radial-gradient(2px 2px at 160px 120px,rgba(52,211,153,0.25),transparent),radial-gradient(2px 2px at 200px 180px,rgba(251,191,36,0.25),transparent);background-size:250px 250px;background-repeat:repeat;opacity:0.6;pointer-events:none;animation:starTwinkle 6s ease-in-out infinite;}
 @keyframes starTwinkle{0%,100%{opacity:0.4;}50%{opacity:0.8;}}
@@ -164,9 +154,6 @@ body.light-mode .toast-notification{background:rgba(245,247,250,0.95) !important
 body.light-mode .toast-title,body.light-mode .toast-message{color:#000 !important;}
 body.light-mode .tab{color:#334155;}
 body.light-mode .tab.active{background:#1a365d;color:#fff;}
-body.light-mode .cahier-list-item{background:rgba(200,204,212,0.9);border-color:rgba(0,0,0,0.1);}
-body.light-mode .cahier-titre{color:#000;}
-body.light-mode .cahier-meta{color:#333;}
 body.light-mode .accordion-header{background:linear-gradient(135deg,#1a365d,#0f2440);}
 body.light-mode .resume-band{background:linear-gradient(135deg,rgba(26,54,93,0.15),rgba(15,36,64,0.15));}
 body.light-mode .resume-value{color:#1a365d;}
@@ -250,7 +237,7 @@ body.light-mode.cycle-primaire .school-header{background:linear-gradient(135deg,
 <h3>CONFIGURATION</h3>
 <div class="note-max-row">
 <label id="labelNoteMax">Note max / période :</label>
-<input type="number" id="p1MaxConfig" value="20" step="1">
+<input type="number" id="p1MaxConfig" value="20" step="1" min="1">
 </div>
 <div class="btn-group" id="btnGroupContainer">
 <button class="btn btn-success" id="creerFicheBtn">✅ CRÉER LE CAHIER</button>
@@ -260,10 +247,6 @@ body.light-mode.cycle-primaire .school-header{background:linear-gradient(135deg,
 </div>
 </div>
 </div>
-</div>
-<div style="padding:0 20px 20px 20px;">
-<h3 style="color:#60a5fa;margin-bottom:12px;font-size:14px;" id="mesCahiersTitle">📚 MES CAHIERS</h3>
-<div id="cahiersListContainer"></div>
 </div>
 <div style="padding:0 20px 20px 20px;border-top:1px solid #334155;margin-top:10px;padding-top:20px;">
 <h3 style="color:#60a5fa;margin-bottom:15px;font-size:14px;" id="elevesTitle">👥 ÉLÈVES DU CAHIER ACTIF</h3>
@@ -463,6 +446,12 @@ const prenom = eleve.prenom || '';
 if (!nom && !postnom && !prenom) return 'Élève';
 return [nom, postnom, prenom].filter(p => p.trim() !== '').join(' ');
 }
+function fmtInt(v) {
+if (v === null || v === undefined || v === '') return '0';
+const n = Number(v);
+if (isNaN(n)) return '0';
+return String(Math.round(n));
+}
 function showStyledConfirm(title, message, onConfirm, onCancel) {
 let d = document.createElement('div');
 d.className = 'modal-fullscreen';
@@ -485,7 +474,7 @@ modal.classList.add('show');
 setTimeout(() => document.getElementById('modalEpreuveNom').focus(), 100);
 const valider = () => {
 const nom = document.getElementById('modalEpreuveNom').value.trim();
-const max = parseFloat(document.getElementById('modalEpreuveMax').value) || 1;
+const max = parseInt(document.getElementById('modalEpreuveMax').value) || 1;
 if (!nom) { toast("Nom requis", 'error'); return; }
 if (max < 1) { toast("Note max invalide", 'error'); return; }
 modal.classList.remove('show');
@@ -561,7 +550,6 @@ if (toutesFiches.length) await selectFiche(toutesFiches[0].id);
 await refreshSelectors();
 await getAllEleves();
 mettreAJourBandeauResume();
-afficherListeCahiers();
 initTheme();
 toast("Bienvenue " + currentEnseignant.nom, 'success');
 return true;
@@ -614,7 +602,6 @@ document.getElementById('cardHeaderProfTitle').textContent = 'GESTION DES CAHIER
 document.getElementById('resumeCahiersLabel').textContent = 'Cahiers';
 document.getElementById('ficheSelectorLabel').textContent = 'Cahier actif :';
 document.getElementById('accordionNewTitle').textContent = '➕ NOUVEAU CAHIER';
-document.getElementById('mesCahiersTitle').textContent = '📚 MES CAHIERS';
 document.getElementById('elevesTitle').textContent = '👥 ÉLÈVES DU CAHIER ACTIF';
 document.getElementById('cotationHeaderTitle').textContent = '📋 CAHIERS DE COTATION';
 document.getElementById('cotationSelectorLabel').textContent = 'Cahier actif';
@@ -644,7 +631,6 @@ document.getElementById('cardHeaderProfTitle').textContent = 'GESTION DES ACTIVI
 document.getElementById('resumeCahiersLabel').textContent = 'Activités';
 document.getElementById('ficheSelectorLabel').textContent = 'Activité active :';
 document.getElementById('accordionNewTitle').textContent = '➕ NOUVELLE ACTIVITÉ';
-document.getElementById('mesCahiersTitle').textContent = '📚 MES ACTIVITÉS';
 document.getElementById('elevesTitle').textContent = '👥 ÉLÈVES DE L\'ACTIVITÉ ACTIVE';
 document.getElementById('cotationHeaderTitle').textContent = '📋 ACTIVITÉS DE COTATION';
 document.getElementById('cotationSelectorLabel').textContent = 'Activité active';
@@ -781,7 +767,6 @@ else selectFiche(this.value);
 };
 }
 mettreAJourBandeauResume();
-afficherListeCahiers();
 } finally {
 setTimeout(() => { isUpdatingSelectors = false; }, 50);
 }
@@ -894,47 +879,6 @@ if (currentFiche?.eleves) totalEleves = currentFiche.eleves.length;
 resumeEleves.textContent = totalEleves;
 resumeActif.textContent = currentFiche?.numeroRef ? formatNumero(currentFiche.numeroRef) : '—';
 }
-function afficherListeCahiers() {
-const c = document.getElementById('cahiersListContainer');
-if (!c) return;
-const mat = isMaternelle();
-const terme = mat ? 'activité' : 'cahier';
-if (!toutesFiches.length) {
-c.innerHTML = `<div class="empty-state">Aucune ${terme} pour le moment</div>`;
-return;
-}
-c.innerHTML = toutesFiches.map(f => {
-const ref = f.numeroRef ? formatNumero(f.numeroRef) : 'Nouveau';
-const nbEl = f.nbEleves || 0;
-const isActif = f.id === currentFicheId;
-return `<div class="cahier-list-item" style="${isActif ? 'border-color:#60a5fa;background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(30,58,95,0.9));' : ''}"><div class="cahier-info"><div class="cahier-titre">${ref} • ${escapeHtml(f.cours || '?')} • ${escapeHtml(f.classe || '?')}</div><div class="cahier-meta">${nbEl} élève(s)${isActif ? ' • ✅ active' : ''}</div></div><div class="cahier-actions"><button onclick="window.selectCahierFromList('${f.id}')" title="Ouvrir">📂</button><button class="delete" onclick="window.supprimerCahierFromList('${f.id}')" title="Supprimer">🗑️</button></div></div>`;
-}).join('');
-}
-window.selectCahierFromList = async function(id) {
-await selectFiche(id);
-document.querySelector('.tab[data-tab="tabProf"]').click();
-};
-window.supprimerCahierFromList = function(id) {
-const f = toutesFiches.find(x => x.id === id);
-if (!f) return;
-const mat = isMaternelle();
-const terme = mat ? 'l\'activité' : 'le cahier';
-showStyledConfirm(
-'🗑️ SUPPRIMER',
-`Supprimer définitivement ${terme} <strong>${escapeHtml(f.cours)} - ${escapeHtml(f.classe)}</strong> ?`,
-async function() {
-try {
-await deleteDoc(doc(db, "ecoles", ECOLET_ID, "fiches", id));
-if (currentFicheId === id) { currentFiche = null; currentFicheId = null; viderChamps(); }
-await refreshSelectors();
-if (toutesFiches.length) await selectFiche(toutesFiches[0].id);
-mettreAJourBoutons();
-toast("✅ " + (mat ? "Activité supprimée" : "Cahier supprimé"), 'success');
-} catch (e) { toast("❌ Erreur suppression", 'error'); }
-},
-function() { toast("Suppression annulée", 'info'); }
-);
-};
 function afficherEleves() {
 let c = document.getElementById('elevesListContainer');
 if (!c) return;
@@ -1006,7 +950,7 @@ let eps = currentFiche.epreuvesParPeriode?.[t] || [];
 for (let i = 0; i < eps.length; i++) {
 let d = document.createElement('div');
 d.className = 'epreuve-item';
-d.innerHTML = `<input type="text" value="${escapeHtml(eps[i].nom)}" placeholder="ex: Épreuve 1" onchange="window.updEpreuveMater(${t},${i},'nom',this.value)" style="width:120px;padding:6px;border-radius:20px;background:#2d3748;border:1px solid #334155;color:#fff"><input type="number" value="${eps[i].max}" onchange="window.updEpreuveMater(${t},${i},'max',this.value)" style="width:55px;padding:6px;border-radius:20px;background:#2d3748;border:1px solid #334155;color:#fff"><span style="cursor:pointer;color:#ef4444" onclick="window.delEpreuveMater(${t},${i})">X</span>`;
+d.innerHTML = `<input type="text" value="${escapeHtml(eps[i].nom)}" placeholder="ex: Épreuve 1" onchange="window.updEpreuveMater(${t},${i},'nom',this.value)" style="width:120px;padding:6px;border-radius:20px;background:#2d3748;border:1px solid #334155;color:#fff"><input type="number" value="${eps[i].max}" step="1" min="1" onchange="window.updEpreuveMater(${t},${i},'max',this.value)" style="width:55px;padding:6px;border-radius:20px;background:#2d3748;border:1px solid #334155;color:#fff"><span style="cursor:pointer;color:#ef4444" onclick="window.delEpreuveMater(${t},${i})">X</span>`;
 ld.appendChild(d);
 }
 if (eps.length === 0) ld.innerHTML = '<span style="font-size:12px;color:#94a3b8">Aucune épreuve</span>';
@@ -1028,7 +972,7 @@ let eps = currentFiche.epreuvesParPeriode?.[p] || [];
 for (let i = 0; i < eps.length; i++) {
 let d = document.createElement('div');
 d.className = 'epreuve-item';
-d.innerHTML = `<input type="text" value="${escapeHtml(eps[i].nom)}" onchange="window.updEpreuve(${p},${i},'nom',this.value)" style="width:80px;padding:6px;border-radius:20px;background:#2d3748;border:1px solid #334155;color:#fff"><input type="number" value="${eps[i].max}" onchange="window.updEpreuve(${p},${i},'max',this.value)" style="width:55px;padding:6px;border-radius:20px;background:#2d3748;border:1px solid #334155;color:#fff"><span style="cursor:pointer;color:#ef4444" onclick="window.delEpreuve(${p},${i})">X</span>`;
+d.innerHTML = `<input type="text" value="${escapeHtml(eps[i].nom)}" onchange="window.updEpreuve(${p},${i},'nom',this.value)" style="width:80px;padding:6px;border-radius:20px;background:#2d3748;border:1px solid #334155;color:#fff"><input type="number" value="${eps[i].max}" step="1" min="1" onchange="window.updEpreuve(${p},${i},'max',this.value)" style="width:55px;padding:6px;border-radius:20px;background:#2d3748;border:1px solid #334155;color:#fff"><span style="cursor:pointer;color:#ef4444" onclick="window.delEpreuve(${p},${i})">X</span>`;
 ld.appendChild(d);
 }
 if (eps.length === 0) ld.innerHTML = '<span style="font-size:12px;color:#94a3b8">Aucune épreuve</span>';
@@ -1058,7 +1002,7 @@ saveCurrentFiche();
 };
 window.updEpreuveMater = function(t, i, f, v) {
 if (f === 'nom') currentFiche.epreuvesParPeriode[t][i].nom = v;
-else { let newMax = parseFloat(v) || 4; if (newMax < 0) newMax = 0; currentFiche.epreuvesParPeriode[t][i].max = newMax; }
+else { let newMax = parseInt(v) || 4; if (newMax < 0) newMax = 0; currentFiche.epreuvesParPeriode[t][i].max = newMax; }
 afficherCotation(); correctionUpdateEpreuveList(); saveCurrentFiche();
 };
 window.delEpreuveMater = function(t, i) {
@@ -1075,7 +1019,7 @@ function() { toast("Suppression annulée", 'info'); }
 };
 window.updEpreuve = function(p, i, f, v) {
 if (f === 'nom') currentFiche.epreuvesParPeriode[p][i].nom = v;
-else { let newMax = parseFloat(v) || 20; if (newMax < 0) newMax = 0; currentFiche.epreuvesParPeriode[p][i].max = newMax; }
+else { let newMax = parseInt(v) || 20; if (newMax < 0) newMax = 0; currentFiche.epreuvesParPeriode[p][i].max = newMax; }
 afficherCotation(); correctionUpdateEpreuveList(); saveCurrentFiche();
 };
 window.delEpreuve = function(p, i) {
@@ -1191,7 +1135,7 @@ for (let ei = 0; ei < eps.length; ei++) {
 let val = (e.notes['p' + t] && e.notes['p' + t][ei] !== undefined) ? e.notes['p' + t][ei] : 0;
 let maxVal = eps[ei]?.max || 4;
 let cls = getNoteClass(val, maxVal);
-r += `<td><input type="number" step="0.5" min="0" max="${maxVal}" value="${val}" oninput="window.verifPlafond(this,${maxVal})" onchange="window.updNoteMater(${i},${t},${ei},this.value)" style="width:55px" class="${cls}"></td>`;
+r += `<td><input type="number" step="1" min="0" max="${maxVal}" value="${Math.round(val)}" oninput="window.verifPlafond(this,${maxVal})" onchange="window.updNoteMater(${i},${t},${ei},this.value)" style="width:55px" class="${cls}"></td>`;
 }
 let moy = calcMoy(t, e.notes['p' + t] || []);
 let moyCls = getNoteClass(moy, getPeriodeMax());
@@ -1247,7 +1191,7 @@ for (let ei = 0; ei < eps[p1].length; ei++) {
 let val = e.notes['p' + p1]?.[ei] || 0;
 let maxVal = eps[p1][ei]?.max || 20;
 let cls = getNoteClass(val, maxVal);
-r += `<td><input type="number" step="0.5" min="0" max="${maxVal}" value="${val}" oninput="window.verifPlafond(this,${maxVal})" onchange="window.updNotePrimaire(${i}, ${p1}, ${ei}, this.value)" style="width:50px" class="${cls}"></td>`;
+r += `<td><input type="number" step="1" min="0" max="${maxVal}" value="${Math.round(val)}" oninput="window.verifPlafond(this,${maxVal})" onchange="window.updNotePrimaire(${i}, ${p1}, ${ei}, this.value)" style="width:50px" class="${cls}"></td>`;
 }
 let p1m = calcMoy(p1, e.notes['p' + p1] || []);
 let p1Cls = getNoteClass(p1m, pMax);
@@ -1256,28 +1200,28 @@ for (let ei = 0; ei < eps[p2].length; ei++) {
 let val = e.notes['p' + p2]?.[ei] || 0;
 let maxVal = eps[p2][ei]?.max || 20;
 let cls = getNoteClass(val, maxVal);
-r += `<td><input type="number" step="0.5" min="0" max="${maxVal}" value="${val}" oninput="window.verifPlafond(this,${maxVal})" onchange="window.updNotePrimaire(${i}, ${p2}, ${ei}, this.value)" style="width:50px" class="${cls}"></td>`;
+r += `<td><input type="number" step="1" min="0" max="${maxVal}" value="${Math.round(val)}" oninput="window.verifPlafond(this,${maxVal})" onchange="window.updNotePrimaire(${i}, ${p2}, ${ei}, this.value)" style="width:50px" class="${cls}"></td>`;
 }
 let p2m = calcMoy(p2, e.notes['p' + p2] || []);
 let p2Cls = getNoteClass(p2m, pMax);
 r += `<td style="font-weight:bold;background:rgba(59,130,246,0.1);" class="${p2Cls}">${p2m}</td>`;
 let exVal = e.notes['exam' + t] || 0;
 let exCls = getNoteClass(exVal, examMax);
-r += `<td><input type="number" step="0.5" min="0" max="${examMax}" value="${exVal}" oninput="window.verifPlafond(this,${examMax})" onchange="window.updExam(${i},${t},this.value)" style="width:50px" class="${exCls}"></td>`;
+r += `<td><input type="number" step="1" min="0" max="${examMax}" value="${Math.round(exVal)}" oninput="window.verifPlafond(this,${examMax})" onchange="window.updExam(${i},${t},this.value)" style="width:50px" class="${exCls}"></td>`;
 }
 r += '</tr>';
 tb.innerHTML += r;
 }
 }
 window.verifPlafond = function(input, maxVal) {
-let va = parseFloat(input.value);
-if (isNaN(va)) return;
+let va = parseInt(input.value);
+if (isNaN(va)) { input.value = 0; return; }
 if (va > maxVal) {
-input.value = maxVal;
+input.value = Math.round(maxVal);
 input.style.borderColor = '#ef4444';
 input.style.backgroundColor = 'rgba(239,68,68,0.15)';
 setTimeout(() => { input.style.borderColor = ''; input.style.backgroundColor = ''; }, 800);
-toast(`⚠️ Note maximale autorisée : ${maxVal}`, 'warning');
+toast(`⚠️ Note maximale autorisée : ${Math.round(maxVal)}`, 'warning');
 }
 if (va < 0) {
 input.value = 0;
@@ -1285,10 +1229,10 @@ toast(`⚠️ Note minimale : 0`, 'warning');
 }
 };
 window.updNoteMater = function(i, t, ei, v) {
-let va = parseFloat(v) || 0;
+let va = parseInt(v) || 0;
 let eps = currentFiche.epreuvesParPeriode?.[t] || [];
 let me = eps[ei]?.max || 4;
-if (va > me) { va = me; toast(`⚠️ Note maximale : ${me}`, 'warning'); }
+if (va > me) { va = Math.round(me); toast(`⚠️ Note maximale : ${me}`, 'warning'); }
 if (va < 0) va = 0;
 if (!currentFiche.eleves[i].notes) currentFiche.eleves[i].notes = { p1:[],p2:[],p3:[],p4:[],p5:[],p6:[],exam1:0,exam2:0,exam3:0 };
 if (!currentFiche.eleves[i].notes['p' + t]) currentFiche.eleves[i].notes['p' + t] = [];
@@ -1297,10 +1241,10 @@ saveCurrentFiche();
 afficherCotation();
 };
 window.updNotePrimaire = function(i, p, ei, v) {
-let va = parseFloat(v) || 0;
+let va = parseInt(v) || 0;
 let eps = currentFiche.epreuvesParPeriode?.[p] || [];
 let me = eps[ei]?.max || 20;
-if (va > me) { va = me; toast(`⚠️ Note maximale : ${me}`, 'warning'); }
+if (va > me) { va = Math.round(me); toast(`⚠️ Note maximale : ${me}`, 'warning'); }
 if (va < 0) va = 0;
 if (!currentFiche.eleves[i].notes) {
 currentFiche.eleves[i].notes = { p1:[],p2:[],p3:[],p4:[],p5:[],p6:[],exam1:0,exam2:0,exam3:0 };
@@ -1313,9 +1257,9 @@ saveCurrentFiche();
 afficherCotation();
 };
 window.updExam = function(i, t, v) {
-let va = parseFloat(v) || 0;
+let va = parseInt(v) || 0;
 let me = getExamMax(t);
-if (va > me) { va = me; toast(`⚠️ Note maximale : ${me}`, 'warning'); }
+if (va > me) { va = Math.round(me); toast(`⚠️ Note maximale : ${me}`, 'warning'); }
 if (va < 0) va = 0;
 if (!currentFiche.eleves[i].notes) currentFiche.eleves[i].notes = { p1:[],p2:[],p3:[],p4:[],p5:[],p6:[],exam1:0,exam2:0,exam3:0 };
 currentFiche.eleves[i].notes['exam' + t] = va;
@@ -1405,7 +1349,7 @@ enseignantId: currentEnseignant.id,
 ficheId: nid, cours, classe,
 enseignant: enseignantNom,
 anneeScolaire: "2026-2027",
-p1Max: parseFloat(noteMax) || (mat ? 4 : 20),
+p1Max: parseInt(noteMax) || (mat ? 4 : 20),
 numeroRef: nnum,
 dateCreation: now, lastModified: now,
 epreuvesParPeriode,
@@ -1454,7 +1398,7 @@ btn.disabled = true;
 btn.innerHTML = '⏳ MISE À JOUR...';
 try {
 const cours = document.getElementById('coursInput').value.trim();
-const p1Max = parseFloat(document.getElementById('p1MaxConfig').value) || (isMaternelle() ? 4 : 20);
+const p1Max = parseInt(document.getElementById('p1MaxConfig').value) || (isMaternelle() ? 4 : 20);
 if (!cours) { toast("Veuillez renseigner le champ", 'error'); return; }
 currentFiche.cours = cours;
 currentFiche.p1Max = p1Max;
@@ -1613,35 +1557,42 @@ const examMax = pMax * 2;
 let hd, bd;
 if (mat) {
 hd = [['N','NOMS COMPLETS','SEXE']];
-const libellesT = ['T1','T2','T3'];
+const libellesT = ['1er TRIMESTRE','2ème TRIMESTRE','3ème TRIMESTRE'];
 for (let t = 1; t <= 3; t++) {
-let eps = currentFiche.epreuvesParPeriode?.[t] || [];
-eps.forEach(ep => {
-hd[0].push(libellesT[t-1] + ' ' + ep.nom + ' /' + ep.max);
-});
-hd[0].push('MOY ' + libellesT[t-1] + ' /' + pMax);
+hd[0].push(libellesT[t-1] + ' /' + fmtInt(pMax));
 }
+hd[0].push('MOYENNE /' + fmtInt(pMax));
 bd = [];
 for (let i = 0; i < currentFiche.eleves.length; i++) {
 const e = currentFiche.eleves[i];
 const row = [(i+1).toString(), getNomComplet(e).toUpperCase(), e.sexe === 'F' ? 'F' : 'M'];
+let sommeMoy = 0;
+let nbTrim = 0;
 for (let t = 1; t <= 3; t++) {
-let eps = currentFiche.epreuvesParPeriode?.[t] || [];
-for (let ei = 0; ei < eps.length; ei++) {
-let val = (e.notes && e.notes['p' + t] && e.notes['p' + t][ei] !== undefined) ? e.notes['p' + t][ei] : 0;
-row.push(val);
-}
 let moy = calcMoy(t, e.notes?.['p' + t] || []);
-row.push(moy);
+row.push(fmtInt(moy));
+sommeMoy += moy;
+nbTrim++;
 }
+let moyGen = nbTrim > 0 ? Math.round(sommeMoy / nbTrim) : 0;
+row.push(fmtInt(moyGen));
 bd.push(row);
 }
 } else {
 hd = [['N','NOMS COMPLETS','SEXE']];
-hd[0].push('1ere PERIODE','2eme PERIODE','EXAMEN','TOTAL 1er TRIMESTRE');
-hd[0].push('3eme PERIODE','4eme PERIODE','EXAMEN','TOTAL 2eme TRIMESTRE');
-hd[0].push('5eme PERIODE','6eme PERIODE','EXAMEN','TOTAL 3eme TRIMESTRE');
-hd[0].push('TOTAL ANNEE');
+hd[0].push('1ere PERIODE /' + fmtInt(pMax));
+hd[0].push('2eme PERIODE /' + fmtInt(pMax));
+hd[0].push('EXAMEN /' + fmtInt(examMax));
+hd[0].push('TOTAL 1er TRIM /' + fmtInt(pMax + pMax + examMax));
+hd[0].push('3eme PERIODE /' + fmtInt(pMax));
+hd[0].push('4eme PERIODE /' + fmtInt(pMax));
+hd[0].push('EXAMEN /' + fmtInt(examMax));
+hd[0].push('TOTAL 2eme TRIM /' + fmtInt(pMax + pMax + examMax));
+hd[0].push('5eme PERIODE /' + fmtInt(pMax));
+hd[0].push('6eme PERIODE /' + fmtInt(pMax));
+hd[0].push('EXAMEN /' + fmtInt(examMax));
+hd[0].push('TOTAL 3eme TRIM /' + fmtInt(pMax + pMax + examMax));
+hd[0].push('TOTAL ANNEE /' + fmtInt(pMax * 6 + examMax * 3));
 bd = [];
 for (let i = 0; i < currentFiche.eleves.length; i++) {
 const e = currentFiche.eleves[i];
@@ -1652,34 +1603,41 @@ let p1 = (t - 1) * 2 + 1;
 let p2 = (t - 1) * 2 + 2;
 let totalTrim = 0;
 let p1m = calcMoy(p1, e.notes?.['p' + p1] || []);
-row.push(p1m); totalTrim += p1m;
+row.push(fmtInt(p1m)); totalTrim += p1m;
 let p2m = calcMoy(p2, e.notes?.['p' + p2] || []);
-row.push(p2m); totalTrim += p2m;
+row.push(fmtInt(p2m)); totalTrim += p2m;
 let ex = e.notes?.['exam' + t] || 0;
-row.push(ex); totalTrim += ex;
-row.push(totalTrim);
+row.push(fmtInt(ex)); totalTrim += ex;
+row.push(fmtInt(totalTrim));
 totalAnnuel += totalTrim;
 }
-row.push(totalAnnuel);
+row.push(fmtInt(totalAnnuel));
 bd.push(row);
 }
 }
 const allData = [];
-if (!mat) {
 let maxRow = ['MAX','',''];
+if (!mat) {
 for (let t = 1; t <= 3; t++) {
-maxRow.push(pMax); maxRow.push(pMax); maxRow.push(examMax);
-maxRow.push(pMax + pMax + examMax);
+maxRow.push(fmtInt(pMax));
+maxRow.push(fmtInt(pMax));
+maxRow.push(fmtInt(examMax));
+maxRow.push(fmtInt(pMax + pMax + examMax));
 }
-maxRow.push('');
+maxRow.push(fmtInt(pMax * 6 + examMax * 3));
+} else {
+for (let t = 1; t <= 3; t++) {
+maxRow.push(fmtInt(pMax));
+}
+maxRow.push(fmtInt(pMax));
+}
 allData.push(maxRow);
-}
 bd.forEach(row => allData.push(row));
 pdf.autoTable({
 head: hd, body: allData, startY: 85, theme: 'grid',
 styles: { fontSize: 7, cellPadding: 2, halign: 'center' },
 headStyles: { fillColor: mat ? [16,185,129] : [0,51,102], textColor: [255,255,255], fontStyle: 'bold' },
-rowStyles: !mat ? { 0: { fillColor: [255,200,200], textColor: [255,0,0], fontStyle: 'bold', fontSize: 8 } } : {},
+rowStyles: !mat ? { 0: { fillColor: [255,200,200], textColor: [255,0,0], fontStyle: 'bold', fontSize: 8 } } : { 0: { fillColor: [220,252,231], textColor: [22,101,52], fontStyle: 'bold', fontSize: 8 } },
 alternateRowStyles: { fillColor: [245,245,245] }
 });
 pdf.save("Cahier_" + rn + "_" + (currentFiche.cours || 'cours') + ".pdf");
@@ -1761,7 +1719,6 @@ if (toutesFiches.length) await selectFiche(toutesFiches[0].id);
 await refreshSelectors();
 await getAllEleves();
 mettreAJourBandeauResume();
-afficherListeCahiers();
 initTheme();
 toast("Bienvenue " + currentEnseignant.nom, 'success');
 } catch (authError) {
