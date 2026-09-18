@@ -569,7 +569,7 @@ Les modifications s'appliquent immédiatement à tous les élèves du secondaire
 <script type="module">
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, getDoc, setDoc, collection, getDocs, onSnapshot } from "firebase/firestore";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword, signOut } from "firebase/auth";
 
 const firebaseConfig = {
 apiKey: "AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",
@@ -596,14 +596,22 @@ const SCHOOL_ID = schoolId.replace(/[^a-zA-Z0-9]/g, '_');
 const SCHOOL_DISPLAY_NAME = schoolId.toUpperCase();
 document.getElementById('schoolName').textContent = SCHOOL_DISPLAY_NAME;
 
-const PREFET_EMAIL = "prefet.bwacha@gmail.com";
-const DEFAULT_PREFET_PASSWORD = "022300";
-
 const SESSION_KEY = 'prefet_session_active';
 const SESSION_TIMEOUT = 1000 * 60 * 60 * 24;
 
 const MAX_TYPES_CUSTOM = 7;
 const MAX_TYPES_TOTAL = 10;
+
+const PREFET_DOC_DEFAULT = {
+_type: "enseignant",
+id: "prefet",
+nom: "PRÉFET",
+code: "022300",
+email: "prefet.bwacha@gmail.com",
+cycle: "secondaire",
+classes: [],
+actif: true
+};
 
 const CLASSES = ["7ème EB","8ème EB","1ère Année","2ème Année","3ème Année","4ème Année"];
 const OPTIONS = {
@@ -715,68 +723,56 @@ if (sessionEstActive()) marquerSessionActive();
 }, { passive: true });
 });
 
-async function assurerComptePrefet(pwdSaisi) {
-const ref = doc(db, "ecoles", SCHOOL_ID, "settings", "prefet_auth");
-let codeSecretFirestore, emailFirestore;
-
+async function assurerDocPrefet() {
+const ref = doc(db, "ecoles", SCHOOL_ID, "enseignants", "prefet");
 try {
 const snap = await getDoc(ref);
-if (snap.exists()) {
-const data = snap.data();
-codeSecretFirestore = data.codeSecret;
-emailFirestore = data.email || PREFET_EMAIL;
-} else {
-codeSecretFirestore = DEFAULT_PREFET_PASSWORD;
-emailFirestore = PREFET_EMAIL;
-await setDoc(ref, {
-codeSecret: DEFAULT_PREFET_PASSWORD,
-email: emailFirestore,
-createdAt: new Date().toISOString()
-}, { merge: true });
+if (!snap.exists()) {
+await setDoc(ref, PREFET_DOC_DEFAULT, { merge: true });
 }
+} catch (e) {}
+}
+
+async function assurerComptePrefet(pwdSaisi) {
+await assurerDocPrefet();
+
+let ens = null;
+try {
+const snap = await getDocs(collection(db, "ecoles", SCHOOL_ID, "enseignants"));
+snap.forEach(ds => {
+const data = ds.data();
+if (data._type === "enseignant" &&
+String(data.code) === String(pwdSaisi) &&
+data.cycle === "secondaire") {
+ens = {
+email: data.email,
+nom: data.nom,
+actif: data.actif !== false
+};
+}
+});
 } catch (e) {
 throw new Error("Service indisponible. Réessayez plus tard.");
 }
 
-if (pwdSaisi !== codeSecretFirestore) {
-throw new Error("Mot de passe incorrect");
-}
+if (!ens) throw new Error("Mot de passe incorrect");
+if (!ens.actif) throw new Error("Compte désactivé. Contactez la direction.");
+if (!ens.email || ens.email.trim() === '') throw new Error("Compte incomplet. Contactez la direction.");
 
 try {
-await signInWithEmailAndPassword(auth, emailFirestore, pwdSaisi);
+await signInWithEmailAndPassword(auth, ens.email, pwdSaisi);
 return true;
 } catch (loginErr) {
-const besoinCreation =
-loginErr.code === "auth/user-not-found" ||
-loginErr.code === "auth/invalid-credential" ||
-loginErr.code === "auth/invalid-login-credentials";
-
-if (besoinCreation) {
-try {
-await createUserWithEmailAndPassword(auth, emailFirestore, pwdSaisi);
-try {
-await setDoc(
-doc(db, "ecoles", SCHOOL_ID, "settings", "prefet_auth_meta"),
-{ email: emailFirestore, role: "prefet", initializedAt: new Date().toISOString() },
-{ merge: true }
-);
-} catch (e) {}
-return true;
-} catch (createErr) {
-if (createErr.code === "auth/email-already-in-use") {
-throw new Error("Mot de passe incorrect");
-}
-if (createErr.code === "auth/weak-password") {
-throw new Error("Mot de passe trop court");
-}
-throw new Error("Service indisponible. Réessayez plus tard.");
-}
-}
 if (loginErr.code === "auth/network-request-failed") {
 throw new Error("Connexion au réseau impossible");
 }
 if (loginErr.code === "auth/too-many-requests") {
 throw new Error("Trop de tentatives. Patientez quelques minutes.");
+}
+if (loginErr.code === "auth/user-not-found" ||
+loginErr.code === "auth/wrong-password" ||
+loginErr.code === "auth/invalid-credential") {
+throw new Error("Mot de passe incorrect");
 }
 throw new Error("Service indisponible. Réessayez plus tard.");
 }
