@@ -65,6 +65,9 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .header-actions{display:flex;gap:10px;align-items:center}
 .icon-btn{width:42px;height:42px;border-radius:12px;background:rgba(212,175,55,.08);border:1px solid var(--border);color:var(--gold);font-size:15px;cursor:pointer;transition:.25s;display:flex;align-items:center;justify-content:center}
 .icon-btn:hover{background:rgba(212,175,55,.18);transform:translateY(-2px);border-color:var(--gold)}
+.icon-btn.spinning i{animation:spinBtn .8s linear infinite}
+@keyframes spinBtn{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+.icon-btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
 .btn-logout{padding:0 20px;height:42px;border-radius:12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#fca5a5;font-size:12px;font-weight:700;cursor:pointer;transition:.25s;display:inline-flex;align-items:center;gap:8px;letter-spacing:.5px}
 .btn-logout:hover{background:rgba(239,68,68,.2);border-color:var(--red);color:#fff;transform:translateY(-2px);box-shadow:0 8px 24px rgba(239,68,68,.25)}
 .tabs-wrap{overflow-x:auto;margin-bottom:20px;scrollbar-width:none;padding:4px 0}
@@ -91,9 +94,15 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .form-g label{display:block;font-size:10px;font-weight:800;color:var(--gold);margin-bottom:6px;text-transform:uppercase;letter-spacing:.8px}
 .form-g input,.form-g select{width:100%;padding:12px 16px;border-radius:12px;border:1.5px solid var(--border);font-size:14px;font-weight:500;outline:none;font-family:'Inter',sans-serif;background:rgba(10,14,26,.5);color:var(--text);transition:.2s}
 .form-g input:focus,.form-g select:focus{border-color:var(--gold);background:rgba(10,14,26,.8);box-shadow:0 0 0 3px rgba(212,175,55,.08)}
-.form-g select[multiple]{min-height:120px;padding:8px}
-.form-g select[multiple] option{padding:6px 10px;border-radius:6px;margin:2px 0}
-.form-g select option:disabled{opacity:.55;font-style:italic}
+.checkbox-group{display:flex;flex-wrap:wrap;gap:8px;padding:10px;background:rgba(10,14,26,.4);border:1.5px solid var(--border);border-radius:12px;max-height:220px;overflow-y:auto}
+.checkbox-item{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:10px;background:rgba(10,14,26,.6);border:1.5px solid var(--border);cursor:pointer;font-size:13px;font-weight:600;color:var(--text);transition:.15s;user-select:none}
+.checkbox-item:active{transform:scale(.97)}
+.checkbox-item input{display:none}
+.checkbox-item .box{width:18px;height:18px;border-radius:5px;border:2px solid var(--muted);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s}
+.checkbox-item .box i{font-size:11px;color:#fff;opacity:0;transition:.15s}
+.checkbox-item.checked{background:linear-gradient(135deg,rgba(212,175,55,.2),rgba(245,158,11,.15));border-color:var(--gold);color:#fff}
+.checkbox-item.checked .box{background:var(--gold);border-color:var(--gold)}
+.checkbox-item.checked .box i{opacity:1}
 .btn{background:linear-gradient(160deg,#2d3b4f,#1e293b);color:#fff;border:1px solid var(--border);padding:10px 20px;border-radius:12px;font-weight:700;font-size:12px;cursor:pointer;transition:.25s;display:inline-flex;align-items:center;gap:8px;letter-spacing:.3px}
 .btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3);border-color:rgba(212,175,55,.3)}
 .btn:active{transform:translateY(0) scale(.97)}
@@ -218,6 +227,9 @@ body.light-mode .fg input,body.light-mode .fg select{color:#0f172a}
 body.light-mode .form-g label{color:var(--gold)}
 body.light-mode .form-g input,body.light-mode .form-g select{background:#f8fafc;border-color:rgba(15,23,42,.08);color:#0f172a}
 body.light-mode .form-g input:focus,body.light-mode .form-g select:focus{background:#fff;border-color:var(--gold)}
+body.light-mode .checkbox-group{background:#f8fafc;border-color:rgba(15,23,42,.08)}
+body.light-mode .checkbox-item{background:#fff;color:#0f172a}
+body.light-mode .checkbox-item.checked{background:linear-gradient(135deg,rgba(180,83,9,.15),rgba(217,119,6,.1));border-color:var(--gold);color:#0f172a}
 body.light-mode .btn{background:linear-gradient(160deg,#e2e8f0,#cbd5e1);color:#0f172a;border-color:rgba(15,23,42,.08)}
 body.light-mode .btn:hover{background:linear-gradient(160deg,#cbd5e1,#94a3b8);border-color:rgba(15,23,42,.15)}
 body.light-mode .btn-outline{background:transparent;border-color:rgba(15,23,42,.15);color:#64748b}
@@ -319,6 +331,9 @@ body.light-mode .spinner{border-color:rgba(15,23,42,.15);border-top-color:#0f172
 </div>
 </div>
 <div class="header-actions">
+<button class="icon-btn" id="btnRefresh" title="Rafraîchir les données">
+<i class="fas fa-sync-alt"></i>
+</button>
 <button class="icon-btn" id="btnTheme" title="Mode clair / sombre">
 <i class="fas fa-sun"></i>
 </button>
@@ -328,7 +343,6 @@ body.light-mode .spinner{border-color:rgba(15,23,42,.15);border-top-color:#0f172
 <div class="tabs-wrap">
 <div class="tabs">
 <button class="tab active" data-tab="tabEleves"><i class="fas fa-users"></i> ÉLÈVES</button>
-<button class="tab" data-tab="tabPaiements"><i class="fas fa-coins"></i> PAIEMENTS</button>
 <button class="tab" data-tab="tabStats"><i class="fas fa-chart-bar"></i> STATISTIQUES</button>
 <button class="tab" data-tab="tabPresences"><i class="fas fa-clock"></i> PRÉSENCES PROFS</button>
 <button class="tab" data-tab="tabConfig"><i class="fas fa-cog"></i> CONFIGURATION</button>
@@ -337,7 +351,7 @@ body.light-mode .spinner{border-color:rgba(15,23,42,.15);border-top-color:#0f172
 </div>
 <div id="tabEleves" class="tab-content active">
 <div class="card">
-<div class="card-head"><h3><i class="fas fa-users"></i> LISTE DES ÉLÈVES</h3></div>
+<div class="card-head"><h3><i class="fas fa-users"></i> ÉLÈVES & PAIEMENTS</h3></div>
 <div class="card-body">
 <div class="row">
 <div class="fg"><label><i class="fas fa-search"></i></label><input type="text" id="searchEleve" placeholder="Rechercher un élève..."></div>
@@ -347,27 +361,9 @@ body.light-mode .spinner{border-color:rgba(15,23,42,.15);border-top-color:#0f172
 <div class="table-wrap">
 <table>
 <thead>
-<tr><th>N°</th><th>Nom complet</th><th>Classe</th><th>Option</th><th>Statut</th><th>Actions</th></tr>
-</thead>
-<tbody id="elevesTable"><tr><td colspan="6" class="empty"><i class="fas fa-spinner fa-spin"></i><br>Chargement...</td></tr></tbody>
-</table>
-</div>
-</div>
-</div>
-</div>
-<div id="tabPaiements" class="tab-content">
-<div class="card">
-<div class="card-head"><h3><i class="fas fa-coins"></i> ENCAISSEMENT</h3></div>
-<div class="card-body">
-<div class="row">
-<div class="fg" style="flex:2;"><label><i class="fas fa-search"></i></label><input type="text" id="searchPayEleve" placeholder="Rechercher un élève..."></div>
-</div>
-<div class="table-wrap">
-<table>
-<thead>
 <tr><th>N°</th><th>Nom complet</th><th>Classe</th><th>Option</th><th>Actions</th></tr>
 </thead>
-<tbody id="payTable"><tr><td colspan="5" class="empty"><i class="fas fa-spinner fa-spin"></i><br>Chargement...</td></tr></tbody>
+<tbody id="elevesTable"><tr><td colspan="5" class="empty"><i class="fas fa-spinner fa-spin"></i><br>Chargement...</td></tr></tbody>
 </table>
 </div>
 </div>
@@ -482,19 +478,12 @@ Les modifications s'appliquent immédiatement à tous les élèves du secondaire
 </select>
 </div>
 <div class="form-g">
-<label>Classes (Ctrl pour plusieurs)</label>
-<select id="recClasses" multiple>
-<option value="7ème EB">7ème EB</option>
-<option value="8ème EB">8ème EB</option>
-<option value="1ère Année">1ère Année</option>
-<option value="2ème Année">2ème Année</option>
-<option value="3ème Année">3ème Année</option>
-<option value="4ème Année">4ème Année</option>
-</select>
+<label>Classes (cochez une ou plusieurs)</label>
+<div id="recClasses" class="checkbox-group"></div>
 </div>
 <div class="form-g">
-<label>Options (Ctrl pour plusieurs)</label>
-<select id="recOptions" multiple></select>
+<label>Options (cochez une ou plusieurs)</label>
+<div id="recOptions" class="checkbox-group"></div>
 </div>
 <div class="form-g">
 <label>Titre personnalisé (optionnel)</label>
@@ -600,6 +589,9 @@ const PREFET_EMAIL_AUTH = "prefet.bwacha@gmail.com";
 
 const SESSION_KEY = 'prefet_session_active';
 const SESSION_TIMEOUT = 1000 * 60 * 60 * 24;
+
+const REFRESH_KEY = 'prefet_refresh_count';
+const REFRESH_MAX = 3;
 
 const MAX_TYPES_CUSTOM = 7;
 const MAX_TYPES_TOTAL = 10;
@@ -714,6 +706,23 @@ if (sessionEstActive()) marquerSessionActive();
 }, { passive: true });
 });
 
+function getRefreshInfo() {
+try {
+const raw = localStorage.getItem(REFRESH_KEY);
+const today = new Date().toISOString().split('T')[0];
+if (!raw) return { date: today, count: 0 };
+const data = JSON.parse(raw);
+if (data.date !== today) return { date: today, count: 0 };
+return { date: data.date, count: data.count || 0 };
+} catch (e) {
+return { date: new Date().toISOString().split('T')[0], count: 0 };
+}
+}
+
+function setRefreshInfo(info) {
+try { localStorage.setItem(REFRESH_KEY, JSON.stringify(info)); } catch (e) {}
+}
+
 async function assurerComptePrefet(pwdSaisi) {
 try {
 await signInWithEmailAndPassword(auth, PREFET_EMAIL_AUTH, pwdSaisi);
@@ -812,7 +821,6 @@ snap.forEach(ds => paiements.push({ id: ds.id, ...ds.data() }));
 paiements.sort((a, b) => new Date(b.datePaiement) - new Date(a.datePaiement));
 prefetPaiements = paiements;
 renderEleves();
-renderPayEleves();
 renderStats();
 updateRecouvrementPreview();
 }, () => {});
@@ -830,7 +838,6 @@ eleves.push(mapEleve(d, ds.id));
 eleves.sort((a, b) => (a.nom||'').localeCompare(b.nom||''));
 allStudents = eleves;
 renderEleves();
-renderPayEleves();
 renderStats();
 updateRecouvrementPreview();
 }, () => {});
@@ -910,48 +917,7 @@ if (fClasse) list = list.filter(e => e.classe === fClasse);
 if (fOption) list = list.filter(e => e.option === fOption);
 
 if (list.length === 0) {
-tbody.innerHTML = `<tr><td colspan="6" class="empty"><i class="fas fa-users"></i><br>Aucun élève</td></tr>`;
-return;
-}
-
-const tousTypes = getTousTypes();
-
-tbody.innerHTML = list.map((e, i) => {
-let totalDu = 0, totalPaye = 0;
-tousTypes.forEach(t => {
-const s = calculerStatutPrefet(e, t);
-totalDu += s.du; totalPaye += s.paye;
-});
-let st;
-if (totalDu === 0) st = { txt: 'EXONÉRÉ', cls: 'green' };
-else if (totalPaye >= totalDu) st = { txt: 'PAYÉ', cls: 'green' };
-else if (totalPaye > 0) st = { txt: 'PARTIEL', cls: 'orange' };
-else st = { txt: 'NON PAYÉ', cls: 'red' };
-
-return `<tr>
-<td>${i + 1}</td>
-<td><strong style="color:#fff;">${getNomComplet(e).toUpperCase()}</strong></td>
-<td>${e.classe || '-'}</td>
-<td>${e.option || '-'}</td>
-<td><span class="badge ${st.cls}">${st.txt}</span></td>
-<td>
-<button class="btn btn-sm btn-success" onclick="ouvrirPaiement('${e.id}')">
-<i class="fas fa-coins"></i> Payer
-</button>
-</td>
-</tr>`;
-}).join('');
-}
-
-function renderPayEleves() {
-const tbody = document.getElementById('payTable');
-const search = (document.getElementById('searchPayEleve').value || '').toLowerCase();
-
-let list = allStudents.filter(e => !e.abandon);
-if (search) list = list.filter(e => getNomComplet(e).toLowerCase().includes(search));
-
-if (list.length === 0) {
-tbody.innerHTML = `<tr><td colspan="5" class="empty"><i class="fas fa-coins"></i><br>Aucun élève</td></tr>`;
+tbody.innerHTML = `<tr><td colspan="5" class="empty"><i class="fas fa-users"></i><br>Aucun élève</td></tr>`;
 return;
 }
 
@@ -963,7 +929,7 @@ tbody.innerHTML = list.map((e, i) => `
 <td>${e.option || '-'}</td>
 <td>
 <button class="btn btn-sm btn-success" onclick="ouvrirPaiement('${e.id}')">
-<i class="fas fa-coins"></i> Encaisser
+<i class="fas fa-coins"></i> Payer
 </button>
 <button class="btn btn-sm btn-outline" onclick="voirHistorique('${e.id}')">
 <i class="fas fa-history"></i>
@@ -1204,12 +1170,29 @@ return `<div class="stat"><div class="lbl">${cl}</div><div class="val">${n}</div
 
 const map = {};
 actifs.forEach(e => {
-const k = e.option || 'Sans option';
+let k;
+if (e.option) {
+k = e.option;
+} else if (e.classe === '7ème EB' || e.classe === '8ème EB') {
+k = 'EB (sans option prévue)';
+} else {
+k = 'Sans option ⚠️';
+}
 map[k] = (map[k] || 0) + 1;
 });
-document.getElementById('statsOptions').innerHTML = Object.keys(map).sort().map(k =>
-`<span class="badge blue" style="padding:8px 16px;font-size:12px;">${k} : ${map[k]}</span>`
-).join('') || '<span style="font-size:12px;color:var(--muted);">Aucune option</span>';
+
+const ordre = Object.keys(map).sort((a, b) => {
+if (a === 'Sans option ⚠️') return 1;
+if (b === 'Sans option ⚠️') return -1;
+if (a === 'EB (sans option prévue)') return 1;
+if (b === 'EB (sans option prévue)') return -1;
+return a.localeCompare(b);
+});
+
+document.getElementById('statsOptions').innerHTML = ordre.map(k => {
+const cls = (k === 'Sans option ⚠️') ? 'red' : (k === 'EB (sans option prévue)') ? 'gray' : 'blue';
+return `<span class="badge ${cls}" style="padding:8px 16px;font-size:12px;">${k} : ${map[k]}</span>`;
+}).join('') || '<span style="font-size:12px;color:var(--muted);">Aucune option</span>';
 }
 
 function renderPresences() {
@@ -1491,15 +1474,68 @@ toast("Enregistrement impossible. Réessayez.", "error");
 };
 
 function initRecouvrementOptions() {
-const sel = document.getElementById('recOptions');
+const classesBox = document.getElementById('recClasses');
+classesBox.innerHTML = CLASSES.map(c => `
+<label class="checkbox-item" data-value="${c}">
+<input type="checkbox" value="${c}">
+<span class="box"><i class="fas fa-check"></i></span>
+<span>${c}</span>
+</label>
+`).join('');
+
 const allOpts = new Set();
 Object.values(OPTIONS).forEach(arr => arr.forEach(o => allOpts.add(o)));
-sel.innerHTML = [...allOpts].sort().map(o => `<option value="${o}">${o}</option>`).join('');
+const optsBox = document.getElementById('recOptions');
+optsBox.innerHTML = [...allOpts].sort().map(o => `
+<label class="checkbox-item" data-value="${o}">
+<input type="checkbox" value="${o}">
+<span class="box"><i class="fas fa-check"></i></span>
+<span>${o}</span>
+</label>
+`).join('');
+
+[classesBox, optsBox].forEach(box => {
+box.querySelectorAll('.checkbox-item').forEach(item => {
+item.addEventListener('click', function(e) {
+e.preventDefault();
+const input = this.querySelector('input');
+input.checked = !input.checked;
+this.classList.toggle('checked', input.checked);
+updateRecouvrementPreview();
+});
+});
+ajouterBoutonsSelection(box);
+});
+}
+
+function ajouterBoutonsSelection(box) {
+const barre = document.createElement('div');
+barre.style.cssText = 'display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;';
+barre.innerHTML = `
+<button type="button" class="btn btn-sm btn-outline" style="padding:6px 12px;font-size:11px;">Tout cocher</button>
+<button type="button" class="btn btn-sm btn-outline" style="padding:6px 12px;font-size:11px;">Tout décocher</button>
+`;
+box.parentNode.insertBefore(barre, box);
+const [btnAll, btnNone] = barre.querySelectorAll('button');
+btnAll.onclick = () => {
+box.querySelectorAll('.checkbox-item').forEach(item => {
+item.querySelector('input').checked = true;
+item.classList.add('checked');
+});
+updateRecouvrementPreview();
+};
+btnNone.onclick = () => {
+box.querySelectorAll('.checkbox-item').forEach(item => {
+item.querySelector('input').checked = false;
+item.classList.remove('checked');
+});
+updateRecouvrementPreview();
+};
 }
 
 function getElevesFiltresRec() {
-const classes = Array.from(document.getElementById('recClasses').selectedOptions).map(o => o.value);
-const options = Array.from(document.getElementById('recOptions').selectedOptions).map(o => o.value);
+const classes = Array.from(document.querySelectorAll('#recClasses input[type="checkbox"]:checked')).map(i => i.value);
+const options = Array.from(document.querySelectorAll('#recOptions input[type="checkbox"]:checked')).map(i => i.value);
 
 return allStudents.filter(e => {
 if (e.abandon) return false;
@@ -1566,14 +1602,12 @@ updateRecouvrementPreview();
 
 document.getElementById('recAutreLabel').addEventListener('input', updateRecouvrementPreview);
 document.getElementById('recStatut').addEventListener('change', updateRecouvrementPreview);
-document.getElementById('recClasses').addEventListener('change', updateRecouvrementPreview);
-document.getElementById('recOptions').addEventListener('change', updateRecouvrementPreview);
 
 document.getElementById('btnPDF').onclick = () => {
 let typeFrais = document.getElementById('recType').value;
 const statut = document.getElementById('recStatut').value;
 const titrePerso = document.getElementById('recTitre').value.trim();
-const classesChoisies = Array.from(document.getElementById('recClasses').selectedOptions).map(o => o.value);
+const classesChoisies = Array.from(document.querySelectorAll('#recClasses input[type="checkbox"]:checked')).map(i => i.value);
 
 if (typeFrais === 'autre') {
 const label = (document.getElementById('recAutreLabel').value || '').trim();
@@ -1740,13 +1774,11 @@ document.getElementById(this.dataset.tab).classList.add('active');
 if (this.dataset.tab === 'tabPresences') renderPresences();
 if (this.dataset.tab === 'tabStats') renderStats();
 if (this.dataset.tab === 'tabRecouvrement') updateRecouvrementPreview();
-if (this.dataset.tab === 'tabPaiements') renderPayEleves();
 if (this.dataset.tab === 'tabConfig') chargerConfigFrais();
 };
 });
 
 document.getElementById('searchEleve').addEventListener('input', renderEleves);
-document.getElementById('searchPayEleve').addEventListener('input', renderPayEleves);
 document.getElementById('searchProf').addEventListener('input', renderPresences);
 document.getElementById('presenceDate').addEventListener('change', renderPresences);
 
@@ -1834,9 +1866,7 @@ const ok = await showConfirm(
 if (!ok) return;
 try { await signOut(auth); } catch (e) {}
 effacerSession();
-if (unsubscribePaiements) unsubscribePaiements();
-if (unsubscribeEleves) unsubscribeEleves();
-if (unsubscribeProfs) unsubscribeProfs();
+arreterEcoute();
 document.getElementById('appContainer').style.display = 'none';
 document.getElementById('loginScreen').style.display = 'flex';
 document.getElementById('pwdInput').value = '';
@@ -1856,15 +1886,110 @@ initRecouvrementOptions();
 document.getElementById('presenceDate').value = new Date().toISOString().split('T')[0];
 
 renderEleves();
-renderPayEleves();
 renderStats();
 renderPresences();
 chargerConfigFrais();
 updateRecouvrementPreview();
 
-ecouterPaiements();
-ecouterEleves();
-ecouterProfs();
+demarrerEcoute();
+initVisibilityListener();
+initRefreshButton();
+}
+
+function demarrerEcoute() {
+if (!unsubscribePaiements) ecouterPaiements();
+if (!unsubscribeEleves) ecouterEleves();
+if (!unsubscribeProfs) ecouterProfs();
+}
+
+function arreterEcoute() {
+if (unsubscribePaiements) { unsubscribePaiements(); unsubscribePaiements = null; }
+if (unsubscribeEleves) { unsubscribeEleves(); unsubscribeEleves = null; }
+if (unsubscribeProfs) { unsubscribeProfs(); unsubscribeProfs = null; }
+}
+
+function initVisibilityListener() {
+document.addEventListener('visibilitychange', () => {
+if (document.hidden) {
+arreterEcoute();
+} else {
+rechargerDonneesPuisEcouter();
+}
+});
+}
+
+async function rechargerDonneesPuisEcouter() {
+try {
+await chargerEleves();
+await chargerProfs();
+await chargerPaiementsPrefet();
+renderEleves();
+renderStats();
+renderPresences();
+updateRecouvrementPreview();
+} catch (e) {}
+demarrerEcoute();
+}
+
+function initRefreshButton() {
+const btn = document.getElementById('btnRefresh');
+if (!btn) return;
+
+const info0 = getRefreshInfo();
+if (info0.count >= REFRESH_MAX) {
+btn.style.opacity = '0.5';
+btn.style.cursor = 'not-allowed';
+btn.title = 'Limite atteinte — réessayez demain';
+}
+
+btn.onclick = async function() {
+if (this.disabled) return;
+
+const info = getRefreshInfo();
+if (info.count >= REFRESH_MAX) {
+toast("Limite de rafraîchissement atteinte — réessayez demain", "warning");
+this.style.opacity = '0.5';
+this.style.cursor = 'not-allowed';
+this.title = 'Limite atteinte — réessayez demain';
+return;
+}
+
+this.disabled = true;
+this.classList.add('spinning');
+
+try {
+await chargerEleves();
+await chargerProfs();
+await chargerPaiementsPrefet();
+renderEleves();
+renderStats();
+renderPresences();
+updateRecouvrementPreview();
+
+const newInfo = { date: info.date, count: info.count + 1 };
+setRefreshInfo(newInfo);
+
+const restants = REFRESH_MAX - newInfo.count;
+
+if (restants <= 0) {
+toast("Données actualisées — dernière utilisation du jour", "warning");
+this.style.opacity = '0.5';
+this.style.cursor = 'not-allowed';
+this.title = 'Limite atteinte — réessayez demain';
+} else if (restants === 1) {
+toast("Données actualisées — 1 utilisation restante aujourd'hui", "warning");
+} else {
+toast("Données actualisées", "success");
+}
+} catch (e) {
+toast("Rafraîchissement impossible", "error");
+}
+
+setTimeout(() => {
+this.disabled = false;
+this.classList.remove('spinning');
+}, 400);
+};
 }
 
 async function autoLogin() {
