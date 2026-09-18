@@ -581,25 +581,41 @@ async function getAllEleves() {
 try {
 const cycle = currentEnseignant?.cycle || 'primaire';
 const collectionName = getCollectionEleves(cycle);
+console.log(`[getAllEleves] Cycle: ${cycle} | Collection: ${collectionName}`);
 const snap = await getDocs(collection(db, "ecoles", ECOLET_ID, collectionName));
 localEleves = [];
 const classesEnseignant = getClassesEnseignant();
+console.log(`[getAllEleves] Classes enseignant:`, classesEnseignant);
+console.log(`[getAllEleves] Documents trouvés: ${snap.docs.length}`);
 for (const ds of snap.docs) {
 const d = ds.data();
 if (d._type === 'config' || d._type === 'settings' || d._type === 'inscription') continue;
-if (!d.nom) continue;
+if (!d.nom || d.nom.trim() === '') continue;
 if (d.abandon === true || d.abandonne === true) continue;
-if (classesEnseignant.length > 0 && !classesEnseignant.includes(d.classe)) continue;
+if (cycle === 'primaire' && d._type && d._type !== 'prima_eleve') continue;
+if (cycle === 'maternelle' && d._type && d._type !== 'mater_eleve') continue;
+if (classesEnseignant.length > 0 && !classesEnseignant.includes(d.classe)) {
+console.log(`[getAllEleves] Élève "${d.nom}" ignoré (classe "${d.classe}" non dans [${classesEnseignant.join(', ')}])`);
+continue;
+}
 localEleves.push({
 id: d.eleveId || ds.id,
-nom: d.nom || '', postnom: d.postnom || '', prenom: d.prenom || '',
-sexe: d.sexe || "M", classe: d.classe || '',
-parentCode: d.parentCode || "", abandon: d.abandon || false,
+nom: d.nom || '',
+postnom: d.postnom || '',
+prenom: d.prenom || '',
+sexe: d.sexe || "M",
+classe: d.classe || '',
+parentCode: d.parentCode || "",
+abandon: d.abandon || false,
 dateInscription: d.dateInscription || new Date().toISOString()
 });
 }
+console.log(`[getAllEleves] ✅ ${localEleves.length} élèves chargés.`);
 return localEleves;
-} catch (error) { return []; }
+} catch (error) {
+console.error("[getAllEleves] ❌ Erreur:", error);
+return [];
+}
 }
 async function loadAllFiches() {
 if (!currentEnseignant) return [];
@@ -1110,7 +1126,7 @@ for (let ei = 0; ei < eps[p1].length; ei++) {
 let val = e.notes['p' + p1]?.[ei] || 0;
 let maxVal = eps[p1][ei]?.max || 20;
 let cls = getNoteClass(val, maxVal);
-r += `<td><input type="number" step="0.5" min="0" max="${maxVal}" value="${val}" style="width:50px" class="${cls}" readonly></td>`;
+r += `<td><input type="number" step="0.5" min="0" max="${maxVal}" value="${val}" onchange="window.updNotePrimaire(${i}, ${p1}, ${ei}, this.value)" style="width:50px" class="${cls}"></td>`;
 }
 let p1m = calcMoy(p1, e.notes['p' + p1] || []);
 let p1Cls = getNoteClass(p1m, pMax);
@@ -1120,7 +1136,7 @@ for (let ei = 0; ei < eps[p2].length; ei++) {
 let val = e.notes['p' + p2]?.[ei] || 0;
 let maxVal = eps[p2][ei]?.max || 20;
 let cls = getNoteClass(val, maxVal);
-r += `<td><input type="number" step="0.5" min="0" max="${maxVal}" value="${val}" style="width:50px" class="${cls}" readonly></td>`;
+r += `<td><input type="number" step="0.5" min="0" max="${maxVal}" value="${val}" onchange="window.updNotePrimaire(${i}, ${p2}, ${ei}, this.value)" style="width:50px" class="${cls}"></td>`;
 }
 let p2m = calcMoy(p2, e.notes['p' + p2] || []);
 let p2Cls = getNoteClass(p2m, pMax);
@@ -1150,6 +1166,22 @@ if (!currentFiche.eleves[i].notes) currentFiche.eleves[i].notes = { p1:[],p2:[],
 if (!currentFiche.eleves[i].notes['p' + t]) currentFiche.eleves[i].notes['p' + t] = [];
 currentFiche.eleves[i].notes['p' + t][ei] = va;
 saveCurrentFiche(); afficherCotation();
+};
+window.updNotePrimaire = function(i, p, ei, v) {
+let va = parseFloat(v) || 0;
+let eps = currentFiche.epreuvesParPeriode?.[p] || [];
+let me = eps[ei]?.max || 20;
+if (va > me) va = me;
+if (va < 0) va = 0;
+if (!currentFiche.eleves[i].notes) {
+currentFiche.eleves[i].notes = { p1:[],p2:[],p3:[],p4:[],p5:[],p6:[],exam1:0,exam2:0,exam3:0 };
+}
+if (!currentFiche.eleves[i].notes['p' + p]) {
+currentFiche.eleves[i].notes['p' + p] = [];
+}
+currentFiche.eleves[i].notes['p' + p][ei] = va;
+saveCurrentFiche();
+afficherCotation();
 };
 window.updExam = function(i, t, v) {
 let va = parseFloat(v) || 0;
