@@ -37,8 +37,10 @@ body{height:100%;margin:0;padding:0;overflow-y:auto;overflow-x:hidden;-webkit-ov
 .school-sub i{color:#d4af37;font-size:11px}
 .school-promoter{display:inline-flex;align-items:center;gap:6px;background:rgba(212,175,55,0.12);border:1px solid rgba(212,175,55,0.3);color:#d4af37;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;letter-spacing:1px;text-transform:uppercase;margin-top:4px;align-self:flex-start;width:fit-content}
 .school-promoter i{color:#d4af37;font-size:10px}
-.header-badge{position:absolute;top:20px;right:88px;z-index:2;display:flex;align-items:center;gap:8px;background:rgba(5,150,105,0.15);border:1px solid rgba(16,185,129,0.35);color:#34d399;padding:6px 14px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+.header-badge{position:absolute;top:20px;right:88px;z-index:2;display:flex;align-items:center;gap:8px;background:rgba(5,150,105,0.15);border:1px solid rgba(16,185,129,0.35);color:#34d399;padding:6px 14px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;transition:all 0.4s ease}
 .header-badge .dot{width:8px;height:8px;border-radius:50%;background:#10b981;box-shadow:0 0 10px #10b981;animation:pulse 2s ease-in-out infinite}
+.header-badge.pause{background:rgba(245,158,11,0.15);border-color:rgba(245,158,11,0.35);color:#fbbf24}
+.header-badge.pause .dot{background:#f59e0b;box-shadow:0 0 10px #f59e0b;animation:none}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.6;transform:scale(1.15)}}
 .logout-circle{position:absolute;top:20px;right:20px;z-index:10;width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,0.9);border:2px solid rgba(239,68,68,0.35);color:#ef4444;font-size:22px;cursor:pointer;transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.2);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);touch-action:manipulation}
 .logout-circle:hover{transform:scale(1.12) rotate(-8deg);background:#ef4444;color:#fff;border-color:#ef4444;box-shadow:0 8px 28px rgba(239,68,68,0.5)}
@@ -306,7 +308,7 @@ body{height:100%;margin:0;padding:0;overflow-y:auto;overflow-x:hidden;-webkit-ov
 <div class="school-promoter"><i class="fas fa-crown"></i> ESPACE DU PROMOTEUR</div>
 </div>
 </div>
-<div class="header-badge"><span class="dot"></span> En ligne</div>
+<div class="header-badge" id="headerBadge"><span class="dot"></span> En ligne</div>
 <button class="logout-circle" id="logoutBtn" title="Déconnexion"><i class="fas fa-power-off"></i></button>
 </div>
 <div class="tabs-container" tabindex="0">
@@ -629,7 +631,7 @@ if('scrollRestoration' in history)history.scrollRestoration='manual';
 
 <script type="module">
 import{initializeApp}from"firebase/app";
-import{getFirestore,collection,doc,getDoc,getDocs}from"firebase/firestore";
+import{getFirestore,collection,doc,getDoc,getDocs,onSnapshot}from"firebase/firestore";
 
 const firebaseConfig={
   apiKey:"AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",
@@ -654,8 +656,12 @@ let isFirstLoad=true;
 let currentDate=new Date().toISOString().split('T')[0];
 let darkModeActive=false;
 let authentifie=false;
-let pollingInterval=null;
-let pollingActif=false;
+let unsubscribePrimaire=null;
+let unsubscribeMaternelle=null;
+let unsubscribeSecondaire=null;
+let unsubscribeProfs=null;
+let unsubscribeEnseignants=null;
+let listenersActifs=false;
 let pageOuverte=true;
 
 const CACHE_KEY_ELEVES='tremplin_cache_eleves_v1';
@@ -701,7 +707,7 @@ function activerOnglets(){
 }
 
 function attacherDeconnexion(){const btn=document.getElementById('logoutBtn');if(!btn)return;btn.addEventListener('click',function(e){e.preventDefault();showLogoutModal();});}
-function showLogoutModal(){document.querySelectorAll('.modal-overlay').forEach(m=>m.remove());const overlay=document.createElement('div');overlay.className='modal-overlay';overlay.innerHTML='<div class="modal-box"><button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">&times;</button><div class="modal-icon"><i class="fas fa-sign-out-alt"></i></div><div class="modal-title"><i class="fas fa-power-off"></i> Déconnexion</div><p class="modal-message">Êtes-vous sûr de vouloir vous déconnecter ?<br><span style="font-size:12px;color:#94a3b8;">Vous serez redirigé vers la page de connexion.</span></p><div class="modal-actions"><button class="btn-cancel" onclick="this.closest(\'.modal-overlay\').remove()">Annuler</button><button class="btn-confirm" id="confirmLogout"><i class="fas fa-sign-out-alt"></i> Confirmer</button></div></div>';document.body.appendChild(overlay);setTimeout(()=>overlay.classList.add('show'),10);document.getElementById('confirmLogout').onclick=function(){const overlayEl=this.closest('.modal-overlay');overlayEl.classList.remove('show');setTimeout(()=>{overlayEl.remove();sessionStorage.clear();window.location.href='https://www.cstremplin.com/login2';},400);};}
+function showLogoutModal(){document.querySelectorAll('.modal-overlay').forEach(m=>m.remove());const overlay=document.createElement('div');overlay.className='modal-overlay';overlay.innerHTML='<div class="modal-box"><button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">&times;</button><div class="modal-icon"><i class="fas fa-sign-out-alt"></i></div><div class="modal-title"><i class="fas fa-power-off"></i> Déconnexion</div><p class="modal-message">Êtes-vous sûr de vouloir vous déconnecter ?<br><span style="font-size:12px;color:#94a3b8;">Vous serez redirigé vers la page de connexion.</span></p><div class="modal-actions"><button class="btn-cancel" onclick="this.closest(\'.modal-overlay\').remove()">Annuler</button><button class="btn-confirm" id="confirmLogout"><i class="fas fa-sign-out-alt"></i> Confirmer</button></div></div>';document.body.appendChild(overlay);setTimeout(()=>overlay.classList.add('show'),10);document.getElementById('confirmLogout').onclick=function(){const overlayEl=this.closest('.modal-overlay');overlayEl.classList.remove('show');setTimeout(()=>{arreterEcouteurs();overlayEl.remove();sessionStorage.clear();window.location.href='https://www.cstremplin.com/login2';},400);};}
 
 async function verifierAcces(){
   if(!codeFromUrl){authentifie=false;return false;}
@@ -1210,109 +1216,75 @@ function genererPDFRecouvrement(){
   doc.save(`Recouvrement_${mois}_${new Date().toISOString().split('T')[0]}.pdf`);
 }
 
-async function verifierChangementSimple(){
-  if(document.hidden)return false;
-  if(!pageOuverte)return false;
-  try{
-    const[primaireSnap,materSnap,secSnap,profsSnap,ensSnap]=await Promise.all([
-      getDocs(collection(db,"ecoles",ECOLET_ID,"prima_eleves")),
-      getDocs(collection(db,"ecoles",ECOLET_ID,"mater_eleves")),
-      getDocs(collection(db,"ecoles",ECOLET_ID,"compta_eleves")),
-      getDocs(collection(db,"ecoles",ECOLET_ID,"professeurs")),
-      getDocs(collection(db,"ecoles",ECOLET_ID,"enseignants"))
-    ]);
-    let nbTotal=0;
-    let totalPaiements=0;
-    let nbPaiementsEffectues=0;
-    let derniereDatePaiement=0;
-    const analyserPaiements=(snap)=>{
-      snap.forEach(d=>{
-        const data=d.data();
-        if(!data.nom)return;
-        nbTotal++;
-        const paiements=data.paiements||{};
-        const moisBlancs=data.moisBlancs||[];
-        for(let m of moisListe){
-          const p=paiements[m];
-          if(p&&p.montant>0){
-            totalPaiements+=p.montant;
-            nbPaiementsEffectues++;
-            if(p.date){
-              const t=new Date(p.date).getTime();
-              if(!isNaN(t)&&t>derniereDatePaiement)derniereDatePaiement=t;
-            }
-          }
-        }
-        nbPaiementsEffectues+=moisBlancs.length;
-      });
-    };
-    analyserPaiements(primaireSnap);
-    analyserPaiements(materSnap);
-    analyserPaiements(secSnap);
-    nbTotal+=profsSnap.size+ensSnap.size;
-    const signature=[nbTotal,totalPaiements,nbPaiementsEffectues,Math.floor(derniereDatePaiement/1000)].join('_');
-    if(window._derniereSignature===undefined){window._derniereSignature=signature;return false;}
-    if(window._derniereSignature!==signature){window._derniereSignature=signature;return true;}
-    return false;
-  }catch(e){return false;}
+function demarrerEcouteurs(){
+  if(listenersActifs)return;
+  listenersActifs=true;
+  console.log('[Listeners] ▶️ Démarrage - onglet ACTIF');
+  
+  unsubscribePrimaire=onSnapshot(collection(db,"ecoles",ECOLET_ID,"prima_eleves"),()=>{
+    chargerTousEleves().then(()=>{updateStats();afficherPaiements();afficherPerception();afficherRecouvrement();updateInscriptionsBars();});
+  },(err)=>console.warn('prima:',err.message));
+  
+  unsubscribeMaternelle=onSnapshot(collection(db,"ecoles",ECOLET_ID,"mater_eleves"),()=>{
+    chargerTousEleves().then(()=>{updateStats();afficherPaiements();afficherPerception();afficherRecouvrement();updateInscriptionsBars();});
+  },(err)=>console.warn('mater:',err.message));
+  
+  unsubscribeSecondaire=onSnapshot(collection(db,"ecoles",ECOLET_ID,"compta_eleves"),()=>{
+    chargerTousEleves().then(()=>{updateStats();afficherPaiements();afficherPerception();afficherRecouvrement();updateInscriptionsBars();});
+  },(err)=>console.warn('sec:',err.message));
+  
+  unsubscribeProfs=onSnapshot(collection(db,"ecoles",ECOLET_ID,"professeurs"),()=>{
+    chargerTousProfesseurs().then(()=>{afficherProfs();updateStats();updatePresenceBars();});
+  },(err)=>console.warn('profs:',err.message));
+  
+  unsubscribeEnseignants=onSnapshot(collection(db,"ecoles",ECOLET_ID,"enseignants"),()=>{
+    chargerTousEnseignants().then(()=>{afficherProfs();updateStats();updatePresenceBars();});
+  },(err)=>console.warn('ens:',err.message));
+  
+  const badge=document.getElementById('headerBadge');
+  if(badge){badge.classList.remove('pause');badge.innerHTML='<span class="dot"></span> En ligne';}
 }
 
-async function rechargerDonneesAuto(){
-  if(document.hidden||!pageOuverte)return;
-  afficherBadgeSync('🔄 Synchronisation...','#2563eb');
-  try{
-    await chargerTousEleves();
-    await chargerTousProfesseurs();
-    await chargerTousEnseignants();
-    updateStats();
-    updatePresenceBars();
-    updateInscriptionsBars();
-    afficherPaiements();
-    afficherProfs();
-    afficherPerception();
-    afficherRecouvrement();
-    afficherBadgeSync('✅ Données à jour','#059669');
-  }catch(e){
-    afficherBadgeSync('⚠️ Erreur sync','#dc2626');
-  }
+function arreterEcouteurs(){
+  if(!listenersActifs)return;
+  listenersActifs=false;
+  console.log('[Listeners] ⏸️ Arrêt - onglet INACTIF - 0 lecture');
+  
+  if(unsubscribePrimaire){unsubscribePrimaire();unsubscribePrimaire=null;}
+  if(unsubscribeMaternelle){unsubscribeMaternelle();unsubscribeMaternelle=null;}
+  if(unsubscribeSecondaire){unsubscribeSecondaire();unsubscribeSecondaire=null;}
+  if(unsubscribeProfs){unsubscribeProfs();unsubscribeProfs=null;}
+  if(unsubscribeEnseignants){unsubscribeEnseignants();unsubscribeEnseignants=null;}
+  
+  const badge=document.getElementById('headerBadge');
+  if(badge){badge.classList.add('pause');badge.innerHTML='<span class="dot"></span> En pause';}
 }
 
-function demarrerTempsReel(){
-  pollingActif=true;
-  pageOuverte=true;
-  if(pollingInterval)clearInterval(pollingInterval);
-  pollingInterval=setInterval(async()=>{
-    if(!pollingActif||!pageOuverte)return;
-    if(document.hidden)return;
-    const ilYaDuNouveau=await verifierChangementSimple();
-    if(ilYaDuNouveau){
-      await rechargerDonneesAuto();
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){
+    arreterEcouteurs();
+  }else{
+    if(pageOuverte&&authentifie){
+      demarrerEcouteurs();
     }
-  },60000);
-}
-
-document.addEventListener('visibilitychange',async()=>{
-  if(document.hidden)return;
-  if(!pollingActif||!pageOuverte)return;
-  const ilYaDuNouveau=await verifierChangementSimple();
-  if(ilYaDuNouveau){
-    await rechargerDonneesAuto();
   }
 });
 
 window.addEventListener('beforeunload',()=>{
   pageOuverte=false;
-  if(pollingInterval){clearInterval(pollingInterval);pollingInterval=null;}
+  arreterEcouteurs();
 });
 
 window.addEventListener('pagehide',()=>{
   pageOuverte=false;
+  arreterEcouteurs();
 });
 
-window.addEventListener('pageshow',(event)=>{
+window.addEventListener('pageshow',()=>{
   pageOuverte=true;
-  pollingActif=true;
-  if(!pollingInterval){demarrerTempsReel();}
+  if(!document.hidden&&authentifie){
+    demarrerEcouteurs();
+  }
 });
 
 function attacherFiltresEtPDF(){
@@ -1443,7 +1415,9 @@ async function initApp(){
   afficherPerception();
   afficherRecouvrement();
   afficherBadgeSync('✅ Données à jour','#059669');
-  demarrerTempsReel();
+  if(!document.hidden){
+    demarrerEcouteurs();
+  }
 }
 
 if(document.readyState==='loading'){
