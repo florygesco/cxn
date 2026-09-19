@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>ESPACE IMPRESSION - COMPTABILITÉ</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{overscroll-behavior:none;height:100%}
+body{background:#0a0e1a;font-family:'Inter',sans-serif;padding:12px;overflow-y:auto;color:#fff}
+.container{max-width:1400px;margin:0 auto;padding-bottom:100px}
+.school-header{background:linear-gradient(135deg,#0f2b44,#071a2c);border-radius:20px;padding:20px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}
+.school-name{font-size:22px;font-weight:800;background:linear-gradient(135deg,#ffd700,#fbbf24);-webkit-background-clip:text;background-clip:text;color:transparent}
+.school-sub{font-size:11px;color:#cbd5e1;margin-top:4px}
+.header-actions{display:flex;gap:10px;align-items:center}
+.refresh-btn,.logout-btn{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;font-weight:bold;transition:all .2s}
+.refresh-btn{background:rgba(255,215,0,0.15);border:1px solid rgba(255,215,0,0.3);color:#ffd700}
+.refresh-btn:hover{background:#ffd700;color:#0f172a;transform:rotate(180deg)}
+.logout-btn{background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.5);color:#ef4444}
+.logout-btn:hover{background:#ef4444;color:white;transform:scale(1.05)}
+.periode-section{text-align:center;padding:10px 0;margin-bottom:16px}
+.periode-label{font-size:22px;font-weight:800;color:#ffd700;letter-spacing:0.5px}
+.annee-label{font-size:15px;color:#cbd5e1;margin-top:4px}
+.card{background:rgba(18,18,31,0.9);border-radius:20px;margin-bottom:20px;border:1px solid rgba(255,215,0,0.2);overflow:hidden}
+.card-header{padding:14px 20px;background:linear-gradient(135deg,#0f2b44,#071a2c);color:#ffd700;font-weight:700;font-size:15px}
+.p-16{padding:20px}
+.form-group{margin-bottom:14px}
+.form-group label{font-size:11px;font-weight:600;color:#cbd5e1;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px}
+.form-group input,.form-group select{width:100%;background:#2d3748;border:1px solid #334155;border-radius:12px;padding:10px 14px;color:#fff;font-size:14px;outline:none;transition:border-color .2s}
+.form-group input:focus,.form-group select:focus{border-color:#ffd700}
+.btn{padding:12px 24px;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer;border:none;transition:all .15s;text-transform:uppercase;letter-spacing:0.5px;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn:active{transform:scale(0.97)}
+.btn-primary{background:linear-gradient(180deg,#ffd700,#f59e0b);color:#0f172a}
+.btn-success{background:linear-gradient(180deg,#34d399,#059669);color:white}
+.btn-outline{background:transparent;border:2px solid #ffd700;color:#ffd700}
+.btn-sm{padding:8px 14px;font-size:11px;border-radius:10px;font-weight:700}
+.btn-pdf-pay{background:linear-gradient(180deg,#3b82f6,#1d4ed8);color:white}
+.btn-pdf-insc{background:linear-gradient(180deg,#7c3aed,#6d28d9);color:white}
+.section-tabs{display:flex;gap:6px;margin-bottom:20px;overflow-x:auto;padding-bottom:5px}
+.section-tab{background:rgba(30,41,59,0.8);border:1px solid rgba(255,215,0,0.2);padding:10px 20px;border-radius:40px;color:#94a3b8;cursor:pointer;font-weight:700;font-size:12px;white-space:nowrap;transition:all .2s;text-transform:uppercase}
+.section-tab.active{background:#ffd700;color:#0f172a;border-color:#ffd700}
+.eleve-cards{display:flex;flex-direction:column;gap:12px}
+.eleve-card{background:rgba(15,23,42,0.6);border-radius:14px;border:1px solid rgba(255,215,0,0.1);padding:14px 16px;transition:all .2s}
+.eleve-card:hover{background:rgba(30,41,59,0.8);border-color:rgba(255,215,0,0.3)}
+.eleve-header-row{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.eleve-nom{font-weight:700;color:#ffd700;font-size:15px}
+.eleve-badges{display:flex;gap:6px;flex-wrap:wrap}
+.eleve-info{font-size:12px;color:#94a3b8;margin-top:4px}
+.eleve-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;padding-top:12px;border-top:1px solid rgba(255,215,0,0.08)}
+.badge{display:inline-block;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase}
+.badge-fille{background:#ec4899;color:white}
+.badge-garcon{background:#3b82f6;color:white}
+.badge-exonere{background:#10b981;color:white}
+.badge-sec{background:#f59e0b;color:white}
+.badge-prime{background:#3b82f6;color:white}
+.badge-mater{background:#10b981;color:white}
+.badge-code{background:rgba(59,130,246,0.2);color:#60a5fa;font-family:monospace;font-size:11px;border:1px solid rgba(59,130,246,0.3)}
+.empty-state{text-align:center;padding:40px;color:#64748b}
+.login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;background:#0a0e1a}
+.login-card{background:linear-gradient(145deg,#1a2332,#0f172a);border-radius:28px;padding:40px 32px;width:100%;max-width:420px;border:1px solid rgba(255,215,0,0.15);text-align:center;box-shadow:0 30px 80px rgba(0,0,0,0.5)}
+.login-card .logo-circle{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#ffd700,#f59e0b);display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 20px}
+.login-card h1{font-size:22px;font-weight:800;color:#ffd700;margin-bottom:8px}
+.login-card p{color:#94a3b8;font-size:14px;margin-bottom:24px}
+.login-card input{width:100%;background:#2d3748;border:1px solid #334155;border-radius:12px;padding:16px;color:#fff;font-size:24px;text-align:center;letter-spacing:8px;font-weight:700;font-family:monospace;margin-bottom:20px;outline:none;transition:border-color .2s}
+.login-card input:focus{border-color:#ffd700}
+.login-error{color:#ef4444;font-size:13px;margin-top:12px;min-height:20px}
+.toast-container{position:fixed;top:30px;right:30px;z-index:20000;display:flex;flex-direction:column;gap:12px;max-width:400px;pointer-events:none}
+.toast{background:rgba(18,25,45,0.98);border-radius:14px;padding:16px 20px;display:flex;align-items:flex-start;gap:12px;pointer-events:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);border-left:5px solid #10b981;color:#e2e8f0;opacity:0;transform:translateX(100px);transition:all .3s ease;min-width:280px}
+.toast.show{opacity:1;transform:translateX(0)}
+.toast.success{border-left-color:#10b981;background:rgba(16,185,129,0.15)}
+.toast.error{border-left-color:#ef4444;background:rgba(239,68,68,0.15)}
+.toast.warning{border-left-color:#f59e0b;background:rgba(245,158,11,0.15)}
+.toast-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold;flex-shrink:0}
+.toast-content{flex:1}
+.toast-title{font-size:14px;font-weight:700;color:#fff;margin-bottom:2px}
+.toast-message{font-size:12px;color:#cbd5e1;line-height:1.4}
+.loading-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:#0a0e1a;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .4s}
+.loading-overlay.hidden{opacity:0;pointer-events:none;visibility:hidden}
+.spinner{width:50px;height:50px;border:4px solid rgba(255,215,0,0.1);border-top-color:#ffd700;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:20px}
+.loading-text{color:#ffd700;font-size:15px;font-weight:600;letter-spacing:1px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.75);z-index:10000;display:flex;align-items:flex-end;justify-content:center;visibility:hidden;opacity:0;transition:opacity .3s}
+.modal-overlay.show{visibility:visible;opacity:1}
+.modal-card{background:linear-gradient(145deg,#1a2332,#0f172a);border-radius:28px 28px 0 0;width:100%;max-width:600px;padding:28px 24px 36px;border:1px solid rgba(255,215,0,0.15);max-height:92vh;overflow-y:auto;transform:translateY(100%);transition:transform .4s cubic-bezier(0.34,1.0,0.64,1.0)}
+.modal-overlay.show .modal-card{transform:translateY(0)}
+.modal-card h3{font-size:20px;font-weight:800;margin-bottom:20px;color:#ffd700;text-align:center}
+.modal-info-line{display:flex;justify-content:space-between;padding:10px 0;color:#cbd5e1;border-bottom:1px solid rgba(255,215,0,0.08);font-size:14px}
+.modal-info-line span:last-child{color:#fff;font-weight:600}
+.modal-buttons{display:flex;gap:12px;margin-top:20px;justify-content:center;flex-wrap:wrap}
+.mois-list{display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow-y:auto;margin-top:12px}
+.mois-item{background:rgba(15,23,42,0.6);border-radius:12px;padding:14px;border-left:4px solid #10b981;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;transition:all .2s}
+.mois-item:hover{background:rgba(30,41,59,0.9)}
+.mois-item .mois-name{font-weight:800;color:#10b981;font-size:15px;text-transform:uppercase}
+.mois-item .mois-details{font-size:12px;color:#cbd5e1;margin-top:4px}
+.mois-item .mois-details strong{color:#fff}
+.mois-item .btn{flex-shrink:0}
+</style>
+</head>
+<body>
+
+<!-- ==================== PAGE LOGIN ==================== -->
+<div id="loginPage" class="login-page">
+  <div class="login-card">
+    <div class="logo-circle">🔐</div>
+    <h1>ESPACE IMPRESSION</h1>
+    <p>Comptabilité - Reçus & Inscriptions</p>
+    <input type="password" id="loginCode" maxlength="6" inputmode="numeric" placeholder="• • • • • •" autocomplete="off">
+    <button class="btn btn-primary" style="width:100%;" id="loginBtn">SE CONNECTER</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- ==================== PAGE PRINCIPALE ==================== -->
+<div class="container" id="mainApp" style="display:none">
+  <div class="school-header">
+    <div>
+      <div class="school-name" id="schoolName">🏫 ESPACE IMPRESSION</div>
+      <div class="school-sub">Comptabilité - Reçus & Inscriptions</div>
+    </div>
+    <div class="header-actions">
+      <button class="refresh-btn" id="refreshBtn" title="Rafraîchir">⟳</button>
+      <button class="logout-btn" id="logoutBtn" title="Déconnexion">✕</button>
+    </div>
+  </div>
+
+  <div class="periode-section">
+    <div class="periode-label">ESPACE D'IMPRESSION</div>
+    <div class="annee-label" id="anneeLabel">2026 - 2027</div>
+  </div>
+
+  <div class="section-tabs" id="sectionTabs">
+    <button class="section-tab active" data-section="all">📚 TOUS</button>
+    <button class="section-tab" data-section="secondaire">🔵 SECONDAIRE</button>
+    <button class="section-tab" data-section="primaire">🟠 PRIMAIRE</button>
+    <button class="section-tab" data-section="maternelle">🟢 MATERNELLE</button>
+  </div>
+
+  <div class="card">
+    <div class="card-header">📋 LISTE DES ÉLÈVES</div>
+    <div class="p-16">
+      <div class="form-group">
+        <label>🔍 RECHERCHER</label>
+        <input type="text" id="searchNom" placeholder="Nom ou prénom...">
+      </div>
+      <div class="form-group">
+        <label>📚 CLASSE / NIVEAU</label>
+        <select id="filterClasse">
+          <option value="">Toutes les classes</option>
+        </select>
+      </div>
+      <div id="elevesContainer"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="loading-overlay hidden" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text">⏳ Chargement…</div>
+</div>
+
+<!-- Modal Choix Mois pour Reçu Paiement -->
+<div class="modal-overlay" id="choixMoisModal">
+  <div class="modal-card">
+    <h3>🧾 REÇU PAIEMENT</h3>
+    <div id="choixMoisInfo"></div>
+    <div class="mois-list" id="moisListContainer"></div>
+    <div class="modal-buttons">
+      <button class="btn btn-outline" id="cancelChoixMois">FERMER</button>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"}}
+</script>
+<script type="module">
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, getDoc, collection, getDocs } from "firebase/firestore";
+
+// ============ CONFIGURATION ============
+const CODE_ACCES = "202020";
+const firebaseConfig = {
+  apiKey: "AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",
+  authDomain: "gesco-2.firebaseapp.com",
+  projectId: "gesco-2",
+  storageBucket: "gesco-2.firebasestorage.app",
+  messagingSenderId: "36319988765",
+  appId: "1:36319988765:web:e8cd823804596495248af4"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const urlParams = new URLSearchParams(window.location.search);
+const schoolId = urlParams.get('ecole') || 'demo';
+const ECOLET_ID = schoolId.replace(/[^a-zA-Z0-9]/g, '_');
+const SCHOOL_DISPLAY_NAME = schoolId.toUpperCase();
+
+const anneeScolaire = "2026-2027";
+const moisListe = ["Septembre","Octobre","Novembre","Decembre","Janvier","Fevrier","Mars","Avril","Mai","Juin"];
+
+const classesSecondaire = ["7ème EB","8ème EB","1ère Année","2ème Année","3ème Année","4ème Année"];
+const classesPrimaire = ["1ère A","1ère B","2ème A","2ème B","3ème A","3ème B","4ème A","4ème B","5ème A","5ème B","6ème A","6ème B"];
+const classesMaternelle = ["Niveau 1","Niveau 2","Niveau 3"];
+
+let currentSchoolConfig = null;
+let schoolLogoUrl = null;
+let logoBase64Cache = null;
+let allEleves = [];
+let currentSection = 'all';
+let currentEleveForRecu = null;
+let isGenerating = false;
+
+// ============ UTILITAIRES ============
+function getNomEcole(displayName){
+  const nomEcole = displayName.toUpperCase().replace(/[^a-zA-Z]/g,'');
+  if(nomEcole.startsWith('T')) return 'COMPLEXE SCOLAIRE LE ' + displayName;
+  return 'COMPLEXE SCOLAIRE ' + displayName;
+}
+
+function sansAccent(texte){
+  if(!texte) return "";
+  const map = {'é':'e','è':'e','ê':'e','ë':'e','à':'a','â':'a','ä':'a','ô':'o','ö':'o','û':'u','ü':'u','î':'i','ï':'i','ç':'c','É':'E','È':'E','Ê':'E','Ë':'E','À':'A','Â':'A','Ä':'A','Ô':'O','Ö':'O','Û':'U','Ü':'U','Î':'I','Ï':'I','Ç':'C'};
+  return texte.replace(/[éèêëàâäôöûüîïçÉÈÊËÀÂÄÔÖÛÜÎÏÇ]/g, m => map[m] || m);
+}
+
+function mettreEnMajuscules(t){ return t ? t.toUpperCase() : ""; }
+
+function formaterNombre(n){
+  if(n === 0) return "0";
+  let resultat = "", nombre = Math.abs(n), strNombre = nombre.toString(), compteur = 0;
+  for(let i = strNombre.length - 1; i >= 0; i--){
+    compteur++;
+    resultat = strNombre[i] + resultat;
+    if(compteur % 3 === 0 && i !== 0) resultat = " " + resultat;
+  }
+  return n < 0 ? "-" + resultat : resultat;
+}
+
+function formatNbSimple(n){
+  if(isNaN(n) || n === null || n === undefined) return "0";
+  return formaterNombre(Math.floor(Number(n)));
+}
+
+function formatDateFr(date){
+  if(!date) return "-";
+  const d = new Date(date);
+  if(isNaN(d.getTime())) return "-";
+  return d.getDate().toString().padStart(2,"0") + '/' + (d.getMonth()+1).toString().padStart(2,"0") + '/' + d.getFullYear();
+}
+
+function formatDateYMD(date = new Date()){
+  return date.toISOString().split('T')[0];
+}
+
+function getEspaceFromClasse(classe){
+  if(classesSecondaire.includes(classe)) return 'secondaire';
+  if(classesPrimaire.includes(classe)) return 'primaire';
+  if(classesMaternelle.includes(classe)) return 'maternelle';
+  return 'secondaire';
+}
+
+function getEspaceLabel(espace){
+  if(espace === 'secondaire') return 'SECONDAIRE';
+  if(espace === 'primaire') return 'PRIMAIRE';
+  if(espace === 'maternelle') return 'MATERNELLE';
+  return '';
+}
+
+function getEspaceBadgeClass(espace){
+  if(espace === 'secondaire') return 'badge-sec';
+  if(espace === 'primaire') return 'badge-prime';
+  if(espace === 'maternelle') return 'badge-mater';
+  return '';
+}
+
+// ============ TOAST ============
+function toast(msg, type = "success"){
+  const c = document.getElementById("toastContainer");
+  if(!c) return;
+  const icons = {success:"✓", error:"✕", warning:"⚠", info:"ℹ"};
+  const titles = {success:"Succès", error:"Erreur", warning:"Attention", info:"Information"};
+  const colors = {success:"#10b981", error:"#ef4444", warning:"#f59e0b", info:"#3b82f6"};
+  const el = document.createElement("div");
+  el.className = 'toast ' + type;
+  el.innerHTML = '<div class="toast-icon" style="background:' + colors[type] + '22;color:' + colors[type] + '">' + icons[type] + '</div><div class="toast-content"><div class="toast-title">' + titles[type] + '</div><div class="toast-message">' + msg + '</div></div>';
+  c.appendChild(el);
+  setTimeout(() => el.classList.add('show'), 10);
+  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 400); }, 3500);
+}
+
+// ============ LOGIN ============
+document.getElementById('loginBtn').addEventListener('click', doLogin);
+document.getElementById('loginCode').addEventListener('keydown', e => { if(e.key === 'Enter') doLogin(); });
+
+function doLogin(){
+  const code = document.getElementById('loginCode').value.trim();
+  const err = document.getElementById('loginError');
+  if(code === CODE_ACCES){
+    err.textContent = "";
+    sessionStorage.setItem('compta_auth', 'ok');
+    showMainApp();
+  } else {
+    err.textContent = "❌ Code incorrect. Veuillez réessayer.";
+    document.getElementById('loginCode').value = "";
+    document.getElementById('loginCode').focus();
+  }
+}
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  sessionStorage.removeItem('compta_auth');
+  location.reload();
+});
+
+document.getElementById('refreshBtn').addEventListener('click', async () => {
+  toast('🔄 Rechargement...', 'info');
+  await loadAllEleves();
+  await renderListe();
+  toast('✅ Données actualisées', 'success');
+});
+
+// ============ CHARGEMENT ============
+async function loadSchoolConfig(){
+  try {
+    const ref = doc(db, "ecoles", ECOLET_ID, "settings", "data");
+    const snap = await getDoc(ref);
+    if(snap.exists()){
+      currentSchoolConfig = snap.data();
+    } else {
+      currentSchoolConfig = { nom: getNomEcole(SCHOOL_DISPLAY_NAME), adresse: "" };
+    }
+  } catch(e){
+    currentSchoolConfig = { nom: getNomEcole(SCHOOL_DISPLAY_NAME) };
+  }
+}
+
+async function loadSchoolLogo(){
+  try {
+    const ref = doc(db, "ecoles", ECOLET_ID);
+    const snap = await getDoc(ref);
+    if(snap.exists()){
+      const data = snap.data();
+      schoolLogoUrl = data.logoUrl || null;
+    }
+  } catch(e){}
+}
+
+async function loadLogoBase64(){
+  if(logoBase64Cache) return logoBase64Cache;
+  if(!schoolLogoUrl) return null;
+  try {
+    const response = await fetch(schoolLogoUrl);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => { logoBase64Cache = reader.result; resolve(logoBase64Cache); };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch(e){ return null; }
+}
+
+async function loadCollection(collectionName, espace){
+  try {
+    const q = collection(db, "ecoles", ECOLET_ID, collectionName);
+    const snap = await getDocs(q);
+    const result = [];
+    const idsVus = new Set();
+    snap.forEach(d => {
+      const data = d.data();
+      if(data._type === 'config' || data._type === 'settings') return;
+      if(!data.nom || !data.nom.trim()) return;
+      const eleveId = data.eleveId || d.id;
+      if(idsVus.has(eleveId)) return;
+      idsVus.add(eleveId);
+      result.push({
+        id: eleveId,
+        firestoreId: d.id,
+        espace: espace,
+        nom: data.nom || '',
+        postnom: data.postnom || '',
+        prenom: data.prenom || '',
+        sexe: data.sexe || 'M',
+        classe: data.classe || '',
+        phone: data.phone || '',
+        minerval: data.minerval || 0,
+        fraisInscriptionTotal: data.fraisInscriptionTotal || 0,
+        fraisInscriptionPaye: data.fraisInscriptionPaye || 0,
+        exonere: data.exonere || false,
+        abandon: data.abandon || false,
+        parentCode: data.parentCode || '',
+        paiements: data.paiements || {},
+        dateInscription: data.dateInscription || formatDateYMD(new Date()),
+        moisBlancs: data.moisBlancs || []
+      });
+    });
+    return result;
+  } catch(e){
+    console.error('Erreur chargement ' + collectionName + ':', e);
+    return [];
+  }
+}
+
+async function loadAllEleves(){
+  const [secondaire, primaire, maternelle] = await Promise.all([
+    loadCollection('compta_eleves', 'secondaire'),
+    loadCollection('prima_eleves', 'primaire'),
+    loadCollection('mater_eleves', 'maternelle')
+  ]);
+  allEleves = [...secondaire, ...primaire, ...maternelle].filter(e => !e.abandon);
+}
+
+// ============ AFFICHAGE ============
+function buildClasseFilterOptions(){
+  const select = document.getElementById('filterClasse');
+  select.innerHTML = '<option value="">Toutes les classes</option>';
+  if(currentSection === 'all' || currentSection === 'secondaire'){
+    const og = document.createElement('optgroup');
+    og.label = 'SECONDAIRE';
+    classesSecondaire.forEach(c => {
+      const o = document.createElement('option'); o.value = c; o.textContent = c; og.appendChild(o);
+    });
+    select.appendChild(og);
+  }
+  if(currentSection === 'all' || currentSection === 'primaire'){
+    const og = document.createElement('optgroup');
+    og.label = 'PRIMAIRE';
+    classesPrimaire.forEach(c => {
+      const o = document.createElement('option'); o.value = c; o.textContent = c; og.appendChild(o);
+    });
+    select.appendChild(og);
+  }
+  if(currentSection === 'all' || currentSection === 'maternelle'){
+    const og = document.createElement('optgroup');
+    og.label = 'MATERNELLE';
+    classesMaternelle.forEach(c => {
+      const o = document.createElement('option'); o.value = c; o.textContent = c; og.appendChild(o);
+    });
+    select.appendChild(og);
+  }
+}
+
+async function renderListe(){
+  const search = document.getElementById('searchNom').value.trim().toLowerCase();
+  const classe = document.getElementById('filterClasse').value;
+
+  let eleves = allEleves;
+  if(currentSection !== 'all'){
+    eleves = eleves.filter(e => e.espace === currentSection);
+  }
+  if(classe){
+    eleves = eleves.filter(e => e.classe === classe);
+  }
+  if(search){
+    eleves = eleves.filter(e =>
+      e.nom.toLowerCase().includes(search) ||
+      (e.postnom && e.postnom.toLowerCase().includes(search)) ||
+      (e.prenom && e.prenom.toLowerCase().includes(search))
+    );
+  }
+
+  const cont = document.getElementById('elevesContainer');
+  if(eleves.length === 0){
+    cont.innerHTML = '<div class="empty-state">📭 Aucun élève trouvé</div>';
+    return;
+  }
+
+  let html = '<div class="eleve-cards">';
+  for(const e of eleves){
+    const nomComplet = (e.nom + ' ' + (e.postnom || '') + ' ' + (e.prenom || '')).toUpperCase();
+    const sexeBadge = e.sexe === 'F' ? '<span class="badge badge-fille">👩 Fille</span>' : '<span class="badge badge-garcon">👨 Garçon</span>';
+    const exoBadge = e.exonere ? '<span class="badge badge-exonere">Exonéré</span>' : '';
+    const espaceBadge = '<span class="badge ' + getEspaceBadgeClass(e.espace) + '">' + getEspaceLabel(e.espace) + '</span>';
+    const codeBadge = e.parentCode ? '<span class="badge badge-code">🔑 ' + e.parentCode + '</span>' : '';
+
+    const paiements = e.paiements || {};
+    const moisPayes = moisListe.filter(m => paiements[m] && paiements[m].montant > 0);
+    const nbMoisPayes = moisPayes.length;
+
+    html += '<div class="eleve-card">';
+    html += '<div class="eleve-header-row">';
+    html += '<div><div class="eleve-nom">' + nomComplet + '</div>';
+    html += '<div class="eleve-info">📚 ' + e.classe + ' &nbsp;|&nbsp; 💰 ' + (e.exonere ? 'EXONÉRÉ' : formatNbSimple(e.minerval) + ' FC/mois') + ' &nbsp;|&nbsp; 📅 ' + nbMoisPayes + ' mois payé(s)</div>';
+    if(e.phone) html += '<div class="eleve-info">📞 ' + e.phone + '</div>';
+    html += '</div>';
+    html += '<div class="eleve-badges">' + espaceBadge + sexeBadge + exoBadge + codeBadge + '</div>';
+    html += '</div>';
+    html += '<div class="eleve-actions">';
+    html += '<button class="btn btn-sm btn-pdf-pay" onclick="ouvrirChoixMoisRecu(\'' + e.id + '\',\'' + e.espace + '\')">🧾 REÇU PAIEMENT</button>';
+    html += '<button class="btn btn-sm btn-pdf-insc" onclick="genererRecuInscription(\'' + e.id + '\',\'' + e.espace + '\')">📄 REÇU INSCRIPTION</button>';
+    html += '</div>';
+    html += '</div>';
+  }
+  html += '</div>';
+  cont.innerHTML = html;
+}
+
+// ============ REÇU PAIEMENT : CHOIX DU MOIS ============
+window.ouvrirChoixMoisRecu = function(eleveId, espace){
+  const eleve = allEleves.find(e => e.id === eleveId && e.espace === espace);
+  if(!eleve){
+    toast("Élève introuvable", "error");
+    return;
+  }
+  currentEleveForRecu = eleve;
+  const paiements = eleve.paiements || {};
+  const moisPayes = moisListe.filter(m => paiements[m] && paiements[m].montant > 0);
+
+  document.getElementById('choixMoisInfo').innerHTML =
+    '<div class="modal-info-line"><span>ÉLÈVE</span><span>' + eleve.nom + ' ' + (eleve.prenom || '') + '</span></div>' +
+    '<div class="modal-info-line"><span>CLASSE</span><span>' + eleve.classe + '</span></div>' +
+    '<div class="modal-info-line"><span>ESPACE</span><span>' + getEspaceLabel(eleve.espace) + '</span></div>' +
+    '<div class="modal-info-line"><span>MOIS PAYÉS</span><span style="color:#10b981">' + moisPayes.length + '</span></div>';
+
+  const container = document.getElementById('moisListContainer');
+  if(moisPayes.length === 0){
+    container.innerHTML = '<div class="empty-state">📭 Aucun mois payé pour cet élève</div>';
+  } else {
+    let html = '';
+    for(const mois of moisPayes){
+      const p = paiements[mois];
+      const montant = p.montant || 0;
+      const dateStr = p.date ? formatDateFr(p.date) : '-';
+      html += '<div class="mois-item">';
+      html += '<div><div class="mois-name">📅 ' + mois + '</div>';
+      html += '<div class="mois-details">💰 <strong>' + formatNbSimple(montant) + ' FC</strong> &nbsp;|&nbsp; 📆 ' + dateStr + '</div></div>';
+      html += '<button class="btn btn-sm btn-pdf-pay" onclick="genererRecuPaiement(\'' + eleve.id + '\',\'' + eleve.espace + '\',\'' + mois + '\')">🧾 REÇU</button>';
+      html += '</div>';
+    }
+    container.innerHTML = html;
+  }
+  document.getElementById('choixMoisModal').classList.add('show');
+};
+
+document.getElementById('cancelChoixMois').addEventListener('click', () => {
+  document.getElementById('choixMoisModal').classList.remove('show');
+});
+
+// ============ GÉNÉRATION REÇU PAIEMENT (MODÈLE COMPTABILITÉ 148x175mm) ============
+window.genererRecuPaiement = async function(eleveId, espace, mois){
+  if(isGenerating){ toast('⏳ Génération en cours...', 'warning'); return; }
+  const eleve = allEleves.find(e => e.id === eleveId && e.espace === espace);
+  if(!eleve){ toast('Élève introuvable', 'error'); return; }
+
+  const paiements = eleve.paiements || {};
+  const p = paiements[mois];
+  if(!p || !p.montant){ toast('Aucun paiement pour ce mois', 'error'); return; }
+
+  const montant = p.montant;
+  const datePaiement = p.date || new Date().toISOString();
+
+  isGenerating = true;
+  document.getElementById('choixMoisModal').classList.remove('show');
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: [148, 175] });
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    let y = 6;
+
+    const nomEcole = mettreEnMajuscules(sansAccent(currentSchoolConfig?.nom || getNomEcole(SCHOOL_DISPLAY_NAME)));
+
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, pageWidth, 55, "F");
+
+    const logoSize = 28;
+    const logoX = (pageWidth - logoSize) / 2;
+    const logoY = 4;
+    let logoAdded = false;
+
+    if(schoolLogoUrl){
+      try {
+        const logoBase64 = await loadLogoBase64();
+        if(logoBase64){
+          doc.addImage(logoBase64, 'JPEG', logoX, logoY, logoSize, logoSize);
+          logoAdded = true;
+        }
+      } catch(e){}
+    }
+
+    const titreY = logoAdded ? (logoY + logoSize + 8) : 12;
+    const texteLigne1 = mettreEnMajuscules(sansAccent(currentSchoolConfig?.nom || getNomEcole(SCHOOL_DISPLAY_NAME)));
+
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text(texteLigne1, pageWidth / 2, titreY, { align: 'center' });
+
+    const sectionTexte = 'SECTION ' + getEspaceLabel(eleve.espace);
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text(sectionTexte, pageWidth / 2, titreY + 10, { align: 'center' });
+
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text('2026-2027', pageWidth / 2, titreY + 20, { align: 'center' });
+
+    y = titreY + 22;
+
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.3);
+    doc.setGState(new doc.GState({ opacity: 0.2 }));
+    doc.line(5, y, pageWidth - 5, y);
+    doc.setGState(new doc.GState({ opacity: 1 }));
+
+    y += 2;
+
+    const datePaiementFormatee = datePaiement ? formatDateFr(datePaiement) : formatDateFr(new Date());
+    const chiffresId = (eleveId || '').replace(/\D/g, '');
+    const suffixeRef = chiffresId.length >= 4 ? chiffresId.slice(-4) : chiffresId.padStart(4, '0');
+    const reference = 'REC-' + (datePaiement ? formatDateYMD(new Date(datePaiement)) : formatDateYMD()) + '-' + suffixeRef;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(0, 0, 0);
+    doc.text('Réf: ' + reference, 5, y + 6);
+    y += 8;
+
+    doc.setFontSize(22);
+    doc.text('Date: ' + datePaiementFormatee, 5, y + 6);
+    y += 10;
+
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.5);
+    doc.setGState(new doc.GState({ opacity: 0.2 }));
+    doc.line(5, y, pageWidth - 5, y);
+    doc.setGState(new doc.GState({ opacity: 1 }));
+    y += 6;
+
+    const nomComplet = (eleve.nom + ' ' + (eleve.postnom || '')).toUpperCase();
+    const prenomComplet = (eleve.prenom || '').toUpperCase();
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.text('Nom: ' + nomComplet, 5, y + 6);
+    y += 8;
+
+    doc.text('Prénom: ' + prenomComplet, 5, y + 6);
+    y += 8;
+
+    doc.text('Classe: ' + eleve.classe, 5, y + 6);
+    y += 8;
+
+    doc.text('Code Parent: ' + (eleve.parentCode || 'Non attribué'), 5, y + 6);
+    y += 10;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.text('MONTANT: ' + formatNbSimple(montant) + ' FC', 5, y + 6);
+    y += 8;
+
+    doc.text('PÉRIODE: ' + mois, 5, y + 6);
+    y += 12;
+
+    doc.setFontSize(20);
+    doc.text('Moyen: Espèces', pageWidth / 2, y + 6, { align: 'center' });
+
+    doc.save('Recu_Paiement_' + eleve.nom + '_' + mois + '_' + formatDateYMD() + '.pdf');
+    toast('✅ Reçu de paiement généré', 'success');
+  } catch(e){
+    console.error(e);
+    toast('Erreur: ' + e.message, 'error');
+  } finally {
+    isGenerating = false;
+  }
+};
+
+// ============ GÉNÉRATION REÇU INSCRIPTION (MODÈLE COMPTABILITÉ 148x175mm) ============
+window.genererRecuInscription = async function(eleveId, espace){
+  if(isGenerating){ toast('⏳ Génération en cours...', 'warning'); return; }
+  const eleve = allEleves.find(e => e.id === eleveId && e.espace === espace);
+  if(!eleve){ toast('Élève introuvable', 'error'); return; }
+
+  isGenerating = true;
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: [148, 175] });
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    let y = 6;
+
+    const nomEcole = mettreEnMajuscules(sansAccent(currentSchoolConfig?.nom || getNomEcole(SCHOOL_DISPLAY_NAME)));
+
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, pageWidth, 55, "F");
+
+    const logoSize = 28;
+    const logoX = (pageWidth - logoSize) / 2;
+    const logoY = 4;
+    let logoAdded = false;
+
+    if(schoolLogoUrl){
+      try {
+        const logoBase64 = await loadLogoBase64();
+        if(logoBase64){
+          doc.addImage(logoBase64, 'JPEG', logoX, logoY, logoSize, logoSize);
+          logoAdded = true;
+        }
+      } catch(e){}
+    }
+
+    const titreY = logoAdded ? (logoY + logoSize + 8) : 12;
+    const texteLigne1 = mettreEnMajuscules(sansAccent(currentSchoolConfig?.nom || getNomEcole(SCHOOL_DISPLAY_NAME)));
+
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text(texteLigne1, pageWidth / 2, titreY, { align: 'center' });
+
+    const sectionTexte = 'SECTION ' + getEspaceLabel(eleve.espace);
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text(sectionTexte, pageWidth / 2, titreY + 10, { align: 'center' });
+
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text('2026-2027', pageWidth / 2, titreY + 20, { align: 'center' });
+
+    y = titreY + 22;
+
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.3);
+    doc.setGState(new doc.GState({ opacity: 0.2 }));
+    doc.line(5, y, pageWidth - 5, y);
+    doc.setGState(new doc.GState({ opacity: 1 }));
+
+    y += 2;
+
+    const dateInscription = eleve.dateInscription || formatDateYMD(new Date());
+    const chiffresId = (eleveId || '').replace(/\D/g, '');
+    const suffixeRef = chiffresId.length >= 4 ? chiffresId.slice(-4) : chiffresId.padStart(4, '0');
+    const reference = 'INS-' + formatDateYMD(new Date(dateInscription)) + '-' + suffixeRef;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(0, 0, 0);
+    doc.text('Réf: ' + reference, 5, y + 6);
+    y += 8;
+
+    doc.setFontSize(22);
+    doc.text('Date: ' + formatDateFr(new Date(dateInscription)), 5, y + 6);
+    y += 10;
+
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.5);
+    doc.setGState(new doc.GState({ opacity: 0.2 }));
+    doc.line(5, y, pageWidth - 5, y);
+    doc.setGState(new doc.GState({ opacity: 1 }));
+    y += 6;
+
+    const nomComplet = (eleve.nom + ' ' + (eleve.postnom || '')).toUpperCase();
+    const prenomComplet = (eleve.prenom || '').toUpperCase();
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.text('Nom: ' + nomComplet, 5, y + 6);
+    y += 8;
+
+    doc.text('Prénom: ' + prenomComplet, 5, y + 6);
+    y += 8;
+
+    doc.text('Classe: ' + eleve.classe, 5, y + 6);
+    y += 8;
+
+    doc.text('Code Parent: ' + (eleve.parentCode || 'Non attribué'), 5, y + 6);
+    y += 10;
+
+    const fraisTotal = eleve.fraisInscriptionTotal || 0;
+    const fraisPaye = eleve.fraisInscriptionPaye || 0;
+    const fraisReste = Math.max(0, fraisTotal - fraisPaye);
+    let statut = 'NON PAYÉ';
+    if(fraisPaye >= fraisTotal && fraisTotal > 0) statut = 'COMPLET';
+    else if(fraisPaye > 0) statut = 'PARTIEL';
+    if(eleve.exonere) statut = 'EXONÉRÉ';
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.text('FRAIS: ' + formatNbSimple(fraisTotal) + ' FC', 5, y + 6);
+    y += 8;
+
+    doc.text('PAYÉ: ' + formatNbSimple(fraisPaye) + ' FC', 5, y + 6);
+    y += 8;
+
+    doc.text('RESTE: ' + formatNbSimple(fraisReste) + ' FC', 5, y + 6);
+    y += 10;
+
+    doc.text('STATUT: ' + statut, 5, y + 6);
+    y += 12;
+
+    doc.setFontSize(20);
+    doc.text('Moyen: Espèces', pageWidth / 2, y + 6, { align: 'center' });
+
+    doc.save('Recu_Inscription_' + eleve.nom + '_' + formatDateYMD() + '.pdf');
+    toast('✅ Reçu d\'inscription généré', 'success');
+  } catch(e){
+    console.error(e);
+    toast('Erreur: ' + e.message, 'error');
+  } finally {
+    isGenerating = false;
+  }
+};
+
+// ============ INITIALISATION ============
+function showLoginPage(){
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('mainApp').style.display = 'none';
+}
+
+async function showMainApp(){
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+
+  document.getElementById('anneeLabel').textContent = anneeScolaire;
+
+  await loadSchoolConfig();
+  await loadSchoolLogo();
+
+  if(currentSchoolConfig?.nom){
+    document.getElementById('schoolName').textContent = '🏫 ' + currentSchoolConfig.nom.toUpperCase();
+  }
+
+  await loadAllEleves();
+  buildClasseFilterOptions();
+  await renderListe();
+
+  document.getElementById('loadingOverlay').classList.add('hidden');
+}
+
+// ============ ÉVÉNEMENTS ============
+document.getElementById('searchNom').addEventListener('input', renderListe);
+document.getElementById('filterClasse').addEventListener('change', renderListe);
+
+document.getElementById('sectionTabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('.section-tab');
+  if(!btn) return;
+  document.querySelectorAll('.section-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentSection = btn.dataset.section;
+  buildClasseFilterOptions();
+  renderListe();
+});
+
+// ============ DÉMARRAGE ============
+(async function init(){
+  if(sessionStorage.getItem('compta_auth') === 'ok'){
+    await showMainApp();
+  } else {
+    showLoginPage();
+  }
+})();
+</script>
+</body>
+</html>
