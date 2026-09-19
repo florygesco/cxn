@@ -107,12 +107,12 @@ body{height:100%;margin:0;padding:0;overflow-y:auto;overflow-x:hidden;-webkit-ov
 .stat-card .stat-label i{font-size:14px;margin-right:6px}
 .stat-card .stat-value{font-size:52px;font-weight:800;color:#1a1a2e;margin:8px 0;display:inline-block;transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1),text-shadow 0.3s;text-shadow:1px 1px 0 rgba(0,0,0,0.08),2px 2px 0 rgba(0,0,0,0.06),3px 3px 0 rgba(0,0,0,0.04),4px 4px 8px rgba(0,0,0,0.1);transform:translateZ(20px)}
 .stat-card:hover .stat-value{transform:translateZ(30px) scale(1.05);text-shadow:2px 2px 0 rgba(0,0,0,0.1),4px 4px 0 rgba(0,0,0,0.08),6px 6px 0 rgba(0,0,0,0.06),8px 8px 16px rgba(0,0,0,0.12)}
-.stat-card .stat-value.blue{color:#2563eb;text-shadow:1px 1px 0 rgba(37,99,235,0.15),2px 2px 0 rgba(37,99,235,0.1),3px 3px 0 rgba(37,99,235,0.08),4px 4px 8px rgba(37,99,235,0.1)}
-.stat-card .stat-value.green{color:#059669;text-shadow:1px 1px 0 rgba(5,150,105,0.15),2px 2px 0 rgba(5,150,105,0.1),3px 3px 0 rgba(5,150,105,0.08),4px 4px 8px rgba(5,150,105,0.1)}
-.stat-card .stat-value.red{color:#dc2626;text-shadow:1px 1px 0 rgba(220,38,38,0.15),2px 2px 0 rgba(220,38,38,0.1),3px 3px 0 rgba(220,38,38,0.08),4px 4px 8px rgba(220,38,38,0.1)}
-.stat-card .stat-value.purple{color:#7c3aed;text-shadow:1px 1px 0 rgba(124,58,237,0.15),2px 2px 0 rgba(124,58,237,0.1),3px 3px 0 rgba(124,58,237,0.08),4px 4px 8px rgba(124,58,237,0.1)}
-.stat-card .stat-value.orange{color:#f59e0b;text-shadow:1px 1px 0 rgba(245,158,11,0.15),2px 2px 0 rgba(245,158,11,0.1),3px 3px 0 rgba(245,158,11,0.08),4px 4px 8px rgba(245,158,11,0.1)}
-.stat-card .stat-value.gold{color:#d4af37;text-shadow:1px 1px 0 rgba(212,175,55,0.15),2px 2px 0 rgba(212,175,55,0.1),3px 3px 0 rgba(212,175,55,0.08),4px 4px 8px rgba(212,175,55,0.1)}
+.stat-card .stat-value.blue{color:#2563eb}
+.stat-card .stat-value.green{color:#059669}
+.stat-card .stat-value.red{color:#dc2626}
+.stat-card .stat-value.purple{color:#7c3aed}
+.stat-card .stat-value.orange{color:#f59e0b}
+.stat-card .stat-value.gold{color:#d4af37}
 .stat-card .stat-sub{font-size:12px;color:#94a3b8}
 .stat-card.section{border-left:4px solid #d4af37;background:#faf8f5}
 .table-wrapper{overflow-x:auto;overflow-y:hidden;border-radius:14px;border:1px solid #e2dcd2;background:#fff;-webkit-overflow-scrolling:touch!important;touch-action:pan-x pan-y}
@@ -654,49 +654,14 @@ let isFirstLoad=true;
 let currentDate=new Date().toISOString().split('T')[0];
 let darkModeActive=false;
 let authentifie=false;
+let pollingInterval=null;
+let pollingActif=false;
+let pageOuverte=true;
 
-/* ============ CACHE SESSIONSTORAGE ============ */
-const CACHE_KEY_ELEVES = 'tremplin_cache_eleves_v1';
-const CACHE_KEY_PROFS = 'tremplin_cache_profs_v1';
-const CACHE_KEY_ENS = 'tremplin_cache_ens_v1';
-const CACHE_DUREE = 24*60*60*1000;
-
-function lireCache(key){
-  try{
-    const raw = sessionStorage.getItem(key);
-    if(!raw) return null;
-    const parsed = JSON.parse(raw);
-    if(!parsed || !parsed.data) return null;
-    if(Date.now() - parsed.time > CACHE_DUREE){
-      sessionStorage.removeItem(key);
-      return null;
-    }
-    return parsed.data;
-  }catch(e){console.warn('[CACHE] Lecture échouée:',e);return null;}
-}
-
-function ecrireCache(key, data){
-  try{
-    if(!data || data.length === 0) return;
-    sessionStorage.setItem(key, JSON.stringify({data:data, time:Date.now()}));
-  }catch(e){console.warn('[CACHE] Écriture échouée:',e);}
-}
-
-function afficherBadgeSync(texte, couleur){
-  let badge = document.getElementById('syncBadge');
-  if(!badge){
-    badge = document.createElement('div');
-    badge.id = 'syncBadge';
-    badge.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9999;padding:10px 18px;border-radius:30px;font-size:13px;font-weight:700;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,0.2);transition:all 0.4s;opacity:0;transform:translateY(20px);pointer-events:none;';
-    document.body.appendChild(badge);
-  }
-  badge.textContent = texte;
-  badge.style.background = couleur;
-  setTimeout(()=>{badge.style.opacity='1';badge.style.transform='translateY(0)';},10);
-  if(texte.indexOf('à jour') !== -1 || texte.indexOf('Synchronisé') !== -1){
-    setTimeout(()=>{badge.style.opacity='0';badge.style.transform='translateY(20px)';},2500);
-  }
-}
+const CACHE_KEY_ELEVES='tremplin_cache_eleves_v1';
+const CACHE_KEY_PROFS='tremplin_cache_profs_v1';
+const CACHE_KEY_ENS='tremplin_cache_ens_v1';
+const CACHE_DUREE=24*60*60*1000;
 
 const moisListe=["Septembre","Octobre","Novembre","Decembre","Janvier","Fevrier","Mars","Avril","Mai","Juin"];
 const classesSecondaire=["7ème EB","8ème EB","1ère Année","2ème Année","3ème Année","4ème Année"];
@@ -704,34 +669,28 @@ const classesPrimaire=["1ère A","1ère B","2ème A","2ème B","3ème A","3ème 
 const classesMaternelle=["Niveau 1","Niveau 2","Niveau 3"];
 const optionsSecondaire={"7ème EB":[],"8ème EB":[],"1ère Année":["LATIN-PHILO","SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","COUPE ET COUTURE"],"2ème Année":["LATIN-PHILO","SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","COUPE ET COUTURE"],"3ème Année":["LATIN-PHILO","SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","COUPE ET COUTURE"],"4ème Année":["LATIN-PHILO","SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","COUPE ET COUTURE"]};
 
+function lireCache(key){try{const raw=sessionStorage.getItem(key);if(!raw)return null;const parsed=JSON.parse(raw);if(!parsed||!parsed.data)return null;if(Date.now()-parsed.time>CACHE_DUREE){sessionStorage.removeItem(key);return null;}return parsed.data;}catch(e){return null;}}
+function ecrireCache(key,data){try{if(!data||data.length===0)return;sessionStorage.setItem(key,JSON.stringify({data:data,time:Date.now()}));}catch(e){}}
+function afficherBadgeSync(texte,couleur){let badge=document.getElementById('syncBadge');if(!badge){badge=document.createElement('div');badge.id='syncBadge';badge.style.cssText='position:fixed;bottom:20px;right:20px;z-index:9999;padding:10px 18px;border-radius:30px;font-size:13px;font-weight:700;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,0.2);transition:all 0.4s;opacity:0;transform:translateY(20px);pointer-events:none;';document.body.appendChild(badge);}badge.textContent=texte;badge.style.background=couleur;setTimeout(()=>{badge.style.opacity='1';badge.style.transform='translateY(0)';},10);if(texte.indexOf('à jour')!==-1||texte.indexOf('Synchronisé')!==-1){setTimeout(()=>{badge.style.opacity='0';badge.style.transform='translateY(20px)';},2500);}}
 function formatNb(n){if(isNaN(n)||n===null||n===undefined)return"0";return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");}
 function escapeHtml(s){if(!s)return'';return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
 function joursOuvresDuMois(dateRef){const annee=dateRef.getFullYear();const mois=dateRef.getMonth();const dernierJour=new Date(annee,mois+1,0).getDate();let count=0;for(let j=1;j<=dernierJour;j++){const d=new Date(annee,mois,j).getDay();if(d!==0&&d!==6)count++;}return count;}
 function prefixeMois(dateRef){const annee=dateRef.getFullYear();const mois=String(dateRef.getMonth()+1).padStart(2,'0');return annee+'-'+mois+'-';}
 
-/* ============ ONGLETS ============ */
 function activerOnglets(){
   const tousLesTabs=document.querySelectorAll('.tab');
   const tousLesContenus=document.querySelectorAll('.tab-content');
   tousLesTabs.forEach(function(btn){
     btn.addEventListener('click',function(e){
-      e.preventDefault();
-      e.stopPropagation();
-      if(this.id==='darkModeBtn'){
-        darkModeActive=!darkModeActive;
-        document.body.classList.toggle('dark-mode',darkModeActive);
-        const icon=this.querySelector('i');
-        if(icon)icon.className=darkModeActive?'fas fa-sun':'fas fa-moon';
-        return;
-      }
+      e.preventDefault();e.stopPropagation();
+      if(this.id==='darkModeBtn'){darkModeActive=!darkModeActive;document.body.classList.toggle('dark-mode',darkModeActive);const icon=this.querySelector('i');if(icon)icon.className=darkModeActive?'fas fa-sun':'fas fa-moon';return;}
       tousLesTabs.forEach(t=>t.classList.remove('active'));
       tousLesContenus.forEach(c=>c.classList.remove('active'));
       this.classList.add('active');
       const cible=document.getElementById(this.dataset.tab);
       if(cible)cible.classList.add('active');
-      document.body.scrollTop=0;
-      document.documentElement.scrollTop=0;
-      if(!authentifie && allEleves.length===0)return;
+      document.body.scrollTop=0;document.documentElement.scrollTop=0;
+      if(!authentifie&&allEleves.length===0)return;
       if(this.dataset.tab==='tabProfs'){chargerTousProfesseurs().then(()=>chargerTousEnseignants()).then(()=>afficherProfs()).catch(err=>console.error(err));}
       if(this.dataset.tab==='tabFinances'){afficherPaiements();}
       if(this.dataset.tab==='tabVue'){updateStats();updatePresenceBars();updateInscriptionsBars();}
@@ -741,50 +700,22 @@ function activerOnglets(){
   });
 }
 
-/* ============ MODAL DÉCONNEXION ============ */
-function attacherDeconnexion(){
-  const btn=document.getElementById('logoutBtn');
-  if(!btn)return;
-  btn.addEventListener('click',function(e){e.preventDefault();showLogoutModal();});
-}
-function showLogoutModal(){
-  document.querySelectorAll('.modal-overlay').forEach(m=>m.remove());
-  const overlay=document.createElement('div');
-  overlay.className='modal-overlay';
-  overlay.innerHTML='<div class="modal-box"><button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">&times;</button><div class="modal-icon"><i class="fas fa-sign-out-alt"></i></div><div class="modal-title"><i class="fas fa-power-off"></i> Déconnexion</div><p class="modal-message">Êtes-vous sûr de vouloir vous déconnecter ?<br><span style="font-size:12px;color:#94a3b8;">Vous serez redirigé vers la page de connexion.</span></p><div class="modal-actions"><button class="btn-cancel" onclick="this.closest(\'.modal-overlay\').remove()">Annuler</button><button class="btn-confirm" id="confirmLogout"><i class="fas fa-sign-out-alt"></i> Confirmer</button></div></div>';
-  document.body.appendChild(overlay);
-  setTimeout(()=>overlay.classList.add('show'),10);
-  document.getElementById('confirmLogout').onclick=function(){
-    const overlayEl=this.closest('.modal-overlay');
-    overlayEl.classList.remove('show');
-    setTimeout(()=>{
-      overlayEl.remove();
-      sessionStorage.clear();
-      window.location.href='https://www.cstremplin.com/login2';
-    },400);
-  };
-}
+function attacherDeconnexion(){const btn=document.getElementById('logoutBtn');if(!btn)return;btn.addEventListener('click',function(e){e.preventDefault();showLogoutModal();});}
+function showLogoutModal(){document.querySelectorAll('.modal-overlay').forEach(m=>m.remove());const overlay=document.createElement('div');overlay.className='modal-overlay';overlay.innerHTML='<div class="modal-box"><button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">&times;</button><div class="modal-icon"><i class="fas fa-sign-out-alt"></i></div><div class="modal-title"><i class="fas fa-power-off"></i> Déconnexion</div><p class="modal-message">Êtes-vous sûr de vouloir vous déconnecter ?<br><span style="font-size:12px;color:#94a3b8;">Vous serez redirigé vers la page de connexion.</span></p><div class="modal-actions"><button class="btn-cancel" onclick="this.closest(\'.modal-overlay\').remove()">Annuler</button><button class="btn-confirm" id="confirmLogout"><i class="fas fa-sign-out-alt"></i> Confirmer</button></div></div>';document.body.appendChild(overlay);setTimeout(()=>overlay.classList.add('show'),10);document.getElementById('confirmLogout').onclick=function(){const overlayEl=this.closest('.modal-overlay');overlayEl.classList.remove('show');setTimeout(()=>{overlayEl.remove();sessionStorage.clear();window.location.href='https://www.cstremplin.com/login2';},400);};}
 
-/* ============ VÉRIFICATION ACCÈS ============ */
 async function verifierAcces(){
-  if(!codeFromUrl){console.warn('[ACCÈS] Aucun code en sessionStorage.');authentifie=false;return false;}
+  if(!codeFromUrl){authentifie=false;return false;}
   try{
     const ref=doc(db,"ecoles",ECOLET_ID);
     const snap=await getDoc(ref);
-    if(!snap.exists()){console.warn('[ACCÈS] École "tremplin" introuvable.');authentifie=false;return false;}
+    if(!snap.exists()){authentifie=false;return false;}
     const settingsRef=doc(db,"ecoles",ECOLET_ID,"settings","data");
     const settingsSnap=await getDoc(settingsRef);
-    if(settingsSnap.exists()){
-      const data=settingsSnap.data();
-      const codePromoteur=data.codePromoteur||'';
-      if(codeFromUrl!==codePromoteur){console.warn('[ACCÈS] Code promoteur invalide.');authentifie=false;return false;}
-    }else{console.warn('[ACCÈS] settings/data introuvable.');authentifie=false;return false;}
-    authentifie=true;
-    return true;
-  }catch(e){console.error('[ACCÈS] Erreur Firestore :',e);authentifie=false;return false;}
+    if(settingsSnap.exists()){const data=settingsSnap.data();const codePromoteur=data.codePromoteur||'';if(codeFromUrl!==codePromoteur){authentifie=false;return false;}}else{authentifie=false;return false;}
+    authentifie=true;return true;
+  }catch(e){authentifie=false;return false;}
 }
 
-/* ============ CHARGEMENTS ============ */
 async function chargerTousEleves(){
   try{
     const[primaireSnap,materSnap,secSnap]=await Promise.all([
@@ -796,10 +727,8 @@ async function chargerTousEleves(){
     primaireSnap.forEach(d=>{const data=d.data();if(data.nom){tous.push({id:d.id,...data,section:'primaire'});}});
     materSnap.forEach(d=>{const data=d.data();if(data.nom){tous.push({id:d.id,...data,section:'maternelle'});}});
     secSnap.forEach(d=>{const data=d.data();if(data.nom){tous.push({id:data.eleveId||d.id,nom:data.nom||'',postnom:data.postnom||'',prenom:data.prenom||'',sexe:data.sexe||'M',classe:data.classe||'',option:data.option||'',minerval:data.minerval||45000,exonere:data.exonere||false,motifExon:data.motifExon||'',approbateur:data.approbateur||'',abandon:data.abandon||false,dateInscription:data.dateInscription||new Date().toISOString(),paiements:data.paiements||{},moisBlancs:data.moisBlancs||[],parentCode:data.parentCode||'',section:'secondaire'});}});
-    allEleves=tous;
-    ecrireCache(CACHE_KEY_ELEVES, tous);
-    return tous;
-  }catch(e){console.error('[ELEVES] Erreur :',e);return allEleves.length>0 ? allEleves : [];}
+    allEleves=tous;ecrireCache(CACHE_KEY_ELEVES,tous);return tous;
+  }catch(e){return allEleves.length>0?allEleves:[];}
 }
 
 async function chargerTousProfesseurs(){
@@ -808,10 +737,8 @@ async function chargerTousProfesseurs(){
     let tous=[];
     profsSnap.forEach(ds=>{const data=ds.data();if(data.nom&&data._type==="prof"){tous.push({id:ds.id,nom:data.nom||'',sexe:data.sexe||'M',actif:data.actif!==false,presences:data.presences||{},stats:data.stats||{},type:'prof'});}});
     tous.sort((a,b)=>(a.nom||'').localeCompare(b.nom||''));
-    allProfs=tous;
-    ecrireCache(CACHE_KEY_PROFS, tous);
-    return tous;
-  }catch(e){console.error('[PROFS] Erreur :',e);return allProfs;}
+    allProfs=tous;ecrireCache(CACHE_KEY_PROFS,tous);return tous;
+  }catch(e){return allProfs;}
 }
 
 async function chargerTousEnseignants(){
@@ -820,13 +747,10 @@ async function chargerTousEnseignants(){
     let tous=[];
     ensSnap.forEach(ds=>{const data=ds.data();if(data.nom&&data._type==="enseignant"){tous.push({id:ds.id,nom:data.nom||'',sexe:data.sexe||'M',cycle:data.cycle||'primaire',classes:data.classes||[],actif:data.actif!==false,presences:data.presences||{},stats:data.stats||{},type:'ens'});}});
     tous.sort((a,b)=>(a.nom||'').localeCompare(b.nom||''));
-    allEnseignants=tous;
-    ecrireCache(CACHE_KEY_ENS, tous);
-    return tous;
-  }catch(e){console.error('[ENS] Erreur :',e);return allEnseignants;}
+    allEnseignants=tous;ecrireCache(CACHE_KEY_ENS,tous);return tous;
+  }catch(e){return allEnseignants;}
 }
 
-/* ============ RENDU VUE ============ */
 function updateStats(){
   const actifs=allEleves.filter(e=>!e.abandon);
   const abandons=allEleves.filter(e=>e.abandon);
@@ -1025,13 +949,8 @@ function updatePerceptionOptions(){
   const classe=classeEl.value;
   const currentValue=select.value;
   select.innerHTML='<option value="">TOUTES</option>';
-  if(section==='secondaire'&&classe&&optionsSecondaire[classe]){
-    optionsSecondaire[classe].forEach(o=>{const opt=document.createElement('option');opt.value=o;opt.textContent=o;if(o===currentValue)opt.selected=true;select.appendChild(opt);});
-  }else if(section==='secondaire'&&!classe){
-    const optsUniques=new Set();
-    Object.values(optionsSecondaire).forEach(arr=>{arr.forEach(o=>optsUniques.add(o));});
-    [...optsUniques].sort().forEach(o=>{const opt=document.createElement('option');opt.value=o;opt.textContent=o;if(o===currentValue)opt.selected=true;select.appendChild(opt);});
-  }
+  if(section==='secondaire'&&classe&&optionsSecondaire[classe]){optionsSecondaire[classe].forEach(o=>{const opt=document.createElement('option');opt.value=o;opt.textContent=o;if(o===currentValue)opt.selected=true;select.appendChild(opt);});}
+  else if(section==='secondaire'&&!classe){const optsUniques=new Set();Object.values(optionsSecondaire).forEach(arr=>{arr.forEach(o=>optsUniques.add(o));});[...optsUniques].sort().forEach(o=>{const opt=document.createElement('option');opt.value=o;opt.textContent=o;if(o===currentValue)opt.selected=true;select.appendChild(opt);});}
 }
 
 function afficherPerception(){
@@ -1100,12 +1019,7 @@ function genererExcelPerception(){
     const nomComplet=(e.nom+' '+(e.postnom||'')+' '+(e.prenom||'')).trim().toUpperCase();
     const paiements=e.paiements||{};
     const moisBlancs=e.moisBlancs||[];
-    const moisData=moisListe.map(m=>{
-      if(moisBlancs.includes(m)){return "0FC";}
-      const paiement=paiements[m]?.montant||0;
-      if(paiement===0){return "0FC";}
-      return `${paiement.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}FC`;
-    });
+    const moisData=moisListe.map(m=>{if(moisBlancs.includes(m)){return "0FC";}const paiement=paiements[m]?.montant||0;if(paiement===0){return "0FC";}return `${paiement.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}FC`;});
     data.push([(index+1).toString(),nomComplet,"",moisData[0],moisData[1],moisData[2],moisData[3],moisData[4],moisData[5],moisData[6],moisData[7],moisData[8],moisData[9]]);
   });
   const wb=XLSX.utils.book_new();
@@ -1146,10 +1060,7 @@ function genererPDFPerception(){
     const paiements=e.paiements||{};
     const moisBlancs=e.moisBlancs||[];
     const row=[(index+1).toString(),nomComplet];
-    moisListe.forEach(m=>{
-      if(moisBlancs.includes(m)){row.push("0FC");}
-      else{const paiement=paiements[m]?.montant||0;row.push(paiement>0?formatNb(paiement)+'FC':'0FC');}
-    });
+    moisListe.forEach(m=>{if(moisBlancs.includes(m)){row.push("0FC");}else{const paiement=paiements[m]?.montant||0;row.push(paiement>0?formatNb(paiement)+'FC':'0FC');}});
     return row;
   });
   const headers=['N°','NOM'];
@@ -1183,13 +1094,8 @@ function updateRecoverOptions(){
   const classe=classeEl.value;
   const currentValue=select.value;
   select.innerHTML='<option value="">TOUTES</option>';
-  if(section==='secondaire'&&classe&&optionsSecondaire[classe]){
-    optionsSecondaire[classe].forEach(o=>{const opt=document.createElement('option');opt.value=o;opt.textContent=o;if(o===currentValue)opt.selected=true;select.appendChild(opt);});
-  }else if(section==='secondaire'&&!classe){
-    const optsUniques=new Set();
-    Object.values(optionsSecondaire).forEach(arr=>{arr.forEach(o=>optsUniques.add(o));});
-    [...optsUniques].sort().forEach(o=>{const opt=document.createElement('option');opt.value=o;opt.textContent=o;if(o===currentValue)opt.selected=true;select.appendChild(opt);});
-  }
+  if(section==='secondaire'&&classe&&optionsSecondaire[classe]){optionsSecondaire[classe].forEach(o=>{const opt=document.createElement('option');opt.value=o;opt.textContent=o;if(o===currentValue)opt.selected=true;select.appendChild(opt);});}
+  else if(section==='secondaire'&&!classe){const optsUniques=new Set();Object.values(optionsSecondaire).forEach(arr=>{arr.forEach(o=>optsUniques.add(o));});[...optsUniques].sort().forEach(o=>{const opt=document.createElement('option');opt.value=o;opt.textContent=o;if(o===currentValue)opt.selected=true;select.appendChild(opt);});}
 }
 
 function remplirMois(selectId,selectedValue){
@@ -1236,11 +1142,7 @@ function afficherRecouvrement(){
   const nonPayes=elevesFiltres.filter(e=>{const paiement=e.paiements?.[mois]?.montant||0;return paiement===0;}).length;
   const partiels=elevesFiltres.filter(e=>{const paiement=e.paiements?.[mois]?.montant||0;const minerval=e.exonere?0:(e.minerval||45000);return paiement>0&&paiement<minerval;}).length;
   const taux=total>0?Math.round((payes/total)*100):0;
-  set('recoverTotal',total);
-  set('recoverPaye',payes);
-  set('recoverNonPaye',nonPayes);
-  set('recoverPartiel',partiels);
-  set('recoverTaux',taux+'%');
+  set('recoverTotal',total);set('recoverPaye',payes);set('recoverNonPaye',nonPayes);set('recoverPartiel',partiels);set('recoverTaux',taux+'%');
   const dateEl=document.getElementById('recoverDate');
   if(dateEl)dateEl.textContent=mois+' '+new Date().getFullYear();
 }
@@ -1261,11 +1163,7 @@ function genererPDFRecouvrement(){
   if(section!=='toutes'){eleves=eleves.filter(e=>e.section===section);}
   if(classe){eleves=eleves.filter(e=>e.classe===classe);}
   if(option){eleves=eleves.filter(e=>e.option===option);}
-  let colorSection='#3b82f6';
   let sectionLabel=section==='toutes'?'TOUTES SECTIONS':section.toUpperCase();
-  if(section==='maternelle'){colorSection='#10b981';}
-  else if(section==='primaire'){colorSection='#3b82f6';}
-  else if(section==='secondaire'){colorSection='#8b5cf6';}
   const elevesFiltres=eleves.filter(e=>{
     const paiement=e.paiements?.[mois]?.montant||0;
     const minerval=e.exonere?0:(e.minerval||45000);
@@ -1312,58 +1210,60 @@ function genererPDFRecouvrement(){
   doc.save(`Recouvrement_${mois}_${new Date().toISOString().split('T')[0]}.pdf`);
 }
 
-/* ============ TEMPS RÉEL INTELLIGENT (SANS ONSNAPSHOT) ============ */
-// Polling UNIQUEMENT si l'onglet est actif ET la page visible
-let pollingInterval = null;
-let pollingActif = false;
-let pageOuverte = true;
-
 async function verifierChangementSimple(){
-  // 🔒 GARDE-FOU 1 : Ne rien faire si l'onglet est caché
-  if(document.hidden) return false;
-  
-  // 🔒 GARDE-FOU 2 : Ne rien faire si la page est fermée
-  if(!pageOuverte) return false;
-  
-  try {
-    const [primaireSnap, materSnap, secSnap, profsSnap, ensSnap] = await Promise.all([
-      getDocs(collection(db, "ecoles", ECOLET_ID, "prima_eleves")),
-      getDocs(collection(db, "ecoles", ECOLET_ID, "mater_eleves")),
-      getDocs(collection(db, "ecoles", ECOLET_ID, "compta_eleves")),
-      getDocs(collection(db, "ecoles", ECOLET_ID, "professeurs")),
-      getDocs(collection(db, "ecoles", ECOLET_ID, "enseignants"))
+  if(document.hidden)return false;
+  if(!pageOuverte)return false;
+  try{
+    const[primaireSnap,materSnap,secSnap,profsSnap,ensSnap]=await Promise.all([
+      getDocs(collection(db,"ecoles",ECOLET_ID,"prima_eleves")),
+      getDocs(collection(db,"ecoles",ECOLET_ID,"mater_eleves")),
+      getDocs(collection(db,"ecoles",ECOLET_ID,"compta_eleves")),
+      getDocs(collection(db,"ecoles",ECOLET_ID,"professeurs")),
+      getDocs(collection(db,"ecoles",ECOLET_ID,"enseignants"))
     ]);
-    
-    const signature = primaireSnap.size + '_' + materSnap.size + '_' + 
-                      secSnap.size + '_' + profsSnap.size + '_' + ensSnap.size;
-    
-    if(window._derniereSignature === undefined){
-      window._derniereSignature = signature;
-      return false;
-    }
-    
-    if(window._derniereSignature !== signature){
-      window._derniereSignature = signature;
-      return true;
-    }
-    
+    let nbTotal=0;
+    let totalPaiements=0;
+    let nbPaiementsEffectues=0;
+    let derniereDatePaiement=0;
+    const analyserPaiements=(snap)=>{
+      snap.forEach(d=>{
+        const data=d.data();
+        if(!data.nom)return;
+        nbTotal++;
+        const paiements=data.paiements||{};
+        const moisBlancs=data.moisBlancs||[];
+        for(let m of moisListe){
+          const p=paiements[m];
+          if(p&&p.montant>0){
+            totalPaiements+=p.montant;
+            nbPaiementsEffectues++;
+            if(p.date){
+              const t=new Date(p.date).getTime();
+              if(!isNaN(t)&&t>derniereDatePaiement)derniereDatePaiement=t;
+            }
+          }
+        }
+        nbPaiementsEffectues+=moisBlancs.length;
+      });
+    };
+    analyserPaiements(primaireSnap);
+    analyserPaiements(materSnap);
+    analyserPaiements(secSnap);
+    nbTotal+=profsSnap.size+ensSnap.size;
+    const signature=[nbTotal,totalPaiements,nbPaiementsEffectues,Math.floor(derniereDatePaiement/1000)].join('_');
+    if(window._derniereSignature===undefined){window._derniereSignature=signature;return false;}
+    if(window._derniereSignature!==signature){window._derniereSignature=signature;return true;}
     return false;
-  } catch(e) {
-    console.warn('[Polling] Erreur:', e.message);
-    return false;
-  }
+  }catch(e){return false;}
 }
 
 async function rechargerDonneesAuto(){
-  // Vérifier à nouveau avant de recharger (au cas où l'onglet a été caché entre temps)
-  if(document.hidden || !pageOuverte) return;
-  
-  afficherBadgeSync('🔄 Synchronisation...', '#2563eb');
-  try {
+  if(document.hidden||!pageOuverte)return;
+  afficherBadgeSync('🔄 Synchronisation...','#2563eb');
+  try{
     await chargerTousEleves();
     await chargerTousProfesseurs();
     await chargerTousEnseignants();
-    
     updateStats();
     updatePresenceBars();
     updateInscriptionsBars();
@@ -1371,83 +1271,50 @@ async function rechargerDonneesAuto(){
     afficherProfs();
     afficherPerception();
     afficherRecouvrement();
-    
-    afficherBadgeSync('✅ Données à jour', '#059669');
-    console.log('[Polling] Données rechargées');
-  } catch(e) {
-    console.error('[Polling] Erreur:', e);
-    afficherBadgeSync('⚠️ Erreur sync', '#dc2626');
+    afficherBadgeSync('✅ Données à jour','#059669');
+  }catch(e){
+    afficherBadgeSync('⚠️ Erreur sync','#dc2626');
   }
 }
 
 function demarrerTempsReel(){
-  console.log('[ÉCONOMIE] Polling intelligent (60s, uniquement si onglet actif).');
-  
-  pollingActif = true;
-  pageOuverte = true;
-  
-  if(pollingInterval) clearInterval(pollingInterval);
-  pollingInterval = setInterval(async () => {
-    if(!pollingActif || !pageOuverte) return;
-    
-    // 🔒 GARDE-FOU PRINCIPAL : ne rien faire si onglet caché
-    if(document.hidden) {
-      console.log('[Polling] ⏸️ Onglet caché - pause');
-      return;
-    }
-    
-    const ilYaDuNouveau = await verifierChangementSimple();
+  pollingActif=true;
+  pageOuverte=true;
+  if(pollingInterval)clearInterval(pollingInterval);
+  pollingInterval=setInterval(async()=>{
+    if(!pollingActif||!pageOuverte)return;
+    if(document.hidden)return;
+    const ilYaDuNouveau=await verifierChangementSimple();
     if(ilYaDuNouveau){
-      console.log('[Polling] 🔄 Changement détecté');
       await rechargerDonneesAuto();
     }
-  }, 60000);
+  },60000);
 }
 
-// ============ GESTION VISIBILITÉ ONGLET ============
-document.addEventListener('visibilitychange', async () => {
-  if(document.hidden){
-    console.log('[Visibilité] ⏸️ Onglet caché - pause');
-    return;
-  }
-  
-  if(!pollingActif || !pageOuverte) return;
-  console.log('[Visibilité] ▶️ Onglet actif - vérification');
-  
-  const ilYaDuNouveau = await verifierChangementSimple();
+document.addEventListener('visibilitychange',async()=>{
+  if(document.hidden)return;
+  if(!pollingActif||!pageOuverte)return;
+  const ilYaDuNouveau=await verifierChangementSimple();
   if(ilYaDuNouveau){
     await rechargerDonneesAuto();
   }
 });
 
-// ============ DÉTECTION FERMETURE DE PAGE ============
-window.addEventListener('beforeunload', () => {
-  pageOuverte = false;
-  if(pollingInterval){
-    clearInterval(pollingInterval);
-    pollingInterval = null;
-  }
-  console.log('[Fermeture] ⛔ Polling arrêté');
+window.addEventListener('beforeunload',()=>{
+  pageOuverte=false;
+  if(pollingInterval){clearInterval(pollingInterval);pollingInterval=null;}
 });
 
-// Quand la page devient inactive (téléphone en veille, changement d'app)
-window.addEventListener('pagehide', () => {
-  pageOuverte = false;
-  console.log('[PageHide] ⏸️ Page cachée');
+window.addEventListener('pagehide',()=>{
+  pageOuverte=false;
 });
 
-// Quand la page redevient active
-window.addEventListener('pageshow', (event) => {
-  pageOuverte = true;
-  pollingActif = true;
-  console.log('[PageShow] ▶️ Page réactivée');
-  
-  if(!pollingInterval){
-    demarrerTempsReel();
-  }
+window.addEventListener('pageshow',(event)=>{
+  pageOuverte=true;
+  pollingActif=true;
+  if(!pollingInterval){demarrerTempsReel();}
 });
 
-/* ============ ATTACHEMENT FILTRES ET BOUTONS ============ */
 function attacherFiltresEtPDF(){
   const on=(id,evt,fn)=>{const el=document.getElementById(id);if(el)el.addEventListener(evt,fn);};
   on('searchProf','input',afficherProfs);
@@ -1467,7 +1334,6 @@ function attacherFiltresEtPDF(){
   on('recoverOption','change',afficherRecouvrement);
   on('recoverSearch','input',afficherRecouvrement);
   on('recoverPDF','click',genererPDFRecouvrement);
-
   on('btnPDFPaiements','click',function(){
     try{
       const{jsPDF}=window.jspdf;
@@ -1481,9 +1347,8 @@ function attacherFiltresEtPDF(){
       document.querySelectorAll('#paiementsTableBody tr').forEach(row=>{const cells=row.querySelectorAll('td');if(cells.length===6){rows.push([cells[0]?.textContent||'',cells[1]?.textContent||'',cells[2]?.textContent||'',cells[3]?.textContent||'',cells[4]?.textContent||'',cells[5]?.textContent||'']);}});
       doc.autoTable({head:[['CLASSE','ÉLÈVES','ATTENDU','PAYÉ','TAUX','RESTE']],body:rows,startY:38,styles:{fontSize:8,cellPadding:3},headStyles:{fillColor:[26,26,46],textColor:[255,255,255],fontSize:9,fontStyle:'bold'},alternateRowStyles:{fillColor:[248,246,242]}});
       doc.save('Situation_Financiere_'+new Date().toISOString().split('T')[0]+'.pdf');
-    }catch(e){console.error('PDF finances:',e);alert('Erreur lors de la génération du PDF.');}
+    }catch(e){alert('Erreur lors de la génération du PDF.');}
   });
-
   on('btnPDFProfs','click',function(){
     try{
       const{jsPDF}=window.jspdf;
@@ -1497,11 +1362,10 @@ function attacherFiltresEtPDF(){
       document.querySelectorAll('#profsTableBody tr').forEach(row=>{const cells=row.querySelectorAll('td');if(cells.length===7){rows.push([cells[0]?.textContent||'',cells[1]?.textContent||'',cells[2]?.textContent||'',cells[3]?.textContent||'',cells[4]?.textContent||'',cells[5]?.textContent||'',cells[6]?.textContent||'']);}});
       doc.autoTable({head:[['N°','NOM','SEXE','TYPE','STATUT','ARRIVÉE','JOURS']],body:rows,startY:38,styles:{fontSize:8,cellPadding:3},headStyles:{fillColor:[26,26,46],textColor:[255,255,255],fontSize:9,fontStyle:'bold'},alternateRowStyles:{fillColor:[248,246,242]}});
       doc.save('Liste_Presences_'+new Date().toISOString().split('T')[0]+'.pdf');
-    }catch(e){console.error('PDF profs:',e);alert('Erreur lors de la génération du PDF.');}
+    }catch(e){alert('Erreur lors de la génération du PDF.');}
   });
 }
 
-/* ============ NAVIGATION CLAVIER ============ */
 function attacherNavClavier(){
   const tabsContainer=document.querySelector('.tabs-container');
   if(!tabsContainer)return;
@@ -1523,24 +1387,18 @@ function attacherNavClavier(){
   tabsContainer.addEventListener('click',function(){this.focus();});
 }
 
-/* ============ INITIALISATION ============ */
 async function initApp(){
-  // 1. Attacher les boutons immédiatement
   activerOnglets();
   attacherDeconnexion();
   attacherFiltresEtPDF();
   attacherNavClavier();
-
-  // 2. AFFICHER LE CACHE INSTANTANÉMENT
-  const cacheEleves = lireCache(CACHE_KEY_ELEVES);
-  const cacheProfs = lireCache(CACHE_KEY_PROFS);
-  const cacheEns = lireCache(CACHE_KEY_ENS);
-
-  if(cacheEleves && cacheEleves.length > 0){
-    allEleves = cacheEleves;
-    allProfs = cacheProfs || [];
-    allEnseignants = cacheEns || [];
-
+  const cacheEleves=lireCache(CACHE_KEY_ELEVES);
+  const cacheProfs=lireCache(CACHE_KEY_PROFS);
+  const cacheEns=lireCache(CACHE_KEY_ENS);
+  if(cacheEleves&&cacheEleves.length>0){
+    allEleves=cacheEleves;
+    allProfs=cacheProfs||[];
+    allEnseignants=cacheEns||[];
     updateStats();
     updatePresenceBars();
     updateInscriptionsBars();
@@ -1549,39 +1407,25 @@ async function initApp(){
     updateClasseFilter();
     updatePerceptionClasses();
     updateRecoverClasses();
-
     const dateRef0=new Date();
     const moisActuelNum0=dateRef0.getMonth();
     let moisCourant0="Septembre";
     if(moisActuelNum0>=8)moisCourant0=moisListe[moisActuelNum0-8];
     else if(moisActuelNum0>=0&&moisActuelNum0<=5)moisCourant0=moisListe[moisActuelNum0+4];
     remplirMois('recoverMois',moisCourant0);
-
     afficherPerception();
     afficherRecouvrement();
-
-    afficherBadgeSync('⚡ Affichage rapide (cache)', '#f59e0b');
-    console.log('[CACHE] Affichage instantané depuis sessionStorage');
+    afficherBadgeSync('⚡ Affichage rapide (cache)','#f59e0b');
   }
-
-  // 3. Vérifier l'accès
-  const ok = await verifierAcces();
+  const ok=await verifierAcces();
   if(!ok){
-    console.warn('[INIT] Accès Firestore non validé.');
-    if(cacheEleves){
-      afficherBadgeSync('⚠️ Mode hors-ligne', '#dc2626');
-    }
+    if(cacheEleves){afficherBadgeSync('⚠️ Mode hors-ligne','#dc2626');}
     return;
   }
-
-  // 4. Charger Firestore (ÉCRASE le cache)
-  afficherBadgeSync('🔄 Synchronisation...', '#2563eb');
-
+  afficherBadgeSync('🔄 Synchronisation...','#2563eb');
   await chargerTousEleves();
   await chargerTousProfesseurs();
   await chargerTousEnseignants();
-
-  // 5. Rafraîchir TOUT
   updateStats();
   updatePresenceBars();
   updateInscriptionsBars();
@@ -1590,21 +1434,15 @@ async function initApp(){
   updateClasseFilter();
   updatePerceptionClasses();
   updateRecoverClasses();
-
   const dateRef=new Date();
   const moisActuelNum=dateRef.getMonth();
   let moisCourant="Septembre";
   if(moisActuelNum>=8)moisCourant=moisListe[moisActuelNum-8];
   else if(moisActuelNum>=0&&moisActuelNum<=5)moisCourant=moisListe[moisActuelNum+4];
   remplirMois('recoverMois',moisCourant);
-
   afficherPerception();
   afficherRecouvrement();
-
-  afficherBadgeSync('✅ Données à jour', '#059669');
-  console.log('[FIREBASE] Données fraîches chargées');
-
-  // 6. Démarrer le polling intelligent
+  afficherBadgeSync('✅ Données à jour','#059669');
   demarrerTempsReel();
 }
 
