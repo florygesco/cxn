@@ -330,8 +330,11 @@ return true
 <script type="module">
 import{initializeApp}from"firebase/app";
 import{getFirestore,doc,getDoc,collection,getDocs,query,where,limit}from"firebase/firestore";
-import{getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword}from"firebase/auth";
-const CODE_ACCES="202020";
+import{getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,onAuthStateChanged}from"firebase/auth";
+
+const AUTH_EMAIL="imprim.tremplin@gmail.com";
+const AUTH_PASSWORD="202020";
+
 const firebaseConfig={apiKey:"AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",authDomain:"gesco-2.firebaseapp.com",projectId:"gesco-2",storageBucket:"gesco-2.firebasestorage.app",messagingSenderId:"36319988765",appId:"1:36319988765:web:e8cd823804596495248af4"};
 const app=initializeApp(firebaseConfig);
 const db=getFirestore(app);
@@ -367,6 +370,69 @@ let voixPrete=false;
 let voixFeminine=null;
 let fileParole=[];
 let isOffline=!navigator.onLine;
+
+/* ================== AUTH FIREBASE ================== */
+async function ensureAuthAccount(){
+  try{
+    await createUserWithEmailAndPassword(auth,AUTH_EMAIL,AUTH_PASSWORD);
+    console.log("Compte Firebase Auth créé: "+AUTH_EMAIL);
+  }catch(err){
+    if(err.code==="auth/email-already-in-use"){
+      console.log("Compte Firebase Auth déjà existant: "+AUTH_EMAIL);
+    }else{
+      console.warn("ensureAuthAccount:",err.code,err.message);
+    }
+  }
+}
+ensureAuthAccount();
+
+onAuthStateChanged(auth,(user)=>{
+  if(user){
+    console.log("✅ Connecté:",user.email);
+    sessionStorage.setItem('compta_auth','ok');
+    showMainApp();
+  }else{
+    console.log("🔒 Déconnecté");
+    sessionStorage.removeItem('compta_auth');
+    showLoginPage();
+  }
+});
+
+/* ================== LOGIN / LOGOUT ================== */
+document.getElementById('loginBtn').addEventListener('click',doLogin);
+document.getElementById('loginCode').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+
+async function doLogin(){
+  const btn=document.getElementById('loginBtn');
+  const code=document.getElementById('loginCode').value.trim();
+  const err=document.getElementById('loginError');
+  err.textContent="";
+  if(!code){ err.textContent="❌ Veuillez saisir le mot de passe."; return; }
+  btn.classList.add('generating');
+  try{
+    await signInWithEmailAndPassword(auth,AUTH_EMAIL,code);
+    // onAuthStateChanged s'occupe d'afficher l'app
+  }catch(e){
+    btn.classList.remove('generating');
+    const msg = (e.code==="auth/wrong-password"||e.code==="auth/invalid-credential") ? "❌ Mot de passe incorrect."
+              : (e.code==="auth/too-many-requests") ? "⏳ Trop de tentatives. Réessayez plus tard."
+              : (e.code==="auth/network-request-failed") ? "🌐 Problème de connexion internet."
+              : "❌ Erreur: "+e.message;
+    err.textContent=msg;
+    document.getElementById('loginCode').value="";
+    document.getElementById('loginCode').focus();
+  }
+}
+
+document.getElementById('logoutBtn').addEventListener('click',()=>{document.getElementById('confirmLogoutModal').classList.add('show')});
+document.getElementById('confirmLogoutYes').addEventListener('click',async()=>{
+  document.getElementById('confirmLogoutModal').classList.remove('show');
+  try{ await signOut(auth); }catch(e){ console.warn(e); }
+});
+document.getElementById('confirmLogoutNo').addEventListener('click',()=>{document.getElementById('confirmLogoutModal').classList.remove('show')});
+document.getElementById('confirmLogoutModal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('show')});
+
+/* ================== UTILITAIRES ================== */
 function sauvegarderCacheEleves(eleves){try{const cache=JSON.parse(localStorage.getItem(CACHE_KEY)||'{}');eleves.forEach(e=>{cache[e.espace+'_'+e.id]={...e,derniereMaj:Date.now()}});localStorage.setItem(CACHE_KEY,JSON.stringify(cache))}catch(err){}}
 function getEleveDepuisCache(id,espace){try{const cache=JSON.parse(localStorage.getItem(CACHE_KEY)||'{}');const eleve=cache[espace+'_'+id];if(eleve&&(Date.now()-eleve.derniereMaj)<CACHE_DUREE){return eleve}return null}catch(err){return null}}
 function getTousElevesCache(){try{const cache=JSON.parse(localStorage.getItem(CACHE_KEY)||'{}');const resultats=[];Object.values(cache).forEach(e=>{if((Date.now()-e.derniereMaj)<CACHE_DUREE){resultats.push(e)}});return resultats}catch(err){return[]}}
@@ -388,38 +454,67 @@ function getEspaceBadgeClass(e){if(e==='secondaire')return'badge-sec';if(e==='pr
 function toast(msg,type="success"){toastQueue.push({msg,type});processToastQueue()}
 function processToastQueue(){if(toastShowing||toastQueue.length===0)return;toastShowing=true;const{msg,type}=toastQueue.shift();const c=document.getElementById("toastContainer");if(!c){toastShowing=false;processToastQueue();return}const icons={success:"✓",error:"✕",warning:"⚠",info:"ℹ"};const titles={success:"Succès",error:"Erreur",warning:"Attention",info:"Information"};const colors={success:"#10b981",error:"#ef4444",warning:"#f59e0b",info:"#3b82f6"};const el=document.createElement("div");el.className='toast '+(type||'success');el.innerHTML='<div class="toast-icon" style="background:'+colors[type]+'22;color:'+colors[type]+'">'+icons[type]+'</div><div class="toast-content"><div class="toast-title">'+titles[type]+'</div><div class="toast-message">'+msg+'</div></div>';c.appendChild(el);setTimeout(()=>el.classList.add('show'),10);setTimeout(()=>{el.classList.remove('show');setTimeout(()=>{el.remove();toastShowing=false;processToastQueue()},400)},3000)}
 function animerBouton(btn){if(!btn||btn.id==='loginBtn')return;btn.classList.add('generating');setTimeout(()=>{btn.classList.remove('generating');btn.classList.add('success-flash');setTimeout(()=>btn.classList.remove('success-flash'),600)},500)}
-function telechargerPDF(doc,nomFichier){const pdfBlob=doc.output('blob');const pdfUrl=URL.createObjectURL(pdfBlob);const a=document.createElement('a');a.href=pdfUrl;a.download=nomFichier;a.style.display='none';document.body.appendChild(a);a.click();setTimeout(()=>{try{URL.revokeObjectURL(pdfUrl);a.remove()}catch(e){}},2000)}
 
-async function ensureAuthAccount(){
-  try{
-    const email="imprim.tremplin@gmail.com";
-    const password="202020";
-    try{
-      await createUserWithEmailAndPassword(auth,email,password);
-      console.log("Compte Firebase Auth créé: "+email);
-    }catch(err){
-      if(err.code==="auth/email-already-in-use"){
-        console.log("Compte Firebase Auth déjà existant: "+email);
-        try{await signInWithEmailAndPassword(auth,email,password)}catch(e){console.warn("Connexion auto échouée:",e.message)}
-      }else{
-        console.warn("Création compte Auth:",err.message);
+/* ================== PDF PREVIEW (iframe unique) ================== */
+let _pdfIframe=null;
+let _pdfToolbar=null;
+let _pdfCurrentBlob=null;
+let _pdfCurrentUrl=null;
+let _pdfCurrentName='document.pdf';
+
+function afficherPDF(doc,nomFichier){
+  const pdfBlob=doc.output('blob');
+  const pdfUrl=URL.createObjectURL(pdfBlob);
+  if(!_pdfIframe){
+    _pdfToolbar=document.createElement('div');
+    _pdfToolbar.id='pdfToolbar';
+    _pdfToolbar.style.cssText='position:fixed;top:0;left:0;right:0;height:60px;background:linear-gradient(135deg,#0f1628,#070a12);border-bottom:2px solid #ffd700;display:none;align-items:center;justify-content:space-between;padding:0 16px;z-index:50001;box-shadow:0 4px 20px rgba(0,0,0,0.5);';
+    _pdfToolbar.innerHTML='<div style="color:#ffd700;font-weight:800;font-size:14px;letter-spacing:1px;">📄 APERÇU PDF</div><div style="display:flex;gap:10px;flex-wrap:wrap;"><button id="pdfBtnPrint" style="background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;border:none;padding:10px 18px;border-radius:10px;font-weight:800;font-size:12px;cursor:pointer;letter-spacing:0.8px;">🖨️ IMPRIMER</button><button id="pdfBtnDownload" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;padding:10px 18px;border-radius:10px;font-weight:800;font-size:12px;cursor:pointer;letter-spacing:0.8px;">💾 TÉLÉCHARGER</button><button id="pdfBtnClose" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border:none;padding:10px 18px;border-radius:10px;font-weight:800;font-size:12px;cursor:pointer;letter-spacing:0.8px;">✕ FERMER</button></div>';
+    document.body.appendChild(_pdfToolbar);
+    _pdfIframe=document.createElement('iframe');
+    _pdfIframe.id='pdfPreviewFrame';
+    _pdfIframe.style.cssText='position:fixed;top:60px;left:0;right:0;bottom:0;width:100%;height:calc(100% - 60px);border:none;display:none;z-index:50000;background:#2a2a2a;';
+    document.body.appendChild(_pdfIframe);
+    document.getElementById('pdfBtnPrint').onclick=()=>{
+      if(!_pdfIframe.contentWindow)return;
+      try{_pdfIframe.contentWindow.focus();_pdfIframe.contentWindow.print();}
+      catch(e){if(_pdfCurrentUrl){const w=window.open(_pdfCurrentUrl,'_blank');if(w){w.onload=()=>{try{w.print()}catch(err){}}}}}
+    };
+    document.getElementById('pdfBtnDownload').onclick=()=>{
+      if(!_pdfCurrentBlob)return;
+      const url=URL.createObjectURL(_pdfCurrentBlob);
+      const a=document.createElement('a');
+      a.href=url;a.download=_pdfCurrentName;
+      document.body.appendChild(a);a.click();document.body.removeChild(a);
+      setTimeout(()=>URL.revokeObjectURL(url),3000);
+    };
+    document.getElementById('pdfBtnClose').onclick=()=>{
+      _pdfIframe.src='about:blank';
+      _pdfIframe.style.display='none';
+      _pdfToolbar.style.display='none';
+      if(_pdfCurrentUrl){try{URL.revokeObjectURL(_pdfCurrentUrl)}catch(e){}_pdfCurrentUrl=null;}
+      _pdfCurrentBlob=null;
+    };
+    document.addEventListener('keydown',(e)=>{
+      if(e.key==='Escape'&&_pdfIframe.style.display==='block'){
+        document.getElementById('pdfBtnClose').click();
       }
-    }
-  }catch(e){console.warn("ensureAuthAccount:",e.message)}
+    });
+  }
+  if(_pdfCurrentUrl){try{URL.revokeObjectURL(_pdfCurrentUrl)}catch(e){}}
+  _pdfCurrentBlob=pdfBlob;
+  _pdfCurrentUrl=pdfUrl;
+  _pdfCurrentName=nomFichier;
+  _pdfIframe.src=pdfUrl;
+  _pdfIframe.style.display='block';
+  _pdfToolbar.style.display='flex';
 }
-ensureAuthAccount();
 
-document.getElementById('loginBtn').addEventListener('click',doLogin);
-document.getElementById('loginCode').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
-function doLogin(){const btn=document.getElementById('loginBtn');btn.classList.remove('generating');const code=document.getElementById('loginCode').value.trim();const err=document.getElementById('loginError');if(code===CODE_ACCES){err.textContent="";sessionStorage.setItem('compta_auth','ok');showMainApp()}else{err.textContent="❌ Code incorrect. Veuillez réessayer.";document.getElementById('loginCode').value="";document.getElementById('loginCode').focus()}}
-document.getElementById('logoutBtn').addEventListener('click',()=>{document.getElementById('confirmLogoutModal').classList.add('show')});
-document.getElementById('confirmLogoutYes').addEventListener('click',()=>{sessionStorage.removeItem('compta_auth');location.reload()});
-document.getElementById('confirmLogoutNo').addEventListener('click',()=>{document.getElementById('confirmLogoutModal').classList.remove('show')});
-document.getElementById('confirmLogoutModal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('show')});
+/* ================== FIRESTORE ================== */
 document.addEventListener('contextmenu',function(e){if(e.target.closest('input')||e.target.closest('textarea')||e.target.closest('select'))return;e.preventDefault();const idx=modesRecherche.indexOf(currentSearchMode);const nextMode=modesRecherche[(idx+1)%modesRecherche.length];const btn=document.querySelector('.search-mode[data-mode="'+nextMode+'"]');if(btn)btn.click();return false});
 window.addEventListener('online',()=>{isOffline=false;toast('🌐 Connexion rétablie','success')});
 window.addEventListener('offline',()=>{isOffline=true;toast('📴 Mode hors ligne activé','warning')});
-window.addEventListener('popstate',function(e){if(isGenerating){window.history.pushState({compta:true,page:'main'},'','');return}const modalOuvert=document.querySelector('.modal-overlay.show');if(modalOuvert){modalOuvert.classList.remove('show');window.history.pushState({compta:true,page:'main'},'','');return}if(sessionStorage.getItem('compta_auth')==='ok'){window.history.pushState({compta:true,page:'main'},'','');return}});
+window.addEventListener('popstate',function(e){if(isGenerating){window.history.pushState({compta:true,page:'main'},'','');return}const modalOuvert=document.querySelector('.modal-overlay.show');if(modalOuvert){modalOuvert.classList.remove('show');window.history.pushState({compta:true,page:'main'},'','');return}});
 async function loadSchoolConfig(){try{const ref=doc(db,"ecoles",ECOLET_ID,"settings","data");const snap=await getDoc(ref);if(snap.exists()){currentSchoolConfig=snap.data();try{localStorage.setItem('ecole_config_'+ECOLET_ID,JSON.stringify(currentSchoolConfig))}catch(e){}}else{currentSchoolConfig={nom:getNomEcole(SCHOOL_DISPLAY_NAME),adresse:""}}}catch(e){const cached=localStorage.getItem('ecole_config_'+ECOLET_ID);if(cached){currentSchoolConfig=JSON.parse(cached)}else{currentSchoolConfig={nom:getNomEcole(SCHOOL_DISPLAY_NAME),adresse:""}}}}
 async function loadSchoolLogo(){try{const cached=localStorage.getItem(LOGO_CACHE_KEY);if(cached){logoBase64Cache=cached}const ref=doc(db,"ecoles",ECOLET_ID);const snap=await getDoc(ref);if(snap.exists()){const data=snap.data();schoolLogoUrl=data.logoUrl||data.logo||null}if(!schoolLogoUrl){const ref2=doc(db,"ecoles",ECOLET_ID,"settings","data");const snap2=await getDoc(ref2);if(snap2.exists()){const data2=snap2.data();schoolLogoUrl=data2.logoUrl||data2.logo||null}}try{localStorage.setItem('ecole_logo_url_'+ECOLET_ID,schoolLogoUrl||'')}catch(e){}}catch(e){const cachedUrl=localStorage.getItem('ecole_logo_url_'+ECOLET_ID);if(cachedUrl){schoolLogoUrl=cachedUrl}}}
 async function loadLogoBase64(){if(logoBase64Cache)return logoBase64Cache;try{const cached=localStorage.getItem(LOGO_CACHE_KEY);if(cached){logoBase64Cache=cached;return cached}}catch(e){}if(!schoolLogoUrl){await loadSchoolLogo()}if(!schoolLogoUrl){try{const logoCached=localStorage.getItem(LOGO_CACHE_KEY);if(logoCached){logoBase64Cache=logoCached;return logoCached}}catch(e){}return null}try{const response=await fetch(schoolLogoUrl);const blob=await response.blob();return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>{logoBase64Cache=reader.result;try{localStorage.setItem(LOGO_CACHE_KEY,logoBase64Cache)}catch(e){}resolve(logoBase64Cache)};reader.onerror=reject;reader.readAsDataURL(blob)})}catch(e){try{const logoCached=localStorage.getItem(LOGO_CACHE_KEY);if(logoCached){logoBase64Cache=logoCached;return logoCached}}catch(e){}return null}}
@@ -436,14 +531,294 @@ window.ouvrirChoixMoisRecu=function(eleveId,espace,btn){let eleve=searchResults.
 window.toggleSelectAllMois=function(state){document.querySelectorAll('.mois-select').forEach(cb=>{cb.checked=state});updateMoisSelectionBar()};
 window.updateMoisSelectionBar=function(){const checked=document.querySelectorAll('.mois-select:checked');const bar=document.getElementById('moisSelectionBar');const count=document.getElementById('moisSelectCount');const btn=document.getElementById('btnGenererMoisMultiples');if(!bar)return;const total=checked.length;count.textContent=total;if(total>0){bar.style.display='block';btn.textContent='🧾 GÉNÉRER LES REÇUS ('+total+')'}else{bar.style.display='none'}};
 document.getElementById('cancelChoixMois').addEventListener('click',()=>{document.getElementById('choixMoisModal').classList.remove('show')});
-window.genererRecuPaiement=async function(eleveId,espace,mois,btn){if(isGenerating){return}let eleve=searchResults.find(e=>e.id===eleveId&&e.espace===espace);if(!eleve){eleve=getEleveDepuisCache(eleveId,espace)}if(!eleve){toast('Élève introuvable','error');return}const paiements=eleve.paiements||{};const p=paiements[mois];if(!p||!p.montant){toast('Aucun paiement pour ce mois','error');return}animerBouton(btn);const montant=p.montant;const datePaiement=p.date||new Date().toISOString();isGenerating=true;document.getElementById('choixMoisModal').classList.remove('show');try{const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'p',unit:'mm',format:[148,175]});const pageWidth=doc.internal.pageSize.getWidth();let yRec=6;const nomEcole=mettreEnMajuscules(sansAccent(getNomEcole(SCHOOL_DISPLAY_NAME)));doc.setFillColor(255,255,255);doc.rect(0,0,pageWidth,55,"F");const logoSize=28;const logoX=(pageWidth-logoSize)/2;const logoY=4;let logoAdded=false;const logoBase64=logoBase64Cache||null;if(logoBase64){try{const format=logoBase64.includes('image/png')?'PNG':'JPEG';doc.addImage(logoBase64,format,logoX,logoY,logoSize,logoSize);logoAdded=true}catch(e){}}const titreY=logoAdded?(logoY+logoSize+8):12;doc.setFontSize(18);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);doc.text(nomEcole,pageWidth/2,titreY,{align:'center'});const sectionTexte='SECTION '+getEspaceLabel(eleve.espace);doc.setFontSize(18);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);doc.text(sectionTexte,pageWidth/2,titreY+10,{align:'center'});doc.setFontSize(18);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);doc.text('2026-2027',pageWidth/2,titreY+20,{align:'center'});yRec=titreY+22;doc.setDrawColor(0,0,0);doc.setLineWidth(0.3);doc.setGState(new doc.GState({opacity:0.2}));doc.line(5,yRec,pageWidth-5,yRec);doc.setGState(new doc.GState({opacity:1}));yRec+=2;const datePaiementFormatee=datePaiement?formatDateFr(datePaiement):formatDateFr(new Date());const chiffresId=(eleveId||'').replace(/\D/g,'');const suffixeRef=chiffresId.length>=4?chiffresId.slice(-4):chiffresId.padStart(4,'0');const reference='REC-'+(datePaiement?formatDateYMD(new Date(datePaiement)):formatDateYMD())+'-'+suffixeRef;doc.setFont("helvetica","bold");doc.setFontSize(18);doc.setTextColor(0,0,0);doc.text('Réf: '+reference,5,yRec+6);yRec+=8;doc.setFontSize(22);doc.text('Date: '+datePaiementFormatee,5,yRec+6);yRec+=10;doc.setDrawColor(0,0,0);doc.setLineWidth(0.5);doc.setGState(new doc.GState({opacity:0.2}));doc.line(5,yRec,pageWidth-5,yRec);doc.setGState(new doc.GState({opacity:1}));yRec+=6;const nomComplet=(eleve.nom+' '+(eleve.postnom||'')).toUpperCase();const prenomComplet=(eleve.prenom||'').toUpperCase();doc.setFont("helvetica","bold");doc.setFontSize(22);doc.text('Nom: '+nomComplet,5,yRec+6);yRec+=8;doc.text('Prénom: '+prenomComplet,5,yRec+6);yRec+=8;doc.text('Classe: '+eleve.classe,5,yRec+6);yRec+=8;if(eleve.option&&eleve.option!=='TOUTES'&&eleve.option!==''){doc.text('Option: '+eleve.option,5,yRec+6);yRec+=8}doc.text('Code Parent: '+(eleve.parentCode||'Non attribué'),5,yRec+6);yRec+=10;doc.setFont("helvetica","bold");doc.setFontSize(22);doc.text('MONTANT: '+formatNbSimple(montant)+' FC',5,yRec+6);yRec+=8;doc.text('PÉRIODE: '+mois,5,yRec+6);yRec+=12;doc.setFontSize(20);doc.text('Moyen: Espèces',pageWidth/2,yRec+6,{align:'center'});telechargerPDF(doc,'Recu_Paiement_'+eleve.nom+'_'+mois+'_'+formatDateYMD()+'.pdf')}catch(e){}finally{isGenerating=false}};
-window.genererRecusMoisMultiples=async function(){if(isGenerating)return;const eleveData=currentEleveRecu;if(!eleveData){toast('Élève introuvable','error');return}let eleve=searchResults.find(e=>e.id===eleveData.id&&e.espace===eleveData.espace);if(!eleve){eleve=getEleveDepuisCache(eleveData.id,eleveData.espace)}if(!eleve){toast('Élève introuvable','error');return}const moisSelectionnes=Array.from(document.querySelectorAll('.mois-select:checked')).map(cb=>cb.dataset.mois);if(moisSelectionnes.length===0){toast('Aucun mois sélectionné','warning');return}const btn=document.getElementById('btnGenererMoisMultiples');animerBouton(btn);isGenerating=true;const paiements=eleve.paiements||{};try{const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'p',unit:'mm',format:[148,175]});const pageWidth=doc.internal.pageSize.getWidth();const logoBase64=logoBase64Cache||null;for(let i=0;i<moisSelectionnes.length;i++){const mois=moisSelectionnes[i];if(i>0)doc.addPage([148,175],'p');const p=paiements[mois];const montant=p.montant||0;const datePaiement=p.date||new Date().toISOString();let yRec=6;const nomEcole=mettreEnMajuscules(sansAccent(getNomEcole(SCHOOL_DISPLAY_NAME)));doc.setFillColor(255,255,255);doc.rect(0,0,pageWidth,55,"F");const logoSize=28;const logoX=(pageWidth-logoSize)/2;const logoY=4;let logoAdded=false;if(logoBase64){try{const format=logoBase64.includes('image/png')?'PNG':'JPEG';doc.addImage(logoBase64,format,logoX,logoY,logoSize,logoSize);logoAdded=true}catch(e){}}const titreY=logoAdded?(logoY+logoSize+8):12;doc.setFontSize(18);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);doc.text(nomEcole,pageWidth/2,titreY,{align:'center'});doc.setFontSize(18);doc.text('SECTION '+getEspaceLabel(eleve.espace),pageWidth/2,titreY+10,{align:'center'});doc.setFontSize(18);doc.text('2026-2027',pageWidth/2,titreY+20,{align:'center'});yRec=titreY+22;doc.setDrawColor(0,0,0);doc.setLineWidth(0.3);doc.setGState(new doc.GState({opacity:0.2}));doc.line(5,yRec,pageWidth-5,yRec);doc.setGState(new doc.GState({opacity:1}));yRec+=2;const datePaiementFormatee=datePaiement?formatDateFr(datePaiement):formatDateFr(new Date());const chiffresId=(eleve.id||'').replace(/\D/g,'');const suffixeRef=chiffresId.length>=4?chiffresId.slice(-4):chiffresId.padStart(4,'0');const reference='REC-'+(datePaiement?formatDateYMD(new Date(datePaiement)):formatDateYMD())+'-'+suffixeRef+'-'+mois.substring(0,3).toUpperCase();doc.setFont("helvetica","bold");doc.setFontSize(18);doc.setTextColor(0,0,0);doc.text('Réf: '+reference,5,yRec+6);yRec+=8;doc.setFontSize(22);doc.text('Date: '+datePaiementFormatee,5,yRec+6);yRec+=10;doc.setDrawColor(0,0,0);doc.setLineWidth(0.5);doc.setGState(new doc.GState({opacity:0.2}));doc.line(5,yRec,pageWidth-5,yRec);doc.setGState(new doc.GState({opacity:1}));yRec+=6;const nomComplet=(eleve.nom+' '+(eleve.postnom||'')).toUpperCase();const prenomComplet=(eleve.prenom||'').toUpperCase();doc.setFont("helvetica","bold");doc.setFontSize(22);doc.text('Nom: '+nomComplet,5,yRec+6);yRec+=8;doc.text('Prénom: '+prenomComplet,5,yRec+6);yRec+=8;doc.text('Classe: '+eleve.classe,5,yRec+6);yRec+=8;if(eleve.option&&eleve.option!=='TOUTES'&&eleve.option!==''){doc.text('Option: '+eleve.option,5,yRec+6);yRec+=8}doc.text('Code Parent: '+(eleve.parentCode||'Non attribué'),5,yRec+6);yRec+=10;doc.setFont("helvetica","bold");doc.setFontSize(22);doc.text('MONTANT: '+formatNbSimple(montant)+' FC',5,yRec+6);yRec+=8;doc.text('PÉRIODE: '+mois,5,yRec+6);yRec+=12;doc.setFontSize(20);doc.text('Moyen: Espèces',pageWidth/2,yRec+6,{align:'center'})}telechargerPDF(doc,'Recus_'+eleve.nom+'_'+moisSelectionnes.length+'mois_'+formatDateYMD()+'.pdf');document.getElementById('choixMoisModal').classList.remove('show')}catch(e){}finally{isGenerating=false}};
-window.genererRecuInscription=async function(eleveId,espace,btn){if(isGenerating){return}let eleve=searchResults.find(e=>e.id===eleveId&&e.espace===espace);if(!eleve){eleve=getEleveDepuisCache(eleveId,espace)}if(!eleve){toast('Élève introuvable','error');return}animerBouton(btn);isGenerating=true;try{const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'p',unit:'mm',format:[148,175]});const pageWidth=doc.internal.pageSize.getWidth();let yRec=6;const nomEcole=mettreEnMajuscules(sansAccent(getNomEcole(SCHOOL_DISPLAY_NAME)));doc.setFillColor(255,255,255);doc.rect(0,0,pageWidth,55,"F");const logoSize=28;const logoX=(pageWidth-logoSize)/2;const logoY=4;let logoAdded=false;const logoBase64=logoBase64Cache||null;if(logoBase64){try{const format=logoBase64.includes('image/png')?'PNG':'JPEG';doc.addImage(logoBase64,format,logoX,logoY,logoSize,logoSize);logoAdded=true}catch(e){}}const titreY=logoAdded?(logoY+logoSize+8):12;doc.setFontSize(18);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);doc.text(nomEcole,pageWidth/2,titreY,{align:'center'});const sectionTexte='SECTION '+getEspaceLabel(eleve.espace);doc.setFontSize(18);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);doc.text(sectionTexte,pageWidth/2,titreY+10,{align:'center'});doc.setFontSize(18);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);doc.text('2026-2027',pageWidth/2,titreY+20,{align:'center'});yRec=titreY+22;doc.setDrawColor(0,0,0);doc.setLineWidth(0.3);doc.setGState(new doc.GState({opacity:0.2}));doc.line(5,yRec,pageWidth-5,yRec);doc.setGState(new doc.GState({opacity:1}));yRec+=2;const dateInscription=eleve.dateInscription||formatDateYMD(new Date());const chiffresId=(eleveId||'').replace(/\D/g,'');const suffixeRef=chiffresId.length>=4?chiffresId.slice(-4):chiffresId.padStart(4,'0');const reference='INS-'+formatDateYMD(new Date(dateInscription))+'-'+suffixeRef;doc.setFont("helvetica","bold");doc.setFontSize(18);doc.setTextColor(0,0,0);doc.text('Réf: '+reference,5,yRec+6);yRec+=8;doc.setFontSize(22);doc.text('Date: '+formatDateFr(new Date(dateInscription)),5,yRec+6);yRec+=10;doc.setDrawColor(0,0,0);doc.setLineWidth(0.5);doc.setGState(new doc.GState({opacity:0.2}));doc.line(5,yRec,pageWidth-5,yRec);doc.setGState(new doc.GState({opacity:1}));yRec+=6;const nomComplet=(eleve.nom+' '+(eleve.postnom||'')).toUpperCase();const prenomComplet=(eleve.prenom||'').toUpperCase();doc.setFont("helvetica","bold");doc.setFontSize(22);doc.text('Nom: '+nomComplet,5,yRec+6);yRec+=8;doc.text('Prénom: '+prenomComplet,5,yRec+6);yRec+=8;doc.text('Classe: '+eleve.classe,5,yRec+6);yRec+=8;if(eleve.option&&eleve.option!=='TOUTES'&&eleve.option!==''){doc.text('Option: '+eleve.option,5,yRec+6);yRec+=8}doc.text('Code Parent: '+(eleve.parentCode||'Non attribué'),5,yRec+6);yRec+=10;const fraisTotal=eleve.fraisInscriptionTotal||0;const fraisPaye=eleve.fraisInscriptionPaye||0;const fraisReste=Math.max(0,fraisTotal-fraisPaye);let statut='NON PAYÉ';if(fraisPaye>=fraisTotal&&fraisTotal>0)statut='COMPLET';else if(fraisPaye>0)statut='PARTIEL';if(eleve.exonere)statut='EXONÉRÉ';doc.setFont("helvetica","bold");doc.setFontSize(22);doc.text('FRAIS: '+formatNbSimple(fraisTotal)+' FC',5,yRec+6);yRec+=8;doc.text('PAYÉ: '+formatNbSimple(fraisPaye)+' FC',5,yRec+6);yRec+=8;doc.text('RESTE: '+formatNbSimple(fraisReste)+' FC',5,yRec+6);yRec+=10;doc.text('STATUT: '+statut,5,yRec+6);yRec+=12;doc.setFontSize(20);doc.text('Moyen: Espèces',pageWidth/2,yRec+6,{align:'center'});telechargerPDF(doc,'Recu_Inscription_'+eleve.nom+'_'+formatDateYMD()+'.pdf')}catch(e){}finally{isGenerating=false}};
+
+/* ================== GÉNÉRATION PDF ================== */
+window.genererRecuPaiement=async function(eleveId,espace,mois,btn){
+  if(isGenerating)return;
+  let eleve=searchResults.find(e=>e.id===eleveId&&e.espace===espace)||getEleveDepuisCache(eleveId,espace);
+  if(!eleve){toast('Élève introuvable','error');return}
+  const paiements=eleve.paiements||{};
+  const p=paiements[mois];
+  if(!p||!p.montant){toast('Aucun paiement pour ce mois','error');return}
+  animerBouton(btn);
+  const montant=p.montant;
+  const datePaiement=p.date||new Date().toISOString();
+  isGenerating=true;
+  document.getElementById('choixMoisModal').classList.remove('show');
+  try{
+    const{jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:'p',unit:'mm',format:[148,175]});
+    const pageWidth=doc.internal.pageSize.getWidth();
+    let yRec=6;
+    const nomEcole=mettreEnMajuscules(sansAccent(getNomEcole(SCHOOL_DISPLAY_NAME)));
+    doc.setFillColor(255,255,255);doc.rect(0,0,pageWidth,55,"F");
+    const logoSize=28;const logoX=(pageWidth-logoSize)/2;const logoY=4;
+    let logoAdded=false;const logoBase64=logoBase64Cache||null;
+    if(logoBase64){try{const format=logoBase64.includes('image/png')?'PNG':'JPEG';doc.addImage(logoBase64,format,logoX,logoY,logoSize,logoSize);logoAdded=true}catch(e){}}
+    const titreY=logoAdded?(logoY+logoSize+8):12;
+    doc.setFontSize(18);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
+    doc.text(nomEcole,pageWidth/2,titreY,{align:'center'});
+    doc.text('SECTION '+getEspaceLabel(eleve.espace),pageWidth/2,titreY+10,{align:'center'});
+    doc.text('2026-2027',pageWidth/2,titreY+20,{align:'center'});
+    yRec=titreY+22;
+    doc.setDrawColor(0,0,0);doc.setLineWidth(0.3);doc.setGState(new doc.GState({opacity:0.2}));
+    doc.line(5,yRec,pageWidth-5,yRec);
+    doc.setGState(new doc.GState({opacity:1}));yRec+=2;
+    const datePaiementFormatee=datePaiement?formatDateFr(datePaiement):formatDateFr(new Date());
+    const chiffresId=(eleveId||'').replace(/\D/g,'');
+    const suffixeRef=chiffresId.length>=4?chiffresId.slice(-4):chiffresId.padStart(4,'0');
+    const reference='REC-'+(datePaiement?formatDateYMD(new Date(datePaiement)):formatDateYMD())+'-'+suffixeRef;
+    doc.setFont("helvetica","bold");doc.setFontSize(18);doc.setTextColor(0,0,0);
+    doc.text('Réf: '+reference,5,yRec+6);yRec+=8;
+    doc.setFontSize(22);doc.text('Date: '+datePaiementFormatee,5,yRec+6);yRec+=10;
+    doc.setDrawColor(0,0,0);doc.setLineWidth(0.5);doc.setGState(new doc.GState({opacity:0.2}));
+    doc.line(5,yRec,pageWidth-5,yRec);
+    doc.setGState(new doc.GState({opacity:1}));yRec+=6;
+    doc.setFont("helvetica","bold");doc.setFontSize(22);
+    doc.text('Nom: '+(eleve.nom+' '+(eleve.postnom||'')).toUpperCase(),5,yRec+6);yRec+=8;
+    doc.text('Prénom: '+(eleve.prenom||'').toUpperCase(),5,yRec+6);yRec+=8;
+    doc.text('Classe: '+eleve.classe,5,yRec+6);yRec+=8;
+    if(eleve.option&&eleve.option!=='TOUTES'&&eleve.option!==''){doc.text('Option: '+eleve.option,5,yRec+6);yRec+=8}
+    doc.text('Code Parent: '+(eleve.parentCode||'Non attribué'),5,yRec+6);yRec+=10;
+    doc.text('MONTANT: '+formatNbSimple(montant)+' FC',5,yRec+6);yRec+=8;
+    doc.text('PÉRIODE: '+mois,5,yRec+6);yRec+=12;
+    doc.setFontSize(20);doc.text('Moyen: Espèces',pageWidth/2,yRec+6,{align:'center'});
+    afficherPDF(doc,'Recu_Paiement.pdf');
+  }catch(e){console.warn(e)}finally{isGenerating=false}
+};
+
+window.genererRecusMoisMultiples=async function(){
+  if(isGenerating)return;
+  const eleveData=currentEleveRecu;
+  if(!eleveData){toast('Élève introuvable','error');return}
+  let eleve=searchResults.find(e=>e.id===eleveData.id&&e.espace===eleveData.espace)||getEleveDepuisCache(eleveData.id,eleveData.espace);
+  if(!eleve){toast('Élève introuvable','error');return}
+  const moisSelectionnes=Array.from(document.querySelectorAll('.mois-select:checked')).map(cb=>cb.dataset.mois);
+  if(moisSelectionnes.length===0){toast('Aucun mois sélectionné','warning');return}
+  const btn=document.getElementById('btnGenererMoisMultiples');
+  animerBouton(btn);isGenerating=true;
+  const paiements=eleve.paiements||{};
+  try{
+    const{jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:'p',unit:'mm',format:[148,175]});
+    const pageWidth=doc.internal.pageSize.getWidth();
+    const logoBase64=logoBase64Cache||null;
+    for(let i=0;i<moisSelectionnes.length;i++){
+      const mois=moisSelectionnes[i];
+      if(i>0)doc.addPage([148,175],'p');
+      const p=paiements[mois];
+      const montant=p.montant||0;
+      const datePaiement=p.date||new Date().toISOString();
+      let yRec=6;
+      const nomEcole=mettreEnMajuscules(sansAccent(getNomEcole(SCHOOL_DISPLAY_NAME)));
+      doc.setFillColor(255,255,255);doc.rect(0,0,pageWidth,55,"F");
+      const logoSize=28;const logoX=(pageWidth-logoSize)/2;const logoY=4;
+      let logoAdded=false;
+      if(logoBase64){try{const format=logoBase64.includes('image/png')?'PNG':'JPEG';doc.addImage(logoBase64,format,logoX,logoY,logoSize,logoSize);logoAdded=true}catch(e){}}
+      const titreY=logoAdded?(logoY+logoSize+8):12;
+      doc.setFontSize(18);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
+      doc.text(nomEcole,pageWidth/2,titreY,{align:'center'});
+      doc.text('SECTION '+getEspaceLabel(eleve.espace),pageWidth/2,titreY+10,{align:'center'});
+      doc.text('2026-2027',pageWidth/2,titreY+20,{align:'center'});
+      yRec=titreY+22;
+      doc.setDrawColor(0,0,0);doc.setLineWidth(0.3);doc.setGState(new doc.GState({opacity:0.2}));
+      doc.line(5,yRec,pageWidth-5,yRec);
+      doc.setGState(new doc.GState({opacity:1}));yRec+=2;
+      const datePaiementFormatee=datePaiement?formatDateFr(datePaiement):formatDateFr(new Date());
+      const chiffresId=(eleve.id||'').replace(/\D/g,'');
+      const suffixeRef=chiffresId.length>=4?chiffresId.slice(-4):chiffresId.padStart(4,'0');
+      const reference='REC-'+(datePaiement?formatDateYMD(new Date(datePaiement)):formatDateYMD())+'-'+suffixeRef+'-'+mois.substring(0,3).toUpperCase();
+      doc.setFont("helvetica","bold");doc.setFontSize(18);doc.setTextColor(0,0,0);
+      doc.text('Réf: '+reference,5,yRec+6);yRec+=8;
+      doc.setFontSize(22);doc.text('Date: '+datePaiementFormatee,5,yRec+6);yRec+=10;
+      doc.setDrawColor(0,0,0);doc.setLineWidth(0.5);doc.setGState(new doc.GState({opacity:0.2}));
+      doc.line(5,yRec,pageWidth-5,yRec);
+      doc.setGState(new doc.GState({opacity:1}));yRec+=6;
+      doc.setFont("helvetica","bold");doc.setFontSize(22);
+      doc.text('Nom: '+(eleve.nom+' '+(eleve.postnom||'')).toUpperCase(),5,yRec+6);yRec+=8;
+      doc.text('Prénom: '+(eleve.prenom||'').toUpperCase(),5,yRec+6);yRec+=8;
+      doc.text('Classe: '+eleve.classe,5,yRec+6);yRec+=8;
+      if(eleve.option&&eleve.option!=='TOUTES'&&eleve.option!==''){doc.text('Option: '+eleve.option,5,yRec+6);yRec+=8}
+      doc.text('Code Parent: '+(eleve.parentCode||'Non attribué'),5,yRec+6);yRec+=10;
+      doc.text('MONTANT: '+formatNbSimple(montant)+' FC',5,yRec+6);yRec+=8;
+      doc.text('PÉRIODE: '+mois,5,yRec+6);yRec+=12;
+      doc.setFontSize(20);doc.text('Moyen: Espèces',pageWidth/2,yRec+6,{align:'center'});
+    }
+    afficherPDF(doc,'Recus_Multiples.pdf');
+    document.getElementById('choixMoisModal').classList.remove('show');
+  }catch(e){console.warn(e)}finally{isGenerating=false}
+};
+
+window.genererRecuInscription=async function(eleveId,espace,btn){
+  if(isGenerating)return;
+  let eleve=searchResults.find(e=>e.id===eleveId&&e.espace===espace)||getEleveDepuisCache(eleveId,espace);
+  if(!eleve){toast('Élève introuvable','error');return}
+  animerBouton(btn);isGenerating=true;
+  try{
+    const{jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:'p',unit:'mm',format:[148,175]});
+    const pageWidth=doc.internal.pageSize.getWidth();
+    let yRec=6;
+    const nomEcole=mettreEnMajuscules(sansAccent(getNomEcole(SCHOOL_DISPLAY_NAME)));
+    doc.setFillColor(255,255,255);doc.rect(0,0,pageWidth,55,"F");
+    const logoSize=28;const logoX=(pageWidth-logoSize)/2;const logoY=4;
+    let logoAdded=false;const logoBase64=logoBase64Cache||null;
+    if(logoBase64){try{const format=logoBase64.includes('image/png')?'PNG':'JPEG';doc.addImage(logoBase64,format,logoX,logoY,logoSize,logoSize);logoAdded=true}catch(e){}}
+    const titreY=logoAdded?(logoY+logoSize+8):12;
+    doc.setFontSize(18);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
+    doc.text(nomEcole,pageWidth/2,titreY,{align:'center'});
+    doc.text('SECTION '+getEspaceLabel(eleve.espace),pageWidth/2,titreY+10,{align:'center'});
+    doc.text('2026-2027',pageWidth/2,titreY+20,{align:'center'});
+    yRec=titreY+22;
+    doc.setDrawColor(0,0,0);doc.setLineWidth(0.3);doc.setGState(new doc.GState({opacity:0.2}));
+    doc.line(5,yRec,pageWidth-5,yRec);
+    doc.setGState(new doc.GState({opacity:1}));yRec+=2;
+    const dateInscription=eleve.dateInscription||formatDateYMD(new Date());
+    const chiffresId=(eleveId||'').replace(/\D/g,'');
+    const suffixeRef=chiffresId.length>=4?chiffresId.slice(-4):chiffresId.padStart(4,'0');
+    const reference='INS-'+formatDateYMD(new Date(dateInscription))+'-'+suffixeRef;
+    doc.setFont("helvetica","bold");doc.setFontSize(18);doc.setTextColor(0,0,0);
+    doc.text('Réf: '+reference,5,yRec+6);yRec+=8;
+    doc.setFontSize(22);doc.text('Date: '+formatDateFr(new Date(dateInscription)),5,yRec+6);yRec+=10;
+    doc.setDrawColor(0,0,0);doc.setLineWidth(0.5);doc.setGState(new doc.GState({opacity:0.2}));
+    doc.line(5,yRec,pageWidth-5,yRec);
+    doc.setGState(new doc.GState({opacity:1}));yRec+=6;
+    doc.setFont("helvetica","bold");doc.setFontSize(22);
+    doc.text('Nom: '+(eleve.nom+' '+(eleve.postnom||'')).toUpperCase(),5,yRec+6);yRec+=8;
+    doc.text('Prénom: '+(eleve.prenom||'').toUpperCase(),5,yRec+6);yRec+=8;
+    doc.text('Classe: '+eleve.classe,5,yRec+6);yRec+=8;
+    if(eleve.option&&eleve.option!=='TOUTES'&&eleve.option!==''){doc.text('Option: '+eleve.option,5,yRec+6);yRec+=8}
+    doc.text('Code Parent: '+(eleve.parentCode||'Non attribué'),5,yRec+6);yRec+=10;
+    const fraisTotal=eleve.fraisInscriptionTotal||0;
+    const fraisPaye=eleve.fraisInscriptionPaye||0;
+    const fraisReste=Math.max(0,fraisTotal-fraisPaye);
+    let statut='NON PAYÉ';
+    if(fraisPaye>=fraisTotal&&fraisTotal>0)statut='COMPLET';
+    else if(fraisPaye>0)statut='PARTIEL';
+    if(eleve.exonere)statut='EXONÉRÉ';
+    doc.setFont("helvetica","bold");doc.setFontSize(22);
+    doc.text('FRAIS: '+formatNbSimple(fraisTotal)+' FC',5,yRec+6);yRec+=8;
+    doc.text('PAYÉ: '+formatNbSimple(fraisPaye)+' FC',5,yRec+6);yRec+=8;
+    doc.text('RESTE: '+formatNbSimple(fraisReste)+' FC',5,yRec+6);yRec+=10;
+    doc.text('STATUT: '+statut,5,yRec+6);yRec+=12;
+    doc.setFontSize(20);doc.text('Moyen: Espèces',pageWidth/2,yRec+6,{align:'center'});
+    afficherPDF(doc,'Recu_Inscription.pdf');
+  }catch(e){console.warn(e)}finally{isGenerating=false}
+};
+
 document.getElementById('btnGenererRecus').addEventListener('click',async function(){animerBouton(this);await genererRecusMultiples()});
-window.genererRecusMultiples=async function(){if(isGenerating){return}const cases=document.querySelectorAll('.eleve-select:checked');if(cases.length===0){toast('Aucun élève sélectionné','warning');return}if(cases.length>10){toast('Maximum 10 élèves par génération','error');return}const elevesSelectionnes=[];cases.forEach(cb=>{const id=cb.dataset.id;const espace=cb.dataset.espace;let eleve=searchResults.find(e=>e.id===id&&e.espace===espace);if(!eleve){eleve=getEleveDepuisCache(id,espace)}if(eleve)elevesSelectionnes.push(eleve)});if(elevesSelectionnes.length===0){toast('Aucun élève valide','error');return}const elevesAvecPaiement=elevesSelectionnes.filter(e=>{const paiements=e.paiements||{};return moisListe.some(m=>paiements[m]&&paiements[m].montant>0)});if(elevesAvecPaiement.length===0){toast('Aucun élève sélectionné n\'a de paiement','error');return}const ignores=elevesSelectionnes.length-elevesAvecPaiement.length;let msg='Générer <strong style="color:#ffd700">'+elevesAvecPaiement.length+'</strong> reçu(s) en un seul PDF ?';if(ignores>0){msg+='<br><span style="color:#f59e0b;font-size:13px;margin-top:8px;display:block">⚠️ '+ignores+' élève(s) ignoré(s) (aucun paiement)</span>'}if(!await confirmMultiRecusCustom(msg))return;isGenerating=true;try{const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'p',unit:'mm',format:[148,175]});const pageWidth=doc.internal.pageSize.getWidth();const logoBase64=logoBase64Cache||null;for(let i=0;i<elevesAvecPaiement.length;i++){const eleve=elevesAvecPaiement[i];if(i>0)doc.addPage([148,175],'p');const paiements=eleve.paiements||{};const moisPayes=moisListe.filter(m=>paiements[m]&&paiements[m].montant>0);const dernierMois=currentMoisFilter&&paiements[currentMoisFilter]?currentMoisFilter:moisPayes[moisPayes.length-1];const p=paiements[dernierMois];const montant=p.montant||0;const datePaiement=p.date||new Date().toISOString();let yRec=6;const nomEcole=mettreEnMajuscules(sansAccent(getNomEcole(SCHOOL_DISPLAY_NAME)));doc.setFillColor(255,255,255);doc.rect(0,0,pageWidth,55,"F");const logoSize=28;const logoX=(pageWidth-logoSize)/2;const logoY=4;let logoAdded=false;if(logoBase64){try{const format=logoBase64.includes('image/png')?'PNG':'JPEG';doc.addImage(logoBase64,format,logoX,logoY,logoSize,logoSize);logoAdded=true}catch(e){}}const titreY=logoAdded?(logoY+logoSize+8):12;doc.setFontSize(18);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);doc.text(nomEcole,pageWidth/2,titreY,{align:'center'});doc.setFontSize(18);doc.text('SECTION '+getEspaceLabel(eleve.espace),pageWidth/2,titreY+10,{align:'center'});doc.setFontSize(18);doc.text('2026-2027',pageWidth/2,titreY+20,{align:'center'});yRec=titreY+22;doc.setDrawColor(0,0,0);doc.setLineWidth(0.3);doc.setGState(new doc.GState({opacity:0.2}));doc.line(5,yRec,pageWidth-5,yRec);doc.setGState(new doc.GState({opacity:1}));yRec+=2;const datePaiementFormatee=datePaiement?formatDateFr(datePaiement):formatDateFr(new Date());const chiffresId=(eleve.id||'').replace(/\D/g,'');const suffixeRef=chiffresId.length>=4?chiffresId.slice(-4):chiffresId.padStart(4,'0');const reference='REC-'+(datePaiement?formatDateYMD(new Date(datePaiement)):formatDateYMD())+'-'+suffixeRef;doc.setFont("helvetica","bold");doc.setFontSize(18);doc.setTextColor(0,0,0);doc.text('Réf: '+reference,5,yRec+6);yRec+=8;doc.setFontSize(22);doc.text('Date: '+datePaiementFormatee,5,yRec+6);yRec+=10;doc.setDrawColor(0,0,0);doc.setLineWidth(0.5);doc.setGState(new doc.GState({opacity:0.2}));doc.line(5,yRec,pageWidth-5,yRec);doc.setGState(new doc.GState({opacity:1}));yRec+=6;const nomComplet=(eleve.nom+' '+(eleve.postnom||'')).toUpperCase();const prenomComplet=(eleve.prenom||'').toUpperCase();doc.setFont("helvetica","bold");doc.setFontSize(22);doc.text('Nom: '+nomComplet,5,yRec+6);yRec+=8;doc.text('Prénom: '+prenomComplet,5,yRec+6);yRec+=8;doc.text('Classe: '+eleve.classe,5,yRec+6);yRec+=8;if(eleve.option&&eleve.option!=='TOUTES'&&eleve.option!==''){doc.text('Option: '+eleve.option,5,yRec+6);yRec+=8}doc.text('Code Parent: '+(eleve.parentCode||'Non attribué'),5,yRec+6);yRec+=10;doc.setFont("helvetica","bold");doc.setFontSize(22);doc.text('MONTANT: '+formatNbSimple(montant)+' FC',5,yRec+6);yRec+=8;doc.text('PÉRIODE: '+dernierMois,5,yRec+6);yRec+=12;doc.setFontSize(20);doc.text('Moyen: Espèces',pageWidth/2,yRec+6,{align:'center'})}telechargerPDF(doc,'Recus_Multiples_'+formatDateYMD()+'.pdf');clearSelection()}catch(e){}finally{isGenerating=false}};
+
+window.genererRecusMultiples=async function(){
+  if(isGenerating)return;
+  const cases=document.querySelectorAll('.eleve-select:checked');
+  if(cases.length===0){toast('Aucun élève sélectionné','warning');return}
+  if(cases.length>10){toast('Maximum 10 élèves par génération','error');return}
+  const elevesSelectionnes=[];
+  cases.forEach(cb=>{
+    const id=cb.dataset.id;const espace=cb.dataset.espace;
+    let eleve=searchResults.find(e=>e.id===id&&e.espace===espace)||getEleveDepuisCache(id,espace);
+    if(eleve)elevesSelectionnes.push(eleve);
+  });
+  if(elevesSelectionnes.length===0){toast('Aucun élève valide','error');return}
+  const elevesAvecPaiement=elevesSelectionnes.filter(e=>{
+    const paiements=e.paiements||{};
+    return moisListe.some(m=>paiements[m]&&paiements[m].montant>0);
+  });
+  if(elevesAvecPaiement.length===0){toast('Aucun élève sélectionné n\'a de paiement','error');return}
+  const ignores=elevesSelectionnes.length-elevesAvecPaiement.length;
+  let msg='Générer <strong style="color:#ffd700">'+elevesAvecPaiement.length+'</strong> reçu(s) en un seul PDF ?';
+  if(ignores>0){msg+='<br><span style="color:#f59e0b;font-size:13px;margin-top:8px;display:block">⚠️ '+ignores+' élève(s) ignoré(s) (aucun paiement)</span>'}
+  if(!await confirmMultiRecusCustom(msg))return;
+  isGenerating=true;
+  try{
+    const{jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:'p',unit:'mm',format:[148,175]});
+    const pageWidth=doc.internal.pageSize.getWidth();
+    const logoBase64=logoBase64Cache||null;
+    for(let i=0;i<elevesAvecPaiement.length;i++){
+      const eleve=elevesAvecPaiement[i];
+      if(i>0)doc.addPage([148,175],'p');
+      const paiements=eleve.paiements||{};
+      const moisPayes=moisListe.filter(m=>paiements[m]&&paiements[m].montant>0);
+      const dernierMois=currentMoisFilter&&paiements[currentMoisFilter]?currentMoisFilter:moisPayes[moisPayes.length-1];
+      const p=paiements[dernierMois];
+      const montant=p.montant||0;
+      const datePaiement=p.date||new Date().toISOString();
+      let yRec=6;
+      const nomEcole=mettreEnMajuscules(sansAccent(getNomEcole(SCHOOL_DISPLAY_NAME)));
+      doc.setFillColor(255,255,255);doc.rect(0,0,pageWidth,55,"F");
+      const logoSize=28;const logoX=(pageWidth-logoSize)/2;const logoY=4;
+      let logoAdded=false;
+      if(logoBase64){try{const format=logoBase64.includes('image/png')?'PNG':'JPEG';doc.addImage(logoBase64,format,logoX,logoY,logoSize,logoSize);logoAdded=true}catch(e){}}
+      const titreY=logoAdded?(logoY+logoSize+8):12;
+      doc.setFontSize(18);doc.setFont("helvetica","bold");doc.setTextColor(0,0,0);
+      doc.text(nomEcole,pageWidth/2,titreY,{align:'center'});
+      doc.text('SECTION '+getEspaceLabel(eleve.espace),pageWidth/2,titreY+10,{align:'center'});
+      doc.text('2026-2027',pageWidth/2,titreY+20,{align:'center'});
+      yRec=titreY+22;
+      doc.setDrawColor(0,0,0);doc.setLineWidth(0.3);doc.setGState(new doc.GState({opacity:0.2}));
+      doc.line(5,yRec,pageWidth-5,yRec);
+      doc.setGState(new doc.GState({opacity:1}));yRec+=2;
+      const datePaiementFormatee=datePaiement?formatDateFr(datePaiement):formatDateFr(new Date());
+      const chiffresId=(eleve.id||'').replace(/\D/g,'');
+      const suffixeRef=chiffresId.length>=4?chiffresId.slice(-4):chiffresId.padStart(4,'0');
+      const reference='REC-'+(datePaiement?formatDateYMD(new Date(datePaiement)):formatDateYMD())+'-'+suffixeRef;
+      doc.setFont("helvetica","bold");doc.setFontSize(18);doc.setTextColor(0,0,0);
+      doc.text('Réf: '+reference,5,yRec+6);yRec+=8;
+      doc.setFontSize(22);doc.text('Date: '+datePaiementFormatee,5,yRec+6);yRec+=10;
+      doc.setDrawColor(0,0,0);doc.setLineWidth(0.5);doc.setGState(new doc.GState({opacity:0.2}));
+      doc.line(5,yRec,pageWidth-5,yRec);
+      doc.setGState(new doc.GState({opacity:1}));yRec+=6;
+      doc.setFont("helvetica","bold");doc.setFontSize(22);
+      doc.text('Nom: '+(eleve.nom+' '+(eleve.postnom||'')).toUpperCase(),5,yRec+6);yRec+=8;
+      doc.text('Prénom: '+(eleve.prenom||'').toUpperCase(),5,yRec+6);yRec+=8;
+      doc.text('Classe: '+eleve.classe,5,yRec+6);yRec+=8;
+      if(eleve.option&&eleve.option!=='TOUTES'&&eleve.option!==''){doc.text('Option: '+eleve.option,5,yRec+6);yRec+=8}
+      doc.text('Code Parent: '+(eleve.parentCode||'Non attribué'),5,yRec+6);yRec+=10;
+      doc.text('MONTANT: '+formatNbSimple(montant)+' FC',5,yRec+6);yRec+=8;
+      doc.text('PÉRIODE: '+dernierMois,5,yRec+6);yRec+=12;
+      doc.setFontSize(20);doc.text('Moyen: Espèces',pageWidth/2,yRec+6,{align:'center'});
+    }
+    afficherPDF(doc,'Recus_Multiples.pdf');
+    clearSelection();
+  }catch(e){console.warn(e)}finally{isGenerating=false}
+};
+
 function confirmMultiRecusCustom(messageHtml){return new Promise(resolve=>{const modal=document.getElementById('confirmMultiModal');const msg=document.getElementById('confirmMultiMessage');const btnYes=document.getElementById('confirmMultiYes');const btnNo=document.getElementById('confirmMultiNo');msg.innerHTML=messageHtml+'<br><span style="font-size:13px;color:#a8b3c7;margin-top:8px;display:block">Chaque élève aura son propre reçu sur une page séparée.</span>';modal.classList.add('show');const cleanup=()=>{btnYes.onclick=null;btnNo.onclick=null;modal.onclick=null;modal.classList.remove('show')};btnYes.onclick=()=>{cleanup();resolve(true)};btnNo.onclick=()=>{cleanup();resolve(false)};modal.onclick=(e)=>{if(e.target===modal){cleanup();resolve(false)}}})}
-function showLoginPage(){document.getElementById('loginPage').style.display='flex';document.getElementById('mainApp').style.display='none'}
-async function showMainApp(){document.getElementById('loginPage').style.display='none';document.getElementById('mainApp').style.display='block';document.getElementById('loadingOverlay').classList.remove('hidden');document.getElementById('anneeLabel').textContent=anneeScolaire;nettoyerVieuxCache();await loadSchoolConfig();await loadSchoolLogo();try{await loadLogoBase64()}catch(e){}const nomAffiche=getNomEcole(SCHOOL_DISPLAY_NAME);document.getElementById('schoolName').textContent='🏫 '+nomAffiche.toUpperCase();const logoEl=document.getElementById('schoolLogo');const fallbackEl=document.getElementById('schoolLogoFallback');if(schoolLogoUrl){logoEl.src=schoolLogoUrl;logoEl.style.display='block';fallbackEl.style.display='none';logoEl.onerror=()=>{logoEl.style.display='none';fallbackEl.style.display='flex'}}else if(logoBase64Cache){logoEl.src=logoBase64Cache;logoEl.style.display='block';fallbackEl.style.display='none'}else{logoEl.style.display='none';fallbackEl.style.display='flex'}buildSearchClasseOptions();buildSearchOptionOptions();document.getElementById('loadingOverlay').classList.add('hidden')}
+
+/* ================== UI INITIALE ================== */
+function showLoginPage(){
+  document.getElementById('loginPage').style.display='flex';
+  document.getElementById('mainApp').style.display='none';
+  const btn=document.getElementById('loginBtn');
+  if(btn)btn.classList.remove('generating');
+}
+async function showMainApp(){
+  document.getElementById('loginPage').style.display='none';
+  document.getElementById('mainApp').style.display='block';
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+  document.getElementById('anneeLabel').textContent=anneeScolaire;
+  nettoyerVieuxCache();
+  await loadSchoolConfig();
+  await loadSchoolLogo();
+  try{await loadLogoBase64()}catch(e){}
+  const nomAffiche=getNomEcole(SCHOOL_DISPLAY_NAME);
+  document.getElementById('schoolName').textContent='🏫 '+nomAffiche.toUpperCase();
+  const logoEl=document.getElementById('schoolLogo');
+  const fallbackEl=document.getElementById('schoolLogoFallback');
+  if(schoolLogoUrl){
+    logoEl.src=schoolLogoUrl;logoEl.style.display='block';fallbackEl.style.display='none';
+    logoEl.onerror=()=>{logoEl.style.display='none';fallbackEl.style.display='flex'};
+  }else if(logoBase64Cache){
+    logoEl.src=logoBase64Cache;logoEl.style.display='block';fallbackEl.style.display='none';
+  }else{
+    logoEl.style.display='none';fallbackEl.style.display='flex';
+  }
+  buildSearchClasseOptions();
+  buildSearchOptionOptions();
+  document.getElementById('loadingOverlay').classList.add('hidden');
+}
+
 document.getElementById('searchModes').addEventListener('click',e=>{const btn=e.target.closest('.search-mode');if(!btn)return;document.querySelectorAll('.search-mode').forEach(b=>b.classList.remove('active'));btn.classList.add('active');currentSearchMode=btn.dataset.mode;document.querySelectorAll('.search-field').forEach(f=>{f.style.display=f.dataset.field===currentSearchMode?'block':'none'});const annonces={nom:'Rechercher l\'élève par son nom',code:'Rechercher l\'élève par son code parent',classe:'Rechercher les élèves par classe',option:'Rechercher les élèves par option'};parler(annonces[currentSearchMode]||'');setTimeout(()=>{const activeField=document.querySelector('.search-field[data-field="'+currentSearchMode+'"]');if(activeField){const input=activeField.querySelector('input, select');if(input)input.focus()}},100)});
 document.getElementById('sectionTabs').addEventListener('click',e=>{const btn=e.target.closest('.section-tab');if(!btn)return;document.querySelectorAll('.section-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');currentSection=btn.dataset.section;buildSearchClasseOptions();const annonces={all:'Toutes les sections',secondaire:'Section secondaire',primaire:'Section primaire',maternelle:'Section maternelle'};parler(annonces[currentSection]||'')});
 document.getElementById('moisFilterScroll').addEventListener('click',e=>{const btn=e.target.closest('.mois-filter-btn');if(!btn)return;document.querySelectorAll('.mois-filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');currentMoisFilter=btn.dataset.mois;if(currentMoisFilter){parler('Filtrer par mois de '+currentMoisFilter)}else{parler('Tous les mois')}});
@@ -453,7 +828,6 @@ document.getElementById('searchNom').addEventListener('keydown',e=>{if(e.key==='
 document.getElementById('searchCode').addEventListener('keydown',e=>{if(e.key==='Enter')lancerRecherche()});
 document.getElementById('searchCode').addEventListener('input',function(){this.value=this.value.replace(/\D/g,'');if(this.value.length===4||this.value.length===6){clearTimeout(searchTimeout);searchTimeout=setTimeout(()=>lancerRecherche(),300)}});
 document.getElementById('searchNom').addEventListener('input',function(){clearTimeout(searchTimeout);if(this.value.trim().length>=3){searchTimeout=setTimeout(()=>lancerRecherche(),600)}});
-(async function init(){if(sessionStorage.getItem('compta_auth')==='ok'){await showMainApp()}else{showLoginPage()}})();
 </script>
 </body>
 </html>
