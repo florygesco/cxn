@@ -195,7 +195,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 <div class="school-logo-fallback" id="schoolLogoFallback">🏫</div>
 </div>
 <div class="school-info">
-<div class="school-name" id="schoolName">ESPACE IMPRESSION</div>
+<div class="school-name" id="schoolName">COMPLEXE SCOLAIRE LE TREMPLIN</div>
 <div class="school-sub" id="schoolSub">Reçus & Impression</div>
 </div>
 </div>
@@ -402,7 +402,7 @@ function initVoix(){if(!('speechSynthesis'in window))return;const voix=window.sp
 if('speechSynthesis'in window){initVoix();window.speechSynthesis.onvoiceschanged=initVoix;setTimeout(initVoix,500);setTimeout(initVoix,1500)}
 function parler(texte){if(!('speechSynthesis'in window))return;if(!texte)return;if(!voixPrete){fileParole.push(texte);return}window.speechSynthesis.cancel();setTimeout(()=>{const u=new SpeechSynthesisUtterance(texte);u.lang='fr-FR';if(voixFeminine)u.voice=voixFeminine;u.rate=0.95;u.pitch=1.2;u.volume=1.0;u.onerror=(e)=>console.warn('Erreur voix:',e);window.speechSynthesis.speak(u)},120)}
 setInterval(()=>{if(voixPrete&&fileParole.length>0){const txt=fileParole.shift();parler(txt)}},500);
-function getNomEcole(d){return'ÉCOLE '+d}
+function getNomEcole(d){return'COMPLEXE SCOLAIRE LE TREMPLIN'}
 function sansAccent(t){if(!t)return"";const m={'é':'e','è':'e','ê':'e','ë':'e','à':'a','â':'a','ä':'a','ô':'o','ö':'o','û':'u','ü':'u','î':'i','ï':'i','ç':'c','É':'E','È':'E','Ê':'E','Ë':'E','À':'A','Â':'A','Ä':'A','Ô':'O','Ö':'O','Û':'U','Ü':'U','Î':'I','Ï':'I','Ç':'C'};return t.replace(/[éèêëàâäôöûüîïçÉÈÊËÀÂÄÔÖÛÜÎÏÇ]/g,c=>m[c]||c)}
 function mettreEnMajuscules(t){return t?t.toUpperCase():""}
 function formaterNombre(n){if(n===0)return"0";let r="",nb=Math.abs(n),s=nb.toString(),c=0;for(let i=s.length-1;i>=0;i--){c++;r=s[i]+r;if(c%3===0&&i!==0)r=" "+r}return n<0?"-"+r:r}
@@ -414,17 +414,20 @@ function getEspaceBadgeClass(e){if(e==='secondaire')return'badge-sec';if(e==='pr
 function toast(msg,type="success"){toastQueue.push({msg,type});processToastQueue()}
 function processToastQueue(){if(toastShowing||toastQueue.length===0)return;toastShowing=true;const{msg,type}=toastQueue.shift();const c=document.getElementById("toastContainer");if(!c){toastShowing=false;processToastQueue();return}const icons={success:"✓",error:"✕",warning:"⚠",info:"ℹ"};const titles={success:"Succès",error:"Erreur",warning:"Attention",info:"Information"};const colors={success:"#10b981",error:"#ef4444",warning:"#f59e0b",info:"#3b82f6"};const el=document.createElement("div");el.className='toast '+(type||'success');el.innerHTML='<div class="toast-icon" style="background:'+colors[type]+'22;color:'+colors[type]+'">'+icons[type]+'</div><div class="toast-content"><div class="toast-title">'+titles[type]+'</div><div class="toast-message">'+msg+'</div></div>';c.appendChild(el);setTimeout(()=>el.classList.add('show'),10);setTimeout(()=>{el.classList.remove('show');setTimeout(()=>{el.remove();toastShowing=false;processToastQueue()},400)},3000)}
 function animerBouton(btn){if(!btn||btn.id==='loginBtn')return;btn.classList.add('generating');setTimeout(()=>{btn.classList.remove('generating');btn.classList.add('success-flash');setTimeout(()=>btn.classList.remove('success-flash'),600)},500)}
-let _pdfLinkEl=null;
-function telechargerPDF(doc,nomFichier){
+let _pdfWindow=null;
+let _pdfLastUrl=null;
+function ouvrirPDFNouvelOnglet(doc,nomFichier){
 const pdfBlob=doc.output('blob');
 const pdfUrl=URL.createObjectURL(pdfBlob);
-if(!_pdfLinkEl){_pdfLinkEl=document.createElement('a');_pdfLinkEl.style.display='none';document.body.appendChild(_pdfLinkEl)}
-if(_pdfLinkEl._oldUrl){try{URL.revokeObjectURL(_pdfLinkEl._oldUrl)}catch(e){}}
-_pdfLinkEl.href=pdfUrl;
-_pdfLinkEl.download=nomFichier;
-_pdfLinkEl._oldUrl=pdfUrl;
-_pdfLinkEl.click();
-setTimeout(()=>{try{URL.revokeObjectURL(pdfUrl);_pdfLinkEl._oldUrl=null}catch(e){}},5000)
+if(_pdfLastUrl){try{URL.revokeObjectURL(_pdfLastUrl)}catch(e){}}
+_pdfLastUrl=pdfUrl;
+if(_pdfWindow&&!_pdfWindow.closed){
+_pdfWindow.location.href=pdfUrl;
+_pdfWindow.focus();
+}else{
+_pdfWindow=window.open(pdfUrl,'_blank');
+}
+setTimeout(()=>{try{URL.revokeObjectURL(pdfUrl);_pdfLastUrl=null}catch(e){}},60000)
 }
 document.addEventListener('contextmenu',function(e){if(e.target.closest('input')||e.target.closest('textarea')||e.target.closest('select'))return;e.preventDefault();const idx=modesRecherche.indexOf(currentSearchMode);const nextMode=modesRecherche[(idx+1)%modesRecherche.length];const btn=document.querySelector('.search-mode[data-mode="'+nextMode+'"]');if(btn)btn.click();return false});
 window.addEventListener('online',()=>{isOffline=false;toast('🌐 Connexion rétablie','success')});
@@ -496,7 +499,7 @@ doc.text('Code Parent: '+(eleve.parentCode||'Non attribué'),5,yRec+6);yRec+=10;
 doc.text('MONTANT: '+formatNbSimple(montant)+' FC',5,yRec+6);yRec+=8;
 doc.text('PÉRIODE: '+mois,5,yRec+6);yRec+=12;
 doc.setFontSize(20);doc.text('Moyen: Espèces',pageWidth/2,yRec+6,{align:'center'});
-telechargerPDF(doc,'Recu_Paiement.pdf');
+ouvrirPDFNouvelOnglet(doc,'Recu_Paiement.pdf');
 }catch(e){}finally{isGenerating=false}
 };
 window.genererRecusMoisMultiples=async function(){
@@ -556,7 +559,7 @@ doc.text('MONTANT: '+formatNbSimple(montant)+' FC',5,yRec+6);yRec+=8;
 doc.text('PÉRIODE: '+mois,5,yRec+6);yRec+=12;
 doc.setFontSize(20);doc.text('Moyen: Espèces',pageWidth/2,yRec+6,{align:'center'});
 }
-telechargerPDF(doc,'Recus_Multiples.pdf');
+ouvrirPDFNouvelOnglet(doc,'Recus_Multiples.pdf');
 document.getElementById('choixMoisModal').classList.remove('show');
 }catch(e){}finally{isGenerating=false}
 };
@@ -613,7 +616,7 @@ doc.text('PAYÉ: '+formatNbSimple(fraisPaye)+' FC',5,yRec+6);yRec+=8;
 doc.text('RESTE: '+formatNbSimple(fraisReste)+' FC',5,yRec+6);yRec+=10;
 doc.text('STATUT: '+statut,5,yRec+6);yRec+=12;
 doc.setFontSize(20);doc.text('Moyen: Espèces',pageWidth/2,yRec+6,{align:'center'});
-telechargerPDF(doc,'Recu_Inscription.pdf');
+ouvrirPDFNouvelOnglet(doc,'Recu_Inscription.pdf');
 }catch(e){}finally{isGenerating=false}
 };
 document.getElementById('btnGenererRecus').addEventListener('click',async function(){animerBouton(this);await genererRecusMultiples()});
@@ -681,7 +684,7 @@ doc.text('MONTANT: '+formatNbSimple(montant)+' FC',5,yRec+6);yRec+=8;
 doc.text('PÉRIODE: '+dernierMois,5,yRec+6);yRec+=12;
 doc.setFontSize(20);doc.text('Moyen: Espèces',pageWidth/2,yRec+6,{align:'center'});
 }
-telechargerPDF(doc,'Recus_Multiples.pdf');
+ouvrirPDFNouvelOnglet(doc,'Recus_Multiples.pdf');
 clearSelection();
 }catch(e){}finally{isGenerating=false}
 };
