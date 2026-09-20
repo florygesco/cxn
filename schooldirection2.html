@@ -424,6 +424,8 @@ const SC={PROFESSEURS:"professeurs",PUNITIONS:"punitions",FICHES:"fiches",SETTIN
 let currentAuthUser=null,ACCESS_CODE=null,toastQueue=[],toastActive=false,currentDate=new Date().toISOString().split('T')[0];
 let allEleves=[],allProfs=[];
 let presencesCache={prof:{},ens:{}};
+let cacheProfs=null,cacheEnseignants=null,cacheTimeProfs=0,cacheTimeEns=0;
+const CACHE_DUREE=30*1000;
 const moisListe=["Septembre","Octobre","Novembre","Decembre","Janvier","Fevrier","Mars","Avril","Mai","Juin"];
 const classesSecondaire=["7ème EB","8ème EB","1ère Année","2ème Année","3ème Année","4ème Année"];
 const classesPrimaire=["1ère A","1ère B","2ème A","2ème B","3ème A","3ème B","4ème A","4ème B","5ème A","5ème B","6ème A","6ème B"];
@@ -471,9 +473,13 @@ function genererEmailProfesseur(nom,ecoleId){if(!nom)return'';const nomPropre=no
 function genererEmailEnseignant(nom,ecoleId){if(!nom)return'';const nomPropre=nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z\s]/g,'').trim().replace(/\s+/g,'.');return'ens.'+nomPropre+'.'+ecoleId+'@gmail.com'}
 function genererCodeAcces(){return String(Math.floor(100000+Math.random()*900000))}
 
-async function chargerProfs(){try{const q=query(collection(db,"ecoles",ECOLET_ID,SC.PROFESSEURS),where("_type","==","prof"));const snap=await getDocs(q);const profs=[];snap.forEach(ds=>{const data=ds.data();if(data.nom)profs.push({id:ds.id,...data})});profs.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));allProfs=profs;return profs}catch(e){return[]}}
+async function chargerProfs(){
+const maintenant=Date.now();
+if(cacheProfs&&(maintenant-cacheTimeProfs)<CACHE_DUREE){allProfs=cacheProfs;return cacheProfs}
+try{const q=query(collection(db,"ecoles",ECOLET_ID,SC.PROFESSEURS),where("_type","==","prof"));const snap=await getDocs(q);const profs=[];snap.forEach(ds=>{const data=ds.data();if(data.nom)profs.push({id:ds.id,...data})});profs.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));allProfs=profs;cacheProfs=profs;cacheTimeProfs=maintenant;return profs}catch(e){return cacheProfs||[]}
+}
 function afficherProfs(profs){const c=document.getElementById('profsListContainer');if(!c)return;const searchTerm=document.getElementById('searchProfInput')?.value?.toLowerCase()||'';let filtered=profs;if(searchTerm){filtered=profs.filter(p=>(p.nom||'').toLowerCase().includes(searchTerm))}if(!filtered||filtered.length===0){c.innerHTML='<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px;"><i class="fas fa-chalkboard-teacher" style="font-size:32px;display:block;margin-bottom:8px;color:#e5e7eb;"></i><p>Aucun professeur trouve</p></div>';return}let html='<div class="prof-cards">';filtered.forEach((p,index)=>{const estActif=p.actif!==false;const sexe=p.sexe||'M';const sexeLabel=sexe==='F'?'FEMME':'HOMME';const statusClass=estActif?'actif':'inactif';const statusLabel=estActif?'ACTIF':'INACTIF';html+='<div class="prof-card"><span class="prof-numero">#'+(index+1)+'</span><span class="prof-nom">'+escapeHtml(p.nom)+'</span><span class="prof-sex">'+sexeLabel+'</span><span class="prof-status '+statusClass+'">'+statusLabel+'</span><button onclick="window.toggleProfActif(\''+p.id+'\')" class="btn btn-sm '+(estActif?'btn-danger':'btn-success')+'" style="padding:4px 14px;font-size:10px;">'+(estActif?'DESACTIVER':'REACTIVER')+'</button></div>'});html+='</div>';c.innerHTML=html}
-window.toggleProfActif=async function(id){showConfirm('CHANGER LE STATUT','Voulez-vous changer le statut de ce professeur ?').then(async(ok)=>{if(!ok)return;try{const docRef=doc(db,"ecoles",ECOLET_ID,SC.PROFESSEURS,id);const snap=await getDoc(docRef);const data=snap.data();await updateDoc(docRef,{actif:!data.actif});toast('Professeur '+(data.actif?'desactive':'reactive'),'success');chargerProfs().then(p=>afficherProfs(p))}catch(e){toast('Erreur: '+e.message,'error')}})};
+window.toggleProfActif=async function(id){showConfirm('CHANGER LE STATUT','Voulez-vous changer le statut de ce professeur ?').then(async(ok)=>{if(!ok)return;try{const docRef=doc(db,"ecoles",ECOLET_ID,SC.PROFESSEURS,id);const snap=await getDoc(docRef);const data=snap.data();await updateDoc(docRef,{actif:!data.actif});toast('Professeur '+(data.actif?'desactive':'reactive'),'success');cacheProfs=null;chargerProfs().then(p=>afficherProfs(p))}catch(e){toast('Erreur: '+e.message,'error')}})};
 document.getElementById('addProfBtn').addEventListener('click',function(){
 const modal=document.getElementById('confirmModal');
 document.getElementById('confirmMessage').innerHTML='<strong>AJOUTER UN PROFESSEUR</strong><br><br><input type="text" id="modalInput" placeholder="Nom complet" style="width:100%;padding:10px 14px;border-radius:12px;background:#f8fafc;border:2px solid var(--border-color);color:var(--text-primary);font-size:13px;outline:none;font-family:Inter,sans-serif;margin-bottom:8px;"><select id="modalSexe" style="width:100%;padding:10px 14px;border-radius:12px;background:#fff;border:2px solid var(--border-color);color:var(--text-primary);font-size:13px;outline:none;font-family:Inter,sans-serif;"><option value="M">HOMME</option><option value="F">FEMME</option></select>';
@@ -491,6 +497,7 @@ let authCreated=false;
 try{await createUserWithEmailAndPassword(auth,email,code);authCreated=true}catch(authError){if(authError.code==='auth/email-already-in-use'){authCreated=true}}
 try{
 await setDoc(doc(db,"ecoles",ECOLET_ID,SC.PROFESSEURS,pid),{_type:"prof",id:pid,profId:pid,nom:nomTrim,sexe:sexe,code:code,email:email,emailProf:email,authCreated:authCreated,createdAt:Date.now(),actif:true,school:ECOLET_ID});
+cacheProfs=null;
 toast(nomTrim+' ajoute avec succes','success');
 const modalCode=document.createElement('div');
 modalCode.className='modal show';
@@ -502,19 +509,23 @@ chargerProfs().then(p=>afficherProfs(p))
 document.getElementById('confirmNo').onclick=()=>modal.classList.remove('show');
 });
 document.getElementById('searchProfInput').addEventListener('input',function(){chargerProfs().then(p=>afficherProfs(p))});
-document.getElementById('refreshProfsBtn').addEventListener('click',function(){chargerProfs().then(p=>afficherProfs(p));toast('Professeurs actualises','success')});
+document.getElementById('refreshProfsBtn').addEventListener('click',function(){cacheProfs=null;chargerProfs().then(p=>afficherProfs(p));toast('Professeurs actualises','success')});
 function getClassesSelectionnees(){const select=document.getElementById('ensClasses');const classes=[];for(let i=0;i<select.options.length;i++){if(select.options[i].selected){classes.push(select.options[i].value)}}return classes}
 window.changerCycleEns=function(){const cycle=document.getElementById('ensCycle').value;const select=document.getElementById('ensClasses');const options=select.querySelectorAll('option');const isPrimaire=cycle==='primaire';options.forEach(opt=>{const val=opt.value;if(!val)return;if(isPrimaire){opt.style.display=classesPrimaire.includes(val)?'':'none'}else{opt.style.display=classesMaternelle.includes(val)?'':'none'}})};
-async function chargerEnseignants(){try{const q=query(collection(db,"ecoles",ECOLET_ID,SC.ENSEIGNANTS),where("_type","==","enseignant"));const snap=await getDocs(q);const ens=[];snap.forEach(ds=>{const data=ds.data();if(data.nom)ens.push({id:ds.id,...data})});ens.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));return ens}catch(e){return[]}}
+async function chargerEnseignants(){
+const maintenant=Date.now();
+if(cacheEnseignants&&(maintenant-cacheTimeEns)<CACHE_DUREE){return cacheEnseignants}
+try{const q=query(collection(db,"ecoles",ECOLET_ID,SC.ENSEIGNANTS),where("_type","==","enseignant"));const snap=await getDocs(q);const ens=[];snap.forEach(ds=>{const data=ds.data();if(data.nom)ens.push({id:ds.id,...data})});ens.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));cacheEnseignants=ens;cacheTimeEns=maintenant;return ens}catch(e){return cacheEnseignants||[]}
+}
 function afficherEnseignants(ens){const c=document.getElementById('ensListContainer');if(!c)return;const searchTerm=document.getElementById('searchEnsInput')?.value?.toLowerCase()||'';const cycleFiltre=document.getElementById('filtreCycleEns')?.value||'';let filtered=ens;if(searchTerm){filtered=ens.filter(e=>(e.nom||'').toLowerCase().includes(searchTerm))}if(cycleFiltre){filtered=ens.filter(e=>e.cycle===cycleFiltre)}if(!filtered||filtered.length===0){c.innerHTML='<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px;"><i class="fas fa-school" style="font-size:32px;display:block;margin-bottom:8px;color:#e5e7eb;"></i><p>Aucun enseignant trouve</p></div>';return}let html='<div class="ens-cards">';filtered.forEach((e,index)=>{const estActif=e.actif!==false;const statusClass=estActif?'actif':'inactif';const statusLabel=estActif?'ACTIF':'INACTIF';const cycleLabel=e.cycle==='primaire'?'PRIMAIRE':'MATERNELLE';const cycleClass=e.cycle==='primaire'?'':'maternelle';const classesDisplay=(e.classes||[]).join(', ');const sexeLabel=e.sexe==='F'?'FEMME':'HOMME';html+='<div class="ens-card"><span class="ens-numero">#'+(index+1)+'</span><span class="ens-nom">'+escapeHtml(e.nom)+'</span><span class="ens-sex">'+sexeLabel+'</span><span class="ens-cycle '+cycleClass+'">'+cycleLabel+'</span><span class="ens-classes">'+escapeHtml(classesDisplay)+'</span><span class="ens-status '+statusClass+'">'+statusLabel+'</span><button onclick="window.toggleEnsActif(\''+e.id+'\')" class="btn btn-sm '+(estActif?'btn-danger':'btn-success')+'" style="padding:4px 14px;font-size:10px;">'+(estActif?'DESACTIVER':'REACTIVER')+'</button></div>'});html+='</div>';c.innerHTML=html}
-window.toggleEnsActif=async function(id){showConfirm('CHANGER LE STATUT','Voulez-vous changer le statut de cet enseignant ?').then(async(ok)=>{if(!ok)return;try{const docRef=doc(db,"ecoles",ECOLET_ID,SC.ENSEIGNANTS,id);const snap=await getDoc(docRef);const data=snap.data();await updateDoc(docRef,{actif:!data.actif});toast('Enseignant '+(data.actif?'desactive':'reactive'),'success');chargerEnseignants().then(e=>afficherEnseignants(e))}catch(e){toast('Erreur: '+e.message,'error')}})};
+window.toggleEnsActif=async function(id){showConfirm('CHANGER LE STATUT','Voulez-vous changer le statut de cet enseignant ?').then(async(ok)=>{if(!ok)return;try{const docRef=doc(db,"ecoles",ECOLET_ID,SC.ENSEIGNANTS,id);const snap=await getDoc(docRef);const data=snap.data();await updateDoc(docRef,{actif:!data.actif});toast('Enseignant '+(data.actif?'desactive':'reactive'),'success');cacheEnseignants=null;chargerEnseignants().then(e=>afficherEnseignants(e))}catch(e){toast('Erreur: '+e.message,'error')}})};
 document.getElementById('addEnsBtn').addEventListener('click',function(){document.getElementById('ensNom').value='';document.getElementById('ensSexe').value='M';document.getElementById('ensCycle').value='primaire';document.getElementById('ensCode').value=genererCodeAcces();document.querySelectorAll('#ensClasses option').forEach(opt=>opt.selected=false);changerCycleEns();document.getElementById('modalEnseignant').classList.add('show')});
 document.getElementById('cancelEnsBtn').addEventListener('click',function(){document.getElementById('modalEnseignant').classList.remove('show')});
 document.getElementById('ensCycle').addEventListener('change',changerCycleEns);
-document.getElementById('saveEnsBtn').addEventListener('click',async function(){const nom=document.getElementById('ensNom').value.trim();const sexe=document.getElementById('ensSexe').value;const cycle=document.getElementById('ensCycle').value;const classes=getClassesSelectionnees();const code=document.getElementById('ensCode').value.trim();if(!nom){toast('Veuillez entrer un nom','error');return}if(classes.length===0){toast('Selectionnez au moins une classe','error');return}if(!code||code.length<6){toast('Code a 6 chiffres','error');return}this.disabled=true;this.textContent='ENREGISTREMENT...';try{const email=genererEmailEnseignant(nom,ECOLET_ID);const ensId='ens_'+Date.now();await createUserWithEmailAndPassword(auth,email,code).catch(()=>{});await setDoc(doc(db,"ecoles",ECOLET_ID,SC.ENSEIGNANTS,ensId),{_type:"enseignant",id:ensId,nom:nom,sexe:sexe,cycle:cycle,classes:classes,code:code,email:email,actif:true,createdAt:Date.now()});document.getElementById('modalEnseignant').classList.remove('show');toast(nom+' ajoute avec succes','success');chargerEnseignants().then(e=>afficherEnseignants(e))}catch(e){toast('Erreur: '+e.message,'error')}this.disabled=false;this.textContent='ENREGISTRER'});
+document.getElementById('saveEnsBtn').addEventListener('click',async function(){const nom=document.getElementById('ensNom').value.trim();const sexe=document.getElementById('ensSexe').value;const cycle=document.getElementById('ensCycle').value;const classes=getClassesSelectionnees();const code=document.getElementById('ensCode').value.trim();if(!nom){toast('Veuillez entrer un nom','error');return}if(classes.length===0){toast('Selectionnez au moins une classe','error');return}if(!code||code.length<6){toast('Code a 6 chiffres','error');return}this.disabled=true;this.textContent='ENREGISTREMENT...';try{const email=genererEmailEnseignant(nom,ECOLET_ID);const ensId='ens_'+Date.now();await createUserWithEmailAndPassword(auth,email,code).catch(()=>{});await setDoc(doc(db,"ecoles",ECOLET_ID,SC.ENSEIGNANTS,ensId),{_type:"enseignant",id:ensId,nom:nom,sexe:sexe,cycle:cycle,classes:classes,code:code,email:email,actif:true,createdAt:Date.now()});cacheEnseignants=null;document.getElementById('modalEnseignant').classList.remove('show');toast(nom+' ajoute avec succes','success');chargerEnseignants().then(e=>afficherEnseignants(e))}catch(e){toast('Erreur: '+e.message,'error')}this.disabled=false;this.textContent='ENREGISTRER'});
 document.getElementById('searchEnsInput').addEventListener('input',function(){chargerEnseignants().then(e=>afficherEnseignants(e))});
 document.getElementById('filtreCycleEns').addEventListener('change',function(){chargerEnseignants().then(e=>afficherEnseignants(e))});
-document.getElementById('refreshEnsBtn').addEventListener('click',function(){chargerEnseignants().then(e=>afficherEnseignants(e));toast('Enseignants actualises','success')});
+document.getElementById('refreshEnsBtn').addEventListener('click',function(){cacheEnseignants=null;chargerEnseignants().then(e=>afficherEnseignants(e));toast('Enseignants actualises','success')});
 
 async function chargerPresences(){
 const container=document.getElementById('presenceCardsContainer');
@@ -523,17 +534,31 @@ const filtreType=document.getElementById('filtreTypePresence').value;
 const dateKey=document.getElementById('filtreDatePresence').value||currentDate;
 container.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';
 try{
-const profs=await chargerProfs();
-const ens=await chargerEnseignants();
+const[profsSnap,ensSnap]=await Promise.all([
+getDocs(collection(db,"ecoles",ECOLET_ID,SC.PROFESSEURS)),
+getDocs(collection(db,"ecoles",ECOLET_ID,SC.ENSEIGNANTS))
+]);
 let toutesPersonnes=[];
-if(filtreType==='tous'||filtreType==='prof'){toutesPersonnes=[...toutesPersonnes,...profs.map(p=>({...p,type:'prof'}))]}
-if(filtreType==='tous'||filtreType==='ens'){toutesPersonnes=[...toutesPersonnes,...ens.map(e=>({...e,type:'ens'}))]}
+presencesCache.prof={};
+presencesCache.ens={};
+profsSnap.forEach(ds=>{
+const data=ds.data();
+if(data._type==='prof'&&data.actif!==false&&data.nom){
+toutesPersonnes.push({id:ds.id,nom:data.nom||'',sexe:data.sexe||'M',type:'prof'});
+presencesCache.prof[ds.id]=data.presences||{};
+}
+});
+ensSnap.forEach(ds=>{
+const data=ds.data();
+if(data._type==='enseignant'&&data.actif!==false&&data.nom){
+toutesPersonnes.push({id:ds.id,nom:data.nom||'',sexe:data.sexe||'M',cycle:data.cycle||'primaire',type:'ens'});
+presencesCache.ens[ds.id]=data.presences||{};
+}
+});
+if(filtreType==='prof'){toutesPersonnes=toutesPersonnes.filter(p=>p.type==='prof')}
+if(filtreType==='ens'){toutesPersonnes=toutesPersonnes.filter(p=>p.type==='ens')}
 if(toutesPersonnes.length===0){document.getElementById('presenceEmpty').style.display='block';container.innerHTML='';return}
 document.getElementById('presenceEmpty').style.display='none';
-const[profsSnap,ensSnap]=await Promise.all([getDocs(collection(db,"ecoles",ECOLET_ID,SC.PROFESSEURS)),getDocs(collection(db,"ecoles",ECOLET_ID,SC.ENSEIGNANTS))]);
-presencesCache.prof={};presencesCache.ens={};
-profsSnap.forEach(ds=>{presencesCache.prof[ds.id]=ds.data().presences||{}});
-ensSnap.forEach(ds=>{presencesCache.ens[ds.id]=ds.data().presences||{}});
 let stats={present:0,absent:0,retard:0,journal:0,cahier:0,prevision:0,composition:0};
 let html='';
 for(const p of toutesPersonnes){
@@ -589,7 +614,7 @@ updateStatsPresences();
 }catch(e){toast('Erreur chargement presences: '+e.message,'error')}
 }
 
-window.pointerPresence=async function(id,type,statut,dateKey){
+window.pointerPresence=function(id,type,statut,dateKey){
 const card=document.querySelector('[data-card="'+id+'_'+type+'"]');
 if(!card)return;
 const badge=card.querySelector('.statut-badge');
@@ -604,21 +629,16 @@ if(!sourceCache[id])sourceCache[id]={};
 if(!sourceCache[id][dateKey])sourceCache[id][dateKey]={};
 sourceCache[id][dateKey].statut=statut;
 sourceCache[id][dateKey].heureArrivee=(statut==='present'||statut==='retard')?heure:'';
-try{
 const collectionName=type==='prof'?SC.PROFESSEURS:SC.ENSEIGNANTS;
 const docRef=doc(db,"ecoles",ECOLET_ID,collectionName,id);
-const snap=await getDoc(docRef);
-let data=snap.exists()?snap.data():{};
-let presences=data.presences||{};
-if(!presences[dateKey])presences[dateKey]={};
-presences[dateKey].statut=statut;
-presences[dateKey].heureArrivee=(statut==='present'||statut==='retard')?heure:'';
-await updateDoc(docRef,{presences:presences});
+const payload={};
+payload['presences.'+dateKey+'.statut']=statut;
+payload['presences.'+dateKey+'.heureArrivee']=(statut==='present'||statut==='retard')?heure:'';
+updateDoc(docRef,payload).catch(e=>toast('Erreur: '+e.message,'error'));
 updateStatsPresences();
-}catch(e){toast('Erreur: '+e.message,'error')}
 };
 
-window.toggleDocumentPedagogique=async function(id,type,champ,dateKey){
+window.toggleDocumentPedagogique=function(id,type,champ,dateKey){
 const card=document.querySelector('[data-card="'+id+'_'+type+'"]');
 if(!card)return;
 const bouton=card.querySelector('button[onclick*="'+champ+'"]');
@@ -630,19 +650,18 @@ const sourceCache=type==='prof'?presencesCache.prof:presencesCache.ens;
 if(!sourceCache[id])sourceCache[id]={};
 if(!sourceCache[id][dateKey])sourceCache[id][dateKey]={};
 const actuel=sourceCache[id][dateKey][champ]||'x';
-sourceCache[id][dateKey][champ]=actuel==='ok'?'x':'ok';
-try{
+const nouveau=actuel==='ok'?'x':'ok';
+sourceCache[id][dateKey][champ]=nouveau;
 const collectionName=type==='prof'?SC.PROFESSEURS:SC.ENSEIGNANTS;
 const docRef=doc(db,"ecoles",ECOLET_ID,collectionName,id);
-const snap=await getDoc(docRef);
-let data=snap.exists()?snap.data():{};
-let presences=data.presences||{};
-if(!presences[dateKey])presences[dateKey]={};
-const actuelDb=presences[dateKey][champ]||'x';
-presences[dateKey][champ]=actuelDb==='ok'?'x':'ok';
-await updateDoc(docRef,{presences:presences});
+const payload={};
+payload['presences.'+dateKey+'.'+champ]=nouveau;
+updateDoc(docRef,payload).catch(e=>{
+bouton.textContent=etaitOk?'OK':'X';
+bouton.className='btn btn-sm '+(etaitOk?'btn-success':'btn-outline');
+toast('Erreur: '+e.message,'error');
+});
 updateStatsPresences();
-}catch(e){bouton.textContent=etaitOk?'OK':'X';bouton.className='btn btn-sm '+(etaitOk?'btn-success':'btn-outline');toast('Erreur: '+e.message,'error')}
 };
 
 document.getElementById('btnAppliquerFiltre').addEventListener('click',chargerPresences);
