@@ -325,15 +325,17 @@ return true
 },{capture:true});
 </script>
 <script type="importmap">
-{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"}}
+{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"}}
 </script>
 <script type="module">
 import{initializeApp}from"firebase/app";
 import{getFirestore,doc,getDoc,collection,getDocs,query,where,limit}from"firebase/firestore";
+import{getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword}from"firebase/auth";
 const CODE_ACCES="202020";
 const firebaseConfig={apiKey:"AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",authDomain:"gesco-2.firebaseapp.com",projectId:"gesco-2",storageBucket:"gesco-2.firebasestorage.app",messagingSenderId:"36319988765",appId:"1:36319988765:web:e8cd823804596495248af4"};
 const app=initializeApp(firebaseConfig);
 const db=getFirestore(app);
+const auth=getAuth(app);
 const urlParams=new URLSearchParams(window.location.search);
 const schoolId=urlParams.get('ecole')||'demo';
 const ECOLET_ID=schoolId.replace(/[^a-zA-Z0-9]/g,'_');
@@ -387,6 +389,26 @@ function toast(msg,type="success"){toastQueue.push({msg,type});processToastQueue
 function processToastQueue(){if(toastShowing||toastQueue.length===0)return;toastShowing=true;const{msg,type}=toastQueue.shift();const c=document.getElementById("toastContainer");if(!c){toastShowing=false;processToastQueue();return}const icons={success:"✓",error:"✕",warning:"⚠",info:"ℹ"};const titles={success:"Succès",error:"Erreur",warning:"Attention",info:"Information"};const colors={success:"#10b981",error:"#ef4444",warning:"#f59e0b",info:"#3b82f6"};const el=document.createElement("div");el.className='toast '+(type||'success');el.innerHTML='<div class="toast-icon" style="background:'+colors[type]+'22;color:'+colors[type]+'">'+icons[type]+'</div><div class="toast-content"><div class="toast-title">'+titles[type]+'</div><div class="toast-message">'+msg+'</div></div>';c.appendChild(el);setTimeout(()=>el.classList.add('show'),10);setTimeout(()=>{el.classList.remove('show');setTimeout(()=>{el.remove();toastShowing=false;processToastQueue()},400)},3000)}
 function animerBouton(btn){if(!btn||btn.id==='loginBtn')return;btn.classList.add('generating');setTimeout(()=>{btn.classList.remove('generating');btn.classList.add('success-flash');setTimeout(()=>btn.classList.remove('success-flash'),600)},500)}
 function telechargerPDF(doc,nomFichier){const pdfBlob=doc.output('blob');const pdfUrl=URL.createObjectURL(pdfBlob);const a=document.createElement('a');a.href=pdfUrl;a.download=nomFichier;a.style.display='none';document.body.appendChild(a);a.click();setTimeout(()=>{try{URL.revokeObjectURL(pdfUrl);a.remove()}catch(e){}},2000)}
+
+async function ensureAuthAccount(){
+  try{
+    const email="imprim.tremplin@gmail.com";
+    const password="202020";
+    try{
+      await createUserWithEmailAndPassword(auth,email,password);
+      console.log("Compte Firebase Auth créé: "+email);
+    }catch(err){
+      if(err.code==="auth/email-already-in-use"){
+        console.log("Compte Firebase Auth déjà existant: "+email);
+        try{await signInWithEmailAndPassword(auth,email,password)}catch(e){console.warn("Connexion auto échouée:",e.message)}
+      }else{
+        console.warn("Création compte Auth:",err.message);
+      }
+    }
+  }catch(e){console.warn("ensureAuthAccount:",e.message)}
+}
+ensureAuthAccount();
+
 document.getElementById('loginBtn').addEventListener('click',doLogin);
 document.getElementById('loginCode').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
 function doLogin(){const btn=document.getElementById('loginBtn');btn.classList.remove('generating');const code=document.getElementById('loginCode').value.trim();const err=document.getElementById('loginError');if(code===CODE_ACCES){err.textContent="";sessionStorage.setItem('compta_auth','ok');showMainApp()}else{err.textContent="❌ Code incorrect. Veuillez réessayer.";document.getElementById('loginCode').value="";document.getElementById('loginCode').focus()}}
