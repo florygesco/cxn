@@ -195,7 +195,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 <div class="school-logo-fallback" id="schoolLogoFallback">🏫</div>
 </div>
 <div class="school-info">
-<div class="school-name" id="schoolName">CS LE TREMPLIN</div>
+<div class="school-name" id="schoolName">ÉCOLE LE TREMPLIN</div>
 <div class="school-sub" id="schoolSub">Reçus & Impression</div>
 </div>
 </div>
@@ -403,6 +403,7 @@ if('speechSynthesis'in window){initVoix();window.speechSynthesis.onvoiceschanged
 function parler(texte){if(!('speechSynthesis'in window))return;if(!texte)return;if(!voixPrete){fileParole.push(texte);return}window.speechSynthesis.cancel();setTimeout(()=>{const u=new SpeechSynthesisUtterance(texte);u.lang='fr-FR';if(voixFeminine)u.voice=voixFeminine;u.rate=0.95;u.pitch=1.2;u.volume=1.0;u.onerror=(e)=>console.warn('Erreur voix:',e);window.speechSynthesis.speak(u)},120)}
 setInterval(()=>{if(voixPrete&&fileParole.length>0){const txt=fileParole.shift();parler(txt)}},500);
 function getNomEcole(d){return'ÉCOLE LE TREMPLIN'}
+function getNomEcoleRecu(){return'COMPLEXE SCOLAIRE LE TREMPLIN'}
 function sansAccent(t){if(!t)return"";const m={'é':'e','è':'e','ê':'e','ë':'e','à':'a','â':'a','ä':'a','ô':'o','ö':'o','û':'u','ü':'u','î':'i','ï':'i','ç':'c','É':'E','È':'E','Ê':'E','Ë':'E','À':'A','Â':'A','Ä':'A','Ô':'O','Ö':'O','Û':'U','Ü':'U','Î':'I','Ï':'I','Ç':'C'};return t.replace(/[éèêëàâäôöûüîïçÉÈÊËÀÂÄÔÖÛÜÎÏÇ]/g,c=>m[c]||c)}
 function mettreEnMajuscules(t){return t?t.toUpperCase():""}
 function formaterNombre(n){if(n===0)return"0";let r="",nb=Math.abs(n),s=nb.toString(),c=0;for(let i=s.length-1;i>=0;i--){c++;r=s[i]+r;if(c%3===0&&i!==0)r=" "+r}return n<0?"-"+r:r}
@@ -445,9 +446,9 @@ function updateSelectionBar(){const cases=document.querySelectorAll('.eleve-sele
 function clearSelection(){document.querySelectorAll('.eleve-select:checked').forEach(cb=>{cb.checked=false});document.querySelectorAll('.eleve-card').forEach(c=>c.classList.remove('selected'));updateSelectionBar()}
 window.updateSelectionBar=updateSelectionBar;
 window.clearSelection=clearSelection;
-window.ouvrirChoixMoisRecu=function(eleveId,espace,btn){let eleve=searchResults.find(e=>e.id===eleveId&&e.espace===espace)||getEleveDepuisCache(eleveId,espace);if(!eleve){toast("Élève introuvable","error");return}currentEleveRecu={id:eleve.id,espace:eleve.espace};const paiements=eleve.paiements||{};const moisPayes=moisListe.filter(m=>paiements[m]&&paiements[m].montant>0);document.getElementById('choixMoisInfo').innerHTML='<div class="modal-info-line"><span>ÉLÈVE</span><span>'+eleve.nom+' '+(eleve.prenom||'')+'</span></div><div class="modal-info-line"><span>CLASSE</span><span>'+eleve.classe+(eleve.option?' - '+eleve.option:'')+'</span></div><div class="modal-info-line"><span>ESPACE</span><span>'+getEspaceLabel(eleve.espace)+'</span></div><div class="modal-info-line"><span>MOIS PAYÉS</span><span style="color:#10b981">'+moisPayes.length+'</span></div>';const container=document.getElementById('moisListContainer');if(moisPayes.length===0){container.innerHTML='<div class="empty-state">📭 Aucun mois payé pour cet élève</div>';parler('Aucun mois payé')}else{let html='';if(moisPayes.length>1){html+='<div style="display:flex;gap:8px;margin-bottom:12px;"><button class="btn btn-sm btn-outline" onclick="toggleSelectAllMois(true)" style="flex:1;">☑️ TOUT</button><button class="btn btn-sm btn-outline" onclick="toggleSelectAllMois(false)" style="flex:1;">☐ AUCUN</button></div>'}for(const mois of moisPayes){const p=paiements[mois];const dateStr=p.date?formatDateFr(p.date):'-';html+='<div class="mois-item"><label style="display:flex;align-items:center;gap:12px;cursor:pointer;flex:1;min-width:0;"><input type="checkbox" class="mois-select" data-mois="'+mois+'" onchange="updateMoisSelectionBar()"><div style="min-width:0;"><div class="mois-name">📅 '+mois+'</div><div class="mois-details">📆 '+dateStr+'</div></div></label><button class="btn btn-sm btn-pdf-pay" onclick="genererRecuPaiement(\''+eleve.id+'\',\''+eleve.espace+'\',\''+mois+'\',this)">🧾 REÇU</button></div>'}if(moisPayes.length>1){html+='<div id="moisSelectionBar" style="display:none;margin-top:16px;padding:14px;background:linear-gradient(135deg,rgba(16,185,129,0.15),rgba(16,185,129,0.05));border:1px solid rgba(16,185,129,0.3);border-radius:14px;text-align:center;"><div style="font-size:14px;font-weight:800;color:#10b981;margin-bottom:10px;">📋 <span id="moisSelectCount">0</span> mois sélectionné(s)</div><button class="btn btn-primary" onclick="genererRecusMoisMultiples()" style="width:100%;" id="btnGenererMoisMultiples">🧾 GÉNÉRER LES REÇUS</button></div>'}container.innerHTML=html;parler(moisPayes.length+' mois payé'+(moisPayes.length>1?'s':''))}document.getElementById('choixMoisModal').classList.add('show')};
+window.ouvrirChoixMoisRecu=function(eleveId,espace,btn){let eleve=searchResults.find(e=>e.id===eleveId&&e.espace===espace)||getEleveDepuisCache(eleveId,espace);if(!eleve){toast("Élève introuvable","error");return}currentEleveRecu={id:eleve.id,espace:eleve.espace};const paiements=eleve.paiements||{};const moisPayes=moisListe.filter(m=>paiements[m]&&paiements[m].montant>0);document.getElementById('choixMoisInfo').innerHTML='<div class="modal-info-line"><span>ÉLÈVE</span><span>'+eleve.nom+' '+(eleve.prenom||'')+'</span></div><div class="modal-info-line"><span>CLASSE</span><span>'+eleve.classe+(eleve.option?' - '+eleve.option:'')+'</span></div><div class="modal-info-line"><span>ESPACE</span><span>'+getEspaceLabel(eleve.espace)+'</span></div><div class="modal-info-line"><span>MOIS PAYÉS</span><span style="color:#10b981">'+moisPayes.length+'</span></div>';const container=document.getElementById('moisListContainer');if(moisPayes.length===0){container.innerHTML='<div class="empty-state">📭 Aucun mois payé pour cet élève</div>';parler('Aucun mois payé')}else{let html='';html+='<div style="display:flex;gap:8px;margin-bottom:12px;"><button class="btn btn-sm btn-outline" onclick="toggleSelectAllMois(true)" style="flex:1;">☑️ TOUT</button><button class="btn btn-sm btn-outline" onclick="toggleSelectAllMois(false)" style="flex:1;">☐ AUCUN</button></div>';for(const mois of moisPayes){const p=paiements[mois];const dateStr=p.date?formatDateFr(p.date):'-';html+='<div class="mois-item"><label style="display:flex;align-items:center;gap:12px;cursor:pointer;flex:1;min-width:0;"><input type="checkbox" class="mois-select" data-mois="'+mois+'" onchange="updateMoisSelectionBar()"><div style="min-width:0;"><div class="mois-name">📅 '+mois+'</div><div class="mois-details">📆 '+dateStr+'</div></div></label><button class="btn btn-sm btn-pdf-pay" onclick="genererRecuPaiement(\''+eleve.id+'\',\''+eleve.espace+'\',\''+mois+'\',this)">🧾 REÇU</button></div>'}html+='<div id="moisSelectionBar" style="display:none;margin-top:16px;padding:14px;background:linear-gradient(135deg,rgba(16,185,129,0.15),rgba(16,185,129,0.05));border:1px solid rgba(16,185,129,0.3);border-radius:14px;text-align:center;"><div style="font-size:14px;font-weight:800;color:#10b981;margin-bottom:10px;">📋 <span id="moisSelectCount">0</span> mois sélectionné(s)</div><button class="btn btn-primary" onclick="genererRecusMoisMultiples()" style="width:100%;" id="btnGenererMoisMultiples">🧾 GÉNÉRER LES REÇUS</button></div>';container.innerHTML=html;parler(moisPayes.length+' mois payé'+(moisPayes.length>1?'s':''))}document.getElementById('choixMoisModal').classList.add('show')};
 window.toggleSelectAllMois=function(state){document.querySelectorAll('.mois-select').forEach(cb=>{cb.checked=state});updateMoisSelectionBar()};
-window.updateMoisSelectionBar=function(){const checked=document.querySelectorAll('.mois-select:checked');const bar=document.getElementById('moisSelectionBar');const count=document.getElementById('moisSelectCount');const btn=document.getElementById('btnGenererMoisMultiples');if(!bar)return;const total=checked.length;count.textContent=total;if(total>0){bar.style.display='block';btn.textContent='🧾 GÉNÉRER LES REÇUS ('+total+')'}else{bar.style.display='none'}};
+window.updateMoisSelectionBar=function(){const checked=document.querySelectorAll('.mois-select:checked');const bar=document.getElementById('moisSelectionBar');const count=document.getElementById('moisSelectCount');const btn=document.getElementById('btnGenererMoisMultiples');if(!bar||!count||!btn)return;const total=checked.length;count.textContent=total;if(total>0){bar.style.display='block';btn.textContent='🧾 GÉNÉRER LES REÇUS ('+total+')'}else{bar.style.display='none'}};
 document.getElementById('cancelChoixMois').addEventListener('click',()=>{document.getElementById('choixMoisModal').classList.remove('show')});
 window.genererRecuPaiement=async function(eleveId,espace,mois,btn){
 if(isGenerating)return;
@@ -466,7 +467,7 @@ const{jsPDF}=window.jspdf;
 const doc=new jsPDF({orientation:'p',unit:'mm',format:[148,175]});
 const pageWidth=doc.internal.pageSize.getWidth();
 let yRec=6;
-const nomEcole=mettreEnMajuscules(sansAccent(getNomEcole(SCHOOL_DISPLAY_NAME)));
+const nomEcole=mettreEnMajuscules(sansAccent(getNomEcoleRecu()));
 doc.setFillColor(255,255,255);doc.rect(0,0,pageWidth,55,"F");
 const logoSize=28;const logoX=(pageWidth-logoSize)/2;const logoY=4;
 let logoAdded=false;const logoBase64=logoBase64Cache||null;
@@ -525,7 +526,7 @@ const p=paiements[mois];
 const montant=p.montant||0;
 const datePaiement=p.date||new Date().toISOString();
 let yRec=6;
-const nomEcole=mettreEnMajuscules(sansAccent(getNomEcole(SCHOOL_DISPLAY_NAME)));
+const nomEcole=mettreEnMajuscules(sansAccent(getNomEcoleRecu()));
 doc.setFillColor(255,255,255);doc.rect(0,0,pageWidth,55,"F");
 const logoSize=28;const logoX=(pageWidth-logoSize)/2;const logoY=4;
 let logoAdded=false;
@@ -573,7 +574,7 @@ const{jsPDF}=window.jspdf;
 const doc=new jsPDF({orientation:'p',unit:'mm',format:[148,175]});
 const pageWidth=doc.internal.pageSize.getWidth();
 let yRec=6;
-const nomEcole=mettreEnMajuscules(sansAccent(getNomEcole(SCHOOL_DISPLAY_NAME)));
+const nomEcole=mettreEnMajuscules(sansAccent(getNomEcoleRecu()));
 doc.setFillColor(255,255,255);doc.rect(0,0,pageWidth,55,"F");
 const logoSize=28;const logoX=(pageWidth-logoSize)/2;const logoY=4;
 let logoAdded=false;const logoBase64=logoBase64Cache||null;
@@ -650,7 +651,7 @@ const p=paiements[dernierMois];
 const montant=p.montant||0;
 const datePaiement=p.date||new Date().toISOString();
 let yRec=6;
-const nomEcole=mettreEnMajuscules(sansAccent(getNomEcole(SCHOOL_DISPLAY_NAME)));
+const nomEcole=mettreEnMajuscules(sansAccent(getNomEcoleRecu()));
 doc.setFillColor(255,255,255);doc.rect(0,0,pageWidth,55,"F");
 const logoSize=28;const logoX=(pageWidth-logoSize)/2;const logoY=4;
 let logoAdded=false;
