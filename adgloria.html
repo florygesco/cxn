@@ -193,7 +193,7 @@ tr:hover td{background:rgba(59,130,246,0.05);}
 </div>
 
 <div class="panel" id="panel-enseignants">
-<div class="info-box">💡 <strong>Primaire/Maternelle</strong> : cycle + classes. <strong>Secondaire</strong> : nom uniquement (professeur général).</div>
+<div class="info-box">💡 <strong>Primaire/Maternelle</strong> : cycle + classes (collection <code>enseignants</code>). <strong>Secondaire</strong> : professeur seul (collection <code>professeurs</code>).</div>
 <div class="toolbar">
 <select id="ensEcoleSelect"><option value="">-- Choisir une école --</option></select>
 <select id="ensCycleFilter">
@@ -515,13 +515,11 @@ function openEcoleModal(ecole = null) {
 
             const secondaryApp = initializeApp(firebaseConfig, `create-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
             const secondaryAuth = getAuth(secondaryApp);
-            let ok = true;
             let note = '';
             try {
                 await createUserWithEmailAndPassword(secondaryAuth, emailDirection, String(codeDirection));
             } catch (err) {
                 if (err.code === 'auth/email-already-in-use') note = 'déjà existant';
-                else { ok = false; }
             } finally { await deleteApp(secondaryApp); }
 
             modal.remove();
@@ -549,7 +547,7 @@ function openEcoleModal(ecole = null) {
                     <div style="font-size:11px;color:#fbbf24;font-weight:700;margin-bottom:4px;">⚠️ IMPORTANT</div>
                     <div style="font-size:11px;color:#cbd5e1;line-height:1.6;">
                         Transmettez ce <strong style="color:#fbbf24;">code Directeur</strong> au responsable.<br>
-                        URL Directeur : <code style="color:#60a5fa;">?ecole=${esc(id)}&code=${codeDirection}</code>
+                        URL Direction : <code style="color:#60a5fa;">?ecole=${esc(id)}&code=${codeDirection}</code>
                     </div>
                 </div>
                 <div class="modal-actions" style="margin-top:20px;">
@@ -560,7 +558,7 @@ function openEcoleModal(ecole = null) {
             document.body.appendChild(recapModal);
 
             recapModal.querySelector("[data-copy-all]").onclick = async () => {
-                const texte = `🏫 ${nom} (${id})\n\n👔 Directeur : ${codeDirection}\n\nURL Directeur : ?ecole=${id}&code=${codeDirection}`;
+                const texte = `🏫 ${nom} (${id})\n\n👔 Directeur : ${codeDirection}\n\nURL Direction : ?ecole=${id}&code=${codeDirection}`;
                 try { await navigator.clipboard.writeText(texte); toast("Code copié", "success"); }
                 catch (err) { toast("Impossible de copier", "warning"); }
             };
@@ -596,13 +594,22 @@ document.getElementById("searchEnseignants").addEventListener("input", renderEns
 
 async function loadEnseignants(ecoleId) {
     try {
-        const snap = await getDocs(collection(db, "ecoles", ecoleId, "enseignants"));
         ensList = [];
-        snap.forEach(d => {
+        
+        const snapEns = await getDocs(collection(db, "ecoles", ecoleId, "enseignants"));
+        snapEns.forEach(d => {
             const data = d.data();
             if (data._type === 'config' || data._type === 'settings') return;
             ensList.push({ id: d.id, ...data });
         });
+        
+        const snapProfs = await getDocs(collection(db, "ecoles", ecoleId, "professeurs"));
+        snapProfs.forEach(d => {
+            const data = d.data();
+            if (data._type === 'config' || data._type === 'settings') return;
+            ensList.push({ id: d.id, ...data });
+        });
+        
         ensList.sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
         renderEnseignants();
     } catch (e) { toast("Erreur chargement enseignants", "error"); }
@@ -806,19 +813,24 @@ function openEnsModal(ecoleId, ens = null) {
                         ensId, nom, email, emailProf: email, code: String(code),
                         cycle, actif: true,
                         school: ecoleIdNorm,
-                        _type: 'enseignant',
                         createdAt: serverTimestamp()
                     };
+
+                    let collectionCible;
 
                     if (cycle === 'secondaire') {
                         docData.sexe = sexe;
                         docData.profId = ensId;
                         docData.classes = [];
+                        docData._type = 'prof';
+                        collectionCible = 'professeurs';
                     } else {
                         docData.classes = classesChoisies;
+                        docData._type = 'enseignant';
+                        collectionCible = 'enseignants';
                     }
 
-                    await setDoc(doc(db, "ecoles", ecoleIdNorm, "enseignants", ensId), docData);
+                    await setDoc(doc(db, "ecoles", ecoleIdNorm, collectionCible, ensId), docData);
                     toast("Enseignant créé");
                 } finally { await deleteApp(secondApp); }
             } else {
@@ -830,7 +842,19 @@ function openEnsModal(ecoleId, ens = null) {
                     updateData.classes = classesChoisies;
                 }
                 if (code && code !== '••••••') updateData.code = String(code);
-                await setDoc(doc(db, "ecoles", ecoleIdNorm, "enseignants", ens.id), updateData, { merge: true });
+                
+                const collectionCible = cycle === 'secondaire' ? 'professeurs' : 'enseignants';
+                const ancienneCollection = ens.cycle === 'secondaire' ? 'professeurs' : 'enseignants';
+                
+                if (ancienneCollection !== collectionCible) {
+                    await deleteDoc(doc(db, "ecoles", ecoleIdNorm, ancienneCollection, ens.id));
+                    updateData._type = cycle === 'secondaire' ? 'prof' : 'enseignant';
+                    updateData.ensId = ens.id;
+                    if (cycle === 'secondaire') updateData.profId = ens.id;
+                    await setDoc(doc(db, "ecoles", ecoleIdNorm, collectionCible, ens.id), updateData);
+                } else {
+                    await setDoc(doc(db, "ecoles", ecoleIdNorm, collectionCible, ens.id), updateData, { merge: true });
+                }
                 toast("Enseignant mis à jour");
             }
             modal.remove();
@@ -1157,6 +1181,7 @@ document.getElementById("loadStatsBtn").onclick = async () => {
 
         let nbEnsP = 0, nbEnsM = 0, nbEnsS = 0;
         let nbElevesP = 0, nbElevesM = 0, nbElevesS = 0;
+        
         try {
             const ensSnap = await getDocs(collection(db, "ecoles", ecoleId, "enseignants"));
             ensSnap.forEach(d => {
@@ -1164,10 +1189,12 @@ document.getElementById("loadStatsBtn").onclick = async () => {
                 if (data._type === 'config' || data._type === 'settings') return;
                 const c = data.cycle;
                 if (c === 'maternelle') nbEnsM++;
-                else if (c === 'secondaire') nbEnsS++;
                 else nbEnsP++;
             });
+            const profsSnap = await getDocs(collection(db, "ecoles", ecoleId, "professeurs"));
+            nbEnsS = profsSnap.size;
         } catch(e) {}
+        
         try {
             const pSnap = await getDocs(collection(db, "ecoles", ecoleId, "prima_eleves"));
             nbElevesP = pSnap.size;
@@ -1192,7 +1219,7 @@ document.getElementById("loadStatsBtn").onclick = async () => {
         <div class="code-pill" style="background:rgba(251,191,36,0.2);"><span class="code-value" style="font-size:18px;">${esc(codes.codeDirection || '—')}</span><button class="copy-btn" data-copy="${esc(codes.codeDirection || '')}">📋</button></div>
         </div>
         <div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:12px;padding:12px 16px;margin-top:14px;">
-        <div style="font-size:11px;color:#fbbf24;font-weight:700;margin-bottom:6px;">🔗 URL de connexion Directeur</div>
+        <div style="font-size:11px;color:#fbbf24;font-weight:700;margin-bottom:6px;">🔗 URL de connexion Direction</div>
         <div style="font-size:11px;color:#cbd5e1;font-family:monospace;word-break:break-all;">?ecole=${esc(ecoleId)}&code=${esc(codes.codeDirection || '')}</div>
         </div>
         </div>` : `<div class="info-box" style="border-left-color:#ef4444;">⚠️ Aucun code enregistré pour cette école.</div>`;
@@ -1244,7 +1271,7 @@ document.body.addEventListener("click", async e => {
             async () => {
                 setLoading(true);
                 try {
-                    const cols = ["enseignants", "prima_eleves", "mater_eleves", "compta_eleves", "fiches", "settings"];
+                    const cols = ["enseignants", "professeurs", "prima_eleves", "mater_eleves", "compta_eleves", "fiches", "settings"];
                     for (const col of cols) {
                         try {
                             const snap = await getDocs(collection(db, "ecoles", id, col));
@@ -1283,7 +1310,8 @@ document.body.addEventListener("click", async e => {
         setLoading(true);
         try {
             const newActif = ens.actif === false ? true : false;
-            await setDoc(doc(db, "ecoles", eid, "enseignants", id), { actif: newActif }, { merge: true });
+            const col = ens.cycle === 'secondaire' ? 'professeurs' : 'enseignants';
+            await setDoc(doc(db, "ecoles", eid, col, id), { actif: newActif }, { merge: true });
             toast(newActif ? "Enseignant activé" : "Enseignant désactivé");
             await loadEnseignants(eid);
         } catch (e) { toast("Erreur", "error"); }
@@ -1300,7 +1328,8 @@ document.body.addEventListener("click", async e => {
             async () => {
                 setLoading(true);
                 try {
-                    await deleteDoc(doc(db, "ecoles", eid, "enseignants", id));
+                    const col = ens.cycle === 'secondaire' ? 'professeurs' : 'enseignants';
+                    await deleteDoc(doc(db, "ecoles", eid, col, id));
                     toast("Enseignant supprimé", "warning");
                     await loadEnseignants(eid);
                 } catch (e) { toast("Erreur", "error"); }
