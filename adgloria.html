@@ -177,7 +177,6 @@ tr:hover td{background:rgba(59,130,246,0.05);}
 <button class="tab" data-tab="config">⚙️ CONFIGURATION</button>
 </div>
 
-<!-- ================= ONGLET ÉCOLES ================= -->
 <div class="panel active" id="panel-ecoles">
 <div class="toolbar">
 <input type="text" id="searchEcoles" placeholder="🔍 Rechercher une école...">
@@ -191,9 +190,8 @@ tr:hover td{background:rgba(59,130,246,0.05);}
 </div>
 </div>
 
-<!-- ================= ONGLET ENSEIGNANTS ================= -->
 <div class="panel" id="panel-enseignants">
-<div class="info-box">💡 L'<strong>email</strong> et le <strong>code d'accès</strong> sont générés automatiquement à partir du nom. Sélectionnez le <strong>cycle</strong> (Primaire / Maternelle) et cochez les <strong>classes assignées</strong>.</div>
+<div class="info-box">💡 L'<strong>email</strong> et le <strong>code d'accès</strong> sont générés automatiquement. Sélectionnez le <strong>cycle</strong> (Primaire / Maternelle) et cochez les <strong>classes assignées</strong>.</div>
 <div class="toolbar">
 <select id="ensEcoleSelect"><option value="">-- Choisir une école --</option></select>
 <select id="ensCycleFilter">
@@ -212,8 +210,8 @@ tr:hover td{background:rgba(59,130,246,0.05);}
 </div>
 </div>
 
-<!-- ================= ONGLET ÉLÈVES ================= -->
 <div class="panel" id="panel-eleves">
+<div class="info-box">💡 Saisissez uniquement les informations de l'élève : <strong>Nom, Postnom, Prénom, Sexe, Classe/Niveau</strong>.</div>
 <div class="toolbar">
 <select id="eleveEcoleSelect"><option value="">-- Choisir une école --</option></select>
 <select id="eleveCycleSelect">
@@ -227,21 +225,19 @@ tr:hover td{background:rgba(59,130,246,0.05);}
 </div>
 <div class="table-wrapper">
 <table>
-<thead><tr><th>#</th><th>NOM COMPLET</th><th>SEXE</th><th>CYCLE</th><th>CLASSE</th><th>ACTIONS</th></tr></thead>
+<thead><tr><th>#</th><th>NOM</th><th>POSTNOM</th><th>PRÉNOM</th><th>SEXE</th><th>CYCLE</th><th>CLASSE</th><th>ACTIONS</th></tr></thead>
 <tbody id="elevesBody"></tbody>
 </table>
 </div>
 </div>
 
-<!-- ================= ONGLET CONFIGURATION ================= -->
 <div class="panel" id="panel-config">
 <div class="toolbar">
 <select id="configEcoleSelect"><option value="">-- Choisir une école --</option></select>
-<button class="btn btn-primary" id="loadStatsBtn">📊 Charger les statistiques</button>
+<button class="btn btn-primary" id="loadStatsBtn">📊 Charger les informations</button>
 </div>
-
 <div id="configContent">
-<div class="info-box">💡 Sélectionnez une école pour afficher ses <strong>codes d'accès</strong> et ses <strong>statistiques</strong>.</div>
+<div class="info-box">💡 Sélectionnez une école pour afficher son <strong>code Directeur</strong> et ses <strong>statistiques</strong>.</div>
 </div>
 </div>
 
@@ -275,7 +271,6 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// ✅ Classes par cycle
 const CLASSES_PRIMAIRE = ["1ere A","1ere B","2eme A","2eme B","3eme A","3eme B","4eme A","4eme B","5eme A","5eme B","6eme A","6eme B"];
 const CLASSES_MATERNELLE = ["Niveau 1","Niveau 2","Niveau 3"];
 
@@ -284,7 +279,6 @@ let ecolesList = [];
 let ensList = [];
 let elevesList = [];
 let eleveEcoleId = null;
-let eleveCycleActuel = null;
 
 function toast(msg, type = "success") {
     const c = document.getElementById("toastContainer");
@@ -340,7 +334,6 @@ function genererCode() {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// ============ LOGIN ============
 document.getElementById("loginBtn").onclick = doLogin;
 document.getElementById("loginPassword").addEventListener("keypress", e => { if (e.key === "Enter") doLogin(); });
 document.getElementById("loginEmail").addEventListener("keypress", e => { if (e.key === "Enter") doLogin(); });
@@ -380,15 +373,12 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// ============ TABS ============
-const TABS_ORDER = ["ecoles", "enseignants", "eleves", "config"];
 function activateTab(name) {
     document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x.dataset.tab === name));
     document.querySelectorAll(".panel").forEach(x => x.classList.toggle("active", x.id === "panel-" + name));
 }
 document.querySelectorAll(".tab").forEach(t => { t.onclick = () => activateTab(t.dataset.tab); });
 
-// ============ ÉCOLES ============
 async function loadEcoles() {
     try {
         const snap = await getDocs(collection(db, "ecoles"));
@@ -436,14 +426,12 @@ function openEcoleModal(ecole = null) {
     <div class="field"><label>LOGO (URL)</label><input type="text" id="ecoleLogo" value="${isEdit ? esc(ecole.logoUrl || '') : ''}" placeholder="https://..."></div>
     ${!isEdit ? `
     <div class="info-box" id="ecoleInfoBox" style="margin-top:16px;background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(16,185,129,0.05));border-left-color:#10b981;">
-    🔐 <strong style="color:#10b981;">3 comptes seront créés automatiquement :</strong><br>
-    • 👔 <strong>Direction</strong> · direction.xxx@gmail.com<br>
-    • 💰 <strong>Comptabilité</strong> · compta.xxx@gmail.com<br>
-    • 🏛️ <strong>Promoteur</strong> · promoteur.xxx@gmail.com
+    🔐 <strong style="color:#10b981;">1 compte Directeur sera créé :</strong><br>
+    • 👔 <strong>Directeur</strong> · direction.xxx@gmail.com
     </div>` : ''}
     <div class="modal-actions">
     <button class="btn btn-secondary" data-cancel>Annuler</button>
-    <button class="btn btn-success" data-save>${isEdit ? 'METTRE À JOUR' : 'CRÉER + 3 COMPTES'}</button>
+    <button class="btn btn-success" data-save>${isEdit ? 'METTRE À JOUR' : 'CRÉER + 1 COMPTE'}</button>
     </div>
     </div>`;
     document.body.appendChild(modal);
@@ -454,10 +442,8 @@ function openEcoleModal(ecole = null) {
         idInput.addEventListener("input", function() {
             const cleanId = normaliserIdEcole(this.value) || "XXX";
             infoBox.innerHTML = `
-            🔐 <strong style="color:#10b981;">3 comptes seront créés automatiquement :</strong><br>
-            • 👔 <strong>Direction</strong> · direction.${cleanId.toLowerCase()}@gmail.com<br>
-            • 💰 <strong>Comptabilité</strong> · compta.${cleanId.toLowerCase()}@gmail.com<br>
-            • 🏛️ <strong>Promoteur</strong> · promoteur.${cleanId.toLowerCase()}@gmail.com<br>
+            🔐 <strong style="color:#10b981;">1 compte Directeur sera créé :</strong><br>
+            • 👔 <strong>Directeur</strong> · direction.${cleanId.toLowerCase()}@gmail.com<br>
             <span style="font-size:11px;color:#94a3b8;">Identifiant : <strong style="color:#60a5fa;">${cleanId}</strong></span>`;
         });
     }
@@ -490,27 +476,21 @@ function openEcoleModal(ecole = null) {
             if (exists.exists()) { toast("Cet identifiant existe déjà", "error"); setLoading(false); return; }
 
             const codeDirection = genererCode();
-            const codeComptabilite = genererCode();
-            const codePromoteur = genererCode();
             const idLower = id.toLowerCase();
             const emailDirection = `direction.${idLower}@gmail.com`;
-            const emailComptabilite = `compta.${idLower}@gmail.com`;
-            const emailPromoteur = `promoteur.${idLower}@gmail.com`;
 
             await setDoc(doc(db, "ecoles", id), {
                 nom, ville, logoUrl, actif: true, masque: false, createdAt: serverTimestamp()
             });
 
             await setDoc(doc(db, "ecoles", id, "settings", "data"), {
-                codeDirection, codeComptabilite, codePromoteur,
-                emailDirection, emailComptabilite, emailPromoteur,
+                codeDirection,
+                emailDirection,
                 updatedAt: serverTimestamp()
             });
 
             const comptes = [
-                { email: emailDirection, password: codeDirection, role: 'Direction', icon: '👔', color: '#60a5fa' },
-                { email: emailComptabilite, password: codeComptabilite, role: 'Comptabilité', icon: '💰', color: '#a78bfa' },
-                { email: emailPromoteur, password: codePromoteur, role: 'Promoteur', icon: '🏛️', color: '#f472b6' }
+                { email: emailDirection, password: codeDirection, role: 'Directeur', icon: '👔', color: '#60a5fa' }
             ];
 
             const resultats = [];
@@ -548,30 +528,30 @@ function openEcoleModal(ecole = null) {
                     <h2 style="justify-content:center;color:#10b981;margin-bottom:4px;">École créée !</h2>
                     <p style="color:#94a3b8;font-size:13px;">${esc(nom)} · <span style="font-family:monospace;color:#60a5fa;">${esc(id)}</span></p>
                 </div>
-                <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px;">🔐 Comptes créés</div>
+                <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px;">🔐 Compte créé</div>
                 ${comptesHtml}
                 <div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:12px;padding:12px 16px;margin-top:16px;">
                     <div style="font-size:11px;color:#fbbf24;font-weight:700;margin-bottom:4px;">⚠️ IMPORTANT</div>
                     <div style="font-size:11px;color:#cbd5e1;line-height:1.6;">
-                        Transmettez ces <strong style="color:#fbbf24;">3 codes</strong> aux responsables.<br>
-                        URL App Enseignant : <code style="color:#60a5fa;">?ecole=${esc(id.toLowerCase())}</code>
+                        Transmettez ce <strong style="color:#fbbf24;">code Directeur</strong> au responsable.<br>
+                        URL Directeur : <code style="color:#60a5fa;">?ecole=${esc(id.toLowerCase())}&code=${codeDirection}</code>
                     </div>
                 </div>
                 <div class="modal-actions" style="margin-top:20px;">
-                    <button class="btn btn-primary" data-copy-all style="flex:1;justify-content:center;">📋 Copier les codes</button>
+                    <button class="btn btn-primary" data-copy-all style="flex:1;justify-content:center;">📋 Copier le code</button>
                     <button class="btn btn-success" data-close style="flex:1;justify-content:center;">✅ J'ai noté</button>
                 </div>
             </div>`;
             document.body.appendChild(recapModal);
 
             recapModal.querySelector("[data-copy-all]").onclick = async () => {
-                const texte = `🏫 ${nom} (${id})\n\n👔 Direction : ${codeDirection}\n💰 Comptabilité : ${codeComptabilite}\n🏛️ Promoteur : ${codePromoteur}\n\nURL Enseignant : ?ecole=${id.toLowerCase()}`;
-                try { await navigator.clipboard.writeText(texte); toast("Codes copiés", "success"); }
+                const texte = `🏫 ${nom} (${id})\n\n👔 Directeur : ${codeDirection}\n\nURL Directeur : ?ecole=${id.toLowerCase()}&code=${codeDirection}`;
+                try { await navigator.clipboard.writeText(texte); toast("Code copié", "success"); }
                 catch (err) { toast("Impossible de copier", "warning"); }
             };
             recapModal.querySelector("[data-close]").onclick = () => recapModal.remove();
             recapModal.onclick = (e) => { if (e.target === recapModal) recapModal.remove(); };
-            toast("École + 3 comptes créés", "success");
+            toast("École + compte Directeur créés", "success");
 
         } catch (e) {
             console.error(e);
@@ -588,10 +568,9 @@ async function refreshEcoleSelectors() {
     document.getElementById("eleveEcoleSelect").innerHTML = opts;
     document.getElementById("configEcoleSelect").innerHTML = opts;
     document.getElementById("ensBody").innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-icon">👨‍🏫</div><div class="empty-title">Choisissez une école</div></div></td></tr>`;
-    document.getElementById("elevesBody").innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-icon">👨‍🎓</div><div class="empty-title">Choisissez une école</div></div></td></tr>`;
+    document.getElementById("elevesBody").innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-icon">👨‍🎓</div><div class="empty-title">Choisissez une école</div></div></td></tr>`;
 }
 
-// ============ ENSEIGNANTS ============
 document.getElementById("ensEcoleSelect").onchange = async function() {
     if (this.value) await loadEnseignants(this.value);
     else document.getElementById("ensBody").innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-icon">👨‍🏫</div><div class="empty-title">Choisissez une école</div></div></td></tr>`;
@@ -607,16 +586,7 @@ async function loadEnseignants(ecoleId) {
         snap.forEach(d => ensList.push({ id: d.id, ...d.data() }));
         ensList.sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
         renderEnseignants();
-    } catch (e) {
-        // fallback sur "professeurs" si "enseignants" vide
-        try {
-            const snap = await getDocs(collection(db, "ecoles", ecoleId, "professeurs"));
-            ensList = [];
-            snap.forEach(d => ensList.push({ id: d.id, ...d.data() }));
-            ensList.sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
-            renderEnseignants();
-        } catch (e2) { toast("Erreur chargement enseignants", "error"); }
-    }
+    } catch (e) { toast("Erreur chargement enseignants", "error"); }
 }
 
 function renderEnseignants() {
@@ -784,20 +754,12 @@ function openEnsModal(ecoleId, ens = null) {
                         ensId, nom, email, code, cycle, classes: classesChoisies,
                         school: ecoleIdNorm, actif: true, createdAt: serverTimestamp()
                     });
-                    // Miroir dans "professeurs" pour compatibilité app secondaire
-                    await setDoc(doc(db, "ecoles", ecoleIdNorm, "professeurs", ensId), {
-                        profId: ensId, nom, email: email, code,
-                        emailProf: email, school: ecoleIdNorm, actif: true, createdAt: serverTimestamp()
-                    });
                     toast("Enseignant créé avec succès");
                 } finally { await deleteApp(secondApp); }
             } else {
                 const updateData = { nom, cycle, classes: classesChoisies, school: ecoleIdNorm };
                 if (code && code !== '••••••') updateData.code = code;
                 await setDoc(doc(db, "ecoles", ecoleIdNorm, "enseignants", ens.id), updateData, { merge: true });
-                await setDoc(doc(db, "ecoles", ecoleIdNorm, "professeurs", ens.id), {
-                    nom, code, emailProf: email, school: ecoleIdNorm
-                }, { merge: true });
                 toast("Enseignant mis à jour");
             }
             modal.remove();
@@ -813,10 +775,9 @@ function openEnsModal(ecoleId, ens = null) {
     };
 }
 
-// ============ ÉLÈVES ============
 document.getElementById("eleveEcoleSelect").onchange = async function() {
     if (this.value) await loadEleves(this.value);
-    else document.getElementById("elevesBody").innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-icon">👨‍🎓</div><div class="empty-title">Choisissez une école</div></div></td></tr>`;
+    else document.getElementById("elevesBody").innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-icon">👨‍🎓</div><div class="empty-title">Choisissez une école</div></div></td></tr>`;
 };
 
 document.getElementById("eleveCycleSelect").onchange = renderEleves;
@@ -827,7 +788,6 @@ async function loadEleves(ecoleId) {
     eleveEcoleId = ecoleId;
     elevesList = [];
     try {
-        // Charger Primaire
         try {
             const snapP = await getDocs(collection(db, "ecoles", ecoleId, "prima_eleves"));
             snapP.forEach(d => {
@@ -836,7 +796,6 @@ async function loadEleves(ecoleId) {
                 elevesList.push({ id: d.id, ...data, cycle: 'primaire' });
             });
         } catch(e) {}
-        // Charger Maternelle
         try {
             const snapM = await getDocs(collection(db, "ecoles", ecoleId, "mater_eleves"));
             snapM.forEach(d => {
@@ -845,7 +804,6 @@ async function loadEleves(ecoleId) {
                 elevesList.push({ id: d.id, ...data, cycle: 'maternelle' });
             });
         } catch(e) {}
-        // Fallback : compta_eleves (ancien système)
         try {
             const snapC = await getDocs(collection(db, "ecoles", ecoleId, "compta_eleves"));
             snapC.forEach(d => {
@@ -873,8 +831,6 @@ function updateClasseFilterOptions() {
         classesDispo.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
 }
 
-function getNomComplet(e) { return [e.nom, e.postnom, e.prenom].filter(Boolean).join(' '); }
-
 function renderEleves() {
     const tbody = document.getElementById("elevesBody");
     const q = document.getElementById("searchEleves").value.toLowerCase().trim();
@@ -883,11 +839,14 @@ function renderEleves() {
     let filtered = elevesList.filter(e => {
         if (cycleF && e.cycle !== cycleF) return false;
         if (classeFilter && e.classe !== classeFilter) return false;
-        if (q && !getNomComplet(e).toLowerCase().includes(q)) return false;
+        if (q) {
+            const nomComplet = ((e.nom || '') + ' ' + (e.postnom || '') + ' ' + (e.prenom || '')).toLowerCase();
+            if (!nomComplet.includes(q)) return false;
+        }
         return true;
     });
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-icon">👨‍🎓</div><div class="empty-title">Aucun élève</div><div class="empty-sub">Ajoutez votre premier élève</div></div></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-icon">👨‍🎓</div><div class="empty-title">Aucun élève</div><div class="empty-sub">Ajoutez votre premier élève</div></div></td></tr>`;
         return;
     }
     tbody.innerHTML = filtered.map((e, i) => {
@@ -895,7 +854,9 @@ function renderEleves() {
         return `
         <tr>
         <td>${i + 1}</td>
-        <td><strong style="color:#fff;">${esc(getNomComplet(e))}</strong></td>
+        <td><strong style="color:#fff;">${esc(e.nom || '')}</strong></td>
+        <td>${esc(e.postnom || '—')}</td>
+        <td>${esc(e.prenom || '')}</td>
         <td><span class="badge badge-${e.sexe === 'F' ? 'F' : 'M'}">${esc(e.sexe || 'M')}</span></td>
         <td>${cycleBadge}</td>
         <td>${esc(e.classe || '—')}</td>
@@ -937,9 +898,9 @@ function openEleveModal(ecoleId, eleve = null) {
     <input type="hidden" id="elCycle" value="${cycleInit}">
     </div>
 
-    <div class="field"><label>NOM *</label><input type="text" id="elNom" value="${isEdit ? esc(eleve.nom || '') : ''}"></div>
-    <div class="field"><label>POSTNOM</label><input type="text" id="elPostnom" value="${isEdit ? esc(eleve.postnom || '') : ''}"></div>
-    <div class="field"><label>PRÉNOM *</label><input type="text" id="elPrenom" value="${isEdit ? esc(eleve.prenom || '') : ''}"></div>
+    <div class="field"><label>NOM *</label><input type="text" id="elNom" value="${isEdit ? esc(eleve.nom || '') : ''}" placeholder="ex: KASONGO"></div>
+    <div class="field"><label>POSTNOM</label><input type="text" id="elPostnom" value="${isEdit ? esc(eleve.postnom || '') : ''}" placeholder="ex: MUKENDI"></div>
+    <div class="field"><label>PRÉNOM *</label><input type="text" id="elPrenom" value="${isEdit ? esc(eleve.prenom || '') : ''}" placeholder="ex: Jean"></div>
     <div class="field"><label>SEXE *</label>
     <select id="elSexe">
     <option value="M" ${isEdit && eleve.sexe === 'M' ? 'selected' : ''}>Masculin</option>
@@ -959,6 +920,8 @@ function openEleveModal(ecoleId, eleve = null) {
 
     const cycleInput = modal.querySelector("#elCycle");
     const classeSelect = modal.querySelector("#elClasse");
+    const nomInput = modal.querySelector("#elNom");
+    const prenomInput = modal.querySelector("#elPrenom");
 
     function renderClasses() {
         const cycle = cycleInput.value;
@@ -981,9 +944,9 @@ function openEleveModal(ecoleId, eleve = null) {
 
     modal.querySelector("[data-cancel]").onclick = () => modal.remove();
     modal.querySelector("[data-save]").onclick = async () => {
-        const nom = modal.querySelector("#elNom").value.trim();
+        const nom = nomInput.value.trim();
         const postnom = modal.querySelector("#elPostnom").value.trim();
-        const prenom = modal.querySelector("#elPrenom").value.trim();
+        const prenom = prenomInput.value.trim();
         const sexe = modal.querySelector("#elSexe").value;
         const classe = classeSelect.value;
         const cycle = cycleInput.value;
@@ -1003,13 +966,10 @@ function openEleveModal(ecoleId, eleve = null) {
         setLoading(true);
         try {
             if (isEdit) {
-                // Détecter si le cycle a changé (déplacer le doc si besoin)
                 const ancienCycle = eleve.cycle || 'primaire';
                 if (ancienCycle !== cycle) {
-                    // Supprimer de l'ancienne collection
                     const ancienneCol = ancienCycle === 'maternelle' ? 'mater_eleves' : 'prima_eleves';
                     await deleteDoc(doc(db, "ecoles", ecoleId, ancienneCol, eleve.id));
-                    // Créer dans la nouvelle
                     await setDoc(doc(db, "ecoles", ecoleId, collectionName, eleve.id), {
                         eleveId: eleve.id, ...data, dateInscription: eleve.dateInscription || new Date().toISOString()
                     });
@@ -1023,7 +983,7 @@ function openEleveModal(ecoleId, eleve = null) {
                 await setDoc(doc(db, "ecoles", ecoleId, collectionName, newId), {
                     eleveId: newId, ...data, dateInscription: new Date().toISOString()
                 });
-                toast("Élève ajouté");
+                toast("Élève ajouté : " + prenom + " " + nom);
             }
             modal.remove();
             await loadEleves(ecoleId);
@@ -1032,9 +992,8 @@ function openEleveModal(ecoleId, eleve = null) {
     };
 }
 
-// ============ CONFIGURATION ============
 document.getElementById("configEcoleSelect").onchange = () => {
-    document.getElementById("configContent").innerHTML = `<div class="info-box">💡 Cliquez sur <strong>Charger les statistiques</strong> pour voir les infos.</div>`;
+    document.getElementById("configContent").innerHTML = `<div class="info-box">💡 Cliquez sur <strong>Charger les informations</strong> pour voir les infos.</div>`;
 };
 
 document.getElementById("loadStatsBtn").onclick = async () => {
@@ -1046,24 +1005,17 @@ document.getElementById("loadStatsBtn").onclick = async () => {
         if (!ecoleSnap.exists()) { toast("École introuvable", "error"); setLoading(false); return; }
         const ecole = ecoleSnap.data();
 
-        // Codes
         let codes = null;
         try {
             const settingsSnap = await getDoc(doc(db, "ecoles", ecoleId, "settings", "data"));
             if (settingsSnap.exists()) codes = settingsSnap.data();
         } catch(e) {}
 
-        // Stats
         let nbEnsP = 0, nbEnsM = 0, nbElevesP = 0, nbElevesM = 0;
         try {
             const ensSnap = await getDocs(collection(db, "ecoles", ecoleId, "enseignants"));
             ensSnap.forEach(d => { const c = d.data().cycle; if (c === 'maternelle') nbEnsM++; else nbEnsP++; });
-        } catch(e) {
-            try {
-                const profSnap = await getDocs(collection(db, "ecoles", ecoleId, "professeurs"));
-                nbEnsP = profSnap.size;
-            } catch(e2) {}
-        }
+        } catch(e) {}
         try {
             const pSnap = await getDocs(collection(db, "ecoles", ecoleId, "prima_eleves"));
             nbElevesP = pSnap.size;
@@ -1075,18 +1027,14 @@ document.getElementById("loadStatsBtn").onclick = async () => {
 
         const codesHtml = codes ? `
         <div style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:20px;padding:24px;border:1px solid rgba(245,158,11,0.3);margin-bottom:20px;">
-        <h3 style="color:#fbbf24;font-size:15px;margin-bottom:16px;">🔐 Codes d'accès — ${esc(ecole.nom || ecoleId)}</h3>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:rgba(255,255,255,0.03);border-radius:12px;margin-bottom:8px;border-left:3px solid #60a5fa;">
-        <div><div style="font-size:12px;font-weight:700;color:#60a5fa;">👔 Direction</div><div style="font-size:10px;color:#94a3b8;font-family:monospace;">${esc(codes.emailDirection || '')}</div></div>
-        <div class="code-pill"><span class="code-value">${esc(codes.codeDirection || '—')}</span><button class="copy-btn" data-copy="${esc(codes.codeDirection || '')}">📋</button></div>
+        <h3 style="color:#fbbf24;font-size:15px;margin-bottom:16px;">🔐 Compte Directeur — ${esc(ecole.nom || ecoleId)}</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:rgba(96,165,250,0.08);border-radius:12px;border-left:4px solid #60a5fa;">
+        <div><div style="font-size:13px;font-weight:700;color:#60a5fa;margin-bottom:4px;">👔 Directeur</div><div style="font-size:11px;color:#94a3b8;font-family:monospace;">${esc(codes.emailDirection || '')}</div></div>
+        <div class="code-pill" style="background:rgba(251,191,36,0.2);"><span class="code-value" style="font-size:18px;">${esc(codes.codeDirection || '—')}</span><button class="copy-btn" data-copy="${esc(codes.codeDirection || '')}">📋</button></div>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:rgba(255,255,255,0.03);border-radius:12px;margin-bottom:8px;border-left:3px solid #a78bfa;">
-        <div><div style="font-size:12px;font-weight:700;color:#a78bfa;">💰 Comptabilité</div><div style="font-size:10px;color:#94a3b8;font-family:monospace;">${esc(codes.emailComptabilite || '')}</div></div>
-        <div class="code-pill"><span class="code-value">${esc(codes.codeComptabilite || '—')}</span><button class="copy-btn" data-copy="${esc(codes.codeComptabilite || '')}">📋</button></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:rgba(255,255,255,0.03);border-radius:12px;border-left:3px solid #f472b6;">
-        <div><div style="font-size:12px;font-weight:700;color:#f472b6;">🏛️ Promoteur</div><div style="font-size:10px;color:#94a3b8;font-family:monospace;">${esc(codes.emailPromoteur || '')}</div></div>
-        <div class="code-pill"><span class="code-value">${esc(codes.codePromoteur || '—')}</span><button class="copy-btn" data-copy="${esc(codes.codePromoteur || '')}">📋</button></div>
+        <div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:12px;padding:12px 16px;margin-top:14px;">
+        <div style="font-size:11px;color:#fbbf24;font-weight:700;margin-bottom:6px;">🔗 URL de connexion Directeur</div>
+        <div style="font-size:11px;color:#cbd5e1;font-family:monospace;word-break:break-all;">?ecole=${esc(ecoleId.toLowerCase())}&code=${esc(codes.codeDirection || '')}</div>
         </div>
         </div>` : `<div class="info-box" style="border-left-color:#ef4444;">⚠️ Aucun code enregistré pour cette école.</div>`;
 
@@ -1112,7 +1060,6 @@ document.getElementById("loadStatsBtn").onclick = async () => {
     finally { setLoading(false); }
 };
 
-// ============ ACTIONS DELEGUEES ============
 document.body.addEventListener("click", async e => {
     const btn = e.target.closest("[data-action]");
     if (!btn) return;
@@ -1136,7 +1083,7 @@ document.body.addEventListener("click", async e => {
             async () => {
                 setLoading(true);
                 try {
-                    const cols = ["enseignants", "professeurs", "prima_eleves", "mater_eleves", "compta_eleves", "fiches"];
+                    const cols = ["enseignants", "prima_eleves", "mater_eleves", "compta_eleves", "fiches", "settings"];
                     for (const col of cols) {
                         try {
                             const snap = await getDocs(collection(db, "ecoles", id, col));
@@ -1176,7 +1123,6 @@ document.body.addEventListener("click", async e => {
         try {
             const newActif = ens.actif === false ? true : false;
             await setDoc(doc(db, "ecoles", eid, "enseignants", id), { actif: newActif }, { merge: true });
-            try { await setDoc(doc(db, "ecoles", eid, "professeurs", id), { actif: newActif }, { merge: true }); } catch(e) {}
             toast(newActif ? "Enseignant activé" : "Enseignant désactivé");
             await loadEnseignants(eid);
         } catch (e) { toast("Erreur", "error"); }
@@ -1195,7 +1141,6 @@ document.body.addEventListener("click", async e => {
                 setLoading(true);
                 try {
                     await deleteDoc(doc(db, "ecoles", eid, "enseignants", id));
-                    try { await deleteDoc(doc(db, "ecoles", eid, "professeurs", id)); } catch(e) {}
                     toast("Enseignant supprimé", "warning");
                     await loadEnseignants(eid);
                 } catch (e) { toast("Erreur", "error"); }
@@ -1211,7 +1156,7 @@ document.body.addEventListener("click", async e => {
     if (action === "del-eleve") {
         if (!eleveEcoleId) return;
         const el = elevesList.find(x => x.id === id);
-        const nomEl = el ? getNomComplet(el) : 'cet élève';
+        const nomEl = el ? ((el.nom||'') + ' ' + (el.prenom||'')) : 'cet élève';
         showConfirm("Supprimer cet élève ?",
             `Supprimer <strong style="color:#fff;">${esc(nomEl)}</strong> ?<br><br>
             <span style="color:#ef4444;">❌ Action irréversible.</span>`,
