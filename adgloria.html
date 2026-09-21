@@ -296,6 +296,7 @@ function esc(s) { if (!s) return ''; return String(s).replace(/[&<>"']/g, m => (
 
 function setLoading(show) { document.getElementById("loading").classList.toggle("show", show); }
 
+// ✅ FIX CRITIQUE : normalisation unique utilisée partout
 function normaliserIdEcole(raw) {
     return String(raw || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
 }
@@ -479,13 +480,17 @@ function openEcoleModal(ecole = null) {
             const idLower = id.toLowerCase();
             const emailDirection = `direction.${idLower}@gmail.com`;
 
+            // ✅ FIX : on stocke ecoleId explicitement dans settings
             await setDoc(doc(db, "ecoles", id), {
-                nom, ville, logoUrl, actif: true, masque: false, createdAt: serverTimestamp()
+                nom, ville, logoUrl, actif: true, masque: false,
+                ecoleId: id,
+                createdAt: serverTimestamp()
             });
 
             await setDoc(doc(db, "ecoles", id, "settings", "data"), {
                 codeDirection,
                 emailDirection,
+                ecoleId: id,
                 updatedAt: serverTimestamp()
             });
 
@@ -534,7 +539,7 @@ function openEcoleModal(ecole = null) {
                     <div style="font-size:11px;color:#fbbf24;font-weight:700;margin-bottom:4px;">⚠️ IMPORTANT</div>
                     <div style="font-size:11px;color:#cbd5e1;line-height:1.6;">
                         Transmettez ce <strong style="color:#fbbf24;">code Directeur</strong> au responsable.<br>
-                        URL Directeur : <code style="color:#60a5fa;">?ecole=${esc(id.toLowerCase())}&code=${codeDirection}</code>
+                        URL Directeur : <code style="color:#60a5fa;">?ecole=${esc(id)}&code=${codeDirection}</code>
                     </div>
                 </div>
                 <div class="modal-actions" style="margin-top:20px;">
@@ -544,8 +549,9 @@ function openEcoleModal(ecole = null) {
             </div>`;
             document.body.appendChild(recapModal);
 
+            // ✅ FIX : URL avec ID en MAJUSCULES (pas de toLowerCase)
             recapModal.querySelector("[data-copy-all]").onclick = async () => {
-                const texte = `🏫 ${nom} (${id})\n\n👔 Directeur : ${codeDirection}\n\nURL Directeur : ?ecole=${id.toLowerCase()}&code=${codeDirection}`;
+                const texte = `🏫 ${nom} (${id})\n\n👔 Directeur : ${codeDirection}\n\nURL Directeur : ?ecole=${id}&code=${codeDirection}`;
                 try { await navigator.clipboard.writeText(texte); toast("Code copié", "success"); }
                 catch (err) { toast("Impossible de copier", "warning"); }
             };
@@ -583,7 +589,12 @@ async function loadEnseignants(ecoleId) {
     try {
         const snap = await getDocs(collection(db, "ecoles", ecoleId, "enseignants"));
         ensList = [];
-        snap.forEach(d => ensList.push({ id: d.id, ...d.data() }));
+        snap.forEach(d => {
+            const data = d.data();
+            // ✅ FIX : ignore les docs de config
+            if (data._type === 'config' || data._type === 'settings') return;
+            ensList.push({ id: d.id, ...data });
+        });
         ensList.sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
         renderEnseignants();
     } catch (e) { toast("Erreur chargement enseignants", "error"); }
@@ -750,9 +761,12 @@ function openEnsModal(ecoleId, ens = null) {
                 try {
                     const cred = await createUserWithEmailAndPassword(secondAuth, email, code);
                     const ensId = cred.user.uid;
+                    // ✅ FIX : ajout _type pour filtrage côté directeur
                     await setDoc(doc(db, "ecoles", ecoleIdNorm, "enseignants", ensId), {
                         ensId, nom, email, code, cycle, classes: classesChoisies,
-                        school: ecoleIdNorm, actif: true, createdAt: serverTimestamp()
+                        school: ecoleIdNorm, actif: true,
+                        _type: 'enseignant',
+                        createdAt: serverTimestamp()
                     });
                     toast("Enseignant créé avec succès");
                 } finally { await deleteApp(secondApp); }
@@ -792,7 +806,7 @@ async function loadEleves(ecoleId) {
             const snapP = await getDocs(collection(db, "ecoles", ecoleId, "prima_eleves"));
             snapP.forEach(d => {
                 const data = d.data();
-                if (data._type === 'config' || data._type === 'settings') return;
+                if (data._type === 'config' || data._type === 'settings' || data._type === 'enseignant') return;
                 elevesList.push({ id: d.id, ...data, cycle: 'primaire' });
             });
         } catch(e) {}
@@ -800,7 +814,7 @@ async function loadEleves(ecoleId) {
             const snapM = await getDocs(collection(db, "ecoles", ecoleId, "mater_eleves"));
             snapM.forEach(d => {
                 const data = d.data();
-                if (data._type === 'config' || data._type === 'settings') return;
+                if (data._type === 'config' || data._type === 'settings' || data._type === 'enseignant') return;
                 elevesList.push({ id: d.id, ...data, cycle: 'maternelle' });
             });
         } catch(e) {}
@@ -808,7 +822,7 @@ async function loadEleves(ecoleId) {
             const snapC = await getDocs(collection(db, "ecoles", ecoleId, "compta_eleves"));
             snapC.forEach(d => {
                 const data = d.data();
-                if (data._type === 'config' || data._type === 'settings' || data._type === 'inscription') return;
+                if (data._type === 'config' || data._type === 'settings' || data._type === 'inscription' || data._type === 'enseignant') return;
                 const already = elevesList.some(e => e.id === d.id);
                 if (!already) elevesList.push({ id: d.id, ...data, cycle: data.cycle || 'primaire' });
             });
@@ -1014,7 +1028,11 @@ document.getElementById("loadStatsBtn").onclick = async () => {
         let nbEnsP = 0, nbEnsM = 0, nbElevesP = 0, nbElevesM = 0;
         try {
             const ensSnap = await getDocs(collection(db, "ecoles", ecoleId, "enseignants"));
-            ensSnap.forEach(d => { const c = d.data().cycle; if (c === 'maternelle') nbEnsM++; else nbEnsP++; });
+            ensSnap.forEach(d => {
+                const data = d.data();
+                if (data._type === 'config' || data._type === 'settings') return;
+                const c = data.cycle; if (c === 'maternelle') nbEnsM++; else nbEnsP++;
+            });
         } catch(e) {}
         try {
             const pSnap = await getDocs(collection(db, "ecoles", ecoleId, "prima_eleves"));
@@ -1034,7 +1052,7 @@ document.getElementById("loadStatsBtn").onclick = async () => {
         </div>
         <div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:12px;padding:12px 16px;margin-top:14px;">
         <div style="font-size:11px;color:#fbbf24;font-weight:700;margin-bottom:6px;">🔗 URL de connexion Directeur</div>
-        <div style="font-size:11px;color:#cbd5e1;font-family:monospace;word-break:break-all;">?ecole=${esc(ecoleId.toLowerCase())}&code=${esc(codes.codeDirection || '')}</div>
+        <div style="font-size:11px;color:#cbd5e1;font-family:monospace;word-break:break-all;">?ecole=${esc(ecoleId)}&code=${esc(codes.codeDirection || '')}</div>
         </div>
         </div>` : `<div class="info-box" style="border-left-color:#ef4444;">⚠️ Aucun code enregistré pour cette école.</div>`;
 
