@@ -7,12 +7,13 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0a0e1a">
-<title>GESTION DE SCOLARITÉ</title>
+<title>GESTION DE SCOLARITÉ - ESPACE PROFESSEUR</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;}
+input,textarea,select,[contenteditable="true"]{-webkit-user-select:text!important;-moz-user-select:text!important;-ms-user-select:text!important;user-select:text!important;}
 html,body{height:100%;background:#0a0e1a;font-family:'Inter',sans-serif;overflow-x:hidden;}
 body{overscroll-behavior:none;}
 .container{max-width:1400px;margin:0 auto;padding:20px;}
@@ -116,8 +117,6 @@ body.light-mode .fiche-selector label{color:#000000;}
 .login-separator-text{font-size:10px;color:#a78bfa;font-weight:800;letter-spacing:2px;text-transform:uppercase;}
 .login-badges{display:flex;justify-content:center;gap:8px;margin-bottom:26px;flex-wrap:wrap;}
 .login-badge{padding:6px 14px;border-radius:30px;font-size:10px;font-weight:800;letter-spacing:0.8px;text-transform:uppercase;display:inline-flex;align-items:center;gap:6px;}
-.login-badge-primaire{background:rgba(59,130,246,0.12);color:#60a5fa;border:1px solid rgba(59,130,246,0.35);}
-.login-badge-maternelle{background:rgba(16,185,129,0.12);color:#34d399;border:1px solid rgba(16,185,129,0.35);}
 .login-badge-secondaire{background:rgba(168,85,247,0.12);color:#c084fc;border:1px solid rgba(168,85,247,0.35);}
 .login-badge-dot{width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor;}
 .login-field-label{display:block;font-size:10px;font-weight:800;color:#94a3b8;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;}
@@ -397,6 +396,73 @@ body.light-mode .eleve-btn-avatar{background:rgba(26,54,93,0.1);border-color:rgb
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc } from "firebase/firestore";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+
+document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    const btnProf = document.querySelector('.main-nav-btn[data-space="professeur"]');
+    const btnTitu = document.querySelector('.main-nav-btn[data-space="titulaire"]');
+    if (!btnProf || !btnTitu) return;
+    if (btnProf.classList.contains('active')) btnTitu.click();
+    else btnProf.click();
+    return false;
+});
+
+document.addEventListener('selectstart', function(e) {
+    const tag = e.target.tagName;
+    if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !e.target.isContentEditable) {
+        e.preventDefault();
+        return false;
+    }
+});
+
+document.addEventListener('copy', function(e) {
+    const tag = e.target.tagName;
+    if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !e.target.isContentEditable) {
+        e.preventDefault();
+        return false;
+    }
+});
+
+document.addEventListener('cut', function(e) {
+    const tag = e.target.tagName;
+    if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !e.target.isContentEditable) {
+        e.preventDefault();
+        return false;
+    }
+});
+
+document.addEventListener('dragstart', function(e) {
+    e.preventDefault();
+    return false;
+});
+
+document.addEventListener('mousedown', function(e) {
+    if (e.detail > 1) {
+        e.preventDefault();
+        return false;
+    }
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'F12' || e.keyCode === 123) { e.preventDefault(); return false; }
+    if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.keyCode === 73)) { e.preventDefault(); return false; }
+    if (e.ctrlKey && e.shiftKey && (e.key === 'J' || e.key === 'j' || e.keyCode === 74)) { e.preventDefault(); return false; }
+    if (e.ctrlKey && e.shiftKey && (e.key === 'C' || e.key === 'c' || e.keyCode === 67)) { e.preventDefault(); return false; }
+    if (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.keyCode === 85)) { e.preventDefault(); return false; }
+    if (e.ctrlKey && (e.key === 'S' || e.key === 's' || e.keyCode === 83)) { e.preventDefault(); return false; }
+    if (e.ctrlKey && (e.key === 'P' || e.key === 'p' || e.keyCode === 80)) { e.preventDefault(); return false; }
+    if (e.metaKey && e.altKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) { e.preventDefault(); return false; }
+    if (e.metaKey && (e.key === 'U' || e.key === 'u')) { e.preventDefault(); return false; }
+    if (e.key === 'F11' || e.keyCode === 122) { e.preventDefault(); return false; }
+    if (e.ctrlKey && (e.key === 'a' || e.key === 'A')) {
+        const tag = e.target.tagName;
+        if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !e.target.isContentEditable) {
+            e.preventDefault();
+            return false;
+        }
+    }
+    return true;
+});
 
 const firebaseConfig = {
 apiKey: "AIzaSyB_GdmPBnWl3w6g99j1cGO7vxDdxmKr4QA",
@@ -1006,10 +1072,8 @@ d.innerHTML = `
 <div class="login-logo">🏫</div>
 <div class="login-school-name" id="loginSchoolName">COMPLEXE SCOLAIRE</div>
 <div class="login-school-sub">Année scolaire 2026-2027</div>
-<div class="login-separator"><span class="login-separator-text">Espace Enseignant</span></div>
+<div class="login-separator"><span class="login-separator-text">Espace Professeur</span></div>
 <div class="login-badges">
-<span class="login-badge login-badge-primaire"><span class="login-badge-dot"></span>Primaire</span>
-<span class="login-badge login-badge-maternelle"><span class="login-badge-dot"></span>Maternelle</span>
 <span class="login-badge login-badge-secondaire"><span class="login-badge-dot"></span>Secondaire</span>
 </div>
 <label class="login-field-label" for="loginCode">Code d'accès</label>
@@ -1083,7 +1147,7 @@ profId: data.profId || data.ensId || ds.id
 }
 
 if (!fp) {
-document.getElementById('loginError').innerHTML = "Code d'accès incorrect";
+document.getElementById('loginError').innerHTML = "Code d'accès incorrect (professeur)";
 codeInputEl.classList.add('error');
 setTimeout(() => codeInputEl.classList.remove('error'), 500);
 btn.disabled = false;
@@ -1093,7 +1157,7 @@ return;
 }
 
 if (!fp.email || fp.email.trim() === '') {
-document.getElementById('loginError').innerHTML = "Compte incomplet. Contactez la direction.";
+document.getElementById('loginError').innerHTML = "Compte professeur incomplet. Contactez la direction.";
 btn.disabled = false;
 btn.classList.remove('loading');
 btn.innerHTML = 'Se Connecter';
@@ -1896,15 +1960,6 @@ document.getElementById('addEpreuve1').onclick = function() { addEpreuve(1); };
 document.getElementById('addEpreuve2').onclick = function() { addEpreuve(2); };
 document.getElementById('addEpreuve3').onclick = function() { addEpreuve(3); };
 document.getElementById('addEpreuve4').onclick = function() { addEpreuve(4); };
-
-document.addEventListener('contextmenu', function(e) {
-e.preventDefault();
-const btnProf = document.querySelector('.main-nav-btn[data-space="professeur"]');
-const btnTitu = document.querySelector('.main-nav-btn[data-space="titulaire"]');
-if (!btnProf || !btnTitu) return;
-if (btnProf.classList.contains('active')) btnTitu.click();
-else btnProf.click();
-});
 
 (function initDragScroll() {
 const wrapper = document.querySelector('#tabCotation .table-wrapper');
