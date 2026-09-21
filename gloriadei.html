@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0d0a1f">
-<title>GESTION DE SCOLARITÉ - GLORIADEI</title>
+<title>GESTION DE SCOLARITÉ</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
@@ -235,7 +235,7 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 <div id="pageLoader" class="page-loader"><div class="page-loader-spinner"></div><div class="page-loader-text">NETUBEX SARL...</div></div>
 <div class="container" id="mainApp" style="display:none">
 <div class="school-header">
-<div class="school-name" id="schoolNameHeader">COMPLEXE SCOLAIRE GLORIA DEI</div>
+<div class="school-name" id="schoolNameHeader">CHARGEMENT...</div>
 <div class="school-sub" id="schoolSubHeader">Année scolaire 2026-2027</div>
 <div style="font-size:13px;margin-top:8px;color:var(--text-primary);">SYSTÈME DE GESTION DE SCOLARITÉ</div>
 </div>
@@ -425,23 +425,28 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 </div>
 </div>
 </div>
-<div class="footer-note" id="footerNote">GLORIADEI | Année scolaire 2026-2027</div>
+<div class="footer-note" id="footerNote">Année scolaire 2026-2027</div>
 </div>
 <div class="toast-container" id="toastContainer"></div>
 <script type="importmap">
 {"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js","firebase/analytics":"https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js"}}
 </script>
 <script type="module">
-import { initializeApp } from "firebase/app";
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where } from "firebase/firestore";
+import { initializeApp, deleteApp } from "firebase/app";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc } from "firebase/firestore";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "firebase/auth";
 import { getAnalytics } from "firebase/analytics";
 
 function normaliserIdEcole(raw) {
-    return String(raw || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+    return String(raw || '').trim().toUpperCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^A-Z0-9_]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '');
 }
 const urlParams = new URLSearchParams(window.location.search);
 const ECOLET_ID = normaliserIdEcole(urlParams.get('ecole') || 'GLORIADEI');
+console.log('🏫 ECOLET_ID normalisé =', ECOLET_ID);
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'F12' || e.keyCode === 123) { e.preventDefault(); e.stopPropagation(); return false; }
@@ -464,18 +469,42 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
-const analytics = getAnalytics(app);
+let analytics = null;
+try { analytics = getAnalytics(app); } catch(e) {}
 
-const SC = { PROFESSEURS: 'professeurs', FICHES: 'fiches', COMPTEUR: 'compteur', CONFIG: 'config', COMPTA_ELEVES: 'compta_eleves', SETTINGS: 'settings' };
+const SC = { PROFESSEURS: 'enseignants', FICHES: 'fiches', COMPTEUR: 'compteur', CONFIG: 'config', COMPTA_ELEVES: 'compta_eleves', SETTINGS: 'settings' };
 
+let ecoleData = null;
 async function verifierEcoleAutorisee() {
-    try { const d = await getDoc(doc(db, "ecoles", ECOLET_ID)); return d.exists(); }
-    catch (e) { return false; }
+    try {
+        const d = await getDoc(doc(db, "ecoles", ECOLET_ID));
+        if (d.exists()) {
+            ecoleData = d.data();
+            return true;
+        }
+        const rawParam = urlParams.get('ecole') || 'GLORIADEI';
+        if (rawParam !== ECOLET_ID) {
+            const d2 = await getDoc(doc(db, "ecoles", rawParam));
+            if (d2.exists()) {
+                ecoleData = d2.data();
+                return true;
+            }
+        }
+        return false;
+    } catch (e) { return false; }
 }
 const estAutorisee = await verifierEcoleAutorisee();
 if (!estAutorisee) {
     document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0d0a1f;color:#fff;flex-direction:column;padding:20px;text-align:center;"><div style="font-size:64px;margin-bottom:20px;">🚫</div><h1 style="color:#ef4444;margin-bottom:10px;">Accès non autorisé</h1><p style="color:#94a3b8;max-width:400px;">L'établissement <strong>${ECOLET_ID}</strong> n'est pas enregistré.</p></div>`;
     throw new Error('École non autorisée');
+}
+
+if (ecoleData) {
+    const nomEl = document.getElementById('schoolNameHeader');
+    if (nomEl) nomEl.textContent = (ecoleData.nom || ECOLET_ID).toUpperCase();
+    document.title = 'GESTION DE SCOLARITÉ - ' + ECOLET_ID;
+    const footer = document.getElementById('footerNote');
+    if (footer) footer.textContent = ECOLET_ID + ' | Année scolaire 2026-2027';
 }
 
 let currentProf = null, currentFicheId = null, currentFiche = null, toutesFiches = [], isCreatingFiche = false;
@@ -494,10 +523,10 @@ function toast(message, type = "success") {
     el.innerHTML = `<div class="toast-icon">${icons[type] || "ℹ️"}</div><div class="toast-content"><div class="toast-title" style="color:${colors[type]}">${titles[type]}</div><div class="toast-message">${message}</div></div>`;
     c.appendChild(el);
     requestAnimationFrame(() => el.classList.add("show"));
-    setTimeout(() => { el.classList.remove("show"); setTimeout(() => el.remove(), 400); }, 3000);
+    setTimeout(() => { el.classList.remove("show"); setTimeout(() => el.remove(), 400); }, 3500);
 }
 
-function escapeHtml(s) { if (!s) return ''; return s.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m])); }
+function escapeHtml(s) { if (!s) return ''; return String(s).replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m])); }
 
 function showStyledConfirm(title, message, onConfirm, onCancel) {
     let d = document.createElement('div');
@@ -1026,6 +1055,8 @@ async function showLogin() {
     const ancien = document.getElementById('loginOverlay');
     if (ancien) ancien.remove();
 
+    const nomEcole = (ecoleData?.nom || ECOLET_ID).toUpperCase();
+
     let d = document.createElement('div');
     d.className = 'login-overlay';
     d.id = 'loginOverlay';
@@ -1036,14 +1067,14 @@ async function showLogin() {
                     <div class="side-brand">
                         <div class="side-brand-logo">🏫</div>
                         <div class="side-brand-text">
-                            <span class="sbt-main">${ECOLET_ID.toUpperCase()}</span>
+                            <span class="sbt-main">${nomEcole}</span>
                             <span class="sbt-sub">Gestion de Scolarité</span>
                         </div>
                     </div>
                     <div class="side-content">
                         <span class="side-tag"><span class="dot"></span> Espace Enseignant</span>
                         <h2>Accédez à votre <span>espace de travail</span> en toute sécurité.</h2>
-                        <p>Interface dédiée aux enseignants et titulaires de ${ECOLET_ID.toUpperCase()}. Gérez vos fiches de cotation en toute simplicité.</p>
+                        <p>Interface dédiée aux enseignants et titulaires de ${nomEcole}. Gérez vos fiches de cotation en toute simplicité.</p>
                         <div class="side-features">
                             <div class="side-feature"><i>✓</i> Accès sécurisé et confidentiel</div>
                             <div class="side-feature"><i>✓</i> Gestion des fiches en temps réel</div>
@@ -1051,14 +1082,14 @@ async function showLogin() {
                         </div>
                     </div>
                     <div class="side-footer">
-                        <span>© 2026 — ${ECOLET_ID.toUpperCase()}</span>
+                        <span>© 2026 — ${nomEcole}</span>
                         <span>Support : <a href="tel:+243845048412">+243 845 048 412</a></span>
                     </div>
                 </aside>
                 <main class="form-panel">
                     <div class="mobile-brand">
                         <div>🏫</div>
-                        <span>${ECOLET_ID.toUpperCase()}</span>
+                        <span>${nomEcole}</span>
                     </div>
                     <div class="form-header">
                         <span class="fh-eyebrow">Connexion sécurisée</span>
@@ -1078,7 +1109,7 @@ async function showLogin() {
                         <label for="loginPassword">Code d'accès</label>
                         <div class="login-input-wrap">
                             <span class="fi-icon">🔒</span>
-                            <input type="password" id="loginPassword" placeholder="••••••" maxlength="20" autocomplete="off" autofocus>
+                            <input type="password" id="loginPassword" placeholder="••••••" maxlength="20" autocomplete="off" autofocus inputmode="numeric">
                         </div>
                     </div>
                     <button id="loginBtn" class="btn-submit">
@@ -1090,7 +1121,7 @@ async function showLogin() {
                             <span>Un problème d'accès ?</span>
                             <a href="tel:+243845048412">Contacter le support</a>
                         </div>
-                        <div class="login-copyright">© 2026 — ${ECOLET_ID.toUpperCase()}</div>
+                        <div class="login-copyright">© 2026 — ${nomEcole}</div>
                     </div>
                 </main>
             </div>
@@ -1130,15 +1161,37 @@ async function showLogin() {
         try {
             const snap = await getDocs(collection(db, "ecoles", ECOLET_ID, SC.PROFESSEURS));
             let fp = null;
+            const codeSaisi = String(code).trim();
+            const ecoleCible = ECOLET_ID.toUpperCase();
+
+            console.log('🔎 Recherche enseignant - code:', codeSaisi, 'école:', ecoleCible, 'total docs:', snap.size);
+
             snap.forEach(ds => {
                 const data = ds.data();
-                const schoolDoc = (data.school || '').toUpperCase();
-                if (schoolDoc === ECOLET_ID.toUpperCase() && data.code === code && data.actif !== false) {
-                    fp = { id: ds.id, profId: data.profId || ds.id, nom: data.nom, code: code, email: data.emailProf || data.email };
+                const schoolDoc = String(data.school || '').trim().toUpperCase();
+                const codeDb = String(data.code || '').trim();
+
+                console.log('🔎 Doc:', {
+                    id: ds.id,
+                    nom: data.nom,
+                    schoolDoc, ecoleCible, matchSchool: schoolDoc === ecoleCible,
+                    codeDb, codeSaisi, matchCode: codeDb === codeSaisi,
+                    actif: data.actif
+                });
+
+                if (schoolDoc === ecoleCible && codeDb === codeSaisi && data.actif !== false) {
+                    fp = {
+                        id: ds.id,
+                        profId: data.profId || ds.id,
+                        nom: data.nom,
+                        code: codeSaisi,
+                        email: data.emailProf || data.email
+                    };
                 }
             });
 
             if (!fp) {
+                console.warn('❌ Aucun enseignant trouvé pour code', codeSaisi, 'dans école', ecoleCible);
                 toast("Code d'accès incorrect", 'error');
                 btn.disabled = false;
                 btn.classList.remove('loading');
@@ -1156,20 +1209,32 @@ async function showLogin() {
                 return;
             }
 
+            console.log('✅ Enseignant trouvé:', fp);
+
             try {
-                await signInWithEmailAndPassword(auth, fp.email, code);
+                await signInWithEmailAndPassword(auth, fp.email, codeSaisi);
+                console.log('✅ Auth OK');
             } catch (authError) {
+                console.warn('⚠️ Erreur Auth:', authError.code);
+
                 if (authError.code === 'auth/user-not-found') {
                     try {
-                        await createUserWithEmailAndPassword(auth, fp.email, code);
+                        await createUserWithEmailAndPassword(auth, fp.email, codeSaisi);
+                        console.log('✅ Compte Auth créé automatiquement');
                     } catch (createError) {
-                        if (createError.code !== 'auth/email-already-in-use') {
+                        console.error('❌ Erreur création compte:', createError.code);
+                        if (createError.code === 'auth/email-already-in-use') {
+                            await signInWithEmailAndPassword(auth, fp.email, codeSaisi);
+                        } else {
                             throw createError;
                         }
-                        await signInWithEmailAndPassword(auth, fp.email, code);
                     }
-                } else if (authError.code === 'auth/wrong-password') {
-                    throw new Error("Code incorrect");
+                } else if (authError.code === 'auth/wrong-password' || authError.code === 'auth/invalid-credential') {
+                    throw new Error("Code correct dans la base, mais le mot de passe Firebase est désynchronisé. Contactez l'administrateur pour réinitialiser votre compte.");
+                } else if (authError.code === 'auth/too-many-requests') {
+                    throw new Error("Trop de tentatives. Réessayez dans quelques minutes.");
+                } else if (authError.code === 'auth/invalid-email') {
+                    throw new Error("Email invalide. Contactez l'admin.");
                 } else {
                     throw authError;
                 }
@@ -1189,8 +1254,21 @@ async function showLogin() {
             btn.classList.add('success');
             btn.innerHTML = '✅ Connexion réussie !';
 
-            currentProf = { id: fp.id, profId: fp.profId, nom: fp.nom, code: code, email: fp.email, createdAt: Date.now() };
-            localStorage.setItem('gloria_session_prof', JSON.stringify({ id: fp.id, profId: fp.profId, nom: fp.nom, code: code, school: ECOLET_ID }));
+            currentProf = {
+                id: fp.id,
+                profId: fp.profId,
+                nom: fp.nom,
+                code: codeSaisi,
+                email: fp.email,
+                createdAt: Date.now()
+            };
+            localStorage.setItem('gloria_session_prof', JSON.stringify({
+                id: fp.id,
+                profId: fp.profId,
+                nom: fp.nom,
+                code: codeSaisi,
+                school: ECOLET_ID
+            }));
 
             setTimeout(async () => {
                 d.remove();
@@ -1202,11 +1280,9 @@ async function showLogin() {
             }, 800);
 
         } catch (error) {
-            console.error("Erreur connexion:", error);
-            let msg = "Code d'accès incorrect";
-            if (error.message === "Code incorrect") msg = "Code incorrect";
-            else if (error.code === 'auth/wrong-password') msg = "Code incorrect";
-            else if (error.code === 'auth/too-many-requests') msg = "Trop de tentatives. Réessayez plus tard.";
+            console.error("❌ Erreur connexion:", error);
+            let msg = error.message || "Code d'accès incorrect";
+            if (error.code === 'auth/too-many-requests') msg = "Trop de tentatives. Réessayez plus tard.";
             toast(msg, 'error');
             btn.disabled = false;
             btn.classList.remove('loading');
@@ -1222,23 +1298,40 @@ async function showLogin() {
 
 async function restaurerSession() {
     let session = localStorage.getItem('gloria_session_prof');
-    if (session) {
-        try {
-            let prof = JSON.parse(session);
-            if ((prof.school || '').toUpperCase() !== ECOLET_ID.toUpperCase()) { localStorage.removeItem('gloria_session_prof'); return false; }
-            const snap = await getDoc(doc(db, "ecoles", ECOLET_ID, SC.PROFESSEURS, prof.id));
-            if (!snap.exists()) { localStorage.removeItem('gloria_session_prof'); return false; }
-            if (snap.data().actif === false) { localStorage.removeItem('gloria_session_prof'); return false; }
-            currentProf = { id: prof.id, profId: prof.profId || prof.id, nom: prof.nom, code: prof.code };
-            document.getElementById('mainApp').style.display = 'block';
-            toutesFiches = await loadAllFiches();
-            if (toutesFiches.length) await selectFiche(toutesFiches[0].id);
-            await refreshSelectors();
-            toast("Bienvenue " + currentProf.nom, 'success');
-            return true;
-        } catch (e) { }
+    if (!session) return false;
+    try {
+        let prof = JSON.parse(session);
+        if (String(prof.school || '').toUpperCase() !== ECOLET_ID.toUpperCase()) {
+            console.warn('⚠️ Session d\'une autre école, suppression');
+            localStorage.removeItem('gloria_session_prof');
+            return false;
+        }
+        const snap = await getDoc(doc(db, "ecoles", ECOLET_ID, SC.PROFESSEURS, prof.id));
+        if (!snap.exists()) {
+            localStorage.removeItem('gloria_session_prof');
+            return false;
+        }
+        if (snap.data().actif === false) {
+            localStorage.removeItem('gloria_session_prof');
+            return false;
+        }
+        currentProf = {
+            id: prof.id,
+            profId: prof.profId || prof.id,
+            nom: prof.nom,
+            code: prof.code
+        };
+        document.getElementById('mainApp').style.display = 'block';
+        toutesFiches = await loadAllFiches();
+        if (toutesFiches.length) await selectFiche(toutesFiches[0].id);
+        await refreshSelectors();
+        toast("Bienvenue " + currentProf.nom, 'success');
+        return true;
+    } catch (e) {
+        console.error('Erreur restauration session:', e);
+        localStorage.removeItem('gloria_session_prof');
+        return false;
     }
-    return false;
 }
 
 document.getElementById('logoutBtnParam').addEventListener('click', function() {
@@ -1560,7 +1653,7 @@ document.getElementById('exportCotationPdfBtn').addEventListener('click', async 
         const rn = currentFiche.numeroRef ? 'F' + String(currentFiche.numeroRef).padStart(3, '0') : '???';
         const pM = getPeriodeMax(), eM = getExamMax(), tsM = getTotalSemestreMax(), taM = getTotalAnnuelMax();
         pdf.setFontSize(14); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(45, 27, 78);
-        pdf.text('GLORIADEI', 148, 20, { align: 'center' });
+        pdf.text((ecoleData?.nom || ECOLET_ID).toUpperCase(), 148, 20, { align: 'center' });
         pdf.setFontSize(10); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(100, 100, 100);
         pdf.text('GESTION SCOLAIRE', 148, 27, { align: 'center' });
         pdf.setFontSize(12); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(139, 92, 246);
@@ -1904,7 +1997,7 @@ window.exporterExtraitBulletin = async function() {
             classe: ficheCouranteTitu.classe,
             option: ficheCouranteTitu.option,
             anneeScolaire: '2026-2027',
-            ecole: ECOLET_ID || 'GLORIADEI'
+            ecole: (ecoleData?.nom || ECOLET_ID).toUpperCase()
         };
 
         pdf.setFontSize(12); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 0, 0);
