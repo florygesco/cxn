@@ -8,9 +8,10 @@
 <title>Espace Préfet</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 <script>(function(){try{const s=localStorage.getItem('prefet_theme')||'dark';if(s==='light')document.documentElement.classList.add('light-mode-preload')}catch(e){}})();</script>
 <script>
-document.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('keydown',function(e){
 if(e.key==='F12'||e.keyCode===123){e.preventDefault();return false}
 if(e.ctrlKey&&e.shiftKey&&(e.key==='I'||e.key==='J'||e.key==='C')){e.preventDefault();return false}
@@ -20,36 +21,46 @@ if(e.ctrlKey&&(e.key==='p'||e.key==='P')){e.preventDefault();return false}
 });
 document.addEventListener('touchstart',e=>{if(e.touches.length>1)e.preventDefault()},{passive:false});
 document.addEventListener('gesturestart',e=>e.preventDefault());
+function basculerOngletSuivant(){
+const tabs=Array.from(document.querySelectorAll('.tab'));
+if(tabs.length===0)return;
+const active=tabs.find(t=>t.classList.contains('active'));
+const idx=active?tabs.indexOf(active):-1;
+const next=tabs[(idx+1)%tabs.length];
+if(next){next.click();next.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});}
+}
+document.addEventListener('contextmenu',function(e){
+const tag=e.target.tagName;
+if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||e.target.isContentEditable){return true;}
+e.preventDefault();
+basculerOngletSuivant();
+return false;
+});
 </script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none}
-input,textarea{-webkit-user-select:text;-moz-user-select:text;user-select:text}
+input,textarea,select{-webkit-user-select:text;-moz-user-select:text;user-select:text}
 :root{--bg:#0a0e1a;--bg-2:#0f172a;--card:#141c2e;--card-2:#1a2332;--text:#e6edf3;--muted:#8b98ab;--border:rgba(212,175,55,.12);--gold:#d4af37;--gold-2:#fbbf24;--blue:#3b82f6;--green:#10b981;--red:#ef4444;--orange:#f59e0b;--purple:#8b5cf6;--shadow:0 4px 24px rgba(0,0,0,.35);--shadow-lg:0 20px 60px rgba(0,0,0,.5)}
 html.light-mode-preload body{background:#f1f5f9!important;color:#0f172a!important}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch}
 body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at top left,rgba(212,175,55,.08),transparent 50%),radial-gradient(ellipse at bottom right,rgba(59,130,246,.06),transparent 50%);pointer-events:none;z-index:0}
 .container{max-width:1440px;margin:0 auto;padding:20px;position:relative;z-index:1;min-height:100vh}
 .login-screen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:linear-gradient(135deg,#0a0e1a 0%,#1a2332 50%,#0a0e1a 100%);z-index:1000;padding:20px}
-.login-card{background:linear-gradient(160deg,#141c2e,#0f172a);border:1px solid rgba(212,175,55,.18);border-radius:28px;padding:48px 40px;max-width:440px;width:100%;box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 1px rgba(212,175,55,.05);text-align:center;position:relative;overflow:hidden;animation:cardIn .6s cubic-bezier(.34,1.56,.64,1)}
-.login-card::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:conic-gradient(from 0deg,transparent,rgba(212,175,55,.15),transparent 30%);animation:rotate 8s linear infinite;z-index:-1}
-.login-card::after{content:'';position:absolute;inset:1px;background:linear-gradient(160deg,#141c2e,#0f172a);border-radius:27px;z-index:-1}
+.login-card{background:linear-gradient(160deg,#141c2e,#0f172a);border:1px solid rgba(212,175,55,.18);border-radius:28px;padding:48px 40px;max-width:440px;width:100%;box-shadow:0 30px 80px rgba(0,0,0,.6);text-align:center;position:relative;overflow:hidden;animation:cardIn .6s cubic-bezier(.34,1.56,.64,1)}
 @keyframes cardIn{from{opacity:0;transform:translateY(30px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
-@keyframes rotate{to{transform:rotate(360deg)}}
 .login-logo{width:80px;height:80px;border-radius:24px;background:linear-gradient(135deg,#d4af37,#f59e0b);display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 20px;box-shadow:0 10px 40px rgba(212,175,55,.4)}
-.login-title{font-size:26px;font-weight:800;letter-spacing:.5px;background:linear-gradient(135deg,#fff,#d4af37);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px}
+.login-title{font-size:26px;font-weight:800;background:linear-gradient(135deg,#fff,#d4af37);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px}
 .login-sub{font-size:12px;color:var(--muted);font-weight:500;margin-bottom:28px}
 .login-form{text-align:left}
 .login-field{margin-bottom:18px}
 .login-field label{display:block;font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px}
 .login-field .input-wrap{position:relative}
-.login-field i.field-icon{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:15px;pointer-events:none;transition:.3s}
-.login-field input{width:100%;padding:16px 18px 16px 46px;background:rgba(10,14,26,.6);border:2px solid rgba(212,175,55,.15);border-radius:14px;color:#fff;font-size:16px;font-family:'Inter',sans-serif;font-weight:600;letter-spacing:4px;outline:none;transition:.3s}
+.login-field i.field-icon{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:15px;pointer-events:none}
+.login-field input{width:100%;padding:16px 18px 16px 46px;background:rgba(10,14,26,.6);border:2px solid rgba(212,175,55,.15);border-radius:14px;color:#fff;font-size:16px;font-weight:600;letter-spacing:4px;outline:none;font-family:'Inter',sans-serif}
 .login-field input::placeholder{color:#4b5563;letter-spacing:2px;font-weight:400}
 .login-field input:focus{border-color:var(--gold);background:rgba(10,14,26,.9);box-shadow:0 0 0 4px rgba(212,175,55,.1)}
-.login-field input:focus~.field-icon{color:var(--gold)}
 .login-btn{width:100%;padding:16px;background:linear-gradient(135deg,#d4af37,#f59e0b);color:#0a0e1a;border:none;border-radius:14px;font-size:15px;font-weight:800;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:.25s;box-shadow:0 8px 30px rgba(212,175,55,.4);display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px}
 .login-btn:hover:not(:disabled){transform:translateY(-3px);box-shadow:0 12px 40px rgba(212,175,55,.55)}
-.login-btn:active:not(:disabled){transform:translateY(0) scale(.98)}
 .login-btn:disabled{opacity:.6;cursor:not-allowed}
 .login-error{color:var(--red);font-size:13px;text-align:center;margin-top:14px;min-height:18px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px}
 .login-hint{font-size:11px;color:#4b5563;text-align:center;margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,.05)}
@@ -68,9 +79,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .icon-btn:hover{background:rgba(212,175,55,.18);transform:translateY(-2px);border-color:var(--gold)}
 .icon-btn.spinning i{animation:spinBtn .8s linear infinite}
 @keyframes spinBtn{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-.icon-btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
 .btn-logout{padding:0 20px;height:42px;border-radius:12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#fca5a5;font-size:12px;font-weight:700;cursor:pointer;transition:.25s;display:inline-flex;align-items:center;gap:8px;letter-spacing:.5px}
-.btn-logout:hover{background:rgba(239,68,68,.2);border-color:var(--red);color:#fff;transform:translateY(-2px);box-shadow:0 8px 24px rgba(239,68,68,.25)}
+.btn-logout:hover{background:rgba(239,68,68,.2);border-color:var(--red);color:#fff;transform:translateY(-2px)}
 .tabs-wrap{overflow-x:auto;margin-bottom:20px;scrollbar-width:none;padding:4px 0}
 .tabs-wrap::-webkit-scrollbar{display:none}
 .tabs{display:flex;gap:8px;flex-wrap:nowrap}
@@ -87,37 +97,35 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .card-head h3 i{color:var(--gold);font-size:15px}
 .card-body{padding:18px 22px}
 .row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
-.fg{display:flex;align-items:center;gap:8px;background:rgba(10,14,26,.6);padding:6px 14px;border-radius:12px;border:1px solid var(--border);flex:1 1 auto;min-width:130px;transition:.2s}
+.fg{display:flex;align-items:center;gap:8px;background:rgba(10,14,26,.6);padding:6px 14px;border-radius:12px;border:1px solid var(--border);flex:1 1 auto;min-width:130px}
 .fg:focus-within{border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,175,55,.08)}
 .fg label{font-size:9px;font-weight:800;color:var(--gold);text-transform:uppercase;letter-spacing:.8px;white-space:nowrap}
 .fg input,.fg select{background:transparent;border:none;padding:6px 2px;color:var(--text);font-size:13px;font-weight:500;outline:none;width:100%;font-family:'Inter',sans-serif;cursor:pointer}
 .btn{background:linear-gradient(160deg,#2d3b4f,#1e293b);color:#fff;border:1px solid var(--border);padding:10px 20px;border-radius:12px;font-weight:700;font-size:12px;cursor:pointer;transition:.25s;display:inline-flex;align-items:center;gap:8px;letter-spacing:.3px}
 .btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3);border-color:rgba(212,175,55,.3)}
-.btn:active{transform:translateY(0) scale(.97)}
 .btn-sm{padding:7px 14px;font-size:11px}
 .btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--muted)}
 .btn-outline:hover{background:rgba(212,175,55,.08);border-color:var(--gold);color:var(--gold)}
-.btn-outline:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
 .btn-success{background:linear-gradient(135deg,#10b981,#059669);border-color:transparent;color:#fff}
-.btn-success:hover{box-shadow:0 8px 24px rgba(16,185,129,.4)}
+.btn-pdf{background:linear-gradient(135deg,#dc2626,#b91c1c);border-color:transparent;color:#fff}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
-.stat{background:linear-gradient(160deg,rgba(20,28,46,.95),rgba(15,23,42,.95));border:1px solid var(--border);border-radius:16px;padding:16px 14px;text-align:center;transition:.25s;position:relative;overflow:hidden}
+.stat{background:linear-gradient(160deg,rgba(20,28,46,.95),rgba(15,23,42,.95));border:1px solid var(--border);border-radius:16px;padding:16px 14px;text-align:center;position:relative;overflow:hidden}
 .stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.3}
-.stat:hover{transform:translateY(-3px);box-shadow:var(--shadow);border-color:rgba(212,175,55,.3)}
 .stat .lbl{font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
-.stat .val{font-size:26px;font-weight:900;color:#fff;margin-top:6px;letter-spacing:-.5px}
+.stat .val{font-size:26px;font-weight:900;color:#fff;margin-top:6px}
 .stat .val.green{color:var(--green)}
 .stat .val.red{color:var(--red)}
 .stat .val.orange{color:var(--orange)}
 .stat .val.blue{color:var(--blue)}
 .stat .val.gold{color:var(--gold)}
+.stat .val.purple{color:var(--purple)}
 .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:14px;background:rgba(10,14,26,.4)}
 .table-wrap table{width:100%;min-width:700px;border-collapse:collapse;font-size:13px}
-.table-wrap thead th{background:linear-gradient(180deg,rgba(212,175,55,.12),rgba(212,175,55,.04));color:var(--gold);padding:14px 16px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;backdrop-filter:blur(8px)}
+.table-wrap thead th{background:linear-gradient(180deg,rgba(212,175,55,.12),rgba(212,175,55,.04));color:var(--gold);padding:14px 16px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
 .table-wrap tbody td{padding:12px 16px;border-bottom:1px solid rgba(212,175,55,.06);font-size:13px;color:var(--text);font-weight:500}
-.table-wrap tbody tr{transition:.15s}
 .table-wrap tbody tr:hover td{background:rgba(212,175,55,.04)}
 .table-wrap tbody tr:last-child td{border-bottom:none}
+.nom-prof{color:#fff;font-weight:700}
 .badge{padding:4px 12px;border-radius:30px;font-size:10px;font-weight:800;display:inline-block;letter-spacing:.4px;text-transform:uppercase}
 .badge.green{background:rgba(16,185,129,.15);color:#34d399;border:1px solid rgba(16,185,129,.3)}
 .badge.red{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)}
@@ -143,63 +151,77 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .modal-box h3{font-size:17px;font-weight:800;margin-bottom:16px;text-align:center;color:#fff;display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:.3px}
 .modal-box h3 i{color:var(--gold)}
 .form-actions{display:flex;gap:10px;margin-top:20px;justify-content:center;flex-wrap:wrap}
+.pdf-section{background:rgba(10,14,26,.4);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:18px}
+.pdf-section h4{font-size:14px;font-weight:800;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.pdf-section.gold h4{color:var(--gold)}
+.pdf-section.gold{border-left:3px solid var(--gold)}
+.pdf-section.blue h4{color:#60a5fa}
+.pdf-section.blue{border-left:3px solid var(--blue)}
+.pdf-section.green h4{color:#34d399}
+.pdf-section.green{border-left:3px solid var(--green)}
+.pdf-buttons{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+
+.roles-table{width:100%;border-collapse:collapse;font-size:13px;min-width:700px}
+.roles-table thead th{background:linear-gradient(180deg,rgba(212,175,55,.14),rgba(212,175,55,.05));color:var(--gold);padding:15px 18px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;text-align:center;border-bottom:2px solid var(--gold);white-space:nowrap}
+.roles-table thead th:first-child{text-align:left}
+.roles-table tbody td{padding:13px 18px;border-bottom:1px solid rgba(212,175,55,.07);font-size:13px;color:var(--text);font-weight:600}
+.roles-table tbody tr:nth-child(odd){background:rgba(212,175,55,.015)}
+.roles-table tbody tr:hover td{background:rgba(212,175,55,.05)}
+.roles-table tbody tr:last-child td{border-bottom:none}
+.roles-table .check{color:var(--green);font-size:20px;text-align:center;display:block}
+.roles-table .cross{color:var(--red);font-size:20px;text-align:center;display:block}
+.roles-table .role-header{display:flex;align-items:center;justify-content:center;gap:8px;font-weight:800}
+
 body.light-mode{--bg:#f1f5f9;--bg-2:#e2e8f0;--card:#ffffff;--card-2:#f8fafc;--text:#0f172a;--muted:#64748b;--border:rgba(15,23,42,.08);--gold:#b45309;--gold-2:#d97706;--shadow:0 4px 24px rgba(15,23,42,.08);--shadow-lg:0 20px 60px rgba(15,23,42,.15);background:#f1f5f9;color:#0f172a}
 body.light-mode::before{background:radial-gradient(ellipse at top left,rgba(180,83,9,.06),transparent 50%),radial-gradient(ellipse at bottom right,rgba(59,130,246,.05),transparent 50%)}
 body.light-mode .login-screen{background:linear-gradient(135deg,#e2e8f0 0%,#f1f5f9 50%,#e2e8f0 100%)}
-body.light-mode .login-card{background:linear-gradient(160deg,#ffffff,#f8fafc);border-color:rgba(180,83,9,.2);box-shadow:0 30px 80px rgba(15,23,42,.12)}
-body.light-mode .login-card::after{background:linear-gradient(160deg,#ffffff,#f8fafc)}
+body.light-mode .login-card{background:linear-gradient(160deg,#ffffff,#f8fafc);border-color:rgba(180,83,9,.2)}
 body.light-mode .login-title{background:linear-gradient(135deg,#0f172a,#b45309);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 body.light-mode .login-field input{background:#f8fafc;border-color:rgba(180,83,9,.2);color:#0f172a}
-body.light-mode .login-field input:focus{background:#fff;border-color:var(--gold)}
 body.light-mode .login-field input::placeholder{color:#94a3b8}
-body.light-mode .login-logo{color:#fff}
-body.light-mode .header{background:linear-gradient(135deg,rgba(255,255,255,.95),rgba(248,250,252,.95));border-color:rgba(15,23,42,.08);box-shadow:0 4px 24px rgba(15,23,42,.08)}
+body.light-mode .header{background:linear-gradient(135deg,rgba(255,255,255,.95),rgba(248,250,252,.95));border-color:rgba(15,23,42,.08)}
 body.light-mode .header h1{color:#0f172a}
 body.light-mode .header h1 span{background:linear-gradient(135deg,#b45309,#d97706);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-body.light-mode .logo{color:#fff}
 body.light-mode .icon-btn{background:rgba(180,83,9,.08);border-color:rgba(15,23,42,.08);color:var(--gold)}
-body.light-mode .icon-btn:hover{background:rgba(180,83,9,.15);border-color:var(--gold)}
 body.light-mode .btn-logout{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.2);color:#dc2626}
-body.light-mode .btn-logout:hover{background:rgba(239,68,68,.15);color:#fff}
 body.light-mode .tab{background:linear-gradient(160deg,#ffffff,#f8fafc);border-color:rgba(15,23,42,.08);color:#64748b}
 body.light-mode .tab:hover{color:#0f172a;border-color:rgba(180,83,9,.3);background:rgba(180,83,9,.05)}
-body.light-mode .tab.active{background:linear-gradient(135deg,#b45309,#d97706);color:#fff;box-shadow:0 8px 24px rgba(180,83,9,.3)}
+body.light-mode .tab.active{background:linear-gradient(135deg,#b45309,#d97706);color:#fff}
 body.light-mode .card{background:linear-gradient(160deg,#ffffff,#f8fafc);border-color:rgba(15,23,42,.08)}
 body.light-mode .card-head{background:linear-gradient(180deg,rgba(180,83,9,.04),transparent);border-bottom-color:rgba(15,23,42,.06)}
 body.light-mode .card-head h3{color:#0f172a}
-body.light-mode .card-head h3 i{color:var(--gold)}
 body.light-mode .fg{background:#f8fafc;border-color:rgba(15,23,42,.08)}
-body.light-mode .fg label{color:var(--gold)}
 body.light-mode .fg input,body.light-mode .fg select{color:#0f172a}
 body.light-mode .btn{background:linear-gradient(160deg,#e2e8f0,#cbd5e1);color:#0f172a;border-color:rgba(15,23,42,.08)}
-body.light-mode .btn:hover{background:linear-gradient(160deg,#cbd5e1,#94a3b8);border-color:rgba(15,23,42,.15)}
 body.light-mode .btn-outline{background:transparent;border-color:rgba(15,23,42,.15);color:#64748b}
-body.light-mode .btn-outline:hover{background:rgba(180,83,9,.05);border-color:var(--gold);color:var(--gold)}
 body.light-mode .stat{background:linear-gradient(160deg,#ffffff,#f8fafc);border-color:rgba(15,23,42,.08)}
-body.light-mode .stat:hover{border-color:rgba(180,83,9,.25);box-shadow:0 8px 24px rgba(15,23,42,.08)}
 body.light-mode .stat .lbl{color:#64748b}
 body.light-mode .stat .val{color:#0f172a}
+body.light-mode .stat .val.blue{color:#2563eb}
+body.light-mode .stat .val.green{color:#059669}
+body.light-mode .stat .val.red{color:#dc2626}
+body.light-mode .stat .val.orange{color:#d97706}
+body.light-mode .stat .val.gold{color:#b45309}
+body.light-mode .stat .val.purple{color:#7c3aed}
 body.light-mode .table-wrap{background:#ffffff;border-color:rgba(15,23,42,.08)}
 body.light-mode .table-wrap thead th{background:linear-gradient(180deg,rgba(180,83,9,.1),rgba(180,83,9,.03));color:var(--gold);border-bottom-color:rgba(15,23,42,.08)}
 body.light-mode .table-wrap tbody td{color:#0f172a;border-bottom-color:rgba(15,23,42,.05)}
 body.light-mode .table-wrap tbody tr:hover td{background:rgba(180,83,9,.04)}
-body.light-mode .badge.green{background:rgba(16,185,129,.12);color:#059669;border-color:rgba(16,185,129,.25)}
-body.light-mode .badge.red{background:rgba(239,68,68,.12);color:#dc2626;border-color:rgba(239,68,68,.25)}
-body.light-mode .badge.orange{background:rgba(245,158,11,.12);color:#d97706;border-color:rgba(245,158,11,.25)}
-body.light-mode .badge.blue{background:rgba(59,130,246,.12);color:#2563eb;border-color:rgba(59,130,246,.25)}
-body.light-mode .badge.gray{background:rgba(100,116,139,.12);color:#475569;border-color:rgba(100,116,139,.25)}
+body.light-mode .nom-prof{color:#0f172a !important}
+body.light-mode td strong[style*="color:#fff"],body.light-mode td strong[style*="color: #fff"]{color:#0f172a !important}
 body.light-mode .empty{color:#64748b}
-body.light-mode .empty i{color:rgba(180,83,9,.2)}
-body.light-mode .toast{background:linear-gradient(160deg,#ffffff,#f8fafc);border-color:rgba(15,23,42,.08);color:#0f172a}
+body.light-mode .toast{background:linear-gradient(160deg,#ffffff,#f8fafc);border-color:rgba(15,23,42,.08)}
 body.light-mode .toast .msg{color:#0f172a}
 body.light-mode .modal{background:rgba(241,245,249,.85)}
-body.light-mode .modal-box{background:linear-gradient(160deg,#ffffff,#f8fafc);border-color:rgba(15,23,42,.08);box-shadow:0 20px 60px rgba(15,23,42,.15)}
+body.light-mode .modal-box{background:linear-gradient(160deg,#ffffff,#f8fafc);border-color:rgba(15,23,42,.08)}
 body.light-mode .modal-box h3{color:#0f172a}
-body.light-mode #elevesPagination{background:#f8fafc!important;border-color:rgba(15,23,42,.08)!important}
-body.light-mode #elevesPaginationInfo{color:#64748b!important}
-body.light-mode #elevesPaginationPages{color:#0f172a!important}
-body.light-mode strong[style*="color:#fff"]{color:#0f172a!important}
-body.light-mode .spinner{border-color:rgba(15,23,42,.15);border-top-color:#0f172a}
+body.light-mode .pdf-section{background:#f8fafc;border-color:rgba(15,23,42,.08)}
+body.light-mode .roles-table{background:#ffffff}
+body.light-mode .roles-table thead th{background:linear-gradient(180deg,rgba(180,83,9,.1),rgba(180,83,9,.03));color:var(--gold);border-bottom-color:var(--gold)}
+body.light-mode .roles-table tbody td{color:#0f172a;border-bottom-color:rgba(15,23,42,.05)}
+body.light-mode .roles-table tbody tr:nth-child(odd){background:rgba(180,83,9,.02)}
+body.light-mode .roles-table tbody tr:hover td{background:rgba(180,83,9,.05)}
+body.light-mode input[type="text"],body.light-mode input[type="tel"],body.light-mode input[type="date"],body.light-mode input[type="month"],body.light-mode select{color:#0f172a}
 @media(max-width:640px){
 .container{padding:12px}
 .header{padding:14px 18px;border-radius:16px}
@@ -213,10 +235,13 @@ body.light-mode .spinner{border-color:rgba(15,23,42,.15);border-top-color:#0f172
 .login-title{font-size:22px}
 .login-logo{width:64px;height:64px;font-size:32px}
 .modal-box{padding:24px 20px;border-radius:18px}
+.pdf-buttons{flex-direction:column}
+.pdf-buttons .btn{width:100%;justify-content:center}
 }
 </style>
 </head>
 <body>
+
 <div class="login-screen" id="loginScreen">
 <div class="login-card">
 <div class="login-logo">🏫</div>
@@ -240,6 +265,7 @@ body.light-mode .spinner{border-color:rgba(15,23,42,.15);border-top-color:#0f172
 </div>
 </div>
 </div>
+
 <div class="container" id="appContainer" style="display:none;">
 <div class="header">
 <div class="header-left">
@@ -261,13 +287,19 @@ body.light-mode .spinner{border-color:rgba(15,23,42,.15);border-top-color:#0f172
 <button class="btn-logout" id="btnLogout"><i class="fas fa-sign-out-alt"></i> DÉCONNEXION</button>
 </div>
 </div>
+
 <div class="tabs-wrap">
 <div class="tabs">
 <button class="tab active" data-tab="tabStats"><i class="fas fa-chart-bar"></i> STATISTIQUES</button>
 <button class="tab" data-tab="tabEleves"><i class="fas fa-users"></i> ÉLÈVES</button>
-<button class="tab" data-tab="tabPresences"><i class="fas fa-clock"></i> PRÉSENCES PROFS</button>
+<button class="tab" data-tab="tabPresences"><i class="fas fa-clipboard-check"></i> ESPACE DE CONTRÔLE DES PROFESSEURS</button>
+<button class="tab" data-tab="tabFiches"><i class="fas fa-id-card"></i> FICHE D'IDENTIFICATION DES PROFESSEURS</button>
+<button class="tab" data-tab="tabTitulariat"><i class="fas fa-user-tie"></i> FICHE DE TITULARIAT</button>
+<button class="tab" data-tab="tabPDF"><i class="fas fa-file-pdf"></i> EXPORTATION PDF</button>
+<button class="tab" data-tab="tabRoles"><i class="fas fa-user-shield"></i> RÔLES ET PERMISSIONS</button>
 </div>
 </div>
+
 <div id="tabStats" class="tab-content active">
 <div class="card">
 <div class="card-head"><h3><i class="fas fa-chart-bar"></i> STATISTIQUES SECONDAIRE</h3></div>
@@ -286,6 +318,7 @@ body.light-mode .spinner{border-color:rgba(15,23,42,.15);border-top-color:#0f172
 </div>
 </div>
 </div>
+
 <div id="tabEleves" class="tab-content">
 <div class="card">
 <div class="card-head"><h3><i class="fas fa-users"></i> LISTE DES ÉLÈVES</h3></div>
@@ -306,19 +339,20 @@ body.light-mode .spinner{border-color:rgba(15,23,42,.15);border-top-color:#0f172
 <div id="elevesPagination" style="display:none;margin-top:14px;padding:12px 16px;background:rgba(10,14,26,.5);border:1px solid var(--border);border-radius:14px;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
 <div id="elevesPaginationInfo" style="font-size:12px;color:var(--muted);font-weight:600;"></div>
 <div style="display:flex;gap:8px;align-items:center;">
-<button class="btn btn-sm btn-outline" id="btnPrevPage" style="padding:8px 16px;"><i class="fas fa-chevron-left"></i> Précédent</button>
+<button class="btn btn-sm btn-outline" id="btnPrevPage"><i class="fas fa-chevron-left"></i> Précédent</button>
 <span id="elevesPaginationPages" style="font-size:12px;font-weight:700;color:var(--text);padding:0 8px;"></span>
-<button class="btn btn-sm btn-outline" id="btnNextPage" style="padding:8px 16px;">Suivant <i class="fas fa-chevron-right"></i></button>
+<button class="btn btn-sm btn-outline" id="btnNextPage">Suivant <i class="fas fa-chevron-right"></i></button>
 </div>
 </div>
 </div>
 </div>
 </div>
+
 <div id="tabPresences" class="tab-content">
 <div class="card">
 <div class="card-head">
-<h3><i class="fas fa-clock"></i> PRÉSENCES DES PROFESSEURS</h3>
-<span style="font-size:11px;color:var(--muted);font-weight:600;">Document · Arrivée · Statut</span>
+<h3><i class="fas fa-clipboard-check"></i> ESPACE DE CONTRÔLE DES PROFESSEURS</h3>
+<span style="font-size:11px;color:var(--muted);font-weight:600;">Consultation uniquement</span>
 </div>
 <div class="card-body">
 <div class="row">
@@ -330,7 +364,11 @@ body.light-mode .spinner{border-color:rgba(15,23,42,.15);border-top-color:#0f172
 <div class="stat"><div class="lbl">Présents</div><div class="val green" id="pPresent">0</div></div>
 <div class="stat"><div class="lbl">Absents</div><div class="val red" id="pAbsent">0</div></div>
 <div class="stat"><div class="lbl">Retards</div><div class="val orange" id="pRetard">0</div></div>
-<div class="stat"><div class="lbl">Docs</div><div class="val gold" id="pDoc">0</div></div>
+<div class="stat"><div class="lbl">Journaux</div><div class="val gold" id="pJournal">0</div></div>
+<div class="stat"><div class="lbl">Cahiers</div><div class="val gold" id="pCahier">0</div></div>
+<div class="stat"><div class="lbl">Prévisions</div><div class="val gold" id="pPrevision">0</div></div>
+<div class="stat"><div class="lbl">Compositions</div><div class="val gold" id="pComposition">0</div></div>
+<div class="stat"><div class="lbl">Observations</div><div class="val blue" id="pObservation">0</div></div>
 </div>
 <div class="table-wrap" style="margin-top:16px;">
 <table>
@@ -338,23 +376,191 @@ body.light-mode .spinner{border-color:rgba(15,23,42,.15);border-top-color:#0f172
 <tr>
 <th>N°</th>
 <th>Nom du professeur</th>
-<th>Sexe</th>
-<th>Statut</th>
-<th>Arrivée</th>
-<th>Document</th>
-<th>Motif</th>
+<th style="text-align:center;">Arrivée</th>
+<th style="text-align:center;">Sortie</th>
+<th style="text-align:center;">Journal de classe</th>
+<th style="text-align:center;">Cahier de préparation</th>
+<th style="text-align:center;">Prévision de matière</th>
+<th style="text-align:center;">Cahier de composition</th>
+<th style="text-align:center;min-width:160px;">Observation</th>
 </tr>
 </thead>
 <tbody id="presencesTable">
-<tr><td colspan="7" class="empty"><i class="fas fa-spinner fa-spin"></i><br>Chargement...</td></tr>
+<tr><td colspan="9" class="empty"><i class="fas fa-spinner fa-spin"></i><br>Chargement...</td></tr>
 </tbody>
 </table>
 </div>
 </div>
 </div>
 </div>
+
+<div id="tabFiches" class="tab-content">
+<div class="card">
+<div class="card-head">
+<h3><i class="fas fa-id-card"></i> FICHES D'IDENTIFICATION DES PROFESSEURS</h3>
+<div class="fg" style="min-width:200px;flex:1;"><label><i class="fas fa-search"></i></label><input type="text" id="searchFiche" placeholder="Rechercher un professeur..."></div>
 </div>
+<div class="card-body">
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>N°</th>
+<th>Nom, Postnom & Prénom</th>
+<th style="text-align:center;">Sexe</th>
+<th>Niveau d'études</th>
+<th>Téléphone</th>
+</tr>
+</thead>
+<tbody id="fichesTable">
+<tr><td colspan="5" class="empty"><i class="fas fa-spinner fa-spin"></i><br>Chargement...</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+
+<div id="tabTitulariat" class="tab-content">
+<div class="card">
+<div class="card-head">
+<h3><i class="fas fa-user-tie"></i> FICHE DE TITULARIAT</h3>
+<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+<div class="fg" style="min-width:180px;flex:1;"><label><i class="fas fa-search"></i></label><input type="text" id="searchTitulaire" placeholder="Rechercher..."></div>
+<button class="btn btn-sm btn-success" id="btnAddTitulaire"><i class="fas fa-plus"></i> NOMMER UN TITULAIRE</button>
+</div>
+</div>
+<div class="card-body">
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th style="width:50px;">N°</th>
+<th>Nom, Postnom & Prénom</th>
+<th style="text-align:center;width:70px;">Sexe</th>
+<th style="width:140px;">N° Téléphone</th>
+<th>Classe · Option</th>
+<th style="text-align:center;width:90px;">Action</th>
+</tr>
+</thead>
+<tbody id="titulariatTable">
+<tr><td colspan="6" class="empty"><i class="fas fa-spinner fa-spin"></i><br>Chargement...</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+
+<div id="tabPDF" class="tab-content">
+<div class="card">
+<div class="card-head">
+<h3><i class="fas fa-file-pdf"></i> EXPORTATION DES DOCUMENTS PDF</h3>
+</div>
+<div class="card-body">
+
+<div class="pdf-section gold">
+<h4><i class="fas fa-clipboard-check"></i> CONTRÔLE DES PROFESSEURS</h4>
+<div class="row">
+<div class="fg"><label>DATE</label><input type="date" id="pdfDateControle"></div>
+</div>
+<div class="pdf-buttons">
+<button class="btn btn-sm btn-pdf" id="btnPDFControleJour">
+<i class="fas fa-file-pdf"></i> FICHE DE CONTRÔLE DU JOUR
+</button>
+</div>
+<div class="row" style="margin-top:14px;">
+<div class="fg"><label>MOIS</label><input type="month" id="pdfMoisRapport"></div>
+</div>
+<div class="pdf-buttons">
+<button class="btn btn-sm btn-pdf" id="btnPDFRapportMensuel">
+<i class="fas fa-file-pdf"></i> RAPPORT MENSUEL DES PROFESSEURS
+</button>
+</div>
+</div>
+
+<div class="pdf-section blue">
+<h4><i class="fas fa-id-card"></i> FICHES D'IDENTIFICATION DES PROFESSEURS</h4>
+<div class="row">
+<div class="fg" style="flex:2;"><label>PROFESSEUR</label><select id="pdfSelectProf"></select></div>
+</div>
+<div class="pdf-buttons">
+<button class="btn btn-sm btn-pdf" id="btnPDFProfIndividuel">
+<i class="fas fa-file-pdf"></i> FICHE INDIVIDUELLE
+</button>
+<button class="btn btn-sm btn-pdf" id="btnPDFProfToutes">
+<i class="fas fa-file-pdf"></i> TOUTES LES FICHES
+</button>
+</div>
+</div>
+
+<div class="pdf-section green">
+<h4><i class="fas fa-user-tie"></i> FICHES DE TITULARIAT</h4>
+<div class="row">
+<div class="fg" style="flex:2;"><label>TITULAIRE</label><select id="pdfSelectTitulaire"></select></div>
+</div>
+<div class="pdf-buttons">
+<button class="btn btn-sm btn-pdf" id="btnPDFTitulaireIndividuel">
+<i class="fas fa-file-pdf"></i> FICHE INDIVIDUELLE
+</button>
+<button class="btn btn-sm btn-pdf" id="btnPDFTitulaireToutes">
+<i class="fas fa-file-pdf"></i> TOUTES LES FICHES
+</button>
+</div>
+</div>
+
+</div>
+</div>
+</div>
+
+<div id="tabRoles" class="tab-content">
+<div class="card">
+<div class="card-head">
+<h3><i class="fas fa-user-shield"></i> RÔLES ET PERMISSIONS</h3>
+</div>
+<div class="card-body">
+<div style="overflow-x:auto;border-radius:14px;border:1px solid var(--border);">
+<table class="roles-table">
+<thead>
+<tr>
+<th>Fonctionnalité</th>
+<th>Préfet</th>
+<th>Secrétaire</th>
+<th>Comptable</th>
+</tr>
+</thead>
+<tbody>
+<tr><td>Voir les statistiques</td><td><span class="check">✅</span></td><td><span class="check">✅</span></td><td><span class="check">✅</span></td></tr>
+<tr><td>Voir les élèves</td><td><span class="check">✅</span></td><td><span class="check">✅</span></td><td><span class="check">✅</span></td></tr>
+<tr><td>Voir les professeurs</td><td><span class="check">✅</span></td><td><span class="check">✅</span></td><td><span class="cross">❌</span></td></tr>
+<tr><td>Inscrire un élève</td><td><span class="cross">❌</span></td><td><span class="cross">❌</span></td><td><span class="check">✅</span></td></tr>
+<tr><td>Ajouter un professeur</td><td><span class="cross">❌</span></td><td><span class="check">✅</span></td><td><span class="cross">❌</span></td></tr>
+<tr><td>Pointer l'arrivée des professeurs</td><td><span class="cross">❌</span></td><td><span class="check">✅</span></td><td><span class="cross">❌</span></td></tr>
+<tr><td>Pointer la sortie des professeurs</td><td><span class="cross">❌</span></td><td><span class="check">✅</span></td><td><span class="cross">❌</span></td></tr>
+<tr><td>Marquer les documents pédagogiques</td><td><span class="cross">❌</span></td><td><span class="check">✅</span></td><td><span class="cross">❌</span></td></tr>
+<tr><td>Gérer les paiements de minerval</td><td><span class="cross">❌</span></td><td><span class="cross">❌</span></td><td><span class="check">✅</span></td></tr>
+<tr><td>Faire le recouvrement</td><td><span class="cross">❌</span></td><td><span class="check">✅</span></td><td><span class="cross">❌</span></td></tr>
+<tr><td>Marquer un mois blanc</td><td><span class="cross">❌</span></td><td><span class="cross">❌</span></td><td><span class="check">✅</span></td></tr>
+<tr><td>Gérer les codes parent</td><td><span class="cross">❌</span></td><td><span class="cross">❌</span></td><td><span class="check">✅</span></td></tr>
+<tr><td>Configurer les minervaux</td><td><span class="cross">❌</span></td><td><span class="cross">❌</span></td><td><span class="check">✅</span></td></tr>
+<tr><td>Générer les reçus</td><td><span class="cross">❌</span></td><td><span class="cross">❌</span></td><td><span class="check">✅</span></td></tr>
+<tr><td>Générer les rapports financiers</td><td><span class="cross">❌</span></td><td><span class="cross">❌</span></td><td><span class="check">✅</span></td></tr>
+<tr><td>Voir les fiches d'identification</td><td><span class="check">✅</span></td><td><span class="cross">❌</span></td><td><span class="cross">❌</span></td></tr>
+<tr><td>Contrôler les professeurs</td><td><span class="check">✅</span></td><td><span class="cross">❌</span></td><td><span class="cross">❌</span></td></tr>
+<tr><td>Voir la fiche de contrôle du jour</td><td><span class="check">✅</span></td><td><span class="cross">❌</span></td><td><span class="cross">❌</span></td></tr>
+<tr><td>Voir le rapport mensuel des professeurs</td><td><span class="check">✅</span></td><td><span class="cross">❌</span></td><td><span class="cross">❌</span></td></tr>
+<tr><td>Nommer un titulaire</td><td><span class="check">✅</span></td><td><span class="cross">❌</span></td><td><span class="cross">❌</span></td></tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+
 <div class="toast-container" id="toasts"></div>
+
 <div class="modal" id="modalConfirm">
 <div class="modal-box" style="max-width:420px;">
 <h3 id="confirmTitle"><i class="fas fa-question-circle"></i> CONFIRMATION</h3>
@@ -365,6 +571,68 @@ body.light-mode .spinner{border-color:rgba(15,23,42,.15);border-top-color:#0f172
 </div>
 </div>
 </div>
+
+<div class="modal" id="modalTitulaire">
+<div class="modal-box">
+<h3><i class="fas fa-user-plus"></i> NOMMER UN TITULAIRE</h3>
+<div style="display:flex;flex-direction:column;gap:14px;">
+<div>
+<label style="display:block;font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">
+<i class="fas fa-chalkboard-teacher"></i> Choisir un professeur
+</label>
+<select id="titProfSelect" style="width:100%;padding:12px 14px;border-radius:12px;border:2px solid var(--border);background:rgba(10,14,26,.6);color:var(--text);font-size:14px;font-family:'Inter',sans-serif;outline:none;cursor:pointer;">
+<option value="">-- Sélectionner un professeur --</option>
+</select>
+</div>
+<div style="background:rgba(212,175,55,.08);border:1px solid var(--border);border-radius:12px;padding:14px;">
+<div style="font-size:10px;font-weight:800;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+<i class="fas fa-info-circle"></i> Informations du professeur
+</div>
+<div style="display:flex;flex-direction:column;gap:6px;font-size:13px;">
+<div><strong>Nom :</strong> <span id="titInfoNom" style="color:var(--muted);">-</span></div>
+<div><strong>Sexe :</strong> <span id="titInfoSexe" style="color:var(--muted);">-</span></div>
+<div><strong>Téléphone :</strong> <span id="titInfoTel" style="color:var(--muted);">-</span></div>
+</div>
+</div>
+<div>
+<label style="display:block;font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">
+<i class="fas fa-school"></i> Classe dont il/elle est titulaire
+</label>
+<select id="titClasses" style="width:100%;padding:12px 14px;border-radius:12px;border:2px solid var(--border);background:rgba(10,14,26,.6);color:var(--text);font-size:14px;font-family:'Inter',sans-serif;outline:none;cursor:pointer;">
+<option value="">-- Sélectionner une classe --</option>
+<optgroup label="🎓 SECONDAIRE">
+<option value="7ème EB">7ème EB</option>
+<option value="8ème EB">8ème EB</option>
+<option value="1ère Année">1ère Année</option>
+<option value="2ème Année">2ème Année</option>
+<option value="3ème Année">3ème Année</option>
+<option value="4ème Année">4ème Année</option>
+</optgroup>
+</select>
+</div>
+<div id="titOptionWrapper" style="display:none;">
+<label style="display:block;font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">
+<i class="fas fa-tag"></i> Option de la classe
+</label>
+<select id="titOption" style="width:100%;padding:12px 14px;border-radius:12px;border:2px solid var(--border);background:rgba(10,14,26,.6);color:var(--text);font-size:14px;font-family:'Inter',sans-serif;outline:none;cursor:pointer;">
+<option value="">-- Sélectionner une option --</option>
+<option value="SCIENCES">SCIENCES</option>
+<option value="PEDAGOGIE GENERALE">PEDAGOGIE GENERALE</option>
+<option value="COMMERCIALE ET GESTION">COMMERCIALE ET GESTION</option>
+<option value="ELECTRICITE">ELECTRICITE</option>
+<option value="MECANIQUE GENERALE">MECANIQUE GENERALE</option>
+<option value="MECANIQUE AUTO">MECANIQUE AUTO</option>
+<option value="COUPE ET COUTURE">COUPE ET COUTURE</option>
+</select>
+</div>
+</div>
+<div class="form-actions">
+<button class="btn btn-outline" id="titCancel">ANNULER</button>
+<button class="btn btn-success" id="titSave"><i class="fas fa-check"></i> NOMMER TITULAIRE</button>
+</div>
+</div>
+</div>
+
 <script type="importmap">
 {
 "imports": {
@@ -376,7 +644,7 @@ body.light-mode .spinner{border-color:rgba(15,23,42,.15);border-top-color:#0f172
 </script>
 <script type="module">
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, getDocs, onSnapshot } from "firebase/firestore";
+import { getFirestore, collection, getDocs, onSnapshot, doc, getDoc, updateDoc, setDoc, deleteDoc } from "firebase/firestore";
 import { getAuth, signInWithEmailAndPassword, signOut } from "firebase/auth";
 
 const firebaseConfig = {
@@ -405,30 +673,30 @@ const SCHOOL_DISPLAY_NAME = schoolId.toUpperCase();
 document.getElementById('schoolName').textContent = SCHOOL_DISPLAY_NAME;
 
 const PREFET_EMAIL_AUTH = "prefet.bwacha@gmail.com";
-
 const SESSION_KEY = 'prefet_session_active';
 const SESSION_TIMEOUT = 1000 * 60 * 60 * 24;
-
 const REFRESH_KEY = 'prefet_refresh_count';
 const REFRESH_MAX = 3;
-
 const ELEVES_PAR_PAGE = 20;
 
 const CLASSES = ["7ème EB","8ème EB","1ère Année","2ème Année","3ème Année","4ème Année"];
+const OPTIONS_SECTION = ["SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","MECANIQUE AUTO","COUPE ET COUTURE"];
 const OPTIONS = {
 "7ème EB": [], "8ème EB": [],
-"1ère Année": ["LATIN-PHILO","SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","COUPE ET COUTURE"],
-"2ème Année": ["LATIN-PHILO","SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","COUPE ET COUTURE"],
-"3ème Année": ["LATIN-PHILO","SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","COUPE ET COUTURE"],
-"4ème Année": ["LATIN-PHILO","SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","COUPE ET COUTURE"]
+"1ère Année": OPTIONS_SECTION,
+"2ème Année": OPTIONS_SECTION,
+"3ème Année": OPTIONS_SECTION,
+"4ème Année": OPTIONS_SECTION
 };
 
 let allStudents = [];
 let allProfs = [];
+let allTitulaires = [];
 let unsubscribeEleves = null;
 let unsubscribeProfs = null;
+let unsubscribeTitulaires = null;
 let currentPage = 1;
-let filteredElevesCache = [];
+let ecouteursActifs = false;
 
 function toast(msg, type = 'success') {
 const c = document.getElementById('toasts');
@@ -438,15 +706,11 @@ const icon = type === 'error' ? 'fa-exclamation-circle' : type === 'warning' ? '
 el.innerHTML = `<i class="fas ${icon}"></i><div class="msg">${msg}</div>`;
 c.appendChild(el);
 setTimeout(() => el.classList.add('show'), 10);
-setTimeout(() => {
-el.classList.remove('show');
-setTimeout(() => el.remove(), 400);
-}, 3200);
+setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 400); }, 3200);
 }
 
-function getNomComplet(e) {
-return ((e.nom||'') + ' ' + (e.postnom||'') + ' ' + (e.prenom||'')).trim();
-}
+function getNomComplet(e) { return ((e.nom||'') + ' ' + (e.postnom||'') + ' ' + (e.prenom||'')).trim(); }
+function escapeHtml(s){if(!s)return'';return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
 
 function showConfirm(title, message, confirmLabel = 'CONFIRMER') {
 return new Promise(resolve => {
@@ -457,52 +721,27 @@ const btnYes = document.getElementById('confirmYes');
 const btnNo = document.getElementById('confirmNo');
 btnYes.textContent = confirmLabel;
 modal.classList.add('show');
-const cleanup = () => {
-modal.classList.remove('show');
-btnYes.onclick = null;
-btnNo.onclick = null;
-};
+const cleanup = () => { modal.classList.remove('show'); btnYes.onclick = null; btnNo.onclick = null; };
 btnYes.onclick = () => { cleanup(); resolve(true); };
 btnNo.onclick = () => { cleanup(); resolve(false); };
 });
 }
 
-function marquerSessionActive() {
-try {
-localStorage.setItem(SESSION_KEY, JSON.stringify({ active: true, timestamp: Date.now() }));
-} catch (e) {}
-}
-
+function marquerSessionActive() { try { localStorage.setItem(SESSION_KEY, JSON.stringify({ active: true, timestamp: Date.now() })); } catch (e) {} }
 function sessionEstActive() {
 try {
 const raw = localStorage.getItem(SESSION_KEY);
 if (!raw) return false;
 const data = JSON.parse(raw);
 if (!data.active) return false;
-if (Date.now() - (data.timestamp || 0) > SESSION_TIMEOUT) {
-localStorage.removeItem(SESSION_KEY);
-return false;
-}
+if (Date.now() - (data.timestamp || 0) > SESSION_TIMEOUT) { localStorage.removeItem(SESSION_KEY); return false; }
 return true;
-} catch (e) {
-return false;
+} catch (e) { return false; }
 }
-}
-
-function effacerSession() {
-try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
-}
-
-function rafraichirSession() {
-if (sessionEstActive()) marquerSessionActive();
-}
-
+function effacerSession() { try { localStorage.removeItem(SESSION_KEY); } catch (e) {} }
+function rafraichirSession() { if (sessionEstActive()) marquerSessionActive(); }
 setInterval(rafraichirSession, 1000 * 60 * 30);
-['click', 'keydown', 'touchstart'].forEach(evt => {
-document.addEventListener(evt, () => {
-if (sessionEstActive()) marquerSessionActive();
-}, { passive: true });
-});
+['click', 'keydown', 'touchstart'].forEach(evt => { document.addEventListener(evt, () => { if (sessionEstActive()) marquerSessionActive(); }, { passive: true }); });
 
 function getRefreshInfo() {
 try {
@@ -512,48 +751,26 @@ if (!raw) return { date: today, count: 0 };
 const data = JSON.parse(raw);
 if (data.date !== today) return { date: today, count: 0 };
 return { date: data.date, count: data.count || 0 };
-} catch (e) {
-return { date: new Date().toISOString().split('T')[0], count: 0 };
+} catch (e) { return { date: new Date().toISOString().split('T')[0], count: 0 }; }
 }
-}
-
-function setRefreshInfo(info) {
-try { localStorage.setItem(REFRESH_KEY, JSON.stringify(info)); } catch (e) {}
-}
+function setRefreshInfo(info) { try { localStorage.setItem(REFRESH_KEY, JSON.stringify(info)); } catch (e) {} }
 
 async function assurerComptePrefet(pwdSaisi) {
-try {
-await signInWithEmailAndPassword(auth, PREFET_EMAIL_AUTH, pwdSaisi);
-return true;
-} catch (loginErr) {
-if (loginErr.code === "auth/network-request-failed") {
-throw new Error("Connexion au réseau impossible");
-}
-if (loginErr.code === "auth/too-many-requests") {
-throw new Error("Trop de tentatives. Patientez quelques minutes.");
-}
-if (loginErr.code === "auth/user-not-found" ||
-loginErr.code === "auth/wrong-password" ||
-loginErr.code === "auth/invalid-credential" ||
-loginErr.code === "auth/invalid-login-credentials") {
-throw new Error("Mot de passe incorrect");
-}
+try { await signInWithEmailAndPassword(auth, PREFET_EMAIL_AUTH, pwdSaisi); return true; }
+catch (loginErr) {
+if (loginErr.code === "auth/network-request-failed") throw new Error("Connexion au réseau impossible");
+if (loginErr.code === "auth/too-many-requests") throw new Error("Trop de tentatives. Patientez quelques minutes.");
+if (loginErr.code === "auth/user-not-found" || loginErr.code === "auth/wrong-password" || loginErr.code === "auth/invalid-credential" || loginErr.code === "auth/invalid-login-credentials") throw new Error("Mot de passe incorrect");
 throw new Error("Service indisponible. Réessayez plus tard.");
 }
 }
 
 function mapEleve(d, docId) {
 return {
-id: d.eleveId || d.id || docId,
-docId,
-nom: d.nom || '',
-postnom: d.postnom || '',
-prenom: d.prenom || '',
-sexe: d.sexe || 'M',
-classe: d.classe || '',
-option: d.option || '',
-exonere: d.exonere || false,
-abandon: d.abandon || false
+id: d.eleveId || d.id || docId, docId,
+nom: d.nom || '', postnom: d.postnom || '', prenom: d.prenom || '',
+sexe: d.sexe || 'M', classe: d.classe || '', option: d.option || '',
+exonere: d.exonere || false, abandon: d.abandon || false
 };
 }
 
@@ -568,11 +785,7 @@ async function chargerEleves() {
 try {
 const snap = await getDocs(collection(db, "ecoles", SCHOOL_ID, "compta_eleves"));
 const eleves = [];
-snap.forEach(ds => {
-const d = ds.data();
-if (!estValide(d)) return;
-eleves.push(mapEleve(d, ds.id));
-});
+snap.forEach(ds => { const d = ds.data(); if (!estValide(d)) return; eleves.push(mapEleve(d, ds.id)); });
 eleves.sort((a, b) => (a.nom||'').localeCompare(b.nom||''));
 allStudents = eleves;
 return eleves;
@@ -586,7 +799,13 @@ const profs = [];
 snap.forEach(ds => {
 const d = ds.data();
 if (d._type === 'prof' && d.actif !== false && d.nom) {
-profs.push({ id: ds.id, nom: d.nom || '', sexe: d.sexe || 'M', presences: d.presences || {} });
+profs.push({
+id: ds.id, nom: d.nom || '', sexe: d.sexe || 'M',
+presences: d.presences || {},
+niveauEtudes: d.niveauEtudes || '',
+telephone: d.telephone || '',
+actif: d.actif !== false
+});
 }
 });
 profs.sort((a, b) => (a.nom||'').localeCompare(b.nom||''));
@@ -595,15 +814,25 @@ return profs;
 } catch (e) { return []; }
 }
 
+async function chargerTitulaires() {
+try {
+const snap = await getDocs(collection(db, "ecoles", SCHOOL_ID, "titulaires"));
+const list = [];
+snap.forEach(ds => { const d = ds.data(); if (d.nom) list.push({ id: ds.id, ...d }); });
+list.sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
+allTitulaires = list;
+return list;
+} catch(e) {
+allTitulaires = [];
+return [];
+}
+}
+
 function ecouterEleves() {
 if (unsubscribeEleves) unsubscribeEleves();
 unsubscribeEleves = onSnapshot(collection(db, "ecoles", SCHOOL_ID, "compta_eleves"), (snap) => {
 const eleves = [];
-snap.forEach(ds => {
-const d = ds.data();
-if (!estValide(d)) return;
-eleves.push(mapEleve(d, ds.id));
-});
+snap.forEach(ds => { const d = ds.data(); if (!estValide(d)) return; eleves.push(mapEleve(d, ds.id)); });
 eleves.sort((a, b) => (a.nom||'').localeCompare(b.nom||''));
 allStudents = eleves;
 renderEleves();
@@ -618,12 +847,32 @@ const profs = [];
 snap.forEach(ds => {
 const d = ds.data();
 if (d._type === 'prof' && d.actif !== false && d.nom) {
-profs.push({ id: ds.id, nom: d.nom || '', sexe: d.sexe || 'M', presences: d.presences || {} });
+profs.push({
+id: ds.id, nom: d.nom || '', sexe: d.sexe || 'M',
+presences: d.presences || {},
+niveauEtudes: d.niveauEtudes || '',
+telephone: d.telephone || '',
+actif: d.actif !== false
+});
 }
 });
 profs.sort((a, b) => (a.nom||'').localeCompare(b.nom||''));
 allProfs = profs;
 renderPresences();
+renderFiches();
+initOngletPDF();
+}, () => {});
+}
+
+function ecouterTitulaires() {
+if (unsubscribeTitulaires) unsubscribeTitulaires();
+unsubscribeTitulaires = onSnapshot(collection(db, "ecoles", SCHOOL_ID, "titulaires"), (snap) => {
+const list = [];
+snap.forEach(ds => { const d = ds.data(); if (d.nom) list.push({ id: ds.id, ...d }); });
+list.sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
+allTitulaires = list;
+renderTitulariat();
+initOngletPDF();
 }, () => {});
 }
 
@@ -638,8 +887,6 @@ let list = allStudents.filter(e => !e.abandon);
 if (search) list = list.filter(e => getNomComplet(e).toLowerCase().includes(search));
 if (fClasse) list = list.filter(e => e.classe === fClasse);
 if (fOption) list = list.filter(e => e.option === fOption);
-
-filteredElevesCache = list;
 
 if (list.length === 0) {
 tbody.innerHTML = `<tr><td colspan="4" class="empty"><i class="fas fa-users"></i><br>Aucun élève</td></tr>`;
@@ -657,14 +904,7 @@ const pageItems = list.slice(debut, fin);
 
 tbody.innerHTML = pageItems.map((e, i) => {
 const numeroAffiche = debut + i + 1;
-return `
-<tr>
-<td>${numeroAffiche}</td>
-<td><strong style="color:#fff;">${getNomComplet(e).toUpperCase()}</strong></td>
-<td>${e.classe || '-'}</td>
-<td>${e.option || '-'}</td>
-</tr>
-`;
+return `<tr><td>${numeroAffiche}</td><td><strong class="nom-prof">${getNomComplet(e).toUpperCase()}</strong></td><td>${e.classe || '-'}</td><td>${e.option || '-'}</td></tr>`;
 }).join('');
 
 afficherPagination(debut, fin, list.length, totalPages);
@@ -677,18 +917,13 @@ const pages = document.getElementById('elevesPaginationPages');
 const btnPrev = document.getElementById('btnPrevPage');
 const btnNext = document.getElementById('btnNextPage');
 
-if (totalPages <= 1) {
-bar.style.display = 'none';
-return;
-}
+if (totalPages <= 1) { bar.style.display = 'none'; return; }
 
 bar.style.display = 'flex';
 info.textContent = `${debut + 1} – ${fin} sur ${total} élève${total > 1 ? 's' : ''}`;
 pages.textContent = `Page ${currentPage} / ${totalPages}`;
-
 btnPrev.disabled = currentPage <= 1;
 btnNext.disabled = currentPage >= totalPages;
-
 btnPrev.onclick = () => { if (currentPage > 1) { currentPage--; renderEleves(); } };
 btnNext.onclick = () => { if (currentPage < totalPages) { currentPage++; renderEleves(); } };
 }
@@ -714,13 +949,9 @@ return `<div class="stat"><div class="lbl">${cl}</div><div class="val">${n}</div
 const map = {};
 actifs.forEach(e => {
 let k;
-if (e.option) {
-k = e.option;
-} else if (e.classe === '7ème EB' || e.classe === '8ème EB') {
-k = 'EB (sans option prévue)';
-} else {
-k = 'Sans option ⚠️';
-}
+if (e.option) k = e.option;
+else if (e.classe === '7ème EB' || e.classe === '8ème EB') k = 'EB (sans option prévue)';
+else k = 'Sans option ⚠️';
 map[k] = (map[k] || 0) + 1;
 });
 
@@ -742,63 +973,689 @@ function renderPresences() {
 const dateKey = document.getElementById('presenceDate').value || new Date().toISOString().split('T')[0];
 const search = (document.getElementById('searchProf').value || '').toLowerCase();
 const tbody = document.getElementById('presencesTable');
-
 const list = allProfs.filter(p => !search || (p.nom || '').toLowerCase().includes(search));
 
 if (list.length === 0) {
-tbody.innerHTML = `<tr><td colspan="7" class="empty"><i class="fas fa-chalkboard-teacher"></i><br>Aucun professeur</td></tr>`;
-['pTotal','pPresent','pAbsent','pRetard','pDoc'].forEach(id => {
-const el = document.getElementById(id);
-if (el) el.textContent = '0';
+tbody.innerHTML = `<tr><td colspan="9" class="empty"><i class="fas fa-chalkboard-teacher"></i><br>Aucun professeur</td></tr>`;
+['pTotal','pPresent','pAbsent','pRetard','pJournal','pCahier','pPrevision','pComposition','pObservation'].forEach(id => {
+const el = document.getElementById(id); if (el) el.textContent = '0';
 });
 return;
 }
 
-let present = 0, absent = 0, retard = 0, docs = 0;
+let present = 0, absent = 0, retard = 0, journals = 0, cahiers = 0, previsions = 0, compositions = 0, observations = 0;
 
 const rows = list.map((p, i) => {
 const presence = (p.presences && p.presences[dateKey]) || null;
 const statut = presence?.statut || 'absent';
 const heureArrivee = presence?.heureArrivee || '-';
-const docPedago = presence?.documentPedagogique === 'oui';
-const motif = presence?.motif || '-';
-const sexe = p.sexe === 'F' ? 'F' : 'M';
+const heureSortie = presence?.heureSortie || '-';
+const journal = presence?.journalClasse === 'ok';
+const cahier = presence?.cahierPreparation === 'ok';
+const prevision = presence?.previsionMatiere === 'ok';
+const composition = presence?.cahierComposition === 'ok';
+const observation = presence?.observation || '-';
 
 if (statut === 'present') present++;
 else if (statut === 'retard') retard++;
 else absent++;
-if (docPedago) docs++;
+if (journal) journals++;
+if (cahier) cahiers++;
+if (prevision) previsions++;
+if (composition) compositions++;
+if (observation && observation !== '-') observations++;
 
-const badgeCls = statut === 'present' ? 'green' : statut === 'retard' ? 'orange' : 'red';
-const badgeTxt = statut === 'present' ? 'PRÉSENT' : statut === 'retard' ? 'RETARD' : 'ABSENT';
-const docCls = docPedago ? 'green' : 'red';
-const docTxt = docPedago ? 'OUI' : 'NON';
+const badgeStatic = (val) => val === 'ok'
+? '<span class="badge green" style="font-size:11px;"><i class="fas fa-check"></i> OK</span>'
+: '<span class="badge red" style="font-size:11px;"><i class="fas fa-times"></i> X</span>';
 
 return `
 <tr>
 <td>${i + 1}</td>
-<td><strong style="color:#fff;">${p.nom}</strong></td>
-<td>${sexe}</td>
-<td><span class="badge ${badgeCls}">${badgeTxt}</span></td>
-<td>${heureArrivee}</td>
-<td><span class="badge ${docCls}">${docTxt}</span></td>
-<td style="color:var(--muted);">${motif}</td>
-</tr>
-`;
+<td><strong class="nom-prof">${p.nom}</strong></td>
+<td style="text-align:center;font-weight:600;color:#60a5fa;">${heureArrivee}</td>
+<td style="text-align:center;font-weight:600;color:#a78bfa;">${heureSortie}</td>
+<td style="text-align:center;">${badgeStatic(presence?.journalClasse)}</td>
+<td style="text-align:center;">${badgeStatic(presence?.cahierPreparation)}</td>
+<td style="text-align:center;">${badgeStatic(presence?.previsionMatiere)}</td>
+<td style="text-align:center;">${badgeStatic(presence?.cahierComposition)}</td>
+<td style="text-align:center;color:var(--muted);font-size:12px;font-style:italic;">${observation}</td>
+</tr>`;
 }).join('');
 
 tbody.innerHTML = rows;
 
-const setTxt = (id, val) => {
-const el = document.getElementById(id);
-if (el) el.textContent = val;
-};
-
+const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
 setTxt('pTotal', list.length);
 setTxt('pPresent', present);
 setTxt('pAbsent', absent);
 setTxt('pRetard', retard);
-setTxt('pDoc', docs);
+setTxt('pJournal', journals);
+setTxt('pCahier', cahiers);
+setTxt('pPrevision', previsions);
+setTxt('pComposition', compositions);
+setTxt('pObservation', observations);
+}
+
+function renderFiches() {
+const tbody = document.getElementById('fichesTable');
+if (!tbody) return;
+const search = (document.getElementById('searchFiche')?.value || '').toLowerCase();
+const list = allProfs.filter(p => p.actif !== false && (!search || (p.nom || '').toLowerCase().includes(search)));
+
+if (list.length === 0) {
+tbody.innerHTML = `<tr><td colspan="5" class="empty"><i class="fas fa-id-card"></i><br>Aucun professeur</td></tr>`;
+return;
+}
+
+tbody.innerHTML = list.map((p, i) => {
+const sexeLabel = p.sexe === 'F' ? 'F' : 'M';
+const sexeColor = p.sexe === 'F' ? '#ec4899' : '#60a5fa';
+return `
+<tr>
+<td>${i + 1}</td>
+<td><strong class="nom-prof">${p.nom}</strong></td>
+<td style="text-align:center;font-weight:800;color:${sexeColor};">${sexeLabel}</td>
+<td style="color:var(--muted);">${p.niveauEtudes || '-'}</td>
+<td style="color:var(--muted);font-family:monospace;">${p.telephone || '-'}</td>
+</tr>`;
+}).join('');
+}
+
+function renderTitulariat() {
+const tbody = document.getElementById('titulariatTable');
+if (!tbody) return;
+const search = (document.getElementById('searchTitulaire')?.value || '').toLowerCase();
+const list = allTitulaires.filter(t => !search || (t.nom || '').toLowerCase().includes(search));
+
+if (list.length === 0) {
+tbody.innerHTML = `<tr><td colspan="6" class="empty"><i class="fas fa-user-tie"></i><br>Aucun titulaire nommé</td></tr>`;
+return;
+}
+
+tbody.innerHTML = list.map((t, i) => {
+const sexeLabel = t.sexe === 'F' ? 'F' : 'M';
+const sexeColor = t.sexe === 'F' ? '#ec4899' : '#60a5fa';
+const classeAffichee = t.option
+? `${t.classe || ''} <span style="color:var(--gold);font-weight:700;">· ${t.option}</span>`
+: (t.classe || t.classes || '-');
+return `
+<tr>
+<td style="font-weight:700;color:var(--gold);">${String(i + 1).padStart(2, '0')}</td>
+<td><strong class="nom-prof">${t.nom}</strong></td>
+<td style="text-align:center;font-weight:800;color:${sexeColor};">${sexeLabel}</td>
+<td style="color:var(--muted);font-family:monospace;">${t.telephone || '-'}</td>
+<td>${classeAffichee}</td>
+<td style="text-align:center;">
+<button onclick="supprimerTitulaire('${t.id}')"
+style="background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3);padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;">
+<i class="fas fa-trash"></i>
+</button>
+</td>
+</tr>`;
+}).join('');
+}
+
+window.supprimerTitulaire = async function(id) {
+const ok = await showConfirm('SUPPRIMER', 'Voulez-vous vraiment retirer ce titulaire ?', 'SUPPRIMER');
+if (!ok) return;
+try {
+await deleteDoc(doc(db, "ecoles", SCHOOL_ID, "titulaires", id));
+await chargerTitulaires();
+renderTitulariat();
+initOngletPDF();
+toast('Titulaire retiré', 'success');
+} catch(e) { toast('Erreur: ' + e.message, 'error'); }
+};
+
+function ajouterTitulaire() {
+const modal = document.getElementById('modalTitulaire');
+const select = document.getElementById('titProfSelect');
+
+select.innerHTML = '<option value="">-- Sélectionner un professeur --</option>' +
+allProfs.filter(p => p.actif !== false)
+.sort((a, b) => (a.nom || '').localeCompare(b.nom || ''))
+.map(p => `<option value="${p.id}">${p.nom}</option>`).join('');
+
+document.getElementById('titInfoNom').textContent = '-';
+document.getElementById('titInfoSexe').textContent = '-';
+document.getElementById('titInfoTel').textContent = '-';
+document.getElementById('titClasses').value = '';
+document.getElementById('titOption').value = '';
+document.getElementById('titOptionWrapper').style.display = 'none';
+
+modal.classList.add('show');
+}
+
+document.getElementById('titProfSelect').onchange = function() {
+const prof = allProfs.find(p => p.id === this.value);
+if (!prof) {
+document.getElementById('titInfoNom').textContent = '-';
+document.getElementById('titInfoSexe').textContent = '-';
+document.getElementById('titInfoTel').textContent = '-';
+return;
+}
+document.getElementById('titInfoNom').textContent = prof.nom || '-';
+document.getElementById('titInfoSexe').textContent = prof.sexe === 'F' ? 'Féminin' : 'Masculin';
+document.getElementById('titInfoTel').textContent = prof.telephone || 'Non renseigné';
+};
+
+document.getElementById('titClasses').onchange = function() {
+const classe = this.value;
+const wrapper = document.getElementById('titOptionWrapper');
+const selectOption = document.getElementById('titOption');
+
+if (classe === '7ème EB' || classe === '8ème EB' || classe === '') {
+wrapper.style.display = 'none';
+selectOption.value = '';
+} else {
+wrapper.style.display = 'block';
+}
+};
+
+document.getElementById('titCancel').onclick = () => {
+document.getElementById('modalTitulaire').classList.remove('show');
+};
+
+document.getElementById('titSave').onclick = async () => {
+const profId = document.getElementById('titProfSelect').value;
+const classe = document.getElementById('titClasses').value.trim();
+const option = document.getElementById('titOption').value.trim();
+
+if (!profId) { toast('Veuillez sélectionner un professeur', 'warning'); return; }
+if (!classe) { toast('Veuillez sélectionner une classe', 'warning'); return; }
+
+const classeNecessiteOption = !['7ème EB', '8ème EB'].includes(classe);
+if (classeNecessiteOption && !option) {
+toast('Veuillez sélectionner une option pour cette classe', 'warning');
+return;
+}
+
+const prof = allProfs.find(p => p.id === profId);
+if (!prof) { toast('Professeur introuvable', 'error'); return; }
+
+const classeComplete = option ? classe + ' - ' + option : classe;
+
+const id = 'tit_' + Date.now();
+try {
+await setDoc(doc(db, "ecoles", SCHOOL_ID, "titulaires", id), {
+profId: prof.id,
+nom: prof.nom,
+sexe: prof.sexe || 'M',
+telephone: prof.telephone || '',
+classes: classeComplete,
+classe: classe,
+option: option,
+createdAt: Date.now()
+});
+document.getElementById('modalTitulaire').classList.remove('show');
+await chargerTitulaires();
+renderTitulariat();
+initOngletPDF();
+toast(prof.nom + ' nommé(e) titulaire de ' + classeComplete, 'success');
+} catch(e) {
+if (e.code === 'permission-denied') toast('Permissions refusées — vérifiez les règles Firestore', 'error');
+else toast('Erreur: ' + e.message, 'error');
+}
+};
+
+function initOngletPDF() {
+const dateInput = document.getElementById('pdfDateControle');
+if (dateInput && !dateInput.value) dateInput.value = new Date().toISOString().split('T')[0];
+
+const moisInput = document.getElementById('pdfMoisRapport');
+if (moisInput && !moisInput.value) {
+const now = new Date();
+moisInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
+const selectProf = document.getElementById('pdfSelectProf');
+if (selectProf) {
+const currentVal = selectProf.value;
+selectProf.innerHTML = '<option value="">-- Sélectionner un professeur --</option>' +
+allProfs.filter(p => p.actif !== false).map(p => `<option value="${p.id}">${escapeHtml(p.nom)}</option>`).join('');
+if (currentVal) selectProf.value = currentVal;
+}
+
+const selectTit = document.getElementById('pdfSelectTitulaire');
+if (selectTit) {
+const currentVal = selectTit.value;
+selectTit.innerHTML = '<option value="">-- Sélectionner un titulaire --</option>' +
+allTitulaires.map(t => `<option value="${t.id}">${escapeHtml(t.nom)}</option>`).join('');
+if (currentVal) selectTit.value = currentVal;
+}
+}
+
+function estJourOuvre(date) { const j = date.getDay(); return j !== 0 && j !== 6; }
+function getJoursOuvres(dateDebut, dateFin) {
+const jours = [];
+const cur = new Date(dateDebut);
+while (cur <= dateFin) { if (estJourOuvre(cur)) jours.push(new Date(cur)); cur.setDate(cur.getDate() + 1); }
+return jours;
+}
+function getAnneeScolaire(dateRef) {
+const mois = dateRef.getMonth();
+const annee = dateRef.getFullYear();
+if (mois >= 8) return annee + ' - ' + (annee + 1);
+return (annee - 1) + ' - ' + annee;
+}
+
+function genererPDFJour() {
+const dateKey = document.getElementById('pdfDateControle').value || new Date().toISOString().split('T')[0];
+const list = allProfs.filter(p => p.actif !== false);
+if (list.length === 0) { toast('Aucun professeur à exporter', 'warning'); return; }
+
+const { jsPDF } = window.jspdf;
+const doc = new jsPDF('portrait', 'mm', 'a4');
+const pw = doc.internal.pageSize.getWidth();
+const nomEcole = 'COMPLEXE SCOLAIRE ' + SCHOOL_DISPLAY_NAME;
+
+doc.setFillColor(26, 26, 46); doc.rect(0, 0, pw, 42, 'F');
+doc.setDrawColor(212, 175, 55); doc.setLineWidth(1.5); doc.line(0, 42, pw, 42);
+
+doc.setTextColor(255, 255, 255); doc.setFontSize(16); doc.setFont('helvetica', 'bold');
+doc.text(nomEcole, pw / 2, 14, {align: 'center'});
+doc.setTextColor(212, 175, 55); doc.setFontSize(13);
+doc.text('FICHE DE CONTRÔLE DES PROFESSEURS', pw / 2, 24, {align: 'center'});
+doc.setTextColor(255, 255, 255); doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+const dateAff = new Date(dateKey).toLocaleDateString('fr-FR', {weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'});
+doc.text(dateAff.charAt(0).toUpperCase() + dateAff.slice(1), pw / 2, 34, {align: 'center'});
+
+const rows = list.map((p, i) => {
+const presence = (p.presences && p.presences[dateKey]) || null;
+return [(i + 1).toString(), p.nom || '', presence?.heureArrivee || '-', presence?.heureSortie || '-', presence?.observation || ''];
+});
+
+doc.autoTable({
+head: [['N°', 'NOM DU PROFESSEUR', 'ARRIVÉE', 'DÉPART', 'OBSERVATION']],
+body: rows, startY: 50,
+styles: { fontSize: 9, cellPadding: 3.5, textColor: [30, 30, 30], valign: 'middle' },
+headStyles: { fillColor: [26, 26, 46], textColor: [212, 175, 55], fontSize: 9.5, fontStyle: 'bold', halign: 'center', valign: 'middle', cellPadding: 4 },
+alternateRowStyles: { fillColor: [248, 246, 242] },
+columnStyles: {
+0: {cellWidth: 12, halign: 'center', fontStyle: 'bold'},
+1: {cellWidth: 55, halign: 'left', fontStyle: 'bold'},
+2: {cellWidth: 25, halign: 'center', textColor: [37, 99, 235], fontStyle: 'bold'},
+3: {cellWidth: 25, halign: 'center', textColor: [124, 58, 237], fontStyle: 'bold'},
+4: {cellWidth: 63, halign: 'left', fontSize: 8, fontStyle: 'italic', textColor: [80, 80, 80]}
+},
+margin: { left: 10, right: 10 }
+});
+
+const finalY = doc.lastAutoTable.finalY + 10;
+doc.setDrawColor(212, 175, 55); doc.setLineWidth(0.5);
+doc.line(15, finalY, pw - 15, finalY);
+doc.setFontSize(8); doc.setTextColor(120, 120, 120); doc.setFont('helvetica', 'italic');
+doc.text('Document de contrôle pédagogique - Espace Préfet', 15, finalY + 6);
+doc.text('C.S. ' + SCHOOL_DISPLAY_NAME + ' - Année scolaire 2026-2027', pw - 15, finalY + 6, {align: 'right'});
+doc.text('Généré le ' + new Date().toLocaleDateString('fr-FR') + ' à ' + new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'}), 15, finalY + 12);
+
+doc.save('Fiche_controle_' + dateKey + '.pdf');
+toast('Fiche de contrôle générée', 'success');
+}
+
+async function genererRapportMensuel() {
+const moisInput = document.getElementById('pdfMoisRapport');
+if (!moisInput.value) { toast('Veuillez sélectionner un mois', 'warning'); return; }
+const btn = document.getElementById('btnPDFRapportMensuel');
+const originalHTML = btn.innerHTML;
+btn.disabled = true;
+btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> GÉNÉRATION...';
+
+try {
+const [year, month] = moisInput.value.split('-').map(Number);
+const dateDebut = new Date(year, month - 1, 1);
+const dateFin = new Date(year, month, 0);
+const profs = allProfs.filter(p => p.actif !== false);
+if (profs.length === 0) { toast('Aucun professeur', 'warning'); return; }
+
+const { jsPDF } = window.jspdf;
+const doc = new jsPDF('portrait', 'mm', 'a4');
+const pw = doc.internal.pageSize.getWidth();
+const ph = doc.internal.pageSize.getHeight();
+const joursOuvres = getJoursOuvres(dateDebut, dateFin);
+const totalJoursMois = joursOuvres.length;
+const moisNom = dateDebut.toLocaleDateString('fr-FR', { month: 'long' });
+const anneeScolaire = getAnneeScolaire(dateDebut);
+
+profs.forEach((prof, idx) => {
+if (idx > 0) doc.addPage();
+dessinerRapportMensuelProf(doc, prof, { moisNom, annee: year, anneeScolaire, joursOuvres, totalJoursMois, pw, ph });
+});
+
+doc.save(`Rapports_Mensuels_${year}-${String(month).padStart(2, '0')}.pdf`);
+toast(profs.length + ' rapport(s) généré(s)', 'success');
+} catch(e) { toast('Erreur: ' + e.message, 'error'); }
+finally { btn.disabled = false; btn.innerHTML = originalHTML; }
+}
+
+function dessinerRapportMensuelProf(doc, prof, opts) {
+const { moisNom, annee, anneeScolaire, joursOuvres, totalJoursMois, pw, ph } = opts;
+
+doc.setFont('times', 'bold'); doc.setFontSize(10); doc.setTextColor(0, 0, 0);
+doc.text('COMPLEXE SCOLAIRE ' + SCHOOL_DISPLAY_NAME, pw / 2, 13, { align: 'center' });
+doc.setFontSize(9);
+doc.text('QUARTIER NEW-KOYO', pw / 2, 18, { align: 'center' });
+doc.text('VILLE DE KASUMBALESA', pw / 2, 23, { align: 'center' });
+doc.setFont('times', 'italic'); doc.setFontSize(9);
+doc.text('ANNEE SCOLAIRE : ' + anneeScolaire, pw / 2, 30, { align: 'center' });
+
+doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.5);
+doc.line(15, 33, pw - 15, 33);
+
+doc.setFont('times', 'bold'); doc.setFontSize(11);
+doc.text('PROFESSEUR', 15, 40);
+
+doc.setFont('times', 'normal'); doc.setFontSize(11);
+doc.text((prof.nom || '').toUpperCase(), 15, 48);
+doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.2);
+doc.line(15, 50, pw - 15, 50);
+
+const moisFormate = moisNom.charAt(0).toUpperCase() + moisNom.slice(1);
+doc.setFont('times', 'bold'); doc.setFontSize(11);
+doc.text('RAPPORT MENSUEL DU MOIS DE ' + moisFormate.toUpperCase() + ' ' + annee, pw / 2, 58, { align: 'center' });
+
+const presences = prof.presences || {};
+let presents = 0, absents = 0;
+const joursDetail = [];
+
+joursOuvres.forEach(jour => {
+const dateKey = jour.toISOString().split('T')[0];
+const presence = presences[dateKey] || null;
+const statut = presence?.statut || 'absent';
+let jourPresent = 0;
+let observation = '';
+if (statut === 'present') { presents++; jourPresent = 1; }
+else if (statut === 'retard') { presents++; jourPresent = 1; observation = 'R'; }
+else { absents++; observation = 'A'; }
+joursDetail.push({ jour: jour.getDate(), jourPresent, observation, docObs: presence?.observation || '' });
+});
+
+const startY = 65;
+const rowH = 6;
+const colW = { sexe: 18, joursDuMois: 26, presences: 26, absences: 26, obsNet: 22 };
+const tableWidth = colW.sexe + colW.joursDuMois + colW.presences + colW.absences + colW.obsNet;
+const startX = (pw - tableWidth) / 2;
+
+doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.4);
+doc.setFont('times', 'bold'); doc.setFontSize(8);
+
+const headers = [
+{ label: 'SEXE', w: colW.sexe, x: startX },
+{ label: 'JOURS\nDU MOIS', w: colW.joursDuMois, x: startX + colW.sexe },
+{ label: 'PRESENCES\nDU MOIS', w: colW.presences, x: startX + colW.sexe + colW.joursDuMois },
+{ label: 'ABSENCES', w: colW.absences, x: startX + colW.sexe + colW.joursDuMois + colW.presences },
+{ label: 'OBS/ NET\nA PAYER', w: colW.obsNet, x: startX + colW.sexe + colW.joursDuMois + colW.presences + colW.absences }
+];
+
+headers.forEach(h => {
+doc.rect(h.x, startY, h.w, rowH * 2);
+const lines = h.label.split('\n');
+if (lines.length === 1) doc.text(h.label, h.x + h.w / 2, startY + rowH + 2, { align: 'center' });
+else { doc.text(lines[0], h.x + h.w / 2, startY + 4, { align: 'center' }); doc.text(lines[1], h.x + h.w / 2, startY + 9, { align: 'center' }); }
+});
+
+const dataY = startY + rowH * 2;
+doc.setFont('times', 'normal'); doc.setFontSize(9);
+
+doc.rect(startX, dataY, colW.sexe, rowH);
+doc.text(prof.sexe === 'F' ? 'F' : 'M', startX + colW.sexe / 2, dataY + 4, { align: 'center' });
+
+doc.rect(startX + colW.sexe, dataY, colW.joursDuMois, rowH);
+doc.text(totalJoursMois.toString(), startX + colW.sexe + colW.joursDuMois / 2, dataY + 4, { align: 'center' });
+
+doc.rect(startX + colW.sexe + colW.joursDuMois, dataY, colW.presences, rowH);
+doc.text(presents.toString(), startX + colW.sexe + colW.joursDuMois + colW.presences / 2, dataY + 4, { align: 'center' });
+
+doc.rect(startX + colW.sexe + colW.joursDuMois + colW.presences, dataY, colW.absences, rowH);
+doc.text(absents.toString(), startX + colW.sexe + colW.joursDuMois + colW.presences + colW.absences / 2, dataY + 4, { align: 'center' });
+
+doc.rect(startX + colW.sexe + colW.joursDuMois + colW.presences + colW.absences, dataY, colW.obsNet, rowH);
+
+let detailY = dataY + rowH + 8;
+doc.setFont('times', 'bold'); doc.setFontSize(9);
+doc.text('DETAIL DES JOURS PRESTES :', 15, detailY);
+detailY += 5;
+
+const nbCols = 6;
+const cellW = (pw - 30) / nbCols;
+const cellH = 5;
+let col = 0;
+let row = detailY;
+
+joursDetail.forEach(j => {
+const x = 15 + col * cellW;
+const label = String(j.jour).padStart(2, '0') + ' : ' + (j.jourPresent ? 'P' : 'A') + (j.observation && j.observation !== 'A' ? ' (' + j.observation + ')' : '');
+doc.setFont('times', 'normal'); doc.setFontSize(7.5);
+doc.text(label, x + 1, row + 3.5);
+doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.1);
+doc.rect(x, row, cellW, cellH);
+col++;
+if (col >= nbCols) { col = 0; row += cellH; }
+});
+
+let obsY = row + cellH + 8;
+if (obsY > ph - 60) { doc.addPage(); obsY = 20; }
+doc.setFont('times', 'bold'); doc.setFontSize(9);
+doc.text('OBSERVATIONS :', 15, obsY);
+obsY += 3;
+doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.2);
+doc.line(15, obsY + 15, pw - 15, obsY + 15);
+doc.line(15, obsY + 25, pw - 15, obsY + 25);
+
+const piedY = ph - 30;
+doc.setFont('times', 'normal'); doc.setFontSize(10);
+const d = new Date();
+const dateStr = String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+doc.text('Fait a Kasumbalesa, le ' + dateStr, 15, piedY);
+}
+
+function dessinerEnTeteOfficiel(doc, pw, titre) {
+const anneeScolaire = getAnneeScolaire(new Date());
+doc.setFont('times', 'bold'); doc.setFontSize(9); doc.setTextColor(0, 0, 0);
+doc.text('MINISTERE DE L\'EDUCATION NATIONALE ET NOUVELLE CITOYENNETE', pw / 2, 12, {align: 'center'});
+doc.text('COMPLEXE SCOLAIRE ' + SCHOOL_DISPLAY_NAME, pw / 2, 17, {align: 'center'});
+doc.text('QUARTIER NEW-KOYO', pw / 2, 22, {align: 'center'});
+doc.text('VILLE DE KASUMBALESA', pw / 2, 27, {align: 'center'});
+doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.5);
+doc.line(15, 30, pw - 15, 30);
+doc.setFontSize(12);
+doc.text(titre + ' / ANNEE SCOLAIRE : ' + anneeScolaire, pw / 2, 38, {align: 'center'});
+doc.setDrawColor(0, 0, 0);
+doc.line(15, 41, pw - 15, 41);
+return 46;
+}
+
+window.genererFichePDF = function(profId) {
+const prof = allProfs.find(p => p.id === profId);
+if (!prof) { toast('Professeur introuvable', 'error'); return; }
+
+const { jsPDF } = window.jspdf;
+const doc = new jsPDF('portrait', 'mm', 'a4');
+const pw = doc.internal.pageSize.getWidth();
+const ph = doc.internal.pageSize.getHeight();
+
+dessinerEnTeteOfficiel(doc, pw, 'FICHE D\'IDENTIFICATION DE L\'ENSEIGNANT');
+
+const startY = 52;
+const labelX = 15;
+const labelW = 60;
+const valueX = labelX + labelW + 2;
+const valueW = pw - valueX - 15;
+const rowH = 12;
+
+const lignes = [
+['NOM, POSTNOM & PRENOM', prof.nom || ''],
+['SEXE', prof.sexe === 'F' ? 'FEMININ' : 'MASCULIN'],
+['NIVEAU D\'ETUDES', prof.niveauEtudes || ''],
+['N° TELEPHONE', prof.telephone || ''],
+['SIGNATURE', '']
+];
+
+let y = startY;
+lignes.forEach(l => {
+doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.3);
+doc.rect(labelX, y, labelW, rowH);
+doc.rect(valueX, y, valueW, rowH);
+doc.setFont('times', 'bold'); doc.setFontSize(10); doc.setTextColor(0, 0, 0);
+doc.text(l[0], labelX + 3, y + 8);
+doc.setFont('times', 'normal'); doc.setFontSize(11);
+doc.text(l[1], valueX + 3, y + 8);
+y += rowH;
+});
+
+doc.setFont('times', 'italic'); doc.setFontSize(9); doc.setTextColor(80, 80, 80);
+doc.text('Fait a Kasumbalesa, le ' + new Date().toLocaleDateString('fr-FR', {day: '2-digit', month: 'long', year: 'numeric'}), 15, y + 15);
+doc.text('Le Chef d\'Etablissement', pw - 15, y + 15, {align: 'right'});
+doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.3);
+doc.line(pw - 70, y + 35, pw - 15, y + 35);
+
+doc.setFont('times', 'italic'); doc.setFontSize(7); doc.setTextColor(150, 150, 150);
+doc.text('Document officiel - Espace Préfet', 15, ph - 10);
+doc.text(new Date().toLocaleDateString('fr-FR'), pw - 15, ph - 10, {align: 'right'});
+
+doc.save('Fiche_Identite_' + (prof.nom || 'prof').replace(/\s+/g, '_') + '.pdf');
+toast('Fiche PDF générée', 'success');
+};
+
+function exporterToutesFichesProf() {
+const list = allProfs.filter(p => p.actif !== false);
+if (list.length === 0) { toast('Aucun professeur', 'warning'); return; }
+
+const { jsPDF } = window.jspdf;
+const doc = new jsPDF('portrait', 'mm', 'a4');
+const pw = doc.internal.pageSize.getWidth();
+const ph = doc.internal.pageSize.getHeight();
+
+list.forEach((prof, idx) => {
+if (idx > 0) doc.addPage();
+dessinerEnTeteOfficiel(doc, pw, 'FICHE D\'IDENTIFICATION DE L\'ENSEIGNANT');
+
+const startY = 52;
+const labelX = 15;
+const labelW = 60;
+const valueX = labelX + labelW + 2;
+const valueW = pw - valueX - 15;
+const rowH = 12;
+
+const lignes = [
+['NOM, POSTNOM & PRENOM', prof.nom || ''],
+['SEXE', prof.sexe === 'F' ? 'FEMININ' : 'MASCULIN'],
+['NIVEAU D\'ETUDES', prof.niveauEtudes || ''],
+['N° TELEPHONE', prof.telephone || ''],
+['SIGNATURE', '']
+];
+
+let y = startY;
+lignes.forEach(l => {
+doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.3);
+doc.rect(labelX, y, labelW, rowH);
+doc.rect(valueX, y, valueW, rowH);
+doc.setFont('times', 'bold'); doc.setFontSize(10); doc.setTextColor(0, 0, 0);
+doc.text(l[0], labelX + 3, y + 8);
+doc.setFont('times', 'normal'); doc.setFontSize(11);
+doc.text(l[1], valueX + 3, y + 8);
+y += rowH;
+});
+
+doc.setFont('times', 'italic'); doc.setFontSize(9); doc.setTextColor(80, 80, 80);
+doc.text('Fait a Kasumbalesa, le ' + new Date().toLocaleDateString('fr-FR', {day: '2-digit', month: 'long', year: 'numeric'}), 15, y + 15);
+doc.text('Le Chef d\'Etablissement', pw - 15, y + 15, {align: 'right'});
+doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.3);
+doc.line(pw - 70, y + 35, pw - 15, y + 35);
+
+doc.setFont('times', 'italic'); doc.setFontSize(7); doc.setTextColor(150, 150, 150);
+doc.text('Page ' + (idx + 1) + ' / ' + list.length, pw / 2, ph - 10, {align: 'center'});
+});
+
+doc.save('Fiches_Identification_Profs.pdf');
+toast(list.length + ' fiches PDF générées', 'success');
+}
+
+window.genererFicheTitulairePDF = function(id) {
+const t = allTitulaires.find(x => x.id === id);
+if (!t) { toast('Titulaire introuvable', 'error'); return; }
+
+const { jsPDF } = window.jspdf;
+const doc = new jsPDF('portrait', 'mm', 'a4');
+const pw = doc.internal.pageSize.getWidth();
+const ph = doc.internal.pageSize.getHeight();
+
+dessinerEnTeteOfficiel(doc, pw, 'FICHE DE TITULARIAT');
+genererTableauTitulaires(doc, [t], pw, 52);
+
+doc.setFont('times', 'italic'); doc.setFontSize(9); doc.setTextColor(80, 80, 80);
+doc.text('Fait a Kasumbalesa, le ' + new Date().toLocaleDateString('fr-FR', {day: '2-digit', month: '2-digit', year: 'numeric'}), 15, ph - 20);
+
+doc.setFont('times', 'italic'); doc.setFontSize(7); doc.setTextColor(150, 150, 150);
+doc.text('Document officiel - Espace Préfet', 15, ph - 8);
+doc.text(new Date().toLocaleDateString('fr-FR'), pw - 15, ph - 8, {align: 'right'});
+
+doc.save('Fiche_Titulariat_' + (t.nom || 'titulaire').replace(/\s+/g, '_') + '.pdf');
+toast('Fiche PDF générée', 'success');
+};
+
+function genererTableauTitulaires(doc, list, pw, startY) {
+const colW = [12, 65, 15, 32, 42];
+const startX = 15;
+const rowH = 7;
+
+const headers = ['N°', 'NOM, POSTNOM & PRENOM', 'SEXE', 'N° TELEPHONE', 'CLASSE / OPTION'];
+doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.3);
+doc.setFont('times', 'bold'); doc.setFontSize(9);
+
+let x = startX;
+headers.forEach((h, i) => {
+doc.rect(x, startY, colW[i], rowH);
+doc.text(h, x + colW[i] / 2, startY + 4.5, {align: 'center'});
+x += colW[i];
+});
+
+let y = startY + rowH;
+doc.setFont('times', 'normal'); doc.setFontSize(9);
+
+list.forEach((t, i) => {
+x = startX;
+const classeOption = t.option ? `${t.classe || ''} - ${t.option}` : (t.classe || t.classes || '');
+const valeurs = [
+String(i + 1).padStart(2, '0'),
+(t.nom || '').toUpperCase(),
+t.sexe === 'F' ? 'F' : 'M',
+t.telephone || '',
+classeOption
+];
+valeurs.forEach((v, j) => {
+doc.rect(x, y, colW[j], rowH);
+const align = (j === 0 || j === 2) ? 'center' : 'left';
+const textX = align === 'center' ? x + colW[j] / 2 : x + 2;
+doc.text(String(v), textX, y + 4.5, {align: align});
+x += colW[j];
+});
+y += rowH;
+});
+return y;
+}
+
+function exporterToutesFichesTitulaires() {
+if (allTitulaires.length === 0) { toast('Aucun titulaire à exporter', 'warning'); return; }
+
+const { jsPDF } = window.jspdf;
+const doc = new jsPDF('portrait', 'mm', 'a4');
+const pw = doc.internal.pageSize.getWidth();
+const ph = doc.internal.pageSize.getHeight();
+
+dessinerEnTeteOfficiel(doc, pw, 'FICHE DE TITULARIAT');
+genererTableauTitulaires(doc, allTitulaires, pw, 52);
+
+doc.setFont('times', 'italic'); doc.setFontSize(9); doc.setTextColor(80, 80, 80);
+doc.text('Fait a Kasumbalesa, le ' + new Date().toLocaleDateString('fr-FR', {day: '2-digit', month: '2-digit', year: 'numeric'}), 15, ph - 20);
+
+doc.setFont('times', 'italic'); doc.setFontSize(7); doc.setTextColor(150, 150, 150);
+doc.text('Document officiel - Espace Préfet', 15, ph - 8);
+doc.text(new Date().toLocaleDateString('fr-FR'), pw - 15, ph - 8, {align: 'right'});
+
+doc.save('Fiches_Titulariat_' + new Date().toISOString().split('T')[0] + '.pdf');
+toast(allTitulaires.length + ' titulaire(s) exporté(s)', 'success');
 }
 
 document.querySelectorAll('.tab').forEach(tab => {
@@ -810,12 +1667,38 @@ document.getElementById(this.dataset.tab).classList.add('active');
 
 if (this.dataset.tab === 'tabPresences') renderPresences();
 if (this.dataset.tab === 'tabStats') renderStats();
+if (this.dataset.tab === 'tabFiches') renderFiches();
+if (this.dataset.tab === 'tabTitulariat') renderTitulariat();
+if (this.dataset.tab === 'tabPDF') initOngletPDF();
+if (this.dataset.tab === 'tabEleves') renderEleves();
 };
 });
 
 document.getElementById('searchEleve').addEventListener('input', () => renderEleves(true));
 document.getElementById('searchProf').addEventListener('input', renderPresences);
 document.getElementById('presenceDate').addEventListener('change', renderPresences);
+document.getElementById('searchFiche')?.addEventListener('input', renderFiches);
+document.getElementById('searchTitulaire')?.addEventListener('input', renderTitulariat);
+document.getElementById('btnAddTitulaire')?.addEventListener('click', ajouterTitulaire);
+
+document.getElementById('btnPDFControleJour')?.addEventListener('click', genererPDFJour);
+document.getElementById('btnPDFRapportMensuel')?.addEventListener('click', genererRapportMensuel);
+
+document.getElementById('btnPDFProfIndividuel')?.addEventListener('click', function() {
+const select = document.getElementById('pdfSelectProf');
+if (!select.value) { toast('Veuillez sélectionner un professeur', 'warning'); return; }
+genererFichePDF(select.value);
+});
+
+document.getElementById('btnPDFProfToutes')?.addEventListener('click', exporterToutesFichesProf);
+
+document.getElementById('btnPDFTitulaireIndividuel')?.addEventListener('click', function() {
+const select = document.getElementById('pdfSelectTitulaire');
+if (!select.value) { toast('Veuillez sélectionner un titulaire', 'warning'); return; }
+genererFicheTitulairePDF(select.value);
+});
+
+document.getElementById('btnPDFTitulaireToutes')?.addEventListener('click', exporterToutesFichesTitulaires);
 
 function initFilters() {
 const fC = document.getElementById('filterClasse');
@@ -864,12 +1747,7 @@ e.preventDefault();
 const pwd = document.getElementById('pwdInput').value.trim();
 const btn = document.getElementById('loginBtn');
 const err = document.getElementById('loginError');
-
-if (!pwd) {
-err.innerHTML = '<i class="fas fa-exclamation-circle"></i> Veuillez saisir le mot de passe';
-return;
-}
-
+if (!pwd) { err.innerHTML = '<i class="fas fa-exclamation-circle"></i> Veuillez saisir le mot de passe'; return; }
 btn.disabled = true;
 btn.innerHTML = '<span class="spinner"></span> CONNEXION...';
 err.innerHTML = '';
@@ -914,6 +1792,7 @@ document.getElementById('loginError').innerHTML = '';
 async function init() {
 await chargerEleves();
 await chargerProfs();
+await chargerTitulaires();
 
 initFilters();
 document.getElementById('presenceDate').value = new Date().toISOString().split('T')[0];
@@ -921,39 +1800,81 @@ document.getElementById('presenceDate').value = new Date().toISOString().split('
 renderEleves();
 renderStats();
 renderPresences();
+renderFiches();
+renderTitulariat();
+initOngletPDF();
 
 demarrerEcoute();
 initVisibilityListener();
 initRefreshButton();
 }
 
+function doitEtreActif() {
+return document.visibilityState === 'visible' && document.hasFocus();
+}
+
+function initVisibilityListener() {
+document.addEventListener('visibilitychange', gererEtatEcouteurs);
+window.addEventListener('focus', gererEtatEcouteurs);
+window.addEventListener('blur', gererEtatEcouteurs);
+
+window.addEventListener('pagehide', () => {
+arreterEcoute();
+ecouteursActifs = false;
+});
+
+window.addEventListener('beforeunload', () => {
+arreterEcoute();
+ecouteursActifs = false;
+});
+
+window.addEventListener('pageshow', (e) => {
+if (e.persisted) {
+rechargerDonneesPuisEcouter();
+ecouteursActifs = true;
+}
+});
+
+gererEtatEcouteurs();
+}
+
+function gererEtatEcouteurs() {
+if (doitEtreActif()) {
+if (!ecouteursActifs) {
+rechargerDonneesPuisEcouter();
+ecouteursActifs = true;
+}
+} else {
+if (ecouteursActifs) {
+arreterEcoute();
+ecouteursActifs = false;
+}
+}
+}
+
 function demarrerEcoute() {
 if (!unsubscribeEleves) ecouterEleves();
 if (!unsubscribeProfs) ecouterProfs();
+if (!unsubscribeTitulaires) ecouterTitulaires();
 }
 
 function arreterEcoute() {
 if (unsubscribeEleves) { unsubscribeEleves(); unsubscribeEleves = null; }
 if (unsubscribeProfs) { unsubscribeProfs(); unsubscribeProfs = null; }
-}
-
-function initVisibilityListener() {
-document.addEventListener('visibilitychange', () => {
-if (document.hidden) {
-arreterEcoute();
-} else {
-rechargerDonneesPuisEcouter();
-}
-});
+if (unsubscribeTitulaires) { unsubscribeTitulaires(); unsubscribeTitulaires = null; }
 }
 
 async function rechargerDonneesPuisEcouter() {
 try {
 await chargerEleves();
 await chargerProfs();
+await chargerTitulaires();
 renderEleves();
 renderStats();
 renderPresences();
+renderFiches();
+renderTitulariat();
+initOngletPDF();
 } catch (e) {}
 demarrerEcoute();
 }
@@ -971,7 +1892,6 @@ btn.title = 'Limite atteinte — réessayez demain';
 
 btn.onclick = async function() {
 if (this.disabled) return;
-
 const info = getRefreshInfo();
 if (info.count >= REFRESH_MAX) {
 toast("Limite de rafraîchissement atteinte — réessayez demain", "warning");
@@ -987,13 +1907,16 @@ this.classList.add('spinning');
 try {
 await chargerEleves();
 await chargerProfs();
+await chargerTitulaires();
 renderEleves();
 renderStats();
 renderPresences();
+renderFiches();
+renderTitulariat();
+initOngletPDF();
 
 const newInfo = { date: info.date, count: info.count + 1 };
 setRefreshInfo(newInfo);
-
 const restants = REFRESH_MAX - newInfo.count;
 
 if (restants <= 0) {
@@ -1006,9 +1929,7 @@ toast("Données actualisées — 1 utilisation restante aujourd'hui", "warning")
 } else {
 toast("Données actualisées", "success");
 }
-} catch (e) {
-toast("Rafraîchissement impossible", "error");
-}
+} catch (e) { toast("Rafraîchissement impossible", "error"); }
 
 setTimeout(() => {
 this.disabled = false;
@@ -1019,7 +1940,6 @@ this.classList.remove('spinning');
 
 async function autoLogin() {
 initTheme();
-
 const sessionOk = sessionEstActive();
 
 if (sessionOk) {
