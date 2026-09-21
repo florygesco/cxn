@@ -57,6 +57,7 @@ tr:hover td{background:rgba(59,130,246,0.05);}
 .badge-inactif{background:rgba(239,68,68,0.2);color:#ef4444;}
 .badge-primaire{background:rgba(59,130,246,0.2);color:#60a5fa;}
 .badge-maternelle{background:rgba(16,185,129,0.2);color:#34d399;}
+.badge-secondaire{background:rgba(168,85,247,0.2);color:#c084fc;}
 .actions{display:flex;gap:6px;flex-wrap:wrap;}
 .icon-btn{padding:8px 12px;border-radius:10px;border:none;cursor:pointer;font-size:14px;transition:all 0.2s;display:inline-flex;align-items:center;justify-content:center;}
 .icon-btn:hover{transform:scale(1.08);}
@@ -82,10 +83,11 @@ tr:hover td{background:rgba(59,130,246,0.05);}
 .modal-actions{display:flex;gap:12px;justify-content:flex-end;margin-top:28px;flex-wrap:wrap;}
 .modal-actions .btn{flex:1;justify-content:center;padding:14px;min-width:120px;}
 .radio-group{display:flex;gap:12px;flex-wrap:wrap;}
-.radio-card{flex:1;min-width:140px;padding:16px;border-radius:14px;background:#1a2332;border:2px solid #334155;cursor:pointer;transition:all 0.2s;text-align:center;}
+.radio-card{flex:1;min-width:120px;padding:16px;border-radius:14px;background:#1a2332;border:2px solid #334155;cursor:pointer;transition:all 0.2s;text-align:center;}
 .radio-card:hover{border-color:#3b82f6;}
 .radio-card.selected{border-color:#3b82f6;background:rgba(59,130,246,0.1);}
 .radio-card.selected[data-cycle="maternelle"]{border-color:#10b981;background:rgba(16,185,129,0.1);}
+.radio-card.selected[data-cycle="secondaire"]{border-color:#a855f7;background:rgba(168,85,247,0.1);}
 .radio-card .rc-icon{font-size:28px;margin-bottom:6px;}
 .radio-card .rc-label{font-size:13px;font-weight:700;color:#fff;}
 .radio-card .rc-sub{font-size:11px;color:#94a3b8;margin-top:4px;}
@@ -166,7 +168,7 @@ tr:hover td{background:rgba(59,130,246,0.05);}
 <div class="header-content">
 <div class="logo-ic">🏫</div>
 <h1>PANNEAU D'ADMINISTRATION</h1>
-<p>Gestion des établissements · Primaire & Maternelle</p>
+<p>Gestion des établissements · Primaire · Maternelle · Secondaire</p>
 </div>
 </div>
 
@@ -191,13 +193,14 @@ tr:hover td{background:rgba(59,130,246,0.05);}
 </div>
 
 <div class="panel" id="panel-enseignants">
-<div class="info-box">💡 L'<strong>email</strong> et le <strong>code d'accès</strong> sont générés automatiquement. Sélectionnez le <strong>cycle</strong> (Primaire / Maternelle) et cochez les <strong>classes assignées</strong>.</div>
+<div class="info-box">💡 <strong>Primaire / Maternelle</strong> : sélectionnez le cycle + cochez les classes. <strong>Secondaire</strong> : ajoutez uniquement le nom (comme un professeur du secondaire).</div>
 <div class="toolbar">
 <select id="ensEcoleSelect"><option value="">-- Choisir une école --</option></select>
 <select id="ensCycleFilter">
 <option value="">-- Tous les cycles --</option>
 <option value="primaire">🔵 Primaire</option>
 <option value="maternelle">🟢 Maternelle</option>
+<option value="secondaire">🟣 Secondaire</option>
 </select>
 <input type="text" id="searchEnseignants" placeholder="🔍 Rechercher un enseignant...">
 <button class="btn btn-success" id="addEnsBtn">➕ AJOUTER UN ENSEIGNANT</button>
@@ -296,7 +299,6 @@ function esc(s) { if (!s) return ''; return String(s).replace(/[&<>"']/g, m => (
 
 function setLoading(show) { document.getElementById("loading").classList.toggle("show", show); }
 
-// ✅ FIX CRITIQUE : normalisation unique utilisée partout
 function normaliserIdEcole(raw) {
     return String(raw || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
 }
@@ -329,6 +331,12 @@ function genererEmail(nomComplet) {
     const prenom = parts[0];
     const nomFamille = parts.length > 1 ? parts[parts.length - 1] : parts[0];
     return 'prof.' + prenom + '.' + nomFamille + '@gmail.com';
+}
+
+function genererEmailSecondaire(nomComplet, ecoleId) {
+    if (!nomComplet.trim()) return '';
+    const nomPropre = nomComplet.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z\s]/g, '').trim().replace(/\s+/g, '.');
+    return 'prof.' + nomPropre + '.' + ecoleId.toLowerCase() + '@gmail.com';
 }
 
 function genererCode() {
@@ -480,7 +488,6 @@ function openEcoleModal(ecole = null) {
             const idLower = id.toLowerCase();
             const emailDirection = `direction.${idLower}@gmail.com`;
 
-            // ✅ FIX : on stocke ecoleId explicitement dans settings
             await setDoc(doc(db, "ecoles", id), {
                 nom, ville, logoUrl, actif: true, masque: false,
                 ecoleId: id,
@@ -503,7 +510,7 @@ function openEcoleModal(ecole = null) {
                 const secondaryApp = initializeApp(firebaseConfig, `create-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
                 const secondaryAuth = getAuth(secondaryApp);
                 try {
-                    await createUserWithEmailAndPassword(secondaryAuth, compte.email, compte.password);
+                    await createUserWithEmailAndPassword(secondaryAuth, compte.email, String(compte.password));
                     resultats.push({ ...compte, ok: true });
                 } catch (err) {
                     if (err.code === 'auth/email-already-in-use') resultats.push({ ...compte, ok: true, note: 'déjà existant' });
@@ -549,7 +556,6 @@ function openEcoleModal(ecole = null) {
             </div>`;
             document.body.appendChild(recapModal);
 
-            // ✅ FIX : URL avec ID en MAJUSCULES (pas de toLowerCase)
             recapModal.querySelector("[data-copy-all]").onclick = async () => {
                 const texte = `🏫 ${nom} (${id})\n\n👔 Directeur : ${codeDirection}\n\nURL Directeur : ?ecole=${id}&code=${codeDirection}`;
                 try { await navigator.clipboard.writeText(texte); toast("Code copié", "success"); }
@@ -591,7 +597,6 @@ async function loadEnseignants(ecoleId) {
         ensList = [];
         snap.forEach(d => {
             const data = d.data();
-            // ✅ FIX : ignore les docs de config
             if (data._type === 'config' || data._type === 'settings') return;
             ensList.push({ id: d.id, ...data });
         });
@@ -615,14 +620,16 @@ function renderEnseignants() {
     }
     tbody.innerHTML = filtered.map((p, i) => {
         const cycle = p.cycle || '—';
-        const cycleBadge = cycle === 'primaire' ? '<span class="badge badge-primaire">🔵 Primaire</span>'
-                          : cycle === 'maternelle' ? '<span class="badge badge-maternelle">🟢 Maternelle</span>' : '—';
-        const classes = Array.isArray(p.classes) && p.classes.length ? p.classes.join(', ') : '—';
+        let cycleBadge = '—';
+        if (cycle === 'primaire') cycleBadge = '<span class="badge badge-primaire">🔵 Primaire</span>';
+        else if (cycle === 'maternelle') cycleBadge = '<span class="badge badge-maternelle">🟢 Maternelle</span>';
+        else if (cycle === 'secondaire') cycleBadge = '<span class="badge badge-secondaire">🟣 Secondaire</span>';
+        const classes = Array.isArray(p.classes) && p.classes.length ? p.classes.join(', ') : (cycle === 'secondaire' ? 'Professeur secondaire' : '—');
         return `
         <tr>
         <td>${i + 1}</td>
         <td><strong style="color:#fff;">${esc(p.nom || '')}</strong></td>
-        <td style="font-family:monospace;font-size:11px;">${esc(p.email || '')}</td>
+        <td style="font-family:monospace;font-size:11px;">${esc(p.email || p.emailProf || '')}</td>
         <td><div class="code-pill">
         <span class="code-value">${esc(p.code || '—')}</span>
         <button class="copy-btn" data-action="copy-pwd" data-pwd="${esc(p.code || '')}">📋</button>
@@ -673,16 +680,29 @@ function openEnsModal(ecoleId, ens = null) {
     <div class="rc-label">MATERNELLE</div>
     <div class="rc-sub">Niveau 1 à 3</div>
     </div>
+    <div class="radio-card ${cycleInit === 'secondaire' ? 'selected' : ''}" data-cycle="secondaire">
+    <div class="rc-icon">🟣</div>
+    <div class="rc-label">SECONDAIRE</div>
+    <div class="rc-sub">Professeur 7ème EB à 4ème</div>
+    </div>
     </div>
     <input type="hidden" id="ensCycle" value="${cycleInit}">
     </div>
 
-    <div class="field">
+    <div class="field" id="classesField">
     <label>CLASSES ASSIGNÉES * <span style="color:#64748b;font-weight:400;text-transform:none;">(cochez une ou plusieurs)</span></label>
     <div class="checkbox-grid" id="classesGrid"></div>
     </div>
 
-    <div class="field"><label>EMAIL (auto)</label><input type="email" id="ensEmail" value="${isEdit ? esc(ens.email || '') : ''}" readonly style="background:#0f172a;color:#60a5fa;font-family:monospace;"></div>
+    <div class="field" id="sexeField" style="display:none;">
+    <label>SEXE</label>
+    <select id="ensSexe">
+    <option value="M" ${isEdit && ens.sexe === 'F' ? '' : 'selected'}>Homme</option>
+    <option value="F" ${isEdit && ens.sexe === 'F' ? 'selected' : ''}>Femme</option>
+    </select>
+    </div>
+
+    <div class="field"><label>EMAIL (auto)</label><input type="email" id="ensEmail" value="${isEdit ? esc(ens.email || ens.emailProf || '') : ''}" readonly style="background:#0f172a;color:#60a5fa;font-family:monospace;"></div>
     <div class="field"><label>CODE D'ACCÈS (auto)</label><input type="text" id="ensCode" value="${isEdit ? esc(ens.code || '') : ''}" readonly style="background:#0f172a;color:#fbbf24;font-family:monospace;font-size:18px;letter-spacing:4px;font-weight:700;text-align:center;"></div>
     <div class="field"><label>ÉCOLE</label><input type="text" value="${esc(ecoleIdNorm)}" readonly style="background:#0f172a;color:#10b981;font-family:monospace;font-weight:700;letter-spacing:2px;"></div>
 
@@ -698,9 +718,18 @@ function openEnsModal(ecoleId, ens = null) {
     const codeInput = modal.querySelector("#ensCode");
     const cycleInput = modal.querySelector("#ensCycle");
     const classesGrid = modal.querySelector("#classesGrid");
+    const classesField = modal.querySelector("#classesField");
+    const sexeField = modal.querySelector("#sexeField");
 
     function renderClasses() {
         const cycle = cycleInput.value;
+        if (cycle === 'secondaire') {
+            classesField.style.display = 'none';
+            sexeField.style.display = 'block';
+            return;
+        }
+        classesField.style.display = 'block';
+        sexeField.style.display = 'none';
         const liste = cycle === 'maternelle' ? CLASSES_MATERNELLE : CLASSES_PRIMAIRE;
         classesGrid.innerHTML = liste.map(c => {
             const checked = classesInit.includes(c);
@@ -726,6 +755,14 @@ function openEnsModal(ecoleId, ens = null) {
             card.classList.add("selected");
             cycleInput.value = card.dataset.cycle;
             renderClasses();
+            if (!isEdit) {
+                const cycle = cycleInput.value;
+                if (cycle === 'secondaire') {
+                    emailInput.value = genererEmailSecondaire(nomInput.value, ecoleIdNorm);
+                } else {
+                    emailInput.value = genererEmail(nomInput.value);
+                }
+            }
         };
     });
 
@@ -733,7 +770,14 @@ function openEnsModal(ecoleId, ens = null) {
 
     if (!isEdit) {
         codeInput.value = genererCode();
-        nomInput.addEventListener('input', () => { emailInput.value = genererEmail(nomInput.value); });
+        nomInput.addEventListener('input', () => {
+            const cycle = cycleInput.value;
+            if (cycle === 'secondaire') {
+                emailInput.value = genererEmailSecondaire(nomInput.value, ecoleIdNorm);
+            } else {
+                emailInput.value = genererEmail(nomInput.value);
+            }
+        });
     }
 
     modal.querySelector("[data-cancel]").onclick = () => modal.remove();
@@ -742,13 +786,14 @@ function openEnsModal(ecoleId, ens = null) {
         const email = emailInput.value.trim().toLowerCase();
         const code = codeInput.value.trim();
         const cycle = cycleInput.value;
-        const classesChoisies = Array.from(classesGrid.querySelectorAll("input:checked")).map(i => i.value);
+        const sexe = modal.querySelector("#ensSexe")?.value || 'M';
+        const classesChoisies = cycle === 'secondaire' ? [] : Array.from(classesGrid.querySelectorAll("input:checked")).map(i => i.value);
 
         if (!nom) { toast("Le nom est obligatoire", "error"); return; }
         if (!email) { toast("Email non généré. Vérifiez le nom.", "error"); return; }
         if (!code) { toast("Code manquant", "error"); return; }
         if (!cycle) { toast("Le cycle est obligatoire", "error"); return; }
-        if (classesChoisies.length === 0) { toast("Cochez au moins une classe", "error"); return; }
+        if (cycle !== 'secondaire' && classesChoisies.length === 0) { toast("Cochez au moins une classe", "error"); return; }
 
         setLoading(true);
         try {
@@ -761,18 +806,35 @@ function openEnsModal(ecoleId, ens = null) {
                 try {
                     const cred = await createUserWithEmailAndPassword(secondAuth, email, code);
                     const ensId = cred.user.uid;
-                    // ✅ FIX : ajout _type pour filtrage côté directeur
-                    await setDoc(doc(db, "ecoles", ecoleIdNorm, "enseignants", ensId), {
-                        ensId, nom, email, code, cycle, classes: classesChoisies,
-                        school: ecoleIdNorm, actif: true,
+
+                    const docData = {
+                        ensId, nom, email, emailProf: email, code: String(code),
+                        cycle, actif: true,
+                        school: ecoleIdNorm,
                         _type: 'enseignant',
                         createdAt: serverTimestamp()
-                    });
+                    };
+
+                    if (cycle === 'secondaire') {
+                        docData.sexe = sexe;
+                        docData.profId = ensId;
+                        docData.classes = [];
+                    } else {
+                        docData.classes = classesChoisies;
+                    }
+
+                    await setDoc(doc(db, "ecoles", ecoleIdNorm, "enseignants", ensId), docData);
                     toast("Enseignant créé avec succès");
                 } finally { await deleteApp(secondApp); }
             } else {
-                const updateData = { nom, cycle, classes: classesChoisies, school: ecoleIdNorm };
-                if (code && code !== '••••••') updateData.code = code;
+                const updateData = { nom, cycle, school: ecoleIdNorm };
+                if (cycle === 'secondaire') {
+                    updateData.classes = [];
+                    updateData.sexe = sexe;
+                } else {
+                    updateData.classes = classesChoisies;
+                }
+                if (code && code !== '••••••') updateData.code = String(code);
                 await setDoc(doc(db, "ecoles", ecoleIdNorm, "enseignants", ens.id), updateData, { merge: true });
                 toast("Enseignant mis à jour");
             }
@@ -1025,13 +1087,16 @@ document.getElementById("loadStatsBtn").onclick = async () => {
             if (settingsSnap.exists()) codes = settingsSnap.data();
         } catch(e) {}
 
-        let nbEnsP = 0, nbEnsM = 0, nbElevesP = 0, nbElevesM = 0;
+        let nbEnsP = 0, nbEnsM = 0, nbEnsS = 0, nbElevesP = 0, nbElevesM = 0;
         try {
             const ensSnap = await getDocs(collection(db, "ecoles", ecoleId, "enseignants"));
             ensSnap.forEach(d => {
                 const data = d.data();
                 if (data._type === 'config' || data._type === 'settings') return;
-                const c = data.cycle; if (c === 'maternelle') nbEnsM++; else nbEnsP++;
+                const c = data.cycle;
+                if (c === 'maternelle') nbEnsM++;
+                else if (c === 'secondaire') nbEnsS++;
+                else nbEnsP++;
             });
         } catch(e) {}
         try {
@@ -1060,6 +1125,7 @@ document.getElementById("loadStatsBtn").onclick = async () => {
         <div class="stats-grid">
         <div class="stat-card"><div class="stat-value">${nbEnsP}</div><div class="stat-label">👨‍🏫 Enseignants Primaire</div></div>
         <div class="stat-card"><div class="stat-value">${nbEnsM}</div><div class="stat-label">👨‍🏫 Enseignants Maternelle</div></div>
+        <div class="stat-card"><div class="stat-value" style="color:#c084fc;">${nbEnsS}</div><div class="stat-label">🟣 Professeurs Secondaire</div></div>
         <div class="stat-card"><div class="stat-value">${nbElevesP}</div><div class="stat-label">👨‍🎓 Élèves Primaire</div></div>
         <div class="stat-card"><div class="stat-value">${nbElevesM}</div><div class="stat-label">👨‍🎓 Élèves Maternelle</div></div>
         </div>`;
@@ -1094,7 +1160,7 @@ document.body.addEventListener("click", async e => {
         showConfirm("Supprimer cette école ?",
             `Vous êtes sur le point de supprimer <strong style="color:#fff;">${esc(nomEcole)}</strong>.<br><br>
             ⚠️ Cette action va supprimer en cascade :<br>
-            • Tous les <strong>enseignants</strong><br>
+            • Tous les <strong>enseignants</strong> (primaire, maternelle, secondaire)<br>
             • Tous les <strong>élèves</strong> (primaire + maternelle)<br>
             • Toutes les <strong>fiches</strong><br><br>
             <span style="color:#ef4444;">❌ Aucune restauration possible.</span>`,
