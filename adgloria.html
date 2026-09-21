@@ -115,7 +115,7 @@ tr:hover td{background:rgba(59,130,246,0.05);}
 .topbar .user .dot{width:10px;height:10px;border-radius:50%;background:#10b981;box-shadow:0 0 10px #10b981;animation:pulseDot 2s infinite;}
 @keyframes pulseDot{0%,100%{opacity:1;}50%{opacity:0.5;}}
 .toast-container{position:fixed;top:20px;right:20px;z-index:30000;display:flex;flex-direction:column;gap:12px;pointer-events:none;}
-.toast{background:rgba(18,25,45,0.98);backdrop-filter:blur(12px);border-radius:16px;padding:16px 22px;min-width:300px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,0.4);border-left:4px solid #10b981;transform:translateX(400px);transition:transform 0.3s ease;pointer-events:auto;color:#fff;font-size:14px;font-weight:500;}
+.toast{background:rgba(18,25,45,0.98);backdrop-filter:blur(12px);border-radius:16px;padding:16px 22px;min-width:300px;max-width:420px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,0.4);border-left:4px solid #10b981;transform:translateX(400px);transition:transform 0.3s ease;pointer-events:auto;color:#fff;font-size:14px;font-weight:500;}
 .toast.show{transform:translateX(0);}
 .toast.error{border-left-color:#ef4444;}
 .toast.warning{border-left-color:#f59e0b;}
@@ -304,7 +304,7 @@ function toast(msg, type = "success") {
     el.innerHTML = `<span style="font-size:18px;">${icons[type]}</span><span>${msg}</span>`;
     c.appendChild(el);
     requestAnimationFrame(() => el.classList.add("show"));
-    setTimeout(() => { el.classList.remove("show"); setTimeout(() => el.remove(), 400); }, 3000);
+    setTimeout(() => { el.classList.remove("show"); setTimeout(() => el.remove(), 400); }, 4000);
 }
 
 function esc(s) { if (!s) return ''; return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
@@ -336,7 +336,7 @@ function showConfirm(title, message, onConfirm, onCancel, danger = true) {
 }
 
 function genererEmail(nomComplet) {
-    if (!nomComplet.trim()) return '';
+    if (!nomComplet || !nomComplet.trim()) return '';
     const normalized = nomComplet.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const parts = normalized.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/).filter(Boolean);
     if (parts.length === 0) return '';
@@ -346,9 +346,18 @@ function genererEmail(nomComplet) {
 }
 
 function genererEmailSecondaire(nomComplet, ecoleId) {
-    if (!nomComplet.trim()) return '';
-    const nomPropre = nomComplet.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z\s]/g, '').trim().replace(/\s+/g, '.');
-    return 'prof.' + nomPropre + '.' + ecoleId.toLowerCase() + '@gmail.com';
+    if (!nomComplet || !nomComplet.trim()) return '';
+    const nomPropre = nomComplet
+        .toString()
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[''`\-]/g, ' ')
+        .replace(/[^a-z0-9\s]/g, '')
+        .trim()
+        .replace(/\s+/g, '.');
+    if (!nomPropre) return '';
+    const ecoleClean = String(ecoleId || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    return 'prof.' + nomPropre + '.' + ecoleClean + '@gmail.com';
 }
 
 function genererCode() {
@@ -780,22 +789,33 @@ function openEnsModal(ecoleId, ens = null) {
     if (!isEdit) {
         codeInput.value = genererCode();
         nomInput.addEventListener('input', majEmail);
+        nomInput.addEventListener('blur', majEmail);
+        nomInput.addEventListener('paste', () => setTimeout(majEmail, 50));
     }
 
     modal.querySelector("[data-cancel]").onclick = () => modal.remove();
     modal.querySelector("[data-save]").onclick = async () => {
         const nom = nomInput.value.trim();
-        const email = emailInput.value.trim().toLowerCase();
+        let email = emailInput.value.trim().toLowerCase();
         const code = codeInput.value.trim();
         const cycle = cycleInput.value;
         const sexe = modal.querySelector("#ensSexe")?.value || 'M';
         const classesChoisies = cycle === 'secondaire' ? [] : Array.from(classesGrid.querySelectorAll("input:checked")).map(i => i.value);
 
         if (!nom) { toast("Le nom est obligatoire", "error"); return; }
-        if (!email) { toast("Email non généré.", "error"); return; }
-        if (!code) { toast("Code manquant", "error"); return; }
         if (!cycle) { toast("Le cycle est obligatoire", "error"); return; }
         if (cycle !== 'secondaire' && classesChoisies.length === 0) { toast("Cochez au moins une classe", "error"); return; }
+        if (!code || code.length < 6) { toast("Code invalide (6 chiffres requis)", "error"); return; }
+
+        if (!email) {
+            if (cycle === 'secondaire') email = genererEmailSecondaire(nom, ecoleIdNorm);
+            else email = genererEmail(nom);
+        }
+
+        if (!email || !email.includes('@') || !email.includes('.')) {
+            toast("Email invalide. Vérifiez le nom.", "error");
+            return;
+        }
 
         setLoading(true);
         try {
@@ -806,11 +826,33 @@ function openEnsModal(ecoleId, ens = null) {
                 const secondApp = initializeApp(firebaseConfig, "secondary-" + Date.now());
                 const secondAuth = getAuth(secondApp);
                 try {
-                    const cred = await createUserWithEmailAndPassword(secondAuth, email, code);
+                    let emailFinal = email;
+                    let cred = null;
+                    let derniereErreur = null;
+
+                    for (let tentative = 0; tentative < 5; tentative++) {
+                        try {
+                            cred = await createUserWithEmailAndPassword(secondAuth, emailFinal, code);
+                            break;
+                        } catch (err) {
+                            derniereErreur = err;
+                            if (err.code === 'auth/email-already-in-use') {
+                                const suffixe = Math.floor(100 + Math.random() * 900);
+                                emailFinal = email.replace('@gmail.com', suffixe + '@gmail.com');
+                            } else {
+                                throw err;
+                            }
+                        }
+                    }
+
+                    if (!cred) {
+                        throw derniereErreur || new Error("Impossible de créer le compte après 5 essais");
+                    }
+
                     const ensId = cred.user.uid;
 
                     const docData = {
-                        ensId, nom, email, emailProf: email, code: String(code),
+                        ensId, nom, email: emailFinal, emailProf: emailFinal, code: String(code),
                         cycle, actif: true,
                         school: ecoleIdNorm,
                         createdAt: serverTimestamp()
@@ -831,8 +873,10 @@ function openEnsModal(ecoleId, ens = null) {
                     }
 
                     await setDoc(doc(db, "ecoles", ecoleIdNorm, collectionCible, ensId), docData);
-                    toast("Enseignant créé");
-                } finally { await deleteApp(secondApp); }
+                    toast("Enseignant créé : " + nom);
+                } finally {
+                    await deleteApp(secondApp);
+                }
             } else {
                 const updateData = { nom, cycle, school: ecoleIdNorm };
                 if (cycle === 'secondaire') {
@@ -842,10 +886,10 @@ function openEnsModal(ecoleId, ens = null) {
                     updateData.classes = classesChoisies;
                 }
                 if (code && code !== '••••••') updateData.code = String(code);
-                
+
                 const collectionCible = cycle === 'secondaire' ? 'professeurs' : 'enseignants';
                 const ancienneCollection = ens.cycle === 'secondaire' ? 'professeurs' : 'enseignants';
-                
+
                 if (ancienneCollection !== collectionCible) {
                     await deleteDoc(doc(db, "ecoles", ecoleIdNorm, ancienneCollection, ens.id));
                     updateData._type = cycle === 'secondaire' ? 'prof' : 'enseignant';
@@ -861,12 +905,17 @@ function openEnsModal(ecoleId, ens = null) {
             await loadEnseignants(ecoleIdNorm);
         } catch (e) {
             let msg = "Erreur";
-            if (e.code === "auth/email-already-in-use") msg = "Cet email est déjà utilisé";
-            if (e.code === "auth/invalid-email") msg = "Email invalide";
-            if (e.code === "auth/weak-password") msg = "Code trop faible";
+            if (e.code === "auth/email-already-in-use") msg = "Cet email est déjà utilisé (5 tentatives échouées)";
+            else if (e.code === "auth/invalid-email") msg = "Email invalide. Vérifiez le nom.";
+            else if (e.code === "auth/weak-password") msg = "Code trop faible (6 caractères minimum)";
+            else if (e.code === "auth/operation-not-allowed") msg = "Authentification email désactivée. Contactez le support.";
+            else if (e.code === "permission-denied") msg = "Permission refusée. Vérifiez les règles Firestore.";
+            else if (e.message) msg = e.message;
             toast(msg, "error");
-            console.error(e);
-        } finally { setLoading(false); }
+            console.error("Erreur création enseignant:", e);
+        } finally {
+            setLoading(false);
+        }
     };
 }
 
