@@ -640,7 +640,7 @@ body.dark-mode .roles-table tbody tr:hover td{background:rgba(212,175,55,.05)}
 </script>
 <script type="module">
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, getDocs, onSnapshot, doc, getDoc, updateDoc, setDoc, deleteDoc } from "firebase/firestore";
+import { getFirestore, collection, getDocs, doc, getDoc, updateDoc, setDoc, deleteDoc } from "firebase/firestore";
 import { getAuth, signInWithEmailAndPassword, signOut } from "firebase/auth";
 
 const firebaseConfig = {
@@ -674,6 +674,7 @@ const SESSION_TIMEOUT = 1000 * 60 * 60 * 24;
 const REFRESH_KEY = 'prefet_refresh_count';
 const REFRESH_MAX = 3;
 const ELEVES_PAR_PAGE = 20;
+const CACHE_DUREE = 2 * 60 * 1000;
 
 const CLASSES = ["7ème EB","8ème EB","1ère Année","2ème Année","3ème Année","4ème Année"];
 const OPTIONS_SECTION = ["SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","MECANIQUE AUTO","COUPE ET COUTURE"];
@@ -688,11 +689,12 @@ const OPTIONS = {
 let allStudents = [];
 let allProfs = [];
 let allTitulaires = [];
-let unsubscribeEleves = null;
-let unsubscribeProfs = null;
-let unsubscribeTitulaires = null;
 let currentPage = 1;
 let ecouteursActifs = false;
+
+let cacheEleves = { data: null, time: 0 };
+let cacheProfs = { data: null, time: 0 };
+let cacheTitulaires = { data: null, time: 0 };
 
 function toast(msg, type = 'success') {
 const c = document.getElementById('toasts');
@@ -824,52 +826,48 @@ return [];
 }
 }
 
-function ecouterEleves() {
-if (unsubscribeEleves) unsubscribeEleves();
-unsubscribeEleves = onSnapshot(collection(db, "ecoles", SCHOOL_ID, "compta_eleves"), (snap) => {
-const eleves = [];
-snap.forEach(ds => { const d = ds.data(); if (!estValide(d)) return; eleves.push(mapEleve(d, ds.id)); });
-eleves.sort((a, b) => (a.nom||'').localeCompare(b.nom||''));
-allStudents = eleves;
+async function ecouterEleves(force = false) {
+const now = Date.now();
+if (!force && cacheEleves.data && (now - cacheEleves.time) < CACHE_DUREE) {
+allStudents = cacheEleves.data;
 renderEleves();
 renderStats();
-}, () => {});
+return;
+}
+const data = await chargerEleves();
+cacheEleves = { data, time: now };
+renderEleves();
+renderStats();
 }
 
-function ecouterProfs() {
-if (unsubscribeProfs) unsubscribeProfs();
-unsubscribeProfs = onSnapshot(collection(db, "ecoles", SCHOOL_ID, "professeurs"), (snap) => {
-const profs = [];
-snap.forEach(ds => {
-const d = ds.data();
-if (d._type === 'prof' && d.actif !== false && d.nom) {
-profs.push({
-id: ds.id, nom: d.nom || '', sexe: d.sexe || 'M',
-presences: d.presences || {},
-niveauEtudes: d.niveauEtudes || '',
-telephone: d.telephone || '',
-actif: d.actif !== false
-});
-}
-});
-profs.sort((a, b) => (a.nom||'').localeCompare(b.nom||''));
-allProfs = profs;
+async function ecouterProfs(force = false) {
+const now = Date.now();
+if (!force && cacheProfs.data && (now - cacheProfs.time) < CACHE_DUREE) {
+allProfs = cacheProfs.data;
 renderPresences();
 renderFiches();
 initOngletPDF();
-}, () => {});
+return;
+}
+const data = await chargerProfs();
+cacheProfs = { data, time: now };
+renderPresences();
+renderFiches();
+initOngletPDF();
 }
 
-function ecouterTitulaires() {
-if (unsubscribeTitulaires) unsubscribeTitulaires();
-unsubscribeTitulaires = onSnapshot(collection(db, "ecoles", SCHOOL_ID, "titulaires"), (snap) => {
-const list = [];
-snap.forEach(ds => { const d = ds.data(); if (d.nom) list.push({ id: ds.id, ...d }); });
-list.sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
-allTitulaires = list;
+async function ecouterTitulaires(force = false) {
+const now = Date.now();
+if (!force && cacheTitulaires.data && (now - cacheTitulaires.time) < CACHE_DUREE) {
+allTitulaires = cacheTitulaires.data;
 renderTitulariat();
 initOngletPDF();
-}, () => {});
+return;
+}
+const data = await chargerTitulaires();
+cacheTitulaires = { data, time: now };
+renderTitulariat();
+initOngletPDF();
 }
 
 function renderEleves(resetPage = false) {
@@ -1097,9 +1095,9 @@ const ok = await showConfirm('SUPPRIMER', 'Voulez-vous vraiment retirer ce titul
 if (!ok) return;
 try {
 await deleteDoc(doc(db, "ecoles", SCHOOL_ID, "titulaires", id));
-await chargerTitulaires();
+cacheTitulaires = { data: null, time: 0 };
+await ecouterTitulaires(true);
 renderTitulariat();
-initOngletPDF();
 toast('Titulaire retiré', 'success');
 } catch(e) { toast('Erreur: ' + e.message, 'error'); }
 };
@@ -1185,9 +1183,9 @@ option: option,
 createdAt: Date.now()
 });
 document.getElementById('modalTitulaire').classList.remove('show');
-await chargerTitulaires();
+cacheTitulaires = { data: null, time: 0 };
+await ecouterTitulaires(true);
 renderTitulariat();
-initOngletPDF();
 toast(prof.nom + ' nommé(e) titulaire de ' + classeComplete, 'success');
 } catch(e) {
 if (e.code === 'permission-denied') toast('Permissions refusées — vérifiez les règles Firestore', 'error');
@@ -1655,18 +1653,41 @@ toast(allTitulaires.length + ' titulaire(s) exporté(s)', 'success');
 }
 
 document.querySelectorAll('.tab').forEach(tab => {
-tab.onclick = function() {
+tab.onclick = async function() {
 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 this.classList.add('active');
 document.getElementById(this.dataset.tab).classList.add('active');
 
-if (this.dataset.tab === 'tabPresences') renderPresences();
-if (this.dataset.tab === 'tabStats') renderStats();
-if (this.dataset.tab === 'tabFiches') renderFiches();
-if (this.dataset.tab === 'tabTitulariat') renderTitulariat();
-if (this.dataset.tab === 'tabPDF') initOngletPDF();
-if (this.dataset.tab === 'tabEleves') renderEleves();
+const tabId = this.dataset.tab;
+
+if (tabId === 'tabStats') {
+await ecouterEleves();
+await ecouterProfs();
+renderStats();
+}
+if (tabId === 'tabEleves') {
+await ecouterEleves();
+renderEleves();
+}
+if (tabId === 'tabPresences') {
+await ecouterProfs();
+renderPresences();
+}
+if (tabId === 'tabFiches') {
+await ecouterProfs();
+renderFiches();
+}
+if (tabId === 'tabTitulariat') {
+await ecouterTitulaires();
+await ecouterProfs();
+renderTitulariat();
+}
+if (tabId === 'tabPDF') {
+await ecouterProfs();
+await ecouterTitulaires();
+initOngletPDF();
+}
 };
 });
 
@@ -1775,7 +1796,9 @@ const ok = await showConfirm(
 if (!ok) return;
 try { await signOut(auth); } catch (e) {}
 effacerSession();
-arreterEcoute();
+cacheEleves = { data: null, time: 0 };
+cacheProfs = { data: null, time: 0 };
+cacheTitulaires = { data: null, time: 0 };
 document.getElementById('appContainer').style.display = 'none';
 document.getElementById('loginScreen').style.display = 'flex';
 document.getElementById('pwdInput').value = '';
@@ -1786,9 +1809,9 @@ document.getElementById('loginError').innerHTML = '';
 };
 
 async function init() {
-await chargerEleves();
-await chargerProfs();
-await chargerTitulaires();
+await ecouterEleves(true);
+await ecouterProfs(true);
+await ecouterTitulaires(true);
 
 initFilters();
 document.getElementById('presenceDate').value = new Date().toISOString().split('T')[0];
@@ -1800,7 +1823,7 @@ renderFiches();
 renderTitulariat();
 initOngletPDF();
 
-demarrerEcoute();
+ecouteursActifs = true;
 initVisibilityListener();
 initRefreshButton();
 }
@@ -1815,18 +1838,16 @@ window.addEventListener('focus', gererEtatEcouteurs);
 window.addEventListener('blur', gererEtatEcouteurs);
 
 window.addEventListener('pagehide', () => {
-arreterEcoute();
 ecouteursActifs = false;
 });
 
 window.addEventListener('beforeunload', () => {
-arreterEcoute();
 ecouteursActifs = false;
 });
 
 window.addEventListener('pageshow', (e) => {
 if (e.persisted) {
-rechargerDonneesPuisEcouter();
+rechargerDonneesPuisEcouter(false);
 ecouteursActifs = true;
 }
 });
@@ -1837,42 +1858,18 @@ gererEtatEcouteurs();
 function gererEtatEcouteurs() {
 if (doitEtreActif()) {
 if (!ecouteursActifs) {
-rechargerDonneesPuisEcouter();
+rechargerDonneesPuisEcouter(false);
 ecouteursActifs = true;
 }
 } else {
-if (ecouteursActifs) {
-arreterEcoute();
 ecouteursActifs = false;
 }
 }
-}
 
-function demarrerEcoute() {
-if (!unsubscribeEleves) ecouterEleves();
-if (!unsubscribeProfs) ecouterProfs();
-if (!unsubscribeTitulaires) ecouterTitulaires();
-}
-
-function arreterEcoute() {
-if (unsubscribeEleves) { unsubscribeEleves(); unsubscribeEleves = null; }
-if (unsubscribeProfs) { unsubscribeProfs(); unsubscribeProfs = null; }
-if (unsubscribeTitulaires) { unsubscribeTitulaires(); unsubscribeTitulaires = null; }
-}
-
-async function rechargerDonneesPuisEcouter() {
-try {
-await chargerEleves();
-await chargerProfs();
-await chargerTitulaires();
-renderEleves();
-renderStats();
-renderPresences();
-renderFiches();
-renderTitulariat();
-initOngletPDF();
-} catch (e) {}
-demarrerEcoute();
+async function rechargerDonneesPuisEcouter(force = false) {
+await ecouterEleves(force);
+await ecouterProfs(force);
+await ecouterTitulaires(force);
 }
 
 function initRefreshButton() {
@@ -1901,15 +1898,12 @@ this.disabled = true;
 this.classList.add('spinning');
 
 try {
-await chargerEleves();
-await chargerProfs();
-await chargerTitulaires();
-renderEleves();
-renderStats();
-renderPresences();
-renderFiches();
-renderTitulariat();
-initOngletPDF();
+cacheEleves = { data: null, time: 0 };
+cacheProfs = { data: null, time: 0 };
+cacheTitulaires = { data: null, time: 0 };
+await ecouterEleves(true);
+await ecouterProfs(true);
+await ecouterTitulaires(true);
 
 const newInfo = { date: info.date, count: info.count + 1 };
 setRefreshInfo(newInfo);
