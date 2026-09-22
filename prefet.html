@@ -128,7 +128,6 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .badge.orange{background:rgba(245,158,11,.15);color:#d97706;border:1px solid rgba(245,158,11,.3)}
 .badge.blue{background:rgba(59,130,246,.15);color:#2563eb;border:1px solid rgba(59,130,246,.3)}
 .badge.gray{background:rgba(148,163,184,.15);color:#64748b;border:1px solid rgba(148,163,184,.3)}
-.badge.purple{background:rgba(139,92,246,.15);color:#7c3aed;border:1px solid rgba(139,92,246,.3)}
 .empty{text-align:center;padding:40px 20px;color:#64748b;font-size:13px;font-weight:500}
 .empty i{font-size:42px;display:block;margin-bottom:12px;color:rgba(180,83,9,.15)}
 .toast-container{position:fixed;top:20px;right:20px;z-index:30000;display:flex;flex-direction:column;gap:12px;pointer-events:none;max-width:380px}
@@ -156,8 +155,6 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .pdf-section.blue{border-left:3px solid var(--blue)}
 .pdf-section.green h4{color:#059669}
 .pdf-section.green{border-left:3px solid var(--green)}
-.pdf-section.purple h4{color:#7c3aed}
-.pdf-section.purple{border-left:3px solid var(--purple)}
 .pdf-buttons{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
 .float-theme-btn,.float-logout-btn{position:fixed;right:20px;width:56px;height:56px;border-radius:50%;border:none;font-size:22px;cursor:pointer;z-index:999;transition:all .3s;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 24px rgba(0,0,0,.35)}
 .float-theme-btn{top:50%;transform:translateY(-115%);background:linear-gradient(135deg,#d4af37,#f59e0b);color:#0a0e1a}
@@ -359,29 +356,17 @@ body.dark-mode .frais-carte .frais-nom{color:#fff}
 </div>
 
 <div class="pdf-section blue">
-<h4><i class="fas fa-id-card"></i> FICHE D'IDENTIFICATION DE L'ENSEIGNANT</h4>
-<div class="row">
-<div class="fg" style="flex:2;"><label>PROFESSEUR</label><select id="pdfSelectProf"></select></div>
-</div>
+<h4><i class="fas fa-id-card"></i> FICHE D'IDENTIFICATION DES PROFESSEURS</h4>
 <div class="pdf-buttons">
-<button class="btn btn-sm btn-pdf" id="btnPDFProfIndividuel">
-<i class="fas fa-file-pdf"></i> FICHE INDIVIDUELLE
-</button>
 <button class="btn btn-sm btn-pdf" id="btnPDFProfToutes">
-<i class="fas fa-file-pdf"></i> LISTE COMPLÈTE
+<i class="fas fa-file-pdf"></i> GÉNÉRER LA FICHE COMPLÈTE
 </button>
 </div>
 </div>
 
 <div class="pdf-section green">
 <h4><i class="fas fa-user-tie"></i> FICHES DE TITULARIAT</h4>
-<div class="row">
-<div class="fg" style="flex:2;"><label>TITULAIRE</label><select id="pdfSelectTitulaire"></select></div>
-</div>
 <div class="pdf-buttons">
-<button class="btn btn-sm btn-pdf" id="btnPDFTitulaireIndividuel">
-<i class="fas fa-file-pdf"></i> FICHE INDIVIDUELLE
-</button>
 <button class="btn btn-sm btn-pdf" id="btnPDFTitulaireToutes">
 <i class="fas fa-file-pdf"></i> LISTE COMPLÈTE
 </button>
@@ -416,6 +401,14 @@ body.dark-mode .frais-carte .frais-nom{color:#fff}
 <div class="stat"><div class="lbl">Tech non payé</div><div class="val red" id="fraisTechNonPaye">0</div></div>
 </div>
 <div id="fraisGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px;margin-top:16px;"></div>
+<div id="fraisPagination" style="display:none;margin-top:16px;padding:12px 16px;background:#f8fafc;border:1px solid rgba(15,23,42,.08);border-radius:14px;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+<div id="fraisPaginationInfo" style="font-size:12px;color:var(--muted);font-weight:600;"></div>
+<div style="display:flex;gap:8px;align-items:center;">
+<button class="btn btn-sm btn-outline" id="fraisPrevPage"><i class="fas fa-chevron-left"></i> Précédent</button>
+<span id="fraisPaginationPages" style="font-size:12px;font-weight:700;color:var(--text);padding:0 8px;"></span>
+<button class="btn btn-sm btn-outline" id="fraisNextPage">Suivant <i class="fas fa-chevron-right"></i></button>
+</div>
+</div>
 <div id="fraisEmpty" style="display:none;text-align:center;padding:40px;color:var(--muted);">
 <i class="fas fa-users" style="font-size:42px;display:block;margin-bottom:12px;opacity:.3;"></i>
 Aucun élève trouvé
@@ -468,11 +461,10 @@ Aucun élève trouvé
 <th style="text-align:center;width:70px;">Sexe</th>
 <th>Niveau d'études</th>
 <th>N° Téléphone</th>
-<th>Classes assignées</th>
-<th style="text-align:center;width:220px;">Actions</th>
+<th style="text-align:center;width:130px;">Action</th>
 </tr></thead>
 <tbody id="gestionProfsTable">
-<tr><td colspan="7" class="empty">Chargement...</td></tr>
+<tr><td colspan="6" class="empty">Chargement...</td></tr>
 </tbody>
 </table>
 </div>
@@ -556,20 +548,6 @@ Aucun élève trouvé
 <label style="display:block;font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Code d'accès (6 chiffres)</label>
 <input type="text" id="addProfCode" readonly maxlength="6" style="width:100%;padding:12px 14px;border-radius:12px;border:2px solid var(--border);background:#f8fafc;color:var(--text);font-size:16px;font-weight:700;letter-spacing:6px;text-align:center;font-family:monospace;outline:none;">
 </div>
-<div>
-<label style="display:block;font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Classes assignées</label>
-<select id="addProfClasses" multiple style="width:100%;min-height:130px;padding:12px 14px;border-radius:12px;border:2px solid var(--border);background:#f8fafc;color:var(--text);font-size:14px;font-family:'Inter',sans-serif;outline:none;">
-<option value="7ème EB">7ème EB</option>
-<option value="8ème EB">8ème EB</option>
-<option value="1ère Année">1ère Année</option>
-<option value="2ème Année">2ème Année</option>
-<option value="3ème Année">3ème Année</option>
-<option value="4ème Année">4ème Année</option>
-</select>
-<div style="font-size:10px;color:var(--muted);margin-top:4px;font-style:italic;">
-💡 Maintenez Ctrl (PC) ou touchez plusieurs fois (mobile) pour sélectionner plusieurs classes
-</div>
-</div>
 </div>
 <div class="form-actions">
 <button class="btn btn-outline" id="addProfCancel">ANNULER</button>
@@ -583,9 +561,9 @@ Aucun élève trouvé
 <h3><i class="fas fa-user-edit"></i> MODIFIER LE PROFESSEUR</h3>
 <div style="display:flex;flex-direction:column;gap:14px;">
 <input type="hidden" id="editProfId">
-<div>
-<label style="display:block;font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Nom complet</label>
-<input type="text" id="editProfNomInput" placeholder="Ex: KASONGO Jean" style="width:100%;padding:12px 14px;border-radius:12px;border:2px solid var(--border);background:#f8fafc;color:var(--text);font-size:14px;font-family:'Inter',sans-serif;outline:none;">
+<div style="background:rgba(180,83,9,.06);border-radius:10px;padding:10px 14px;">
+<div style="font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Nom du professeur</div>
+<div id="editProfNomDisplay" style="font-size:14px;font-weight:800;color:var(--text);"></div>
 </div>
 <div>
 <label style="display:block;font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Sexe</label>
@@ -601,20 +579,6 @@ Aucun élève trouvé
 <div>
 <label style="display:block;font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">N° Téléphone</label>
 <input type="tel" id="editProfTel" placeholder="Ex: 0812345678" style="width:100%;padding:12px 14px;border-radius:12px;border:2px solid var(--border);background:#f8fafc;color:var(--text);font-size:14px;font-family:'Inter',sans-serif;outline:none;">
-</div>
-<div>
-<label style="display:block;font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Classes assignées</label>
-<select id="editProfClasses" multiple style="width:100%;min-height:130px;padding:12px 14px;border-radius:12px;border:2px solid var(--border);background:#f8fafc;color:var(--text);font-size:14px;font-family:'Inter',sans-serif;outline:none;">
-<option value="7ème EB">7ème EB</option>
-<option value="8ème EB">8ème EB</option>
-<option value="1ère Année">1ère Année</option>
-<option value="2ème Année">2ème Année</option>
-<option value="3ème Année">3ème Année</option>
-<option value="4ème Année">4ème Année</option>
-</select>
-<div style="font-size:10px;color:var(--muted);margin-top:4px;font-style:italic;">
-💡 Maintenez Ctrl (PC) ou touchez plusieurs fois (mobile) pour sélectionner plusieurs classes
-</div>
 </div>
 </div>
 <div class="form-actions">
@@ -710,7 +674,7 @@ Aucun élève trouvé
 
 <script type="importmap">
 {"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"}}
-</script><script type="module">
+</script> <script type="module">
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { getAuth, signInWithEmailAndPassword, signOut } from "firebase/auth";
@@ -744,13 +708,14 @@ const SESSION_TIMEOUT = 1000 * 60 * 60 * 24;
 const CACHE_DUREE = 2 * 60 * 1000;
 const CLASSES = ["7ème EB","8ème EB","1ère Année","2ème Année","3ème Année","4ème Année"];
 const OPTIONS_LIST = ["SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","MECANIQUE AUTO","COUPE ET COUTURE"];
+const FRAIS_PAR_PAGE = 10;
 
 let allStudents = [];
 let allProfs = [];
 let allTitulaires = [];
 let configFrais = { fraisEtat: 0, fraisTechnique: 0, frequence: "annuel", fraisParClasse: {}, fraisParOption: {} };
 let fraisEleves = {};
-let ecouteursActifs = false;
+let fraisPage = 1;
 let cacheEleves = { data: null, time: 0 };
 let cacheProfs = { data: null, time: 0 };
 let cacheTitulaires = { data: null, time: 0 };
@@ -985,9 +950,11 @@ return `<span class="badge ${cls}" style="padding:8px 16px;font-size:12px;">${k}
 }).join('') || '<span style="font-size:12px;color:var(--muted);">Aucune option</span>';
 }
 
-function renderFrais() {
+function renderFrais(resetPage = false) {
+if (resetPage) fraisPage = 1;
 const grid = document.getElementById('fraisGrid');
 const empty = document.getElementById('fraisEmpty');
+const pagination = document.getElementById('fraisPagination');
 if (!grid) return;
 const fClasse = document.getElementById('fraisFilterClasse')?.value || '';
 const fOption = document.getElementById('fraisFilterOption')?.value || '';
@@ -1022,11 +989,19 @@ document.getElementById('fraisTechNonPaye').textContent = nonPayeTech;
 if (listFiltree.length === 0) {
 grid.innerHTML = '';
 empty.style.display = 'block';
+if (pagination) pagination.style.display = 'none';
 return;
 }
 empty.style.display = 'none';
 
-grid.innerHTML = listFiltree.map(e => {
+const totalPages = Math.max(1, Math.ceil(listFiltree.length / FRAIS_PAR_PAGE));
+if (fraisPage > totalPages) fraisPage = totalPages;
+if (fraisPage < 1) fraisPage = 1;
+const debut = (fraisPage - 1) * FRAIS_PAR_PAGE;
+const fin = Math.min(debut + FRAIS_PAR_PAGE, listFiltree.length);
+const pageItems = listFiltree.slice(debut, fin);
+
+grid.innerHTML = pageItems.map(e => {
 const f = fraisEleves[e.id] || {};
 const statutEtat = f.fraisEtatStatut || 'non_paye';
 const statutTech = f.fraisTechniqueStatut || 'non_paye';
@@ -1061,12 +1036,23 @@ return `
 grid.querySelectorAll('.frais-actions button').forEach(btn => {
 btn.onclick = async function() {
 const parent = this.parentElement;
-const eleveId = parent.dataset.eleve;
-const type = parent.dataset.type;
-const statut = this.dataset.statut;
-await updateFraisEleve(eleveId, type, statut);
+await updateFraisEleve(parent.dataset.eleve, parent.dataset.type, this.dataset.statut);
 };
 });
+
+if (pagination) {
+if (totalPages <= 1) {
+pagination.style.display = 'none';
+} else {
+pagination.style.display = 'flex';
+document.getElementById('fraisPaginationInfo').textContent = `${debut + 1} - ${fin} sur ${listFiltree.length} élève${listFiltree.length > 1 ? 's' : ''}`;
+document.getElementById('fraisPaginationPages').textContent = `Page ${fraisPage} / ${totalPages}`;
+document.getElementById('fraisPrevPage').disabled = fraisPage <= 1;
+document.getElementById('fraisNextPage').disabled = fraisPage >= totalPages;
+document.getElementById('fraisPrevPage').onclick = () => { if (fraisPage > 1) { fraisPage--; renderFrais(); } };
+document.getElementById('fraisNextPage').onclick = () => { if (fraisPage < totalPages) { fraisPage++; renderFrais(); } };
+}
+}
 }
 
 async function updateFraisEleve(eleveId, type, statut) {
@@ -1223,27 +1209,21 @@ const search = (document.getElementById('gestionSearch')?.value || '').toLowerCa
 const list = allProfs.filter(p => !search || (p.nom || '').toLowerCase().includes(search));
 
 if (list.length === 0) {
-tbody.innerHTML = '<tr><td colspan="7" class="empty">Aucun professeur</td></tr>';
+tbody.innerHTML = '<tr><td colspan="6" class="empty">Aucun professeur</td></tr>';
 return;
 }
 
 tbody.innerHTML = list.map((p, i) => {
 const sexeLabel = p.sexe === 'F' ? 'F' : 'M';
 const sexeColor = p.sexe === 'F' ? '#ec4899' : '#2563eb';
-const classesHtml = (p.classes || []).length
-? p.classes.map(c => `<span class="badge blue" style="font-size:9px;">${escapeHtml(c)}</span>`).join('')
-: '<span style="color:var(--muted);font-size:11px;">Aucune</span>';
-const nomSafe = escapeHtml(p.nom).replace(/'/g, "\\'");
 return `<tr>
 <td>${i + 1}</td>
 <td><strong class="nom-prof">${escapeHtml(p.nom)}</strong></td>
 <td style="text-align:center;font-weight:800;color:${sexeColor};">${sexeLabel}</td>
 <td style="color:var(--muted);">${escapeHtml(p.niveauEtudes || '-')}</td>
 <td style="color:var(--muted);font-family:monospace;">${escapeHtml(p.telephone || '-')}</td>
-<td>${classesHtml}</td>
 <td style="text-align:center;">
 <button onclick="editClassesProf('${p.id}')" class="btn btn-xs btn-blue"><i class="fas fa-edit"></i> MODIFIER</button>
-<button onclick="supprimerProf('${p.id}','${nomSafe}')" class="btn btn-xs btn-danger"><i class="fas fa-trash"></i> SUPPRIMER</button>
 </td>
 </tr>`;
 }).join('');
@@ -1255,34 +1235,16 @@ const prof = allProfs.find(p => p.id === id);
 if (!prof) { toast('Professeur introuvable', 'error'); return; }
 
 document.getElementById('editProfId').value = id;
-document.getElementById('editProfNomInput').value = prof.nom || '';
+document.getElementById('editProfNomDisplay').textContent = prof.nom || '';
 document.getElementById('editProfSexe').value = prof.sexe || 'M';
 document.getElementById('editProfNiveau').value = prof.niveauEtudes || '';
 document.getElementById('editProfTel').value = prof.telephone || '';
-
-const sel = document.getElementById('editProfClasses');
-Array.from(sel.options).forEach(o => o.selected = false);
-(prof.classes || []).forEach(c => {
-const opt = Array.from(sel.options).find(o => o.value === c);
-if (opt) opt.selected = true;
-});
 
 document.getElementById('modalEditProf').classList.add('show');
 } catch(e) {
 console.error('Erreur edit prof:', e);
 toast('Erreur ouverture', 'error');
 }
-};
-
-window.supprimerProf = async function(id, nom) {
-const ok = await showConfirm('SUPPRIMER LE PROFESSEUR', `Voulez-vous vraiment supprimer <strong>${nom}</strong> ? Cette action est irréversible.`, 'SUPPRIMER');
-if (!ok) return;
-try {
-await deleteDoc(doc(db, "ecoles", SCHOOL_ID, "professeurs", id));
-cacheProfs = { data: null, time: 0 };
-await ecouterProfs(true);
-toast('Professeur supprimé', 'success');
-} catch(e) { toast('Erreur: ' + e.message, 'error'); }
 };
 
 function renderTitulariat() {
@@ -1331,18 +1293,6 @@ const m = document.getElementById('pdfMoisRapport');
 if (m && !m.value) {
 const now = new Date();
 m.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-}
-const sp = document.getElementById('pdfSelectProf');
-if (sp) {
-const val = sp.value;
-sp.innerHTML = '<option value="">-- Sélectionner --</option>' + allProfs.map(p => `<option value="${p.id}">${escapeHtml(p.nom)}</option>`).join('');
-if (val) sp.value = val;
-}
-const st = document.getElementById('pdfSelectTitulaire');
-if (st) {
-const val = st.value;
-st.innerHTML = '<option value="">-- Sélectionner --</option>' + allTitulaires.map(t => `<option value="${t.id}">${escapeHtml(t.nom)}</option>`).join('');
-if (val) st.value = val;
 }
 }
 
@@ -1461,55 +1411,12 @@ else data.cell.styles.textColor = [220,38,38];
 });
 
 doc.setFont('times', 'normal'); doc.setFontSize(10);
-doc.text('Fait à Kasumbalesa, le ' + new Date().toLocaleDateString('fr-FR'), 15, ph - 25);
+const aujourd = new Date().toLocaleDateString('fr-FR');
+doc.text('Fait à Kasumbalesa, le ' + aujourd, pw - 15, ph - 25, { align: 'right' });
 doc.save('Rapport_Mensuel_' + year + '-' + String(month).padStart(2,'0') + '.pdf');
 toast('Rapport généré', 'success');
 } catch(e) { toast('Erreur: ' + e.message, 'error'); }
 finally { btn.disabled = false; btn.innerHTML = orig; }
-}
-
-function genererFicheIdentProf(prof) {
-const { jsPDF } = window.jspdf;
-const doc = new jsPDF('portrait', 'mm', 'a4');
-const pw = doc.internal.pageSize.getWidth();
-const ph = doc.internal.pageSize.getHeight();
-
-doc.setFont('times', 'bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
-doc.text('MINISTERE DE L\'EDUCATION NATIONALE ET NOUVELLE CITOYENNETE', pw/2, 15, {align:'center'});
-doc.text('COMPLEXE SCOLAIRE ' + SCHOOL_DISPLAY_NAME, pw/2, 20, {align:'center'});
-doc.text('QUARTIER NEW-KOYO', pw/2, 25, {align:'center'});
-doc.text('VILLE DE KASUMBALESA', pw/2, 30, {align:'center'});
-
-doc.setDrawColor(0,0,0); doc.setLineWidth(0.5);
-doc.rect(15, 38, pw-30, 14);
-doc.setFontSize(11);
-doc.text('FICHE D\'IDENTIFICATION DE L\'ENSEIGNANT', pw/2, 44, {align:'center'});
-doc.text('SECTION SECONDAIRE/ANNEE SCOLAIRE : 202... - 202...', pw/2, 50, {align:'center'});
-
-doc.autoTable({
-head: [['N°', 'NOM POSTNOM & PRÉNOM', 'SEXE', 'NIVEAU D\'ÉTUDES', 'N° TÉLÉPHONE']],
-body: [['1', (prof.nom || '').toUpperCase(), prof.sexe || 'M', prof.niveauEtudes || '', prof.telephone || '']],
-startY: 58,
-theme: 'grid',
-styles: { fontSize: 10, cellPadding: 4, textColor: [0,0,0], lineColor: [0,0,0], lineWidth: 0.3, halign: 'center' },
-headStyles: { fillColor: [240,240,240], textColor: [0,0,0], fontStyle: 'bold', fontSize: 10 },
-columnStyles: {
-0: {cellWidth: 12},
-1: {halign: 'left', cellWidth: 65, fontStyle: 'bold'},
-2: {cellWidth: 15},
-3: {cellWidth: 40},
-4: {cellWidth: 35}
-}
-});
-
-const fy = ph - 40;
-doc.setFont('times', 'normal'); doc.setFontSize(10);
-doc.text('Fait à Kasumbalesa, le ......./......./ 20......', 15, fy);
-doc.setFont('times', 'bold');
-doc.text('Pour la Direction', pw - 40, fy + 10);
-
-doc.save('Fiche_Ident_Prof_' + (prof.nom || 'prof').replace(/\s+/g,'_') + '.pdf');
-toast('Fiche générée', 'success');
 }
 
 function genererListeIdentProfs() {
@@ -1531,12 +1438,16 @@ doc.setFontSize(11);
 doc.text('FICHE D\'IDENTIFICATION DE L\'ENSEIGNANT', pw/2, 44, {align:'center'});
 doc.text('SECTION SECONDAIRE/ANNEE SCOLAIRE : 202... - 202...', pw/2, 50, {align:'center'});
 
+const aujourd = new Date().toLocaleDateString('fr-FR', {day: '2-digit', month: '2-digit', year: 'numeric'});
+doc.setFont('times', 'italic'); doc.setFontSize(9);
+doc.text('Généré le : ' + aujourd, pw / 2, 56, { align: 'center' });
+
 const rows = allProfs.map((p, i) => [(i+1).toString(), (p.nom || '').toUpperCase(), p.sexe || 'M', p.niveauEtudes || '', p.telephone || '']);
 
 doc.autoTable({
 head: [['N°', 'NOM POSTNOM & PRÉNOM', 'SEXE', 'NIVEAU D\'ÉTUDES', 'N° TÉLÉPHONE']],
 body: rows,
-startY: 58,
+startY: 64,
 theme: 'grid',
 styles: { fontSize: 9, cellPadding: 3, textColor: [0,0,0], lineColor: [0,0,0], lineWidth: 0.2, halign: 'center' },
 headStyles: { fillColor: [240,240,240], textColor: [0,0,0], fontStyle: 'bold', fontSize: 9 },
@@ -1551,59 +1462,12 @@ columnStyles: {
 
 const fy = doc.lastAutoTable.finalY + 20;
 doc.setFont('times', 'normal'); doc.setFontSize(10);
-doc.text('Fait à Kasumbalesa, le ......./......./ 20......', 15, fy);
+doc.text('Fait à Kasumbalesa, le ' + aujourd, pw - 15, fy, { align: 'right' });
 doc.setFont('times', 'bold');
-doc.text('Pour la Direction', pw - 40, fy + 10);
+doc.text('Pour la Direction', pw - 15, fy + 10, { align: 'right' });
 
-doc.save('Liste_Identification_Profs.pdf');
+doc.save('Fiche_Identification_Professeurs.pdf');
 toast(allProfs.length + ' profs exportés', 'success');
-}
-
-function genererFicheTitulairePDF(id) {
-const t = allTitulaires.find(x => x.id === id);
-if (!t) { toast('Titulaire introuvable', 'error'); return; }
-const { jsPDF } = window.jspdf;
-const doc = new jsPDF('portrait', 'mm', 'a4');
-const pw = doc.internal.pageSize.getWidth();
-const ph = doc.internal.pageSize.getHeight();
-
-doc.setFont('times', 'bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
-doc.text('MINISTERE DE L\'EDUCATION NATIONALE ET NOUVELLE CITOYENNETE', pw/2, 15, {align:'center'});
-doc.text('COMPLEXE SCOLAIRE ' + SCHOOL_DISPLAY_NAME, pw/2, 20, {align:'center'});
-doc.text('QUARTIER NEW-KOYO', pw/2, 25, {align:'center'});
-doc.text('VILLE DE KASUMBALESA', pw/2, 30, {align:'center'});
-
-doc.setDrawColor(0,0,0); doc.setLineWidth(0.5);
-doc.rect(15, 38, pw-30, 14);
-doc.setFontSize(11);
-doc.text('FICHE DE TITULARIAT', pw/2, 44, {align:'center'});
-doc.text('SECTION SECONDAIRE/ANNEE SCOLAIRE : 202... - 202...', pw/2, 50, {align:'center'});
-
-const classeOption = t.option ? `${t.classe || ''} - ${t.option}` : (t.classe || t.classes || '');
-doc.autoTable({
-head: [['N°', 'NOM POSTNOM & PRÉNOM', 'SEXE', 'N° TÉLÉPHONE', 'CLASSE / OPTION']],
-body: [['1', (t.nom || '').toUpperCase(), t.sexe || 'M', t.telephone || '', classeOption]],
-startY: 58,
-theme: 'grid',
-styles: { fontSize: 10, cellPadding: 4, textColor: [0,0,0], lineColor: [0,0,0], lineWidth: 0.3, halign: 'center' },
-headStyles: { fillColor: [240,240,240], textColor: [0,0,0], fontStyle: 'bold', fontSize: 10 },
-columnStyles: {
-0: {cellWidth: 12},
-1: {halign: 'left', cellWidth: 55, fontStyle: 'bold'},
-2: {cellWidth: 15},
-3: {cellWidth: 35},
-4: {cellWidth: 50}
-}
-});
-
-const fy = ph - 40;
-doc.setFont('times', 'normal'); doc.setFontSize(10);
-doc.text('Fait à Kasumbalesa, le ......./......./ 20......', 15, fy);
-doc.setFont('times', 'bold');
-doc.text('Pour la Direction', pw - 40, fy + 10);
-
-doc.save('Fiche_Titulariat_' + (t.nom || 'titulaire').replace(/\s+/g,'_') + '.pdf');
-toast('Fiche générée', 'success');
 }
 
 function genererListeTitulaires() {
@@ -1625,6 +1489,10 @@ doc.setFontSize(11);
 doc.text('FICHE DE TITULARIAT', pw/2, 44, {align:'center'});
 doc.text('SECTION SECONDAIRE/ANNEE SCOLAIRE : 202... - 202...', pw/2, 50, {align:'center'});
 
+const aujourd = new Date().toLocaleDateString('fr-FR', {day: '2-digit', month: '2-digit', year: 'numeric'});
+doc.setFont('times', 'italic'); doc.setFontSize(9);
+doc.text('Généré le : ' + aujourd, pw / 2, 56, { align: 'center' });
+
 const rows = allTitulaires.map((t, i) => {
 const classeOption = t.option ? `${t.classe || ''} - ${t.option}` : (t.classe || t.classes || '');
 return [(i+1).toString(), (t.nom || '').toUpperCase(), t.sexe || 'M', t.telephone || '', classeOption];
@@ -1633,7 +1501,7 @@ return [(i+1).toString(), (t.nom || '').toUpperCase(), t.sexe || 'M', t.telephon
 doc.autoTable({
 head: [['N°', 'NOM POSTNOM & PRÉNOM', 'SEXE', 'N° TÉLÉPHONE', 'CLASSE / OPTION']],
 body: rows,
-startY: 58,
+startY: 64,
 theme: 'grid',
 styles: { fontSize: 9, cellPadding: 3, textColor: [0,0,0], lineColor: [0,0,0], lineWidth: 0.2, halign: 'center' },
 headStyles: { fillColor: [240,240,240], textColor: [0,0,0], fontStyle: 'bold', fontSize: 9 },
@@ -1648,11 +1516,11 @@ columnStyles: {
 
 const fy = doc.lastAutoTable.finalY + 20;
 doc.setFont('times', 'normal'); doc.setFontSize(10);
-doc.text('Fait à Kasumbalesa, le ......./......./ 20......', 15, fy);
+doc.text('Fait à Kasumbalesa, le ' + aujourd, pw - 15, fy, { align: 'right' });
 doc.setFont('times', 'bold');
-doc.text('Pour la Direction', pw - 40, fy + 10);
+doc.text('Pour la Direction', pw - 15, fy + 10, { align: 'right' });
 
-doc.save('Liste_Titulariat.pdf');
+doc.save('Fiche_Titulariat.pdf');
 toast(allTitulaires.length + ' titulaires exportés', 'success');
 }
 
@@ -1676,11 +1544,11 @@ document.getElementById('presenceDate')?.addEventListener('change', renderPresen
 document.getElementById('searchProf')?.addEventListener('input', renderPresences);
 document.getElementById('gestionSearch')?.addEventListener('input', renderGestionProfs);
 document.getElementById('searchTitulaire')?.addEventListener('input', renderTitulariat);
-document.getElementById('fraisSearch')?.addEventListener('input', renderFrais);
-document.getElementById('fraisFilterClasse')?.addEventListener('change', renderFrais);
-document.getElementById('fraisFilterOption')?.addEventListener('change', renderFrais);
-document.getElementById('fraisFilterEtat')?.addEventListener('change', renderFrais);
-document.getElementById('fraisFilterTech')?.addEventListener('change', renderFrais);
+document.getElementById('fraisSearch')?.addEventListener('input', () => renderFrais(true));
+document.getElementById('fraisFilterClasse')?.addEventListener('change', () => renderFrais(true));
+document.getElementById('fraisFilterOption')?.addEventListener('change', () => renderFrais(true));
+document.getElementById('fraisFilterEtat')?.addEventListener('change', () => renderFrais(true));
+document.getElementById('fraisFilterTech')?.addEventListener('change', () => renderFrais(true));
 
 document.getElementById('btnConfigFrais')?.addEventListener('click', async () => {
 try {
@@ -1765,7 +1633,6 @@ document.getElementById('addProfSexe').value = 'M';
 document.getElementById('addProfNiveau').value = '';
 document.getElementById('addProfTel').value = '';
 document.getElementById('addProfCode').value = String(Math.floor(100000 + Math.random() * 900000));
-Array.from(document.getElementById('addProfClasses').options).forEach(o => o.selected = false);
 document.getElementById('modalAddProf').classList.add('show');
 });
 
@@ -1780,7 +1647,6 @@ const sexe = document.getElementById('addProfSexe').value;
 const niveau = document.getElementById('addProfNiveau').value.trim();
 const tel = document.getElementById('addProfTel').value.trim();
 const code = document.getElementById('addProfCode').value.trim();
-const classes = Array.from(document.getElementById('addProfClasses').selectedOptions).map(o => o.value);
 
 if (!nom) { toast('Veuillez entrer un nom', 'warning'); return; }
 
@@ -1800,7 +1666,7 @@ niveauEtudes: niveau,
 telephone: tel,
 code: code,
 email: email,
-classes: classes,
+classes: [],
 actif: true,
 createdAt: Date.now()
 });
@@ -1825,32 +1691,27 @@ document.getElementById('modalEditProf').classList.remove('show');
 document.getElementById('editProfSave')?.addEventListener('click', async function() {
 const btn = this;
 const id = document.getElementById('editProfId').value;
-const nom = document.getElementById('editProfNomInput').value.trim();
 const sexe = document.getElementById('editProfSexe').value;
 const niveau = document.getElementById('editProfNiveau').value.trim();
 const tel = document.getElementById('editProfTel').value.trim();
-const classes = Array.from(document.getElementById('editProfClasses').selectedOptions).map(o => o.value);
 
 if (!id) { toast('Erreur: prof introuvable', 'error'); return; }
-if (!nom) { toast('Veuillez entrer un nom', 'warning'); return; }
 
 btn.disabled = true;
 btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ENREGISTREMENT...';
 
 try {
 await updateDoc(doc(db, "ecoles", SCHOOL_ID, "professeurs", id), {
-nom: nom,
 sexe: sexe,
 niveauEtudes: niveau,
 telephone: tel,
-classes: classes,
 updatedAt: Date.now()
 });
 
 cacheProfs = { data: null, time: 0 };
 document.getElementById('modalEditProf').classList.remove('show');
 await ecouterProfs(true);
-toast(nom + ' modifié avec succès', 'success');
+toast('Professeur modifié avec succès', 'success');
 } catch(e) {
 console.error('Erreur save prof:', e);
 toast('Erreur: ' + e.message, 'error');
@@ -1895,18 +1756,7 @@ toast(prof.nom + ' nommé titulaire', 'success');
 
 document.getElementById('btnPDFControleJour')?.addEventListener('click', genererPDFJour);
 document.getElementById('btnPDFRapportMensuel')?.addEventListener('click', genererRapportMensuel);
-document.getElementById('btnPDFProfIndividuel')?.addEventListener('click', () => {
-const id = document.getElementById('pdfSelectProf').value;
-if (!id) { toast('Sélectionnez un prof', 'warning'); return; }
-const p = allProfs.find(x => x.id === id);
-if (p) genererFicheIdentProf(p);
-});
 document.getElementById('btnPDFProfToutes')?.addEventListener('click', genererListeIdentProfs);
-document.getElementById('btnPDFTitulaireIndividuel')?.addEventListener('click', () => {
-const id = document.getElementById('pdfSelectTitulaire').value;
-if (!id) { toast('Sélectionnez un titulaire', 'warning'); return; }
-genererFicheTitulairePDF(id);
-});
 document.getElementById('btnPDFTitulaireToutes')?.addEventListener('click', genererListeTitulaires);
 
 const THEME_KEY = 'prefet_theme';
@@ -1990,29 +1840,6 @@ renderGestionProfs();
 renderTitulariat();
 renderFrais();
 initOngletPDF();
-
-ecouteursActifs = true;
-initVisibilityListener();
-}
-
-function initVisibilityListener() {
-document.addEventListener('visibilitychange', () => {
-if (document.visibilityState === 'visible' && !ecouteursActifs) {
-ecouteursActifs = true;
-recharger();
-} else if (document.visibilityState !== 'visible') {
-ecouteursActifs = false;
-}
-});
-window.addEventListener('focus', () => { if (!ecouteursActifs) { ecouteursActifs = true; recharger(); } });
-window.addEventListener('blur', () => { ecouteursActifs = false; });
-}
-
-async function recharger() {
-await ecouterEleves(true);
-await ecouterProfs(true);
-await ecouterTitulaires(true);
-await ecouterFrais(true);
 }
 
 async function autoLogin() {
