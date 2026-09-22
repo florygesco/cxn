@@ -210,6 +210,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .frais-actions button.partiel.actif{background:#f59e0b;color:#fff;border-color:#f59e0b}
 .frais-actions button.impaye{background:rgba(239,68,68,.12);color:#dc2626;border-color:rgba(239,68,68,.3)}
 .frais-actions button.impaye.actif{background:#ef4444;color:#fff;border-color:#ef4444}
+.chip-classe{display:inline-flex;align-items:center;gap:6px;background:#3b82f6;color:#fff;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;margin:2px}
+.chip-classe button{background:transparent;border:none;color:#fff;cursor:pointer;font-size:14px;line-height:1;padding:0}
 body.dark-mode{--bg:#0a0e1a;--bg-2:#0f172a;--card:#141c2e;--card-2:#1a2332;--text:#e6edf3;--muted:#8b98ab;--border:rgba(212,175,55,.12);--gold:#d4af37;--gold-2:#fbbf24;--blue:#3b82f6;--green:#10b981;--red:#ef4444;--orange:#f59e0b;--purple:#8b5cf6;background:#0a0e1a;color:#e6edf3}
 body.dark-mode::before{background:radial-gradient(ellipse at top left,rgba(212,175,55,.08),transparent 50%),radial-gradient(ellipse at bottom right,rgba(59,130,246,.06),transparent 50%)}
 body.dark-mode .login-screen{background:linear-gradient(135deg,#0a0e1a 0%,#1a2332 50%,#0a0e1a 100%)}
@@ -490,7 +492,7 @@ Aucun élève trouvé
 <th>Nom, Postnom & Prénom</th>
 <th style="text-align:center;width:70px;">Sexe</th>
 <th style="width:140px;">N° Téléphone</th>
-<th>Classe · Option</th>
+<th>Classes assignées</th>
 <th style="text-align:center;width:90px;">Action</th>
 </tr>
 </thead>
@@ -630,7 +632,7 @@ Aucun élève trouvé
 </div>
 
 <div class="modal" id="modalTitulaire">
-<div class="modal-box">
+<div class="modal-box" style="max-width:640px;">
 <h3><i class="fas fa-user-plus"></i> NOMMER UN TITULAIRE</h3>
 <div style="display:flex;flex-direction:column;gap:14px;">
 <div>
@@ -646,7 +648,7 @@ Aucun élève trouvé
 <option value="7ème EB">7ème EB</option>
 <option value="8ème EB">8ème EB</option>
 <option value="1ère Année">1ère Année</option>
-<option value="2ème Année">2ème Année</option>
+<option value="2ème Annoptionée">2ème Année</>
 <option value="3ème Année">3ème Année</option>
 <option value="4ème Année">4ème Année</option>
 </select>
@@ -664,6 +666,17 @@ Aucun élève trouvé
 <option value="COUPE ET COUTURE">COUPE ET COUTURE</option>
 </select>
 </div>
+<button class="btn btn-sm btn-blue" id="titAddClasse" style="align-self:flex-start;">
+<i class="fas fa-plus"></i> AJOUTER CETTE CLASSE
+</button>
+<div style="background:rgba(180,83,9,.06);border:1px solid var(--border);border-radius:12px;padding:14px;">
+<div style="font-size:10px;font-weight:800;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+<i class="fas fa-list"></i> Classes assignées
+</div>
+<div id="titListeClasses" style="display:flex;flex-wrap:wrap;gap:6px;min-height:30px;">
+<span style="font-size:11px;color:var(--muted);font-style:italic;">Aucune classe ajoutée</span>
+</div>
+</div>
 </div>
 <div class="form-actions">
 <button class="btn btn-outline" id="titCancel">ANNULER</button>
@@ -675,9 +688,9 @@ Aucun élève trouvé
 <script type="importmap">
 {"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"}}
 </script> <script type="module">
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps } from "firebase/app";
 import { getFirestore, collection, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
-import { getAuth, signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "firebase/auth";
 
 const firebaseConfig = {
 apiKey: "AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",
@@ -691,6 +704,8 @@ appId: "1:36319988765:web:e8cd823804596495248af4"
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+const appSecondary = getApps().find(a => a.name === 'secondary') || initializeApp(firebaseConfig, 'secondary');
+const authSecondary = getAuth(appSecondary);
 
 const urlParams = new URLSearchParams(window.location.search);
 const schoolId = urlParams.get('ecole') || urlParams.get('school');
@@ -716,6 +731,7 @@ let allTitulaires = [];
 let configFrais = { fraisEtat: 0, fraisTechnique: 0, frequence: "annuel", fraisParClasse: {}, fraisParOption: {} };
 let fraisEleves = {};
 let fraisPage = 1;
+let titClassesTemp = [];
 let cacheEleves = { data: null, time: 0 };
 let cacheProfs = { data: null, time: 0 };
 let cacheTitulaires = { data: null, time: 0 };
@@ -899,12 +915,12 @@ async function ecouterTitulaires(force = false) {
 const now = Date.now();
 if (!force && cacheTitulaires.data && (now - cacheTitulaires.time) < CACHE_DUREE) {
 allTitulaires = cacheTitulaires.data;
-renderTitulariat(); initOngletPDF();
+renderTitulariat();
 return;
 }
 const data = await chargerTitulaires();
 cacheTitulaires = { data, time: now };
-renderTitulariat(); initOngletPDF();
+renderTitulariat();
 }
 
 async function ecouterFrais(force = false) {
@@ -1112,7 +1128,6 @@ const badgeLabel = statut === 'present' ? 'PRÉSENT' : statut === 'retard' ? 'RE
 const avatarClass = p.sexe === 'F' ? 'femme' : '';
 const initiales = (p.nom || '??').trim().split(/\s+/).map(w => w[0]).slice(0,2).join('').toUpperCase();
 const heure = presence?.heureArrivee || '--:--';
-const classesDisplay = (p.classes || []).slice(0, 2).join(' · ') || '';
 
 html += `<div class="prof-carte ${statutClass}" data-prof="${p.id}" data-nom="${escapeHtml(p.nom).toLowerCase()}">
 <div class="prof-badge ${badgeClass}">${badgeLabel}</div>
@@ -1122,7 +1137,6 @@ html += `<div class="prof-carte ${statutClass}" data-prof="${p.id}" data-nom="${
 <div class="prof-nom-card">${escapeHtml(p.nom)}</div>
 <div class="prof-meta">
 <span class="prof-tag primaire">PROFESSEUR</span>
-${classesDisplay ? `<span class="prof-tag" style="background:rgba(139,92,246,0.12);color:#7c3aed;text-transform:none;">${escapeHtml(classesDisplay)}</span>` : ''}
 </div>
 </div>
 </div>
@@ -1261,13 +1275,16 @@ return;
 tbody.innerHTML = list.map((t, i) => {
 const sexeLabel = t.sexe === 'F' ? 'F' : 'M';
 const sexeColor = t.sexe === 'F' ? '#ec4899' : '#2563eb';
-const classeAffichee = t.option ? `${t.classe || ''} · ${t.option}` : (t.classe || t.classes || '-');
+const classesArray = t.classes || [];
+const classesHtml = classesArray.length
+? classesArray.map(c => `<span class="badge blue" style="font-size:9px;">${escapeHtml(c)}</span>`).join('')
+: '<span style="color:var(--muted);font-size:11px;">Aucune</span>';
 return `<tr>
 <td style="font-weight:700;color:var(--gold);">${String(i + 1).padStart(2, '0')}</td>
 <td><strong class="nom-prof">${escapeHtml(t.nom)}</strong></td>
 <td style="text-align:center;font-weight:800;color:${sexeColor};">${sexeLabel}</td>
 <td style="color:var(--muted);font-family:monospace;">${escapeHtml(t.telephone || '-')}</td>
-<td>${escapeHtml(classeAffichee)}</td>
+<td>${classesHtml}</td>
 <td style="text-align:center;">
 <button onclick="supprimerTitulaire('${t.id}')" class="btn btn-xs btn-danger"><i class="fas fa-trash"></i></button>
 </td>
@@ -1284,6 +1301,26 @@ cacheTitulaires = { data: null, time: 0 };
 await ecouterTitulaires(true);
 toast('Titulaire retiré', 'success');
 } catch(e) { toast('Erreur: ' + e.message, 'error'); }
+};
+
+function renderTitListeClasses() {
+const container = document.getElementById('titListeClasses');
+if (!container) return;
+if (titClassesTemp.length === 0) {
+container.innerHTML = '<span style="font-size:11px;color:var(--muted);font-style:italic;">Aucune classe ajoutée</span>';
+return;
+}
+container.innerHTML = titClassesTemp.map((c, idx) => `
+<span style="display:inline-flex;align-items:center;gap:6px;background:#3b82f6;color:#fff;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;margin:2px;">
+${escapeHtml(c)}
+<button onclick="retirerTitClasse(${idx})" style="background:transparent;border:none;color:#fff;cursor:pointer;font-size:14px;line-height:1;padding:0;">×</button>
+</span>
+`).join('');
+}
+
+window.retirerTitClasse = function(idx) {
+titClassesTemp.splice(idx, 1);
+renderTitListeClasses();
 };
 
 function initOngletPDF() {
@@ -1494,12 +1531,12 @@ doc.setFont('times', 'italic'); doc.setFontSize(9);
 doc.text('Généré le : ' + aujourd, pw / 2, 56, { align: 'center' });
 
 const rows = allTitulaires.map((t, i) => {
-const classeOption = t.option ? `${t.classe || ''} - ${t.option}` : (t.classe || t.classes || '');
-return [(i+1).toString(), (t.nom || '').toUpperCase(), t.sexe || 'M', t.telephone || '', classeOption];
+const classes = (t.classes || []).join(' · ') || '-';
+return [(i+1).toString(), (t.nom || '').toUpperCase(), t.sexe || 'M', t.telephone || '', classes];
 });
 
 doc.autoTable({
-head: [['N°', 'NOM POSTNOM & PRÉNOM', 'SEXE', 'N° TÉLÉPHONE', 'CLASSE / OPTION']],
+head: [['N°', 'NOM POSTNOM & PRÉNOM', 'SEXE', 'N° TÉLÉPHONE', 'CLASSES ASSIGNÉES']],
 body: rows,
 startY: 64,
 theme: 'grid',
@@ -1510,7 +1547,7 @@ columnStyles: {
 1: {halign: 'left', cellWidth: 55, fontStyle: 'bold'},
 2: {cellWidth: 15},
 3: {cellWidth: 35},
-4: {cellWidth: 50}
+4: {halign: 'left', cellWidth: 50}
 }
 });
 
@@ -1649,6 +1686,7 @@ const tel = document.getElementById('addProfTel').value.trim();
 const code = document.getElementById('addProfCode').value.trim();
 
 if (!nom) { toast('Veuillez entrer un nom', 'warning'); return; }
+if (!code || code.length !== 6) { toast('Code à 6 chiffres requis', 'warning'); return; }
 
 btn.disabled = true;
 btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ENREGISTREMENT...';
@@ -1656,6 +1694,21 @@ btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ENREGISTREMENT...';
 try {
 const id = 'prof_' + Date.now();
 const email = 'prof.' + nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z\s]/g,'').trim().replace(/\s+/g,'.') + '.' + SCHOOL_ID + '@gmail.com';
+
+let authCreated = false;
+try {
+await createUserWithEmailAndPassword(authSecondary, email, code);
+authCreated = true;
+} catch (authError) {
+if (authError.code === 'auth/email-already-in-use') {
+authCreated = true;
+} else {
+console.warn('Erreur création Auth:', authError);
+throw new Error('Impossible de créer le compte : ' + authError.message);
+}
+} finally {
+try { await signOut(authSecondary); } catch(e) {}
+}
 
 await setDoc(doc(db, "ecoles", SCHOOL_ID, "professeurs", id), {
 _type: 'prof',
@@ -1666,6 +1719,7 @@ niveauEtudes: niveau,
 telephone: tel,
 code: code,
 email: email,
+authCreated: authCreated,
 classes: [],
 actif: true,
 createdAt: Date.now()
@@ -1721,33 +1775,77 @@ btn.innerHTML = '<i class="fas fa-check"></i> ENREGISTRER';
 }
 });
 
-document.getElementById('titCancel')?.addEventListener('click', () => document.getElementById('modalTitulaire').classList.remove('show'));
+document.getElementById('titCancel')?.addEventListener('click', () => {
+titClassesTemp = [];
+document.getElementById('modalTitulaire').classList.remove('show');
+});
+
 document.getElementById('titClasses')?.addEventListener('change', function() {
 const wrapper = document.getElementById('titOptionWrapper');
 wrapper.style.display = ['7ème EB','8ème EB',''].includes(this.value) ? 'none' : 'block';
+if (['7ème EB','8ème EB',''].includes(this.value)) {
+document.getElementById('titOption').value = '';
+}
 });
+
+document.getElementById('titAddClasse')?.addEventListener('click', () => {
+const classe = document.getElementById('titClasses').value;
+const option = document.getElementById('titOption').value;
+
+if (!classe) { toast('Veuillez choisir une classe', 'warning'); return; }
+if (!['7ème EB','8ème EB'].includes(classe) && !option) {
+toast('Veuillez choisir une option', 'warning');
+return;
+}
+
+const classeComplete = option ? classe + ' - ' + option : classe;
+
+if (titClassesTemp.includes(classeComplete)) {
+toast('Cette classe est déjà ajoutée', 'warning');
+return;
+}
+
+titClassesTemp.push(classeComplete);
+renderTitListeClasses();
+
+document.getElementById('titClasses').value = '';
+document.getElementById('titOption').value = '';
+document.getElementById('titOptionWrapper').style.display = 'none';
+toast('Classe ajoutée', 'success');
+});
+
 document.getElementById('btnAddTitulaire')?.addEventListener('click', () => {
 const sel = document.getElementById('titProfSelect');
 sel.innerHTML = '<option value="">-- Sélectionner --</option>' + allProfs.map(p => `<option value="${p.id}">${escapeHtml(p.nom)}</option>`).join('');
+titClassesTemp = [];
+renderTitListeClasses();
 document.getElementById('titClasses').value = '';
 document.getElementById('titOption').value = '';
 document.getElementById('titOptionWrapper').style.display = 'none';
 document.getElementById('modalTitulaire').classList.add('show');
 });
+
 document.getElementById('titSave')?.addEventListener('click', async () => {
 const profId = document.getElementById('titProfSelect').value;
-const classe = document.getElementById('titClasses').value;
-const option = document.getElementById('titOption').value;
-if (!profId || !classe) { toast('Remplissez les champs', 'warning'); return; }
+
+if (!profId) { toast('Veuillez choisir un professeur', 'warning'); return; }
+if (titClassesTemp.length === 0) { toast('Ajoutez au moins une classe', 'warning'); return; }
+
 const prof = allProfs.find(p => p.id === profId);
 if (!prof) { toast('Prof introuvable', 'error'); return; }
+
 try {
 const id = 'tit_' + Date.now();
 await setDoc(doc(db, "ecoles", SCHOOL_ID, "titulaires", id), {
-profId: prof.id, nom: prof.nom, sexe: prof.sexe || 'M', telephone: prof.telephone || '',
-classe, option: option || '', classes: option ? classe + ' - ' + option : classe, createdAt: Date.now()
+profId: prof.id,
+nom: prof.nom,
+sexe: prof.sexe || 'M',
+telephone: prof.telephone || '',
+classes: [...titClassesTemp],
+createdAt: Date.now()
 });
 cacheTitulaires = { data: null, time: 0 };
+titClassesTemp = [];
 document.getElementById('modalTitulaire').classList.remove('show');
 await ecouterTitulaires(true);
 toast(prof.nom + ' nommé titulaire', 'success');
