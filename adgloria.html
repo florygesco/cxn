@@ -230,7 +230,7 @@ tr:hover td{background:rgba(59,130,246,0.05);}
 </div>
 
 <div class="panel" id="panel-eleves">
-<div class="info-box">💡 Sélectionnez le <strong>cycle</strong> : Primaire, Maternelle ou Secondaire. Vous pouvez aussi <strong>importer un fichier CSV</strong> pour ajouter plusieurs élèves d'un coup.</div>
+<div class="info-box">💡 Sélectionnez le <strong>cycle</strong> : Primaire, Maternelle ou Secondaire. Vous pouvez aussi <strong>importer un fichier CSV</strong> ou <strong>fusionner les doublons</strong>.</div>
 <div class="toolbar">
 <select id="eleveEcoleSelect"><option value="">-- Choisir une école --</option></select>
 <select id="eleveCycleSelect">
@@ -244,6 +244,7 @@ tr:hover td{background:rgba(59,130,246,0.05);}
 <input type="text" id="searchEleves" placeholder="🔍 Rechercher un élève...">
 <button class="btn btn-success" id="addEleveBtn">➕ AJOUTER UN ÉLÈVE</button>
 <button class="btn btn-primary" id="importCsvBtn">📥 IMPORTER CSV</button>
+<button class="btn btn-warning" id="fusionDoublonsBtn">🧹 FUSIONNER DOUBLONS</button>
 </div>
 <div class="table-wrapper">
 <table>
@@ -304,6 +305,12 @@ const OPTIONS_PAR_CLASSE = {
     "2ème Année": OPTIONS_SECONDAIRE,
     "3ème Année": OPTIONS_SECONDAIRE,
     "4ème Année": OPTIONS_SECONDAIRE
+};
+
+const CLASSES_VALIDES = {
+    primaire: CLASSES_PRIMAIRE,
+    maternelle: CLASSES_MATERNELLE,
+    secondaire: CLASSES_SECONDAIRE
 };
 
 let currentUser = null;
@@ -371,6 +378,16 @@ function genererEmailSecondaire(nomComplet, ecoleId) {
 
 function genererCode() { return Math.floor(100000 + Math.random() * 900000).toString(); }
 
+function makeKey(nom, postnom, prenom, classe) {
+    const clean = (s) => String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+    const n = clean(nom);
+    const p = clean(postnom);
+    const pr = clean(prenom);
+    const c = clean(classe);
+    if (!n || !pr) return null;
+    return `${n}|${p}|${pr}|${c}`;
+}
+
 document.getElementById("loginBtn").onclick = doLogin;
 document.getElementById("loginPassword").addEventListener("keypress", e => { if (e.key === "Enter") doLogin(); });
 document.getElementById("loginEmail").addEventListener("keypress", e => { if (e.key === "Enter") doLogin(); });
@@ -389,7 +406,10 @@ async function doLogin() {
         if (e.code === "auth/wrong-password" || e.code === "auth/invalid-credential") msg = "Mot de passe incorrect";
         if (e.code === "auth/invalid-email") msg = "Email invalide";
         if (e.code === "auth/too-many-requests") msg = "Trop de tentatives.";
+        if (e.code === "auth/operation-not-allowed") msg = "Activez Email/Mot de passe dans Firebase.";
+        if (e.code === "auth/network-request-failed") msg = "Problème de connexion internet.";
         err.textContent = msg;
+        console.error("Erreur connexion :", e.code, e.message);
     } finally { setLoading(false); }
 }
 
@@ -423,7 +443,7 @@ async function loadEcoles() {
         snap.forEach(d => ecolesList.push({ id: d.id, ...d.data() }));
         ecolesList.sort((a, b) => (a.nom || a.id).localeCompare(b.nom || b.id));
         renderEcoles();
-    } catch (e) { toast("Erreur chargement des écoles", "error"); }
+    } catch (e) { toast("Erreur chargement des écoles", "error"); console.error(e); }
 }
 
 function renderEcoles() {
@@ -536,6 +556,7 @@ function openEcoleModal(ecole = null) {
                 await createUserWithEmailAndPassword(secondaryAuth, emailDirection, String(codeDirection));
             } catch (err) {
                 if (err.code === 'auth/email-already-in-use') note = 'déjà existant';
+                console.error("Erreur création compte Direction:", err);
             } finally { await deleteApp(secondaryApp); }
 
             modal.remove();
@@ -584,6 +605,7 @@ function openEcoleModal(ecole = null) {
 
         } catch (e) {
             toast("Erreur : " + e.message, "error");
+            console.error(e);
         } finally { setLoading(false); }
     };
 }
@@ -624,7 +646,7 @@ async function loadEnseignants(ecoleId) {
         });
         ensList.sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
         renderEnseignants();
-    } catch (e) { toast("Erreur chargement enseignants", "error"); }
+    } catch (e) { toast("Erreur chargement enseignants", "error"); console.error(e); }
 }
 
 function renderEnseignants() {
@@ -910,6 +932,7 @@ function openEnsModal(ecoleId, ens = null) {
             else if (e.code === "permission-denied") msg = "Permission refusée. Vérifiez les règles Firestore.";
             else if (e.message) msg = e.message;
             toast(msg, "error");
+            console.error(e);
         } finally { setLoading(false); }
     };
 }
@@ -962,7 +985,7 @@ async function loadEleves(ecoleId) {
         updateClasseFilterOptions();
         updateOptionFilter();
         renderEleves();
-    } catch (e) { toast("Erreur chargement élèves", "error"); }
+    } catch (e) { toast("Erreur chargement élèves", "error"); console.error(e); }
 }
 
 function updateClasseFilterOptions() {
@@ -1195,7 +1218,7 @@ function openEleveModal(ecoleId, eleve = null) {
             }
             modal.remove();
             await loadEleves(ecoleId);
-        } catch (e) { toast("Erreur : " + e.message, "error"); }
+        } catch (e) { toast("Erreur : " + e.message, "error"); console.error(e); }
         finally { setLoading(false); }
     };
 }
@@ -1284,7 +1307,7 @@ document.getElementById("loadStatsBtn").onclick = async () => {
             };
         });
 
-    } catch(e) { toast("Erreur : " + e.message, "error"); }
+    } catch(e) { toast("Erreur : " + e.message, "error"); console.error(e); }
     finally { setLoading(false); }
 };
 
@@ -1322,7 +1345,7 @@ document.body.addEventListener("click", async e => {
                     toast("École supprimée", "warning");
                     await loadEcoles();
                     await refreshEcoleSelectors();
-                } catch (e) { toast("Erreur", "error"); }
+                } catch (e) { toast("Erreur", "error"); console.error(e); }
                 finally { setLoading(false); }
             }
         );
@@ -1354,7 +1377,7 @@ document.body.addEventListener("click", async e => {
             await setDoc(doc(db, "ecoles", eid, col, id), { actif: newActif }, { merge: true });
             toast(newActif ? "Enseignant activé" : "Enseignant désactivé");
             await loadEnseignants(eid);
-        } catch (e) { toast("Erreur", "error"); }
+        } catch (e) { toast("Erreur", "error"); console.error(e); }
         finally { setLoading(false); }
     }
     if (action === "del-ens") {
@@ -1372,7 +1395,7 @@ document.body.addEventListener("click", async e => {
                     await deleteDoc(doc(db, "ecoles", eid, col, id));
                     toast("Enseignant supprimé", "warning");
                     await loadEnseignants(eid);
-                } catch (e) { toast("Erreur", "error"); }
+                } catch (e) { toast("Erreur", "error"); console.error(e); }
                 finally { setLoading(false); }
             }
         );
@@ -1398,7 +1421,7 @@ document.body.addEventListener("click", async e => {
                     await deleteDoc(doc(db, "ecoles", eleveEcoleId, col, id));
                     toast("Élève supprimé", "warning");
                     await loadEleves(eleveEcoleId);
-                } catch (e) { toast("Erreur", "error"); }
+                } catch (e) { toast("Erreur", "error"); console.error(e); }
                 finally { setLoading(false); }
             }
         );
@@ -1406,14 +1429,8 @@ document.body.addEventListener("click", async e => {
 });
 
 /* ============================================================
-   MODULE IMPORT CSV (Primaire / Maternelle / Secondaire)
+   MODULE IMPORT CSV
    ============================================================ */
-
-const CLASSES_VALIDES = {
-    primaire: CLASSES_PRIMAIRE,
-    maternelle: CLASSES_MATERNELLE,
-    secondaire: CLASSES_SECONDAIRE
-};
 
 function parseCSV(text) {
     text = text.replace(/^\uFEFF/, '');
@@ -1462,7 +1479,7 @@ async function importerCSV(ecoleId, cycle, csvText, reportEl, progressEl) {
     if (manquantes.length > 0) {
         reportEl.innerHTML += `<div class="err">❌ Colonnes manquantes : ${manquantes.join(', ')}</div>
         <div class="warn">Colonnes trouvées : ${headers.join(', ')}</div>`;
-        return { ok: 0, err: rows.length, total: rows.length };
+        return { ok: 0, err: rows.length, total: rows.length, maj: 0 };
     }
 
     let collectionName, typeDoc;
@@ -1470,7 +1487,26 @@ async function importerCSV(ecoleId, cycle, csvText, reportEl, progressEl) {
     else if (cycle === 'maternelle') { collectionName = 'mater_eleves'; typeDoc = 'mater_eleve'; }
     else { collectionName = 'compta_eleves'; typeDoc = 'secondaire_eleve'; }
 
-    let ok = 0, err = 0;
+    reportEl.innerHTML += `<div class="warn">🔍 Analyse des doublons...</div>`;
+    const elevesExistants = [];
+    try {
+        const snap = await getDocs(collection(db, "ecoles", ecoleId, collectionName));
+        snap.forEach(d => {
+            const data = d.data();
+            if (data._type === 'config' || data._type === 'settings' || data._type === 'enseignant') return;
+            elevesExistants.push({ id: d.id, ...data });
+        });
+    } catch(e) {}
+
+    const index = new Map();
+    elevesExistants.forEach(e => {
+        const key = makeKey(e.nom, e.postnom, e.prenom, e.classe);
+        if (key) index.set(key, e.id);
+    });
+
+    reportEl.innerHTML += `<div class="ok">✓ ${elevesExistants.length} élève(s) déjà enregistré(s)</div>`;
+
+    let ok = 0, err = 0, maj = 0;
     const logs = [];
 
     for (let i = 0; i < rows.length; i++) {
@@ -1497,6 +1533,24 @@ async function importerCSV(ecoleId, cycle, csvText, reportEl, progressEl) {
             }
         }
 
+        const key = makeKey(nom, postnom, prenom, classe);
+        if (index.has(key)) {
+            const existantId = index.get(key);
+            const dataMAJ = { sexe };
+            if (cycle === 'secondaire' && option) dataMAJ.option = option;
+            try {
+                await setDoc(doc(db, "ecoles", ecoleId, collectionName, existantId), dataMAJ, { merge: true });
+                maj++;
+                logs.push(`<span class="warn">🔄 Ligne ${ligne} : ${prenom} ${nom} (${classe}) → mis à jour</span>`);
+            } catch(e) {
+                err++;
+                logs.push(`<span class="err">✗ Ligne ${ligne} : ${prenom} ${nom} → erreur MAJ</span>`);
+            }
+            const pct = Math.round(((i + 1) / rows.length) * 100);
+            if (progressEl) progressEl.style.width = pct + '%';
+            continue;
+        }
+
         const newId = "el_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6) + "_" + i;
         const data = {
             eleveId: newId, nom, postnom, prenom, sexe, classe,
@@ -1509,7 +1563,8 @@ async function importerCSV(ecoleId, cycle, csvText, reportEl, progressEl) {
         try {
             await setDoc(doc(db, "ecoles", ecoleId, collectionName, newId), data);
             ok++;
-            logs.push(`<span class="ok">✓ Ligne ${ligne} : ${prenom} ${nom} (${classe})</span>`);
+            index.set(key, newId);
+            logs.push(`<span class="ok">✓ Ligne ${ligne} : ${prenom} ${nom} (${classe}) → ajouté</span>`);
         } catch (e) {
             err++;
             logs.push(`<span class="err">✗ Ligne ${ligne} : ${e.message}</span>`);
@@ -1523,7 +1578,7 @@ async function importerCSV(ecoleId, cycle, csvText, reportEl, progressEl) {
 
     reportEl.innerHTML += logs.join('<br>');
     reportEl.scrollTop = reportEl.scrollHeight;
-    return { ok, err, total: rows.length };
+    return { ok, err, total: rows.length, maj };
 }
 
 function telechargerModele(cycle) {
@@ -1563,7 +1618,7 @@ function openImportModal() {
         <div class="info-box">
             💡 <strong>3 fichiers CSV</strong> — un par section. Colonnes obligatoires :
             <code style="color:#60a5fa;">nom, prenom, sexe (M/F), classe</code>.
-            <br>Colonnes optionnelles : <code style="color:#60a5fa;">postnom</code> et <code style="color:#60a5fa;">option</code> (secondaire 1ère→4ème).
+            <br>Détection auto des doublons (nom + postnom + prénom + classe).
         </div>
 
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
@@ -1610,11 +1665,11 @@ function openImportModal() {
     const zones = modal.querySelectorAll(".import-zone");
     const runBtn = modal.querySelector("[data-run]");
     const progressWrap = modal.querySelector("#importProgressWrap");
-    const progress auBar = modal.querySelector("#importProgressBar");
-    constMo reportEl = modal.querySelector("#importReport");
+    const progressBar = modal.querySelector("#importProgressBar");
+    const reportEl = modal.querySelector("#importReport");
 
     function refreshRunBtn() {
-        constinsUn = Object.values(fichiers).some(f => f !== null);
+        const auMoinsUn = Object.values(fichiers).some(f => f !== null);
         runBtn.disabled = !auMoinsUn;
     }
 
@@ -1664,32 +1719,143 @@ function openImportModal() {
         reportEl.style.display = 'block';
         reportEl.innerHTML = '';
 
-        const totaux = { ok: 0, err: 0, total: 0 };
+        const totaux = { ok: 0, err: 0, total: 0, maj: 0 };
         const ordre = ['primaire', 'maternelle', 'secondaire'];
 
         for (const cycle of ordre) {
             if (!fichiers[cycle]) continue;
-            reportEl.innerHTML += `<div style="color:#60a5fa;font-weight:700;margin:12px 0 6px;">📂 ${cycle.toUpperCase()}</div>`;
+            reportEl.innerHTML += `<div style="color:#60a5fa;font-weight:700;margin:16px 0 6px;border-top:1px solid #1e293b;padding-top:12px;">📂 ${cycle.toUpperCase()}</div>`;
             const r = await importerCSV(ecoleId, cycle, fichiers[cycle], reportEl, progressBar);
             totaux.ok += r.ok;
             totaux.err += r.err;
             totaux.total += r.total;
+            totaux.maj += r.maj;
         }
 
-        reportEl.innerHTML += `<div style="margin-top:16px;padding-top:12px;border-top:1px solid #1e293b;">
-            <strong style="color:#10b981;">✅ ${totaux.ok} importé(s)</strong> · 
-            <strong style="color:#ef4444;">❌ ${totaux.err} erreur(s)</strong> · 
-            <span style="color:#94a3b8;">Total : ${totaux.total} ligne(s)</span>
+        reportEl.innerHTML += `<div style="margin-top:16px;padding-top:12px;border-top:2px solid #3b82f6;">
+            <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:8px;">📊 RÉSUMÉ GLOBAL</div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;">
+                <span><strong style="color:#10b981;">✅ ${totaux.ok}</strong> ajouté(s)</span>
+                <span><strong style="color:#f59e0b;">🔄 ${totaux.maj}</strong> mis à jour</span>
+                <span><strong style="color:#ef4444;">❌ ${totaux.err}</strong> erreur(s)</span>
+                <span style="color:#94a3b8;">Total : ${totaux.total} ligne(s)</span>
+            </div>
         </div>`;
 
-        toast(`Import terminé : ${totaux.ok} élève(s) ajouté(s)`, totaux.err > 0 ? "warning" : "success");
+        let msg = `${totaux.ok} ajouté(s)`;
+        if (totaux.maj > 0) msg += ` · ${totaux.maj} mis à jour`;
+        if (totaux.err > 0) msg += ` · ${totaux.err} erreur(s)`;
+        toast(`Import terminé : ${msg}`, totaux.err > 0 ? "warning" : "success");
         runBtn.textContent = "✅ TERMINÉ";
         await loadEleves(ecoleId);
         setTimeout(() => { runBtn.disabled = false; runBtn.textContent = "🚀 IMPORTER TOUT"; }, 2000);
     };
 }
 
+/* ============================================================
+   MODULE FUSION DES DOUBLONS
+   ============================================================ */
+
+async function fusionnerDoublons() {
+    const ecoleId = document.getElementById("eleveEcoleSelect").value;
+    if (!ecoleId) { toast("Choisissez d'abord une école", "warning"); return; }
+
+    setLoading(true);
+    try {
+        const collections = [
+            { nom: 'prima_eleves', cycle: 'primaire', label: '🔵 Primaire' },
+            { nom: 'mater_eleves', cycle: 'maternelle', label: '🟢 Maternelle' },
+            { nom: 'compta_eleves', cycle: 'secondaire', label: '🟣 Secondaire' }
+        ];
+
+        let totalGroupesDoublons = 0;
+        let totalSupprimes = 0;
+        const details = [];
+
+        for (const col of collections) {
+            const snap = await getDocs(collection(db, "ecoles", ecoleId, col.nom));
+            const groupes = new Map(); // key -> [docs]
+
+            snap.forEach(d => {
+                const data = d.data();
+                if (data._type === 'config' || data._type === 'settings' || data._type === 'enseignant') return;
+                const key = makeKey(data.nom, data.postnom, data.prenom, data.classe);
+                if (!key) return;
+                if (!groupes.has(key)) groupes.set(key, []);
+                groupes.get(key).push({ id: d.id, ref: d.ref, data });
+            });
+
+            let doublonsCol = 0, supprimesCol = 0;
+            for (const [key, docs] of groupes.entries()) {
+                if (docs.length > 1) {
+                    doublonsCol++;
+                    // Trier par date de création : garder le plus ancien
+                    docs.sort((a, b) => {
+                        const da = a.data.dateInscription || a.data.importeLe?.toDate?.()?.toISOString() || '';
+                        const db_ = b.data.dateInscription || b.data.importeLe?.toDate?.()?.toISOString() || '';
+                        return da.localeCompare(db_);
+                    });
+                    // Supprimer les autres
+                    for (let i = 1; i < docs.length; i++) {
+                        await deleteDoc(doc(db, "ecoles", ecoleId, col.nom, docs[i].id));
+                        supprimesCol++;
+                    }
+                }
+            }
+
+            totalGroupesDoublons += doublonsCol;
+            totalSupprimes += supprimesCol;
+            if (doublonsCol > 0) {
+                details.push(`${col.label} : ${doublonsCol} groupe(s) → ${supprimesCol} doublon(s) supprimé(s)`);
+            }
+        }
+
+        setLoading(false);
+
+        // Résumé
+        const recap = document.createElement("div");
+        recap.className = "modal-overlay show";
+        recap.innerHTML = `
+        <div class="modal" style="max-width:520px;text-align:center;">
+            <div style="font-size:64px;margin-bottom:16px;">🧹</div>
+            <h2 style="justify-content:center;color:#f59e0b;margin-bottom:16px;">Fusion terminée</h2>
+            ${totalSupprimes === 0 ? `
+                <p style="color:#10b981;font-size:15px;font-weight:600;margin-bottom:20px;">✨ Aucun doublon détecté !</p>
+                <p style="color:#94a3b8;font-size:13px;">Tous les élèves sont uniques dans cette école.</p>
+            ` : `
+                <p style="color:#cbd5e1;font-size:14px;line-height:1.8;margin-bottom:20px;">
+                    <strong style="color:#10b981;font-size:22px;">${totalSupprimes}</strong> doublon(s) supprimé(s)<br>
+                    <span style="color:#94a3b8;font-size:12px;">${totalGroupesDoublons} groupe(s) fusionné(s)</span>
+                </p>
+                <div style="text-align:left;background:#0f172a;border-radius:12px;padding:14px;font-size:12px;color:#cbd5e1;line-height:1.8;">
+                    ${details.map(d => `• ${d}`).join('<br>')}
+                </div>
+            `}
+            <div class="modal-actions" style="margin-top:24px;">
+                <button class="btn btn-success" data-close style="flex:1;justify-content:center;">OK</button>
+            </div>
+        </div>`;
+        document.body.appendChild(recap);
+        recap.querySelector("[data-close]").onclick = () => recap.remove();
+        recap.onclick = (e) => { if (e.target === recap) recap.remove(); };
+
+        if (totalSupprimes > 0) {
+            toast(`${totalSupprimes} doublon(s) supprimé(s)`, "success");
+            await loadEleves(ecoleId);
+        } else {
+            toast("Aucun doublon détecté", "info");
+        }
+
+    } catch (e) {
+        setLoading(false);
+        toast("Erreur : " + e.message, "error");
+        console.error(e);
+    }
+}
+
 document.getElementById("importCsvBtn").onclick = openImportModal;
+document.getElementById("fusionDoublonsBtn").onclick = fusionnerDoublons;
+
 </script>
 </body>
 </html>
