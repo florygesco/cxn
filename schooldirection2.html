@@ -242,24 +242,24 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:v
 <div class="card-header"><i class="fas fa-clock"></i> PRESENCES DU JOUR <span style="font-size:10px;font-weight:400;color:var(--text-muted);" id="statsDateDisplay"></span></div>
 <div class="card-body">
 <div class="presence-stats-grid">
-<div class="presence-stat-item" style="border-left:4px solid var(--blue);">
-<div class="presence-stat-label" style="color:var(--blue);"><i class="fas fa-chalkboard-teacher"></i> PROFESSEURS</div>
-<div class="presence-stat-bar"><div class="presence-stat-progress" id="statProfBar" style="width:0%;background:var(--blue);"></div></div>
-<div class="presence-stat-details">
-<span class="present"><i class="fas fa-check-circle"></i> <span id="statProfPresentStats">0</span></span>
-<span class="absent"><i class="fas fa-times-circle"></i> <span id="statProfAbsentStats">0</span></span>
-<span class="retard"><i class="fas fa-clock"></i> <span id="statProfRetardStats">0</span></span>
-<span class="total">Total: <span id="statProfTotalStats">0</span></span>
-</div>
-</div>
 <div class="presence-stat-item" style="border-left:4px solid var(--green);">
-<div class="presence-stat-label" style="color:var(--green);"><i class="fas fa-school"></i> ENSEIGNANTS</div>
+<div class="presence-stat-label" style="color:var(--green);"><i class="fas fa-school"></i> ENSEIGNANTS (PRIMAIRE & MATERNELLE)</div>
 <div class="presence-stat-bar"><div class="presence-stat-progress" id="statEnsBar" style="width:0%;background:var(--green);"></div></div>
 <div class="presence-stat-details">
 <span class="present"><i class="fas fa-check-circle"></i> <span id="statEnsPresentStats">0</span></span>
 <span class="absent"><i class="fas fa-times-circle"></i> <span id="statEnsAbsentStats">0</span></span>
 <span class="retard"><i class="fas fa-clock"></i> <span id="statEnsRetardStats">0</span></span>
 <span class="total">Total: <span id="statEnsTotalStats">0</span></span>
+</div>
+</div>
+<div class="presence-stat-item" style="border-left:4px solid var(--purple);">
+<div class="presence-stat-label" style="color:var(--purple);"><i class="fas fa-user-tie"></i> PERSONNEL ADMINISTRATIF</div>
+<div class="presence-stat-bar"><div class="presence-stat-progress" id="statAdminBar" style="width:0%;background:var(--purple);"></div></div>
+<div class="presence-stat-details">
+<span class="present"><i class="fas fa-check-circle"></i> <span id="statAdminPresentStats">0</span></span>
+<span class="absent"><i class="fas fa-times-circle"></i> <span id="statAdminAbsentStats">0</span></span>
+<span class="retard"><i class="fas fa-clock"></i> <span id="statAdminRetardStats">0</span></span>
+<span class="total">Total: <span id="statAdminTotalStats">0</span></span>
 </div>
 </div>
 </div>
@@ -307,16 +307,15 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:v
 <label><i class="fas fa-calendar-day"></i> DATE :</label>
 <input type="date" id="filtreDatePresence">
 <select id="filtreTypePresence" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border-color);font-size:12px;font-family:'Inter',sans-serif;background:#fff;color:var(--text-primary);">
-<option value="tous">Tous</option>
-<option value="prof">Professeurs</option>
-<option value="ens">Enseignants</option>
+<option value="ens" selected>Enseignants (Primaire & Maternelle)</option>
+<option value="admin">Personnel Administratif</option>
 </select>
 <button class="btn btn-sm btn-primary" id="btnAppliquerFiltre"><i class="fas fa-filter"></i> APPLIQUER</button>
 <button class="btn btn-sm btn-pdf" id="btnExportPdfPresences" style="margin-left:auto;padding:8px 18px;font-size:11px;font-weight:700;">
 <i class="fas fa-file-pdf"></i> EXPORT PDF
 </button>
 </div>
-<div class="presence-search-bar">
+<div class="presence-search-bar" id="presenceSearchBar">
 <i class="fas fa-search"></i>
 <input type="text" id="searchPresenceInput" placeholder="Rechercher...">
 <span id="presenceCount">0 personne</span>
@@ -332,6 +331,19 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:v
 <div class="stat-item"><div class="stat-label">TOTAL</div><div class="stat-value" id="statPresenceTotal">0</div></div>
 </div>
 <div id="presenceCardsContainer"></div>
+<div id="adminPersonnelContainer" style="display:none;">
+<div class="card" style="margin-bottom:14px;">
+<div class="card-header" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff;">
+<i class="fas fa-user-tie"></i> PERSONNEL ADMINISTRATIF
+<button class="btn btn-sm" id="btnAddAdminPersonnel" style="background:rgba(255,255,255,.2);color:#fff;padding:5px 12px;font-size:10px;font-weight:700;">
+<i class="fas fa-plus"></i> AJOUTER
+</button>
+</div>
+<div class="card-body">
+<div id="adminPersonnelList"></div>
+</div>
+</div>
+</div>
 </div>
 </div>
 </div>
@@ -422,15 +434,41 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:v
 <div class="form-actions"><button class="btn btn-outline" id="cancelEnsBtn">ANNULER</button><button class="btn btn-success" id="saveEnsBtn">ENREGISTRER</button></div>
 </div>
 </div>
+<div class="modal" id="modalAddAdminPersonnel">
+<div class="modal-box">
+<h3><i class="fas fa-user-tie"></i> AJOUTER UN MEMBRE</h3>
+<div class="form-group">
+<label>FONCTION</label>
+<select id="adminFonction">
+<option value="">-- Sélectionner --</option>
+<option value="Préfet">Préfet</option>
+<option value="Comptable">Comptable</option>
+<option value="Secrétaire">Secrétaire</option>
+<option value="Directrice">Directrice</option>
+<option value="Coordonnateur">Coordonnateur</option>
+</select>
+</div>
+<div class="form-group"><label>NOM COMPLET</label><input type="text" id="adminNom" placeholder="Ex: KASONGO Jean"></div>
+<div class="form-group"><label>SEXE</label><select id="adminSexe"><option value="M">Homme</option><option value="F">Femme</option></select></div>
+<div class="form-actions"><button class="btn btn-outline" id="cancelAdminBtn">ANNULER</button><button class="btn btn-success" id="saveAdminBtn">ENREGISTRER</button></div>
+</div>
+</div>
 <div class="modal" id="pdfPresenceModal">
 <div class="modal-box" style="max-width:540px;">
 <h3 style="color:#dc2626;"><i class="fas fa-file-pdf"></i> EXPORT PDF — PRÉSENCES</h3>
 <div style="background:linear-gradient(135deg,#fef3c7,#fffbeb);border:1px solid #fcd34d;border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:#b45309;font-weight:500;display:flex;align-items:center;gap:8px;">
 <i class="fas fa-info-circle" style="font-size:16px;"></i>
-<span>Choisissez la période à exporter. Le PDF contiendra le récapitulatif de chaque personne avec le nombre de jours prestés.</span>
+<span>Choisissez la période et la section à exporter.</span>
 </div>
 <div style="margin-bottom:14px;">
-<label style="display:block;font-size:11px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">📅 Type de période</label>
+<label style="display:block;font-size:11px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;">Section</label>
+<select id="pdfSectionType" style="width:100%;padding:10px 14px;border-radius:10px;border:1.5px solid var(--border-color);background:#f8fafc;font-size:13px;font-family:'Inter',sans-serif;color:var(--text-primary);outline:none;cursor:pointer;">
+<option value="ens" selected>Enseignants (Primaire & Maternelle)</option>
+<option value="admin">Personnel Administratif</option>
+</select>
+</div>
+<div style="margin-bottom:14px;">
+<label style="display:block;font-size:11px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;">Type de période</label>
 <select id="pdfPeriodeType" style="width:100%;padding:10px 14px;border-radius:10px;border:1.5px solid var(--border-color);background:#f8fafc;font-size:13px;font-family:'Inter',sans-serif;color:var(--text-primary);outline:none;cursor:pointer;">
 <option value="jour">Aujourd'hui uniquement</option>
 <option value="semaine" selected>Cette semaine (Lun → Dim)</option>
@@ -449,19 +487,6 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:v
 <input type="date" id="pdfDateFin" style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid var(--border-color);background:#f8fafc;font-size:13px;font-family:'Inter',sans-serif;outline:none;">
 </div>
 </div>
-<div style="background:#f8fafc;border-radius:12px;padding:12px 14px;margin-bottom:16px;border:1px solid var(--border-color);font-size:12px;color:var(--text-secondary);">
-<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-<i class="fas fa-chart-line" style="color:var(--blue);"></i>
-<strong style="color:var(--text-primary);">Contenu du rapport :</strong>
-</div>
-<div style="padding-left:22px;line-height:1.7;">
-• Nom de la personne<br>
-• Type (Professeur / Enseignant)<br>
-• Nombre de jours prestés / jours ouvrables<br>
-• Détail présents · retards · absents<br>
-• Taux de présence (%)
-</div>
-</div>
 <div class="form-actions" style="justify-content:space-between;">
 <button class="btn btn-outline" id="pdfCancelBtn" style="flex:1;">ANNULER</button>
 <button class="btn btn-pdf" id="pdfGenerateBtn" style="flex:2;justify-content:center;padding:12px;">
@@ -472,11 +497,11 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:v
 </div>
 <script type="importmap">
 {"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"}}
-</script>
-<script type="module">
+</script> <script type="module">
 import{initializeApp}from"firebase/app";
 import{getFirestore,collection,doc,getDoc,getDocs,setDoc,query,where,deleteDoc,updateDoc}from"firebase/firestore";
 import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut}from"firebase/auth";
+
 document.getElementById('refreshPageBtn').addEventListener('click',function(){location.reload()});
 const firebaseConfig={apiKey:"AIzaSyBma80S0bc9uzSuO38qn7JLSwLrYniV5Fw",authDomain:"gesco-2.firebaseapp.com",projectId:"gesco-2",storageBucket:"gesco-2.firebasestorage.app",messagingSenderId:"36319988765",appId:"1:36319988765:web:e8cd823804596495248af4"};
 const app=initializeApp(firebaseConfig);
@@ -491,8 +516,9 @@ const ECOLET_ID=schoolId.replace(/[^a-zA-Z0-9]/g,'_');
 const SCHOOL_DISPLAY_NAME=schoolId;
 document.getElementById('schoolNameSpan').textContent=SCHOOL_DISPLAY_NAME.toUpperCase();
 const SC={PROFESSEURS:"professeurs",PUNITIONS:"punitions",FICHES:"fiches",SETTINGS:"settings",COMPTA_ELEVES:"compta_eleves",ENSEIGNANTS:"enseignants"};
+
 let currentAuthUser=null,ACCESS_CODE=null,toastQueue=[],toastActive=false,currentDate=new Date().toISOString().split('T')[0];
-let allEleves=[],allProfs=[];
+let allEleves=[],allProfs=[],adminPersonnel=[];
 let presencesCache={prof:{},ens:{}};
 let cacheProfs=null,cacheEnseignants=null,cacheTimeProfs=0,cacheTimeEns=0;
 const CACHE_DUREE=30*1000;
@@ -504,6 +530,8 @@ const classesSecondaire=["7ème EB","8ème EB","1ère Année","2ème Année","3�
 const classesPrimaire=["1ère A","1ère B","2ème A","2ème B","3ème A","3ème B","4ème A","4ème B","5ème A","5ème B","6ème A","6ème B"];
 const classesMaternelle=["Niveau 1","Niveau 2","Niveau 3"];
 const optionsSecondaire={"7ème EB":[],"8ème EB":[],"1ère Année":["SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","MECANIQUE AUTO","COUPE ET COUTURE"],"2ème Année":["SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","MECANIQUE AUTO","COUPE ET COUTURE"],"3ème Année":["SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","MECANIQUE AUTO","COUPE ET COUTURE"],"4ème Année":["SCIENCES","PEDAGOGIE GENERALE","COMMERCIALE ET GESTION","ELECTRICITE","MECANIQUE GENERALE","MECANIQUE AUTO","COUPE ET COUTURE"]};
+const ORDRE_FONCTIONS=["Préfet","Comptable","Secrétaire","Directrice","Coordonnateur"];
+
 function toast(message,type='success'){toastQueue.push({message,type});if(!toastActive)processToastQueue()}
 function processToastQueue(){if(toastQueue.length===0){toastActive=false;return}toastActive=true;const{message,type}=toastQueue.shift();const c=document.getElementById('toastContainer');if(!c){toastActive=false;processToastQueue();return}const icons={success:'fas fa-check-circle',error:'fas fa-exclamation-circle',warning:'fas fa-exclamation-triangle'};const colors={success:'#10b981',error:'#ef4444',warning:'#f59e0b'};const e=document.createElement('div');e.className='toast '+(type||'');e.innerHTML='<div class="toast-icon" style="color:'+colors[type]+'"><i class="'+icons[type]+'"></i></div><div class="toast-content"><div class="toast-title">'+(type==='success'?'Succes':type==='error'?'Erreur':'Attention')+'</div><div class="toast-message">'+message+'</div></div>';c.appendChild(e);setTimeout(()=>e.classList.add('show'),10);setTimeout(()=>{e.classList.remove('show');setTimeout(()=>{if(e.parentNode)e.remove();toastActive=false;processToastQueue()},400)},3500)}
 function escapeHtml(s){if(!s)return'';return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
@@ -513,6 +541,7 @@ function formatDateFR(iso){if(!iso)return'—';const[y,m,d]=iso.split('-');retur
 function showConfirm(title,message){return new Promise(resolve=>{const modal=document.getElementById('confirmModal');document.getElementById('confirmMessage').innerHTML='<strong>'+title+'</strong><br><br>'+message;modal.classList.add('show');document.getElementById('confirmYes').onclick=()=>{modal.classList.remove('show');resolve(true)};document.getElementById('confirmNo').onclick=()=>{modal.classList.remove('show');resolve(false)}})}
 function deconnecterUtilisateur(){showConfirm('DECONNEXION','Etes-vous sur de vouloir vous deconnecter ?').then(ok=>{if(ok){signOut(auth).finally(()=>{window.location.href='https://www.netubex.com/login2.html?ecole='+schoolId})}})}
 document.getElementById('logoutBtn').addEventListener('click',deconnecterUtilisateur);
+
 document.addEventListener('click',function(e){
 const tab=e.target.closest('.tab');
 if(tab){
@@ -539,14 +568,43 @@ if(targetSub)targetSub.classList.add('active');
 return;
 }
 });
+
 async function chargerAccessCode(){try{const docRef=doc(db,"ecoles",ECOLET_ID,SC.SETTINGS,"data");const docSnap=await getDoc(docRef);if(docSnap.exists()){const data=docSnap.data();if(data.codeDirection){ACCESS_CODE=data.codeDirection;return true}}return false}catch(error){return false}}
-async function verifierCodeDirection(){try{const ref=doc(db,"ecoles",ECOLET_ID,"settings","data");const snap=await getDoc(ref);let email='direction.'+ECOLET_ID+'@gmail.com';if(snap.exists()){const data=snap.data();if(data.emailDirection)email=data.emailDirection;if(data.codeDirection)ACCESS_CODE=data.codeDirection}let codeFound=false;if(ACCESS_CODE&&ACCESS_CODE===codeFromUrl){codeFound=true}if(!codeFound&&codeFromUrl){try{const userCred=await signInWithEmailAndPassword(auth,email,codeFromUrl);currentAuthUser=userCred.user;codeFound=true;ACCESS_CODE=codeFromUrl;if(snap.exists()&&!snap.data().codeDirection){await setDoc(ref,{codeDirection:codeFromUrl,emailDirection:email,updatedAt:new Date().toISOString()},{merge:true})}}catch(authError){if(authError.code==='auth/user-not-found'){try{const userCred=await createUserWithEmailAndPassword(auth,email,codeFromUrl);currentAuthUser=userCred.user;codeFound=true;ACCESS_CODE=codeFromUrl;await setDoc(ref,{codeDirection:codeFromUrl,emailDirection:email,updatedAt:new Date().toISOString()},{merge:true})}catch(createError){}}}}if(codeFound){await chargerAccessCode();await initApp();return true}window.location.href='https://www.netubex.com/login2.html?ecole='+schoolId+'&error=code_incorrect';return false}catch(error){window.location.href='https://www.netubex.com/login2.html?ecole='+schoolId+'&error=code_incorrect';return false}}
+
+async function verifierCodeDirection(){
+try{
+const ref=doc(db,"ecoles",ECOLET_ID,"settings","data");
+const snap=await getDoc(ref);
+let email='direction.'+ECOLET_ID+'@gmail.com';
+if(snap.exists()){const data=snap.data();if(data.emailDirection)email=data.emailDirection;if(data.codeDirection)ACCESS_CODE=data.codeDirection}
+let codeFound=false;
+if(ACCESS_CODE&&ACCESS_CODE===codeFromUrl){codeFound=true}
+if(!codeFound&&codeFromUrl){
+try{
+const userCred=await signInWithEmailAndPassword(auth,email,codeFromUrl);
+currentAuthUser=userCred.user;codeFound=true;ACCESS_CODE=codeFromUrl;
+if(snap.exists()&&!snap.data().codeDirection){await setDoc(ref,{codeDirection:codeFromUrl,emailDirection:email,updatedAt:new Date().toISOString()},{merge:true})}
+}catch(authError){
+if(authError.code==='auth/user-not-found'){
+try{const userCred=await createUserWithEmailAndPassword(auth,email,codeFromUrl);currentAuthUser=userCred.user;codeFound=true;ACCESS_CODE=codeFromUrl;await setDoc(ref,{codeDirection:codeFromUrl,emailDirection:email,updatedAt:new Date().toISOString()},{merge:true})}catch(createError){}
+}
+}
+}
+if(codeFound){await chargerAccessCode();await initApp();return true}
+window.location.href='https://www.netubex.com/login2.html?ecole='+schoolId+'&error=code_incorrect';return false
+}catch(error){window.location.href='https://www.netubex.com/login2.html?ecole='+schoolId+'&error=code_incorrect';return false}
+}
+
 function genererEmailProfesseur(nom,ecoleId){if(!nom)return'';const nomPropre=nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z\s]/g,'').trim().replace(/\s+/g,'.');return'prof.'+nomPropre+'.'+ecoleId+'@gmail.com'}
 function genererEmailEnseignant(nom,ecoleId){if(!nom)return'';const nomPropre=nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z\s]/g,'').trim().replace(/\s+/g,'.');return'ens.'+nomPropre+'.'+ecoleId+'@gmail.com'}
 function genererCodeAcces(){return String(Math.floor(100000+Math.random()*900000))}
+
 async function chargerProfs(){const maintenant=Date.now();if(cacheProfs&&(maintenant-cacheTimeProfs)<CACHE_DUREE){allProfs=cacheProfs;return cacheProfs}try{const q=query(collection(db,"ecoles",ECOLET_ID,SC.PROFESSEURS),where("_type","==","prof"));const snap=await getDocs(q);const profs=[];snap.forEach(ds=>{const data=ds.data();if(data.nom)profs.push({id:ds.id,...data})});profs.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));allProfs=profs;cacheProfs=profs;cacheTimeProfs=maintenant;return profs}catch(e){return cacheProfs||[]}}
+
 function afficherProfs(profs){const c=document.getElementById('profsListContainer');if(!c)return;const searchTerm=document.getElementById('searchProfInput')?.value?.toLowerCase()||'';let filtered=profs;if(searchTerm){filtered=profs.filter(p=>(p.nom||'').toLowerCase().includes(searchTerm))}if(!filtered||filtered.length===0){c.innerHTML='<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px;"><i class="fas fa-chalkboard-teacher" style="font-size:32px;display:block;margin-bottom:8px;color:#e5e7eb;"></i><p>Aucun professeur trouve</p></div>';return}let html='<div class="prof-cards">';filtered.forEach((p,index)=>{const estActif=p.actif!==false;const sexe=p.sexe||'M';const sexeLabel=sexe==='F'?'FEMME':'HOMME';const statusClass=estActif?'actif':'inactif';const statusLabel=estActif?'ACTIF':'INACTIF';html+='<div class="prof-card"><span class="prof-numero">#'+(index+1)+'</span><span class="prof-nom">'+escapeHtml(p.nom)+'</span><span class="prof-sex">'+sexeLabel+'</span><span class="prof-status '+statusClass+'">'+statusLabel+'</span><button onclick="window.supprimerProf(\''+p.id+'\',\''+escapeHtml(p.nom).replace(/'/g,"\\'")+'\')" class="btn btn-sm btn-danger" style="padding:4px 12px;font-size:10px;"><i class="fas fa-trash"></i> SUPPRIMER</button></div>'});html+='</div>';c.innerHTML=html}
+
 window.supprimerProf=async function(id,nom){showConfirm('SUPPRIMER LE PROFESSEUR','Voulez-vous vraiment supprimer definitivement <strong>'+nom+'</strong> ? Cette action est irreversible.').then(async(ok)=>{if(!ok)return;try{await deleteDoc(doc(db,"ecoles",ECOLET_ID,SC.PROFESSEURS,id));toast('Professeur supprime','success');cacheProfs=null;chargerProfs().then(p=>afficherProfs(p))}catch(e){toast('Erreur: '+e.message,'error')}})};
+
 document.getElementById('addProfBtn').addEventListener('click',function(){
 const modal=document.getElementById('confirmModal');
 document.getElementById('confirmMessage').innerHTML='<strong>AJOUTER UN PROFESSEUR</strong><br><br><input type="text" id="modalInput" placeholder="Nom complet" style="width:100%;padding:10px 14px;border-radius:12px;background:#f8fafc;border:2px solid var(--border-color);color:var(--text-primary);font-size:13px;outline:none;font-family:Inter,sans-serif;margin-bottom:8px;"><select id="modalSexe" style="width:100%;padding:10px 14px;border-radius:12px;background:#fff;border:2px solid var(--border-color);color:var(--text-primary);font-size:13px;outline:none;font-family:Inter,sans-serif;"><option value="M">HOMME</option><option value="F">FEMME</option></select>';
@@ -575,38 +633,82 @@ chargerProfs().then(p=>afficherProfs(p))
 };
 document.getElementById('confirmNo').onclick=()=>modal.classList.remove('show');
 });
+
 document.getElementById('searchProfInput').addEventListener('input',function(){chargerProfs().then(p=>afficherProfs(p))});
 document.getElementById('refreshProfsBtn').addEventListener('click',function(){cacheProfs=null;chargerProfs().then(p=>afficherProfs(p));toast('Professeurs actualises','success')});
+
 function getClassesSelectionnees(){const select=document.getElementById('ensClasses');const classes=[];for(let i=0;i<select.options.length;i++){if(select.options[i].selected){classes.push(select.options[i].value)}}return classes}
 window.changerCycleEns=function(){const cycle=document.getElementById('ensCycle').value;const select=document.getElementById('ensClasses');const options=select.querySelectorAll('option');const isPrimaire=cycle==='primaire';options.forEach(opt=>{const val=opt.value;if(!val)return;if(isPrimaire){opt.style.display=classesPrimaire.includes(val)?'':'none'}else{opt.style.display=classesMaternelle.includes(val)?'':'none'}})};
+
 async function chargerEnseignants(){const maintenant=Date.now();if(cacheEnseignants&&(maintenant-cacheTimeEns)<CACHE_DUREE){return cacheEnseignants}try{const q=query(collection(db,"ecoles",ECOLET_ID,SC.ENSEIGNANTS),where("_type","==","enseignant"));const snap=await getDocs(q);const ens=[];snap.forEach(ds=>{const data=ds.data();if(data.nom)ens.push({id:ds.id,...data})});ens.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));cacheEnseignants=ens;cacheTimeEns=maintenant;return ens}catch(e){return cacheEnseignants||[]}}
+
 function afficherEnseignants(ens){const c=document.getElementById('ensListContainer');if(!c)return;const searchTerm=document.getElementById('searchEnsInput')?.value?.toLowerCase()||'';const cycleFiltre=document.getElementById('filtreCycleEns')?.value||'';let filtered=ens;if(searchTerm){filtered=ens.filter(e=>(e.nom||'').toLowerCase().includes(searchTerm))}if(cycleFiltre){filtered=ens.filter(e=>e.cycle===cycleFiltre)}if(!filtered||filtered.length===0){c.innerHTML='<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px;"><i class="fas fa-school" style="font-size:32px;display:block;margin-bottom:8px;color:#e5e7eb;"></i><p>Aucun enseignant trouve</p></div>';return}let html='<div class="ens-cards">';filtered.forEach((e,index)=>{const estActif=e.actif!==false;const statusClass=estActif?'actif':'inactif';const statusLabel=estActif?'ACTIF':'INACTIF';const cycleLabel=e.cycle==='primaire'?'PRIMAIRE':'MATERNELLE';const cycleClass=e.cycle==='primaire'?'':'maternelle';const classesDisplay=(e.classes||[]).join(', ');const sexeLabel=e.sexe==='F'?'FEMME':'HOMME';html+='<div class="ens-card"><span class="ens-numero">#'+(index+1)+'</span><span class="ens-nom">'+escapeHtml(e.nom)+'</span><span class="ens-sex">'+sexeLabel+'</span><span class="ens-cycle '+cycleClass+'">'+cycleLabel+'</span><span class="ens-classes">'+escapeHtml(classesDisplay)+'</span><span class="ens-status '+statusClass+'">'+statusLabel+'</span><button onclick="window.supprimerEns(\''+e.id+'\',\''+escapeHtml(e.nom).replace(/'/g,"\\'")+'\')" class="btn btn-sm btn-danger" style="padding:4px 12px;font-size:10px;"><i class="fas fa-trash"></i> SUPPRIMER</button></div>'});html+='</div>';c.innerHTML=html}
+
 window.supprimerEns=async function(id,nom){showConfirm('SUPPRIMER L\'ENSEIGNANT','Voulez-vous vraiment supprimer definitivement <strong>'+nom+'</strong> ? Cette action est irreversible.').then(async(ok)=>{if(!ok)return;try{await deleteDoc(doc(db,"ecoles",ECOLET_ID,SC.ENSEIGNANTS,id));toast('Enseignant supprime','success');cacheEnseignants=null;chargerEnseignants().then(e=>afficherEnseignants(e))}catch(e){toast('Erreur: '+e.message,'error')}})};
+
 document.getElementById('addEnsBtn').addEventListener('click',function(){document.getElementById('ensNom').value='';document.getElementById('ensSexe').value='M';document.getElementById('ensCycle').value='primaire';document.getElementById('ensCode').value=genererCodeAcces();document.querySelectorAll('#ensClasses option').forEach(opt=>opt.selected=false);changerCycleEns();document.getElementById('modalEnseignant').classList.add('show')});
 document.getElementById('cancelEnsBtn').addEventListener('click',function(){document.getElementById('modalEnseignant').classList.remove('show')});
 document.getElementById('ensCycle').addEventListener('change',changerCycleEns);
-document.getElementById('saveEnsBtn').addEventListener('click',async function(){const nom=document.getElementById('ensNom').value.trim();const sexe=document.getElementById('ensSexe').value;const cycle=document.getElementById('ensCycle').value;const classes=getClassesSelectionnees();const code=document.getElementById('ensCode').value.trim();if(!nom){toast('Veuillez entrer un nom','error');return}if(classes.length===0){toast('Selectionnez au moins une classe','error');return}if(!code||code.length<6){toast('Code a 6 chiffres','error');return}this.disabled=true;this.textContent='ENREGISTREMENT...';try{const email=genererEmailEnseignant(nom,ECOLET_ID);const ensId='ens_'+Date.now();await createUserWithEmailAndPassword(auth,email,code).catch(()=>{});await setDoc(doc(db,"ecoles",ECOLET_ID,SC.ENSEIGNANTS,ensId),{_type:"enseignant",id:ensId,nom:nom,sexe:sexe,cycle:cycle,classes:classes,code:code,email:email,actif:true,createdAt:Date.now()});cacheEnseignants=null;document.getElementById('modalEnseignant').classList.remove('show');toast(nom+' ajoute avec succes','success');chargerEnseignants().then(e=>afficherEnseignants(e))}catch(e){toast('Erreur: '+e.message,'error')}this.disabled=false;this.textContent='ENREGISTRER'});
+
+document.getElementById('saveEnsBtn').addEventListener('click',async function(){
+const nom=document.getElementById('ensNom').value.trim();
+const sexe=document.getElementById('ensSexe').value;
+const cycle=document.getElementById('ensCycle').value;
+const classes=getClassesSelectionnees();
+const code=document.getElementById('ensCode').value.trim();
+if(!nom){toast('Veuillez entrer un nom','error');return}
+if(classes.length===0){toast('Selectionnez au moins une classe','error');return}
+if(!code||code.length<6){toast('Code a 6 chiffres','error');return}
+this.disabled=true;this.textContent='ENREGISTREMENT...';
+try{
+const email=genererEmailEnseignant(nom,ECOLET_ID);
+const ensId='ens_'+Date.now();
+await createUserWithEmailAndPassword(auth,email,code).catch(()=>{});
+await setDoc(doc(db,"ecoles",ECOLET_ID,SC.ENSEIGNANTS,ensId),{_type:"enseignant",id:ensId,nom:nom,sexe:sexe,cycle:cycle,classes:classes,code:code,email:email,actif:true,createdAt:Date.now()});
+cacheEnseignants=null;
+document.getElementById('modalEnseignant').classList.remove('show');
+toast(nom+' ajoute avec succes','success');
+chargerEnseignants().then(e=>afficherEnseignants(e))
+}catch(e){toast('Erreur: '+e.message,'error')}
+this.disabled=false;this.textContent='ENREGISTRER'
+});
+
 document.getElementById('searchEnsInput').addEventListener('input',function(){chargerEnseignants().then(e=>afficherEnseignants(e))});
 document.getElementById('filtreCycleEns').addEventListener('change',function(){chargerEnseignants().then(e=>afficherEnseignants(e))});
 document.getElementById('refreshEnsBtn').addEventListener('click',function(){cacheEnseignants=null;chargerEnseignants().then(e=>afficherEnseignants(e));toast('Enseignants actualises','success')});
+
 async function chargerPresences(){
 const container=document.getElementById('presenceCardsContainer');
+const adminContainer=document.getElementById('adminPersonnelContainer');
 if(!container)return;
 const filtreType=document.getElementById('filtreTypePresence').value;
 const dateKey=document.getElementById('filtreDatePresence').value||currentDate;
+
+if(filtreType==='admin'){
+container.style.display='none';
+adminContainer.style.display='block';
+document.getElementById('presenceStats').style.display='none';
+document.getElementById('presenceSearchBar').style.display='none';
+await chargerAdminPersonnel();
+afficherAdminPersonnel();
+return;
+}
+
+container.style.display='block';
+adminContainer.style.display='none';
+document.getElementById('presenceStats').style.display='flex';
+document.getElementById('presenceSearchBar').style.display='flex';
+
 container.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';
 try{
-const[profsSnap,ensSnap]=await Promise.all([getDocs(collection(db,"ecoles",ECOLET_ID,SC.PROFESSEURS)),getDocs(collection(db,"ecoles",ECOLET_ID,SC.ENSEIGNANTS))]);
+const ensSnap=await getDocs(collection(db,"ecoles",ECOLET_ID,SC.ENSEIGNANTS));
 let toutesPersonnes=[];
-presencesCache.prof={};
 presencesCache.ens={};
-profsSnap.forEach(ds=>{const data=ds.data();if(data._type==='prof'&&data.actif!==false&&data.nom){toutesPersonnes.push({id:ds.id,nom:data.nom||'',sexe:data.sexe||'M',type:'prof'});presencesCache.prof[ds.id]=data.presences||{}}});
+presencesCache.prof={};
 ensSnap.forEach(ds=>{const data=ds.data();if(data._type==='enseignant'&&data.actif!==false&&data.nom){toutesPersonnes.push({id:ds.id,nom:data.nom||'',sexe:data.sexe||'M',cycle:data.cycle||'primaire',classes:data.classes||[],type:'ens'});presencesCache.ens[ds.id]=data.presences||{}}});
-if(filtreType==='prof'){toutesPersonnes=toutesPersonnes.filter(p=>p.type==='prof')}
-if(filtreType==='ens'){toutesPersonnes=toutesPersonnes.filter(p=>p.type==='ens')}
 toutesPersonnes.sort((a,b)=>(a.nom||'').localeCompare(b.nom||''));
 if(toutesPersonnes.length===0){
-container.innerHTML='<div class="prof-empty"><i class="fas fa-users"></i><p>Aucune personne enregistree</p></div>';
+container.innerHTML='<div class="prof-empty"><i class="fas fa-users"></i><p>Aucun enseignant enregistre</p></div>';
 document.getElementById('presenceCount').textContent='0 personne';
 ['statPresencePresent','statPresenceAbsent','statPresenceRetard','statPresenceJournal','statPresenceCahier','statPresencePrevision','statPresenceComposition','statPresenceTotal'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='0'});
 return;
@@ -614,8 +716,7 @@ return;
 let stats={present:0,absent:0,retard:0,journal:0,cahier:0,prevision:0,composition:0,nonpointe:0};
 let html='<div class="profs-grid">';
 for(const p of toutesPersonnes){
-const sourceCache=p.type==='prof'?presencesCache.prof:presencesCache.ens;
-const presence=(sourceCache[p.id]||{})[dateKey]||null;
+const presence=(presencesCache.ens[p.id]||{})[dateKey]||null;
 const statut=presence?.statut||null;
 const journal=presence?.journalClasse==='ok';
 const cahier=presence?.cahierPreparation==='ok';
@@ -623,16 +724,15 @@ const prevision=presence?.previsionMatiere==='ok';
 const composition=presence?.cahierComposition==='ok';
 if(statut==='present')stats.present++;else if(statut==='retard')stats.retard++;else if(statut==='absent')stats.absent++;else stats.nonpointe++;
 if(journal)stats.journal++;if(cahier)stats.cahier++;if(prevision)stats.prevision++;if(composition)stats.composition++;
-const isEns=p.type==='ens';
-const cycleClass=isEns?(p.cycle==='maternelle'?'cycle-maternelle':'cycle-primaire'):'cycle-primaire';
+const cycleClass=p.cycle==='maternelle'?'cycle-maternelle':'cycle-primaire';
 const statutClass=statut?'statut-'+statut:'statut-nonpointe';
 const badgeClass=statut?statut:'nonpointe';
 const badgeLabel=statut==='present'?'PRÉSENT':statut==='retard'?'RETARD':statut==='absent'?'ABSENT':'À POINTER';
-const avatarClass=isEns?((p.cycle==='maternelle'?'maternelle ':'')+(p.sexe==='F'?'femme':'')):(p.sexe==='F'?'femme':'');
-const typeLabel=isEns?(p.cycle==='maternelle'?'Maternelle':'Primaire'):'Professeur';
-const typeTagClass=isEns?(p.cycle==='maternelle'?'maternelle':'primaire'):'primaire';
-const classesDisplay=isEns?((p.classes||[]).slice(0,2).join(' · ')||'—'):'';
-html+='<div class="prof-carte '+cycleClass+' '+statutClass+'" data-prof="'+p.id+'" data-type="'+p.type+'" data-nom="'+escapeHtml(p.nom).toLowerCase()+'">';
+const avatarClass=(p.cycle==='maternelle'?'maternelle ':'')+(p.sexe==='F'?'femme':'');
+const typeLabel=p.cycle==='maternelle'?'Maternelle':'Primaire';
+const typeTagClass=p.cycle==='maternelle'?'maternelle':'primaire';
+const classesDisplay=(p.classes||[]).slice(0,2).join(' · ')||'—';
+html+='<div class="prof-carte '+cycleClass+' '+statutClass+'" data-prof="'+p.id+'" data-type="ens" data-nom="'+escapeHtml(p.nom).toLowerCase()+'">';
 html+='<div class="prof-badge '+badgeClass+'">'+badgeLabel+'</div>';
 html+='<div class="prof-entete">';
 html+='<div class="prof-avatar '+avatarClass+'">'+initiales(p.nom)+'</div>';
@@ -643,15 +743,15 @@ html+='<span class="prof-tag '+typeTagClass+'">'+typeLabel+'</span>';
 if(classesDisplay&&classesDisplay!=='—')html+='<span class="prof-tag" style="background:rgba(139,92,246,0.12);color:#7c3aed;text-transform:none;">'+escapeHtml(classesDisplay)+'</span>';
 html+='</div></div></div>';
 html+='<div class="prof-boutons">';
-html+='<button class="prof-btn-statut present '+(statut==='present'?'actif':'')+'" onclick="pointerPresence(\''+p.id+'\',\''+p.type+'\',\'present\',\''+dateKey+'\')"><span class="ico">✅</span>PRÉSENT</button>';
-html+='<button class="prof-btn-statut retard '+(statut==='retard'?'actif':'')+'" onclick="pointerPresence(\''+p.id+'\',\''+p.type+'\',\'retard\',\''+dateKey+'\')"><span class="ico">⏱️</span>RETARD</button>';
-html+='<button class="prof-btn-statut absent '+(statut==='absent'?'actif':'')+'" onclick="pointerPresence(\''+p.id+'\',\''+p.type+'\',\'absent\',\''+dateKey+'\')"><span class="ico">❌</span>ABSENT</button>';
+html+='<button class="prof-btn-statut present '+(statut==='present'?'actif':'')+'" onclick="pointerPresence(\''+p.id+'\',\'ens\',\'present\',\''+dateKey+'\')"><span class="ico">✅</span>PRÉSENT</button>';
+html+='<button class="prof-btn-statut retard '+(statut==='retard'?'actif':'')+'" onclick="pointerPresence(\''+p.id+'\',\'ens\',\'retard\',\''+dateKey+'\')"><span class="ico">⏱️</span>RETARD</button>';
+html+='<button class="prof-btn-statut absent '+(statut==='absent'?'actif':'')+'" onclick="pointerPresence(\''+p.id+'\',\'ens\',\'absent\',\''+dateKey+'\')"><span class="ico">❌</span>ABSENT</button>';
 html+='</div>';
 html+='<div class="prof-docs">';
-html+='<button class="prof-doc-btn '+(journal?'ok':'')+'" onclick="toggleDocumentPedagogique(\''+p.id+'\',\''+p.type+'\',\'journalClasse\',\''+dateKey+'\',this)"><span class="ico">📓</span>Journal</button>';
-html+='<button class="prof-doc-btn '+(cahier?'ok':'')+'" onclick="toggleDocumentPedagogique(\''+p.id+'\',\''+p.type+'\',\'cahierPreparation\',\''+dateKey+'\',this)"><span class="ico">📖</span>Cahier</button>';
-html+='<button class="prof-doc-btn '+(prevision?'ok':'')+'" onclick="toggleDocumentPedagogique(\''+p.id+'\',\''+p.type+'\',\'previsionMatiere\',\''+dateKey+'\',this)"><span class="ico">📄</span>Prévis.</button>';
-html+='<button class="prof-doc-btn '+(composition?'ok':'')+'" onclick="toggleDocumentPedagogique(\''+p.id+'\',\''+p.type+'\',\'cahierComposition\',\''+dateKey+'\',this)"><span class="ico">✍️</span>Compos.</button>';
+html+='<button class="prof-doc-btn '+(journal?'ok':'')+'" onclick="toggleDocumentPedagogique(\''+p.id+'\',\'ens\',\'journalClasse\',\''+dateKey+'\',this)"><span class="ico">📓</span>Journal</button>';
+html+='<button class="prof-doc-btn '+(cahier?'ok':'')+'" onclick="toggleDocumentPedagogique(\''+p.id+'\',\'ens\',\'cahierPreparation\',\''+dateKey+'\',this)"><span class="ico">📖</span>Cahier</button>';
+html+='<button class="prof-doc-btn '+(prevision?'ok':'')+'" onclick="toggleDocumentPedagogique(\''+p.id+'\',\'ens\',\'previsionMatiere\',\''+dateKey+'\',this)"><span class="ico">📄</span>Prévis.</button>';
+html+='<button class="prof-doc-btn '+(composition?'ok':'')+'" onclick="toggleDocumentPedagogique(\''+p.id+'\',\'ens\',\'cahierComposition\',\''+dateKey+'\',this)"><span class="ico">✍️</span>Compos.</button>';
 html+='</div>';
 const heure=presence?.heureArrivee||'--:--';
 html+='<div class="prof-heure"><i class="fas fa-clock"></i> '+(statut==='present'||statut==='retard'?heure:'Non pointé')+'</div>';
@@ -670,6 +770,7 @@ document.getElementById('statPresenceTotal').textContent=toutesPersonnes.length;
 document.getElementById('presenceCount').textContent=toutesPersonnes.length+' personne'+(toutesPersonnes.length>1?'s':'');
 }catch(e){toast('Erreur chargement presences: '+e.message,'error')}
 }
+
 window.pointerPresence=function(id,type,statut,dateKey){
 const carte=document.querySelector('[data-prof="'+id+'"][data-type="'+type+'"]');
 if(!carte)return;
@@ -694,6 +795,7 @@ payload['presences.'+dateKey+'.statut']=statut;
 payload['presences.'+dateKey+'.heureArrivee']=(statut==='present'||statut==='retard')?heure:'';
 updateDoc(docRef,payload).catch(e=>toast('Erreur: '+e.message,'error'));
 };
+
 window.toggleDocumentPedagogique=function(id,type,champ,dateKey,bouton){
 if(!bouton)return;
 const etaitOk=bouton.classList.contains('ok');
@@ -708,29 +810,207 @@ const payload={};
 payload['presences.'+dateKey+'.'+champ]=etaitOk?'x':'ok';
 updateDoc(docRef,payload).catch(e=>{bouton.classList.toggle('ok');toast('Erreur: '+e.message,'error')});
 };
+
 document.getElementById('btnAppliquerFiltre').addEventListener('click',chargerPresences);
 document.getElementById('filtreDatePresence').addEventListener('change',chargerPresences);
 document.getElementById('filtreTypePresence').addEventListener('change',chargerPresences);
+
 document.getElementById('searchPresenceInput').addEventListener('input',function(){const val=this.value.toLowerCase();document.querySelectorAll('.prof-carte').forEach(card=>{const nom=card.dataset.nom||'';card.style.display=nom.includes(val)?'':'none'})});
+
+async function chargerAdminPersonnel(){
+try{
+const snap=await getDocs(collection(db,"ecoles",ECOLET_ID,SC.PUNITIONS));
+adminPersonnel=[];
+snap.forEach(ds=>{
+const d=ds.data();
+if(d._type==='admin_personnel'&&d.nom&&d.fonction){adminPersonnel.push({id:ds.id,...d})}
+});
+adminPersonnel.sort((a,b)=>ORDRE_FONCTIONS.indexOf(a.fonction)-ORDRE_FONCTIONS.indexOf(b.fonction));
+return adminPersonnel;
+}catch(e){adminPersonnel=[];return []}
+}
+
+function afficherAdminPersonnel(){
+const container=document.getElementById('adminPersonnelList');
+if(!container)return;
+const dateKey=document.getElementById('filtreDatePresence').value||currentDate;
+if(adminPersonnel.length===0){
+container.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px;">Aucun membre du personnel administratif enregistré. Cliquez sur AJOUTER pour commencer.</div>';
+return;
+}
+let present=0,retard=0,absent=0;
+let html='';
+adminPersonnel.forEach(p=>{
+const presence=(p.presences&&p.presences[dateKey])||null;
+const statut=presence?.statut||null;
+if(statut==='present')present++;else if(statut==='retard')retard++;else if(statut==='absent')absent++;
+const statutClass=statut?'statut-'+statut:'statut-nonpointe';
+const badgeClass=statut||'nonpointe';
+const badgeLabel=statut==='present'?'PRÉSENT':statut==='retard'?'RETARD':statut==='absent'?'ABSENT':'À POINTER';
+const heure=presence?.heureArrivee||'--:--';
+html+=`<div class="prof-carte ${statutClass}" data-admin="${p.id}" style="margin:0;">
+<div class="prof-badge ${badgeClass}">${badgeLabel}</div>
+<div class="prof-entete">
+<div class="prof-avatar ${p.sexe==='F'?'femme':''}">${initiales(p.nom)}</div>
+<div class="prof-identite">
+<div class="prof-nom-card">${escapeHtml(p.nom)}</div>
+<div class="prof-meta">
+<span class="prof-tag" style="background:rgba(139,92,246,.15);color:#7c3aed;">${escapeHtml(p.fonction)}</span>
+</div>
+</div>
+</div>
+<div class="prof-boutons">
+<button class="prof-btn-statut present ${statut==='present'?'actif':''}" onclick="pointerAdmin('${p.id}','present','${dateKey}')"><span class="ico">✅</span>PRÉSENT</button>
+<button class="prof-btn-statut retard ${statut==='retard'?'actif':''}" onclick="pointerAdmin('${p.id}','retard','${dateKey}')"><span class="ico">⏱️</span>RETARD</button>
+<button class="prof-btn-statut absent ${statut==='absent'?'actif':''}" onclick="pointerAdmin('${p.id}','absent','${dateKey}')"><span class="ico">❌</span>ABSENT</button>
+</div>
+<div class="prof-heure"><i class="fas fa-clock"></i> ${statut==='present'||statut==='retard'?heure:'Non pointé'}</div>
+<div style="text-align:right;margin-top:6px;">
+<button onclick="supprimerAdmin('${p.id}','${escapeHtml(p.nom).replace(/'/g,"\\'")}')" style="background:rgba(239,68,68,.12);color:#dc2626;border:1px solid rgba(239,68,68,.3);padding:4px 10px;border-radius:6px;font-size:10px;cursor:pointer;font-weight:700;">
+<i class="fas fa-trash"></i>
+</button>
+</div>
+</div>`;
+});
+const resume=`
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;">
+<div style="background:#fff;border:1px solid var(--border-color);border-radius:10px;padding:10px;text-align:center;">
+<div style="font-size:9px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Présents</div>
+<div style="font-size:20px;font-weight:800;color:var(--green);">${present}</div>
+</div>
+<div style="background:#fff;border:1px solid var(--border-color);border-radius:10px;padding:10px;text-align:center;">
+<div style="font-size:9px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Retards</div>
+<div style="font-size:20px;font-weight:800;color:var(--orange);">${retard}</div>
+</div>
+<div style="background:#fff;border:1px solid var(--border-color);border-radius:10px;padding:10px;text-align:center;">
+<div style="font-size:9px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Absents</div>
+<div style="font-size:20px;font-weight:800;color:var(--red);">${absent}</div>
+</div>
+<div style="background:#fff;border:1px solid var(--border-color);border-radius:10px;padding:10px;text-align:center;">
+<div style="font-size:9px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Total</div>
+<div style="font-size:20px;font-weight:800;color:var(--purple);">${adminPersonnel.length}</div>
+</div>
+</div>`;
+container.innerHTML=resume+'<div class="profs-grid">'+html+'</div>';
+}
+
+window.pointerAdmin=async function(id,statut,dateKey){
+const carte=document.querySelector(`[data-admin="${id}"]`);
+if(!carte)return;
+const heure=new Date().toTimeString().slice(0,5);
+carte.querySelectorAll('.prof-btn-statut').forEach(b=>{
+b.classList.remove('actif');
+if(b.classList.contains(statut))b.classList.add('actif');
+});
+carte.classList.remove('statut-present','statut-retard','statut-absent','statut-nonpointe');
+carte.classList.add('statut-'+statut);
+const badge=carte.querySelector('.prof-badge');
+if(badge){badge.className='prof-badge '+statut;badge.textContent=statut==='present'?'PRÉSENT':statut==='retard'?'RETARD':'ABSENT'}
+const heureEl=carte.querySelector('.prof-heure');
+if(heureEl)heureEl.innerHTML='<i class="fas fa-clock"></i> '+heure;
+try{
+const ref=doc(db,"ecoles",ECOLET_ID,SC.PUNITIONS,id);
+const payload={};
+payload[`presences.${dateKey}.statut`]=statut;
+payload[`presences.${dateKey}.heureArrivee`]=(statut==='present'||statut==='retard')?heure:'';
+await updateDoc(ref,payload);
+const p=adminPersonnel.find(x=>x.id===id);
+if(p){
+if(!p.presences)p.presences={};
+if(!p.presences[dateKey])p.presences[dateKey]={};
+p.presences[dateKey].statut=statut;
+p.presences[dateKey].heureArrivee=(statut==='present'||statut==='retard')?heure:'';
+}
+}catch(e){toast('Erreur: '+e.message,'error')}
+};
+
+window.supprimerAdmin=async function(id,nom){
+showConfirm('SUPPRIMER',`Voulez-vous vraiment supprimer <strong>${nom}</strong> du personnel administratif ?`,'SUPPRIMER').then(async(ok)=>{
+if(!ok)return;
+try{
+await deleteDoc(doc(db,"ecoles",ECOLET_ID,SC.PUNITIONS,id));
+await chargerAdminPersonnel();
+afficherAdminPersonnel();
+toast('Membre supprimé','success');
+}catch(e){toast('Erreur: '+e.message,'error')}
+});
+};
+
+document.getElementById('btnAddAdminPersonnel')?.addEventListener('click',()=>{
+document.getElementById('adminFonction').value='';
+document.getElementById('adminNom').value='';
+document.getElementById('adminSexe').value='M';
+document.getElementById('modalAddAdminPersonnel').classList.add('show');
+});
+
+document.getElementById('cancelAdminBtn')?.addEventListener('click',()=>{
+document.getElementById('modalAddAdminPersonnel').classList.remove('show');
+});
+
+document.getElementById('saveAdminBtn')?.addEventListener('click',async function(){
+const fonction=document.getElementById('adminFonction').value;
+const nom=document.getElementById('adminNom').value.trim();
+const sexe=document.getElementById('adminSexe').value;
+if(!fonction){toast('Veuillez choisir une fonction','warning');return}
+if(!nom){toast('Veuillez entrer un nom','warning');return}
+this.disabled=true;this.textContent='ENREGISTREMENT...';
+try{
+const id='admin_'+Date.now();
+await setDoc(doc(db,"ecoles",ECOLET_ID,SC.PUNITIONS,id),{
+_type:'admin_personnel',
+id:id,
+fonction:fonction,
+nom:nom,
+sexe:sexe,
+presences:{},
+createdAt:Date.now()
+});
+await chargerAdminPersonnel();
+afficherAdminPersonnel();
+document.getElementById('modalAddAdminPersonnel').classList.remove('show');
+toast(nom+' ajouté(e) au personnel','success');
+}catch(e){toast('Erreur: '+e.message,'error')}
+this.disabled=false;this.textContent='ENREGISTRER';
+});
+
 function calculerPlageDates(type,debut,fin){const aujourd=new Date();aujourd.setHours(0,0,0,0);const isoDate=d=>{const y=d.getFullYear();const m=String(d.getMonth()+1).padStart(2,'0');const j=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+j};if(type==='jour')return{debut:isoDate(aujourd),fin:isoDate(aujourd)};if(type==='semaine'){const jour=aujourd.getDay();const diffLun=(jour===0?-6:1-jour);const lundi=new Date(aujourd);lundi.setDate(aujourd.getDate()+diffLun);const dimanche=new Date(lundi);dimanche.setDate(lundi.getDate()+6);return{debut:isoDate(lundi),fin:isoDate(dimanche)}}if(type==='mois'){const debutMois=new Date(aujourd.getFullYear(),aujourd.getMonth(),1);const finMois=new Date(aujourd.getFullYear(),aujourd.getMonth()+1,0);return{debut:isoDate(debutMois),fin:isoDate(finMois)}}if(type==='personnalise')return{debut:debut||isoDate(aujourd),fin:fin||isoDate(aujourd)};return{debut:'2000-01-01',fin:'2100-12-31'}}
 function listerDates(debut,fin){const dates=[];const d1=new Date(debut+'T00:00:00');const d2=new Date(fin+'T00:00:00');const cur=new Date(d1);while(cur<=d2){const y=cur.getFullYear();const m=String(cur.getMonth()+1).padStart(2,'0');const j=String(cur.getDate()).padStart(2,'0');dates.push(y+'-'+m+'-'+j);cur.setDate(cur.getDate()+1)}return dates}
 function estJourOuvrable(isoDate){const d=new Date(isoDate+'T00:00:00');return d.getDay()!==0}
-document.getElementById('btnExportPdfPresences').addEventListener('click',function(){const modal=document.getElementById('pdfPresenceModal');const today=new Date();const y=today.getFullYear();const m=String(today.getMonth()+1).padStart(2,'0');const j=String(today.getDate()).padStart(2,'0');document.getElementById('pdfDateFin').value=y+'-'+m+'-'+j;const lundi=new Date(today);const jour=today.getDay();const diffLun=(jour===0?-6:1-jour);lundi.setDate(today.getDate()+diffLun);const yl=lundi.getFullYear();const ml=String(lundi.getMonth()+1).padStart(2,'0');const jl=String(lundi.getDate()).padStart(2,'0');document.getElementById('pdfDateDebut').value=yl+'-'+ml+'-'+jl;modal.classList.add('show')});
+
+document.getElementById('btnExportPdfPresences').addEventListener('click',function(){
+const modal=document.getElementById('pdfPresenceModal');
+const today=new Date();
+const y=today.getFullYear();const m=String(today.getMonth()+1).padStart(2,'0');const j=String(today.getDate()).padStart(2,'0');
+document.getElementById('pdfDateFin').value=y+'-'+m+'-'+j;
+const lundi=new Date(today);const jour=today.getDay();const diffLun=(jour===0?-6:1-jour);lundi.setDate(today.getDate()+diffLun);
+const yl=lundi.getFullYear();const ml=String(lundi.getMonth()+1).padStart(2,'0');const jl=String(lundi.getDate()).padStart(2,'0');
+document.getElementById('pdfDateDebut').value=yl+'-'+ml+'-'+jl;
+const sec=document.getElementById('filtreTypePresence').value;
+document.getElementById('pdfSectionType').value=sec;
+modal.classList.add('show');
+});
+
 document.getElementById('pdfPeriodeType').addEventListener('change',function(){const custom=document.getElementById('pdfDatesCustom');custom.style.display=this.value==='personnalise'?'grid':'none'});
 document.getElementById('pdfCancelBtn').addEventListener('click',function(){document.getElementById('pdfPresenceModal').classList.remove('show')});
+
 document.getElementById('pdfGenerateBtn').addEventListener('click',async function(){
 const btn=this;btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> GÉNÉRATION...';
 try{
+const section=document.getElementById('pdfSectionType').value;
 const type=document.getElementById('pdfPeriodeType').value;
 const dateDebut=document.getElementById('pdfDateDebut').value;
 const dateFin=document.getElementById('pdfDateFin').value;
 const plage=calculerPlageDates(type,dateDebut,dateFin);
 const dates=listerDates(plage.debut,plage.fin);
 const datesOuvrables=dates.filter(d=>estJourOuvrable(d));
-const[profsSnap,ensSnap]=await Promise.all([getDocs(collection(db,"ecoles",ECOLET_ID,SC.PROFESSEURS)),getDocs(collection(db,"ecoles",ECOLET_ID,SC.ENSEIGNANTS))]);
 const personnes=[];
-profsSnap.forEach(ds=>{const data=ds.data();if(data._type==='prof'&&data.actif!==false&&data.nom){personnes.push({nom:data.nom||'',type:'Prof',cycle:'—',classes:[],presences:data.presences||{}})}});
-ensSnap.forEach(ds=>{const data=ds.data();if(data._type==='enseignant'&&data.actif!==false&&data.nom){personnes.push({nom:data.nom||'',type:'Ens',cycle:data.cycle==='maternelle'?'MAT.':'PRIM.',classes:data.classes||[],presences:data.presences||{}})}});
+if(section==='admin'){
+await chargerAdminPersonnel();
+adminPersonnel.forEach(p=>{personnes.push({nom:p.nom||'',type:'Admin',fonction:p.fonction||'',cycle:'—',classes:[],presences:p.presences||{}})});
+}else{
+const ensSnap=await getDocs(collection(db,"ecoles",ECOLET_ID,SC.ENSEIGNANTS));
+ensSnap.forEach(ds=>{const data=ds.data();if(data._type==='enseignant'&&data.actif!==false&&data.nom){personnes.push({nom:data.nom||'',type:'Ens',fonction:'',cycle:data.cycle==='maternelle'?'MAT.':'PRIM.',classes:data.classes||[],presences:data.presences||{}})}});
+}
 personnes.sort((a,b)=>(a.nom||'').localeCompare(b.nom||''));
 if(personnes.length===0){toast('Aucune personne à exporter','warning');btn.disabled=false;btn.innerHTML='<i class="fas fa-file-pdf"></i> GÉNÉRER LE PDF';return}
 const{jsPDF}=window.jspdf;
@@ -741,7 +1021,8 @@ pdf.text('RÉPUBLIQUE DÉMOCRATIQUE DU CONGO',pageW/2,15,{align:'center'});
 pdf.setFontSize(8);pdf.setFont('helvetica','normal');pdf.setTextColor(100,100,100);
 pdf.text("MINISTÈRE DE L'ÉDUCATION NATIONALE",pageW/2,20,{align:'center'});
 pdf.setFontSize(11);pdf.setFont('helvetica','bold');pdf.setTextColor(220,38,38);
-pdf.text('RAPPORT DE PRÉSENCES DU PERSONNEL',pageW/2,30,{align:'center'});
+const titre=section==='admin'?'RAPPORT DE PRÉSENCES DU PERSONNEL ADMINISTRATIF':'RAPPORT DE PRÉSENCES DES ENSEIGNANTS';
+pdf.text(titre,pageW/2,30,{align:'center'});
 pdf.setFontSize(9);pdf.setFont('helvetica','normal');pdf.setTextColor(15,23,42);
 pdf.text('École : '+SCHOOL_DISPLAY_NAME,14,40);
 pdf.text('Période : du '+formatDateFR(plage.debut)+' au '+formatDateFR(plage.fin),14,46);
@@ -755,15 +1036,20 @@ for(const dateIso of datesOuvrables){const pr=p.presences[dateIso];if(!pr||!pr.s
 const joursPrestes=nbPresent+nbRetard;
 const taux=datesOuvrables.length>0?Math.round((joursPrestes/datesOuvrables.length)*100):0;
 totalJoursPrestes+=joursPrestes;totalJoursOuvrables+=datesOuvrables.length;
+if(section==='admin'){
+rows.push([p.nom,p.fonction,datesOuvrables.length,nbPresent,nbRetard,nbAbsent,nbNonPointe,joursPrestes,taux+'%']);
+}else{
 const classesLabel=(p.classes||[]).slice(0,2).join(', ')||'—';
-rows.push([p.nom,p.type,p.cycle,classesLabel,datesOuvrables.length,nbPresent,nbRetard,nbAbsent,nbNonPointe,joursPrestes,taux+'%']);
+rows.push([p.nom,p.cycle,classesLabel,datesOuvrables.length,nbPresent,nbRetard,nbAbsent,nbNonPointe,joursPrestes,taux+'%']);
+}
 }
 const totalTaux=totalJoursOuvrables>0?Math.round((totalJoursPrestes/totalJoursOuvrables)*100):0;
-pdf.autoTable({head:[['NOM','TYPE','CYCLE','CLASSES','JOURS OUVR.','PRÉSENTS','RETARDS','ABSENTS','NON POINTÉS','JOURS PRESTÉS','TAUX']],body:rows,startY:64,theme:'grid',styles:{fontSize:7,cellPadding:1.5,halign:'center',textColor:[0,0,0],lineColor:[180,180,180],lineWidth:0.15},headStyles:{fillColor:[30,41,59],textColor:[255,255,255],fontStyle:'bold',fontSize:7,halign:'center'},columnStyles:{0:{halign:'left',cellWidth:38,fontStyle:'bold'},1:{cellWidth:12},2:{cellWidth:12},3:{halign:'left',cellWidth:28},4:{cellWidth:14},5:{cellWidth:13,textColor:[16,185,129],fontStyle:'bold'},6:{cellWidth:13,textColor:[245,158,11],fontStyle:'bold'},7:{cellWidth:13,textColor:[239,68,68],fontStyle:'bold'},8:{cellWidth:15,textColor:[148,163,184]},9:{cellWidth:15,fontStyle:'bold',fillColor:[240,253,244]},10:{cellWidth:13,fontStyle:'bold',fillColor:[219,234,254]}},didParseCell:function(data){if(data.section==='body'&&data.column.index===10){const val=parseInt(data.cell.raw);if(val>=90)data.cell.styles.textColor=[5,150,105];else if(val>=70)data.cell.styles.textColor=[217,119,6];else data.cell.styles.textColor=[220,38,38]}}});
-let finalY=pdf.lastAutoTable.finalY+8;
-const totauxRow=[{content:'TOTAL GÉNÉRAL',colSpan:4,styles:{fontStyle:'bold',halign:'left',fillColor:[254,243,199],textColor:[180,83,9],fontSize:8}},{content:totalJoursOuvrables,styles:{fontStyle:'bold',halign:'center',fillColor:[254,243,199],fontSize:8}},{content:rows.reduce((s,r)=>s+(parseInt(r[5])||0),0),styles:{fontStyle:'bold',halign:'center',fillColor:[254,243,199],textColor:[5,150,105],fontSize:8}},{content:rows.reduce((s,r)=>s+(parseInt(r[6])||0),0),styles:{fontStyle:'bold',halign:'center',fillColor:[254,243,199],textColor:[217,119,6],fontSize:8}},{content:rows.reduce((s,r)=>s+(parseInt(r[7])||0),0),styles:{fontStyle:'bold',halign:'center',fillColor:[254,243,199],textColor:[220,38,38],fontSize:8}},{content:rows.reduce((s,r)=>s+(parseInt(r[8])||0),0),styles:{fontStyle:'bold',halign:'center',fillColor:[254,243,199],fontSize:8}},{content:totalJoursPrestes,styles:{fontStyle:'bold',halign:'center',fillColor:[254,243,199],fontSize:8}},{content:totalTaux+'%',styles:{fontStyle:'bold',halign:'center',fillColor:[254,243,199],textColor:totalTaux>=90?[5,150,105]:totalTaux>=70?[217,119,6]:[220,38,38],fontSize:8}}];
-pdf.autoTable({body:[totauxRow],startY:finalY,theme:'grid',styles:{fontSize:7,cellPadding:1.5,lineColor:[180,180,180],lineWidth:0.15}});
-finalY=pdf.lastAutoTable.finalY+14;
+if(section==='admin'){
+pdf.autoTable({head:[['NOM','FONCTION','JOURS OUVR.','PRÉSENTS','RETARDS','ABSENTS','NON POINTÉS','JOURS PRESTÉS','TAUX']],body:rows,startY:64,theme:'grid',styles:{fontSize:8,cellPadding:2,halign:'center',textColor:[0,0,0],lineColor:[180,180,180],lineWidth:0.15},headStyles:{fillColor:[30,41,59],textColor:[255,255,255],fontStyle:'bold',fontSize:8,halign:'center'},columnStyles:{0:{halign:'left',cellWidth:55,fontStyle:'bold'},1:{cellWidth:38},2:{cellWidth:18},3:{cellWidth:16,textColor:[16,185,129],fontStyle:'bold'},4:{cellWidth:16,textColor:[245,158,11],fontStyle:'bold'},5:{cellWidth:16,textColor:[239,68,68],fontStyle:'bold'},6:{cellWidth:18,textColor:[148,163,184]},7:{cellWidth:20,fontStyle:'bold',fillColor:[240,253,244]},8:{cellWidth:18,fontStyle:'bold',fillColor:[219,234,254]}}});
+}else{
+pdf.autoTable({head:[['NOM','CYCLE','CLASSES','J. OUVR.','PRÉSENTS','RETARDS','ABSENTS','NON POINTÉS','JOURS PRESTÉS','TAUX']],body:rows,startY:64,theme:'grid',styles:{fontSize:7,cellPadding:1.5,halign:'center',textColor:[0,0,0],lineColor:[180,180,180],lineWidth:0.15},headStyles:{fillColor:[30,41,59],textColor:[255,255,255],fontStyle:'bold',fontSize:7,halign:'center'},columnStyles:{0:{halign:'left',cellWidth:38,fontStyle:'bold'},1:{cellWidth:14},2:{halign:'left',cellWidth:28},3:{cellWidth:14},4:{cellWidth:13,textColor:[16,185,129],fontStyle:'bold'},5:{cellWidth:13,textColor:[245,158,11],fontStyle:'bold'},6:{cellWidth:13,textColor:[239,68,68],fontStyle:'bold'},7:{cellWidth:15,textColor:[148,163,184]},8:{cellWidth:15,fontStyle:'bold',fillColor:[240,253,244]},9:{cellWidth:13,fontStyle:'bold',fillColor:[219,234,254]}}});
+}
+const finalY=pdf.lastAutoTable.finalY+14;
 pdf.setFontSize(9);pdf.setFont('helvetica','bold');pdf.setTextColor(15,23,42);
 pdf.text('RÉCAPITULATIF GLOBAL',14,finalY);
 pdf.setFontSize(8);pdf.setFont('helvetica','normal');
@@ -771,18 +1057,18 @@ pdf.text('Nombre total de personnes : '+personnes.length,14,finalY+7);
 pdf.text('Nombre de jours ouvrables : '+totalJoursOuvrables,14,finalY+13);
 pdf.text('Total jours prestés : '+totalJoursPrestes,14,finalY+19);
 pdf.text('Taux de présence global : '+totalTaux+'%',14,finalY+25);
-finalY+=40;
 pdf.setFontSize(8);pdf.setFont('helvetica','normal');
-pdf.text('Signature du Directeur',pageW-70,finalY,{align:'center'});
-pdf.line(pageW-100,finalY+15,pageW-40,finalY+15);
+pdf.text('Signature du Directeur',pageW-70,finalY+40,{align:'center'});
+pdf.line(pageW-100,finalY+55,pageW-40,finalY+55);
 pdf.setFontSize(7);pdf.setTextColor(150,150,150);
 pdf.text('Document généré automatiquement · '+new Date().toLocaleDateString('fr-FR'),pageW/2,pdf.internal.pageSize.getHeight()-10,{align:'center'});
-pdf.save('Presences_'+SCHOOL_DISPLAY_NAME+'_'+plage.debut+'_'+plage.fin+'.pdf');
+pdf.save('Presences_'+(section==='admin'?'Admin':'Enseignants')+'_'+SCHOOL_DISPLAY_NAME+'_'+plage.debut+'_'+plage.fin+'.pdf');
 toast('📄 Rapport PDF généré ('+personnes.length+' personnes)','success');
 document.getElementById('pdfPresenceModal').classList.remove('show');
 }catch(err){console.error(err);toast('Erreur génération PDF : '+err.message,'error')}
 btn.disabled=false;btn.innerHTML='<i class="fas fa-file-pdf"></i> GÉNÉRER LE PDF';
 });
+
 async function chargerTousEleves(){try{const[primaireSnap,materSnap,secSnap]=await Promise.all([getDocs(collection(db,"ecoles",ECOLET_ID,"prima_eleves")),getDocs(collection(db,"ecoles",ECOLET_ID,"mater_eleves")),getDocs(collection(db,"ecoles",ECOLET_ID,"compta_eleves"))]);let tous=[];primaireSnap.forEach(d=>{const data=d.data();if(data.nom){tous.push({id:d.id,...data,section:'primaire'})}});materSnap.forEach(d=>{const data=d.data();if(data.nom){tous.push({id:d.id,...data,section:'maternelle'})}});secSnap.forEach(d=>{const data=d.data();if(data.nom){tous.push({id:data.eleveId||d.id,nom:data.nom||'',postnom:data.postnom||'',prenom:data.prenom||'',sexe:data.sexe||'M',classe:data.classe||'',option:data.option||'',minerval:data.minerval||45000,exonere:data.exonere||false,abandon:data.abandon||false,paiements:data.paiements||{},moisBlancs:data.moisBlancs||[],section:'secondaire'})}});allEleves=tous;return tous}catch(e){return[]}}
 function remplirMois(selectId,selectedValue){const select=document.getElementById(selectId);let html='';moisListe.forEach(m=>{const s=m===selectedValue?'selected':'';html+='<option value="'+m+'" '+s+'>'+m+'</option>'});select.innerHTML=html}
 function updateRecoverClasses(){const section=document.getElementById('recoverSection').value;const select=document.getElementById('recoverClasse');let classes=[];if(section==='toutes'){classes=[...classesMaternelle,...classesPrimaire,...classesSecondaire]}else if(section==='maternelle'){classes=classesMaternelle}else if(section==='primaire'){classes=classesPrimaire}else if(section==='secondaire'){classes=classesSecondaire}select.innerHTML='<option value="">TOUTES</option>';classes.sort().forEach(c=>{const opt=document.createElement('option');opt.value=c;opt.textContent=c;select.appendChild(opt)});updateRecoverOptions()}
@@ -805,11 +1091,7 @@ recoverFilteredData=elevesFiltres;
 const container=document.getElementById('recouvrementTableContainer');
 const pagination=document.getElementById('recoverPagination');
 if(elevesFiltres.length===0){
-document.getElementById('recoverTotal').textContent='0';
-document.getElementById('recoverPaye').textContent='0';
-document.getElementById('recoverNonPaye').textContent='0';
-document.getElementById('recoverPartiel').textContent='0';
-document.getElementById('recoverTaux').textContent='0%';
+document.getElementById('recoverTotal').textContent='0';document.getElementById('recoverPaye').textContent='0';document.getElementById('recoverNonPaye').textContent='0';document.getElementById('recoverPartiel').textContent='0';document.getElementById('recoverTaux').textContent='0%';
 container.innerHTML='<div style="text-align:center;padding:30px;color:var(--text-muted);"><i class="fas fa-users" style="font-size:32px;display:block;margin-bottom:8px;color:#e5e7eb;"></i><p>Aucun eleve trouve</p></div>';
 pagination.style.display='none';
 return;
@@ -819,11 +1101,7 @@ const payes=elevesFiltres.filter(e=>{const paiement=e.paiements?.[mois]?.montant
 const nonPayes=elevesFiltres.filter(e=>{const paiement=e.paiements?.[mois]?.montant||0;return paiement===0}).length;
 const partiels=elevesFiltres.filter(e=>{const paiement=e.paiements?.[mois]?.montant||0;const minerval=e.exonere?0:(e.minerval||45000);return paiement>0&&paiement<minerval}).length;
 const taux=total>0?Math.round((payes/total)*100):0;
-document.getElementById('recoverTotal').textContent=total;
-document.getElementById('recoverPaye').textContent=payes;
-document.getElementById('recoverNonPaye').textContent=nonPayes;
-document.getElementById('recoverPartiel').textContent=partiels;
-document.getElementById('recoverTaux').textContent=taux+'%';
+document.getElementById('recoverTotal').textContent=total;document.getElementById('recoverPaye').textContent=payes;document.getElementById('recoverNonPaye').textContent=nonPayes;document.getElementById('recoverPartiel').textContent=partiels;document.getElementById('recoverTaux').textContent=taux+'%';
 const totalPages=Math.max(1,Math.ceil(elevesFiltres.length/RECOVER_PAR_PAGE));
 if(recoverCurrentPage>totalPages)recoverCurrentPage=totalPages;
 if(recoverCurrentPage<1)recoverCurrentPage=1;
@@ -831,18 +1109,7 @@ const debut=(recoverCurrentPage-1)*RECOVER_PAR_PAGE;
 const fin=Math.min(debut+RECOVER_PAR_PAGE,elevesFiltres.length);
 const pageItems=elevesFiltres.slice(debut,fin);
 let html='<table style="width:100%;min-width:750px;border-collapse:collapse;font-size:13px;"><thead><tr style="background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;"><th style="padding:12px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;">N</th><th style="padding:12px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;">ELEVE</th><th style="padding:12px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;">CLASSE</th><th style="padding:12px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;">OPTION</th><th style="padding:12px 14px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;">MINERVAL</th><th style="padding:12px 14px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;">PAYE</th><th style="padding:12px 14px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;">STATUT</th><th style="padding:12px 14px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;">RESTE</th></tr></thead><tbody>';
-pageItems.forEach((e,index)=>{
-const paiement=e.paiements?.[mois]?.montant||0;
-const minerval=e.exonere?0:(e.minerval||45000);
-const estPaye=paiement>=minerval;
-const estPartiel=paiement>0&&paiement<minerval;
-const reste=Math.max(0,minerval-paiement);
-const nomComplet=(e.nom+' '+(e.postnom||'')+' '+(e.prenom||'')).trim().toUpperCase();
-let statutTexte='NON PAYE';let statutColor='#ef4444';
-if(estPaye){statutTexte='PAYE';statutColor='#10b981'}else if(estPartiel){statutTexte='PARTIEL';statutColor='#f59e0b'}
-const numeroAffiche=debut+index+1;
-html+='<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:10px 14px;">'+numeroAffiche+'</td><td style="padding:10px 14px;"><strong>'+escapeHtml(nomComplet)+'</strong></td><td style="padding:10px 14px;">'+escapeHtml(e.classe||'-')+'</td><td style="padding:10px 14px;">'+escapeHtml(e.option||'-')+'</td><td style="padding:10px 14px;text-align:right;">'+formatNb(minerval)+' FC</td><td style="padding:10px 14px;text-align:right;">'+formatNb(paiement)+' FC</td><td style="padding:10px 14px;text-align:center;"><span style="background:'+statutColor+';color:#fff;padding:3px 10px;border-radius:30px;font-size:10px;font-weight:700;">'+statutTexte+'</span></td><td style="padding:10px 14px;text-align:right;color:#ef4444;font-weight:600;">'+formatNb(reste)+' FC</td></tr>';
-});
+pageItems.forEach((e,index)=>{const paiement=e.paiements?.[mois]?.montant||0;const minerval=e.exonere?0:(e.minerval||45000);const estPaye=paiement>=minerval;const estPartiel=paiement>0&&paiement<minerval;const reste=Math.max(0,minerval-paiement);const nomComplet=(e.nom+' '+(e.postnom||'')+' '+(e.prenom||'')).trim().toUpperCase();let statutTexte='NON PAYE';let statutColor='#ef4444';if(estPaye){statutTexte='PAYE';statutColor='#10b981'}else if(estPartiel){statutTexte='PARTIEL';statutColor='#f59e0b'}const numeroAffiche=debut+index+1;html+='<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:10px 14px;">'+numeroAffiche+'</td><td style="padding:10px 14px;"><strong>'+escapeHtml(nomComplet)+'</strong></td><td style="padding:10px 14px;">'+escapeHtml(e.classe||'-')+'</td><td style="padding:10px 14px;">'+escapeHtml(e.option||'-')+'</td><td style="padding:10px 14px;text-align:right;">'+formatNb(minerval)+' FC</td><td style="padding:10px 14px;text-align:right;">'+formatNb(paiement)+' FC</td><td style="padding:10px 14px;text-align:center;"><span style="background:'+statutColor+';color:#fff;padding:3px 10px;border-radius:30px;font-size:10px;font-weight:700;">'+statutTexte+'</span></td><td style="padding:10px 14px;text-align:right;color:#ef4444;font-weight:600;">'+formatNb(reste)+' FC</td></tr>'});
 html+='</tbody></table>';
 container.innerHTML=html;
 if(totalPages<=1){pagination.style.display='none';}
@@ -865,32 +1132,110 @@ document.getElementById('recoverSearch').addEventListener('input',()=>{afficherR
 document.getElementById('recoverFiltrer').addEventListener('click',()=>{afficherRecouvrement(true);toast('Filtre applique','success')});
 document.getElementById('recoverReset').addEventListener('click',()=>{document.getElementById('recoverStatut').value='tous';document.getElementById('recoverSection').value='toutes';document.getElementById('recoverClasse').value='';document.getElementById('recoverOption').value='';document.getElementById('recoverSearch').value='';updateRecoverClasses();afficherRecouvrement(true);toast('Filtres reinitialises','success')});
 document.getElementById('recoverPDF').addEventListener('click',function(){const{jsPDF}=window.jspdf;const doc=new jsPDF('landscape','mm','a4');const pw=doc.internal.pageSize.getWidth();const mois=document.getElementById('recoverMois').value;doc.setFillColor(26,26,46);doc.rect(0,0,pw,32,'F');doc.setTextColor(212,175,55);doc.setFontSize(16);doc.setFont('helvetica','bold');doc.text('COMPLEXE SCOLAIRE '+SCHOOL_DISPLAY_NAME.toUpperCase(),pw/2,12,{align:'center'});doc.setTextColor(255,255,255);doc.setFontSize(11);doc.text('RECOUVREMENT - '+mois.toUpperCase(),pw/2,21,{align:'center'});const rows=[];recoverFilteredData.forEach((e,index)=>{const paiement=e.paiements?.[mois]?.montant||0;const minerval=e.exonere?0:(e.minerval||45000);const estPaye=paiement>=minerval;const estPartiel=paiement>0&&paiement<minerval;const reste=Math.max(0,minerval-paiement);const nomComplet=(e.nom+' '+(e.postnom||'')+' '+(e.prenom||'')).trim().toUpperCase();let statutTexte='NON PAYE';if(estPaye){statutTexte='PAYE'}else if(estPartiel){statutTexte='PARTIEL'}rows.push([(index+1).toString(),nomComplet,e.classe||'-',e.option||'-',formatNb(minerval)+' FC',formatNb(paiement)+' FC',statutTexte,formatNb(reste)+' FC'])});doc.autoTable({head:[['N','ELEVE','CLASSE','OPTION','MINERVAL','PAYE','STATUT','RESTE']],body:rows,startY:38,styles:{fontSize:8,cellPadding:3},headStyles:{fillColor:[26,26,46],textColor:[212,175,55],fontSize:9,fontStyle:'bold',halign:'center'},alternateRowStyles:{fillColor:[248,246,242]},margin:{left:10,right:10}});doc.save('Recouvrement_'+mois+'.pdf');toast('PDF genere','success')});
-async function chargerPunitions(){const c=document.getElementById('punitionClasseSelect').value;const en=document.getElementById('punitionEleveSelect').value;const container=document.getElementById('punitionsListContainer');if(!container)return;container.innerHTML='<div style="text-align:center;padding:14px;color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';try{let constraints=[];if(c)constraints.push(where("classe","==",c));if(en)constraints.push(where("eleveNom","==",en));constraints.push(where("statut","==","active"));let q=collection(db,"ecoles",ECOLET_ID,SC.PUNITIONS);let queryRef=constraints.length>0?query(q,...constraints):q;const snap=await getDocs(queryRef);const punitions=[];snap.forEach(ds=>{punitions.push({id:ds.id,...ds.data()})});if(punitions.length===0){container.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="fas fa-check-circle" style="font-size:24px;display:block;margin-bottom:4px;color:#e5e7eb;"></i><p>Aucune punition active</p></div>';return}let html='';punitions.sort((a,b)=>new Date(b.date)-new Date(a.date));punitions.forEach(p=>{const df=new Date(p.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});html+='<div class="punition-item"><div class="info"><span class="nom">'+escapeHtml(p.eleveNom)+'</span><span class="classe-tag">'+escapeHtml(p.classe||'')+'</span><span class="motif">'+escapeHtml(p.motif)+'</span><span class="date">'+df+'</span></div><div class="punition-actions"><button onclick="window.annulerPunition(\''+p.id+'\')">ANNULER</button></div></div>'});container.innerHTML=html}catch(e){container.innerHTML='<div style="text-align:center;padding:16px;color:var(--red);">Erreur de chargement</div>'}}
+
+async function chargerPunitions(){
+const c=document.getElementById('punitionClasseSelect').value;
+const en=document.getElementById('punitionEleveSelect').value;
+const container=document.getElementById('punitionsListContainer');
+if(!container)return;
+container.innerHTML='<div style="text-align:center;padding:14px;color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';
+try{
+let constraints=[];
+if(c)constraints.push(where("classe","==",c));
+if(en)constraints.push(where("eleveNom","==",en));
+constraints.push(where("statut","==","active"));
+let q=collection(db,"ecoles",ECOLET_ID,SC.PUNITIONS);
+let queryRef=constraints.length>0?query(q,...constraints):q;
+const snap=await getDocs(queryRef);
+const punitions=[];
+snap.forEach(ds=>{const d=ds.data();if(d._type==='admin_personnel')return;punitions.push({id:ds.id,...d})});
+if(punitions.length===0){container.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="fas fa-check-circle" style="font-size:24px;display:block;margin-bottom:4px;color:#e5e7eb;"></i><p>Aucune punition active</p></div>';return}
+let html='';
+punitions.sort((a,b)=>new Date(b.date)-new Date(a.date));
+punitions.forEach(p=>{const df=new Date(p.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});html+='<div class="punition-item"><div class="info"><span class="nom">'+escapeHtml(p.eleveNom)+'</span><span class="classe-tag">'+escapeHtml(p.classe||'')+'</span><span class="motif">'+escapeHtml(p.motif)+'</span><span class="date">'+df+'</span></div><div class="punition-actions"><button onclick="window.annulerPunition(\''+p.id+'\')">ANNULER</button></div></div>'});
+container.innerHTML=html;
+}catch(e){container.innerHTML='<div style="text-align:center;padding:16px;color:var(--red);">Erreur de chargement</div>'}
+}
+
 window.annulerPunition=async function(id){showConfirm('ANNULER LA PUNITION','Voulez-vous vraiment annuler cette punition ?').then(async(ok)=>{if(!ok)return;try{await setDoc(doc(db,"ecoles",ECOLET_ID,SC.PUNITIONS,id),{statut:"annulee"},{merge:true});chargerPunitions()}catch(e){toast('Erreur: '+e.message,'error')}})};
 document.getElementById('addPunitionBtn').addEventListener('click',function(){const form=document.getElementById('punitionForm');const es=document.getElementById('punitionEleveSelect');if(form.classList.contains('show')){form.classList.remove('show');return}if(!es.value){toast('Veuillez selectionner un eleve','error');return}document.getElementById('punitionMotif').value='';document.getElementById('punitionJustification').value='';form.classList.add('show');document.getElementById('punitionMotif').focus()});
 document.getElementById('cancelPunitionBtn').addEventListener('click',function(){document.getElementById('punitionForm').classList.remove('show')});
-document.getElementById('savePunitionBtn').addEventListener('click',async function(){const es=document.getElementById('punitionEleveSelect');const c=document.getElementById('punitionClasseSelect').value;const motif=document.getElementById('punitionMotif').value.trim();const just=document.getElementById('punitionJustification').value.trim();if(!es.value){toast('Veuillez selectionner un eleve','error');return}if(!motif){toast('Veuillez saisir un motif','error');return}if(!just){toast('Veuillez saisir une justification','error');return}try{const docId='punition_'+Date.now();await setDoc(doc(db,"ecoles",ECOLET_ID,SC.PUNITIONS,docId),{eleveNom:es.value,classe:c||'Non specifiee',motif:motif,justification:just,date:new Date().toISOString(),enregistrePar:'Direction',gravite:'moyenne',statut:'active'});document.getElementById('punitionForm').classList.remove('show');chargerPunitions();toast('Punition enregistree','success')}catch(e){toast('Erreur: '+e.message,'error')}});
+document.getElementById('savePunitionBtn').addEventListener('click',async function(){const es=document.getElementById('punitionEleveSelect');const c=document.getElementById('punitionClasseSelect').value;const motif=document.getElementById('punitionMotif').value.trim();const just=document.getElementById('punitionJustification').value.trim();if(!es.value){toast('Veuillez selectionner un eleve','error');return}if(!motif){toast('Veuillez saisir un motif','error');return}if(!just){toast('Veuillez saisir une justification','error');return}try{const docId='punition_'+Date.now();await setDoc(doc(db,"ecoles",ECOLET_ID,SC.PUNITIONS,docId),{_type:'punition',eleveNom:es.value,classe:c||'Non specifiee',motif:motif,justification:just,date:new Date().toISOString(),enregistrePar:'Direction',gravite:'moyenne',statut:'active'});document.getElementById('punitionForm').classList.remove('show');chargerPunitions();toast('Punition enregistree','success')}catch(e){toast('Erreur: '+e.message,'error')}});
 document.getElementById('punitionClasseSelect').addEventListener('change',chargerPunitions);
 document.getElementById('punitionEleveSelect').addEventListener('change',chargerPunitions);
-async function updateStats(){try{const profsSnap=await getDocs(collection(db,"ecoles",ECOLET_ID,SC.PROFESSEURS));let totalProfs=0,actifsProfs=0,inactifsProfs=0;let profPresences={};profsSnap.forEach(ds=>{const d=ds.data();if(d._type==='prof'){totalProfs++;if(d.actif!==false){actifsProfs++;profPresences[ds.id]=d.presences||{}}else inactifsProfs++}});document.getElementById('statTotalProfs').textContent=totalProfs;document.getElementById('statProfsActifs').textContent=actifsProfs;document.getElementById('statProfsInactifs').textContent=inactifsProfs;const ensSnap=await getDocs(collection(db,"ecoles",ECOLET_ID,SC.ENSEIGNANTS));let totalEns=0,actifsEns=0,inactifsEns=0;let ensPresences={};ensSnap.forEach(ds=>{const d=ds.data();if(d._type==='enseignant'){totalEns++;if(d.actif!==false){actifsEns++;ensPresences[ds.id]=d.presences||{}}else inactifsEns++}});document.getElementById('statTotalEns').textContent=totalEns;document.getElementById('statEnsActifs').textContent=actifsEns;document.getElementById('statEnsInactifs').textContent=inactifsEns;const fichesSnap=await getDocs(collection(db,"ecoles",ECOLET_ID,SC.FICHES));let totalFiches=0;fichesSnap.forEach(()=>totalFiches++);document.getElementById('statTotalFiches').textContent=totalFiches;document.getElementById('statTotalPersonnel').textContent=totalProfs+totalEns;document.getElementById('statsDateDisplay').textContent=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
-let profP=0,profA=0,profR=0;Object.values(profPresences).forEach(pres=>{const p=pres[currentDate];if(!p||!p.statut)return;if(p.statut==='present')profP++;else if(p.statut==='retard')profR++;else if(p.statut==='absent')profA++});
-let ensP=0,ensA=0,ensR=0;Object.values(ensPresences).forEach(pres=>{const p=pres[currentDate];if(!p||!p.statut)return;if(p.statut==='present')ensP++;else if(p.statut==='retard')ensR++;else if(p.statut==='absent')ensA++});
-document.getElementById('statProfPresentStats').textContent=profP;
-document.getElementById('statProfAbsentStats').textContent=profA;
-document.getElementById('statProfRetardStats').textContent=profR;
-document.getElementById('statProfTotalStats').textContent=actifsProfs;
-document.getElementById('statProfBar').style.width=(actifsProfs>0?Math.round((profP/actifsProfs)*100):0)+'%';
+
+async function updateStats(){
+try{
+const profsSnap=await getDocs(collection(db,"ecoles",ECOLET_ID,SC.PROFESSEURS));
+let totalProfs=0,actifsProfs=0,inactifsProfs=0;
+profsSnap.forEach(ds=>{const d=ds.data();if(d._type==='prof'){totalProfs++;if(d.actif!==false)actifsProfs++;else inactifsProfs++}});
+document.getElementById('statTotalProfs').textContent=totalProfs;
+document.getElementById('statProfsActifs').textContent=actifsProfs;
+document.getElementById('statProfsInactifs').textContent=inactifsProfs;
+
+const ensSnap=await getDocs(collection(db,"ecoles",ECOLET_ID,SC.ENSEIGNANTS));
+let totalEns=0,actifsEns=0,inactifsEns=0;
+let ensPresences={};
+ensSnap.forEach(ds=>{const d=ds.data();if(d._type==='enseignant'){totalEns++;if(d.actif!==false){actifsEns++;ensPresences[ds.id]=d.presences||{}}else inactifsEns++}});
+document.getElementById('statTotalEns').textContent=totalEns;
+document.getElementById('statEnsActifs').textContent=actifsEns;
+document.getElementById('statEnsInactifs').textContent=inactifsEns;
+
+const fichesSnap=await getDocs(collection(db,"ecoles",ECOLET_ID,SC.FICHES));
+let totalFiches=0;fichesSnap.forEach(()=>totalFiches++);
+document.getElementById('statTotalFiches').textContent=totalFiches;
+document.getElementById('statTotalPersonnel').textContent=totalProfs+totalEns;
+document.getElementById('statsDateDisplay').textContent=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
+
+let ensP=0,ensA=0,ensR=0;
+Object.values(ensPresences).forEach(pres=>{const p=pres[currentDate];if(!p||!p.statut)return;if(p.statut==='present')ensP++;else if(p.statut==='retard')ensR++;else if(p.statut==='absent')ensA++});
 document.getElementById('statEnsPresentStats').textContent=ensP;
 document.getElementById('statEnsAbsentStats').textContent=ensA;
 document.getElementById('statEnsRetardStats').textContent=ensR;
 document.getElementById('statEnsTotalStats').textContent=actifsEns;
 document.getElementById('statEnsBar').style.width=(actifsEns>0?Math.round((ensP/actifsEns)*100):0)+'%';
-}catch(e){}}
+
+await chargerAdminPersonnel();
+let adminP=0,adminA=0,adminR=0;
+adminPersonnel.forEach(p=>{const pres=p.presences&&p.presences[currentDate];if(!pres||!pres.statut)return;if(pres.statut==='present')adminP++;else if(pres.statut==='retard')adminR++;else if(pres.statut==='absent')adminA++});
+const statAdminP=document.getElementById('statAdminPresentStats');
+if(statAdminP)statAdminP.textContent=adminP;
+const statAdminA=document.getElementById('statAdminAbsentStats');
+if(statAdminA)statAdminA.textContent=adminA;
+const statAdminR=document.getElementById('statAdminRetardStats');
+if(statAdminR)statAdminR.textContent=adminR;
+const statAdminT=document.getElementById('statAdminTotalStats');
+if(statAdminT)statAdminT.textContent=adminPersonnel.length;
+const statAdminBar=document.getElementById('statAdminBar');
+if(statAdminBar)statAdminBar.style.width=(adminPersonnel.length>0?Math.round((adminP/adminPersonnel.length)*100):0)+'%';
+}catch(e){}
+}
+
 const THEME_KEY='direction_theme';
 document.getElementById('themeToggleBtn').addEventListener('click',function(){const isDark=document.body.classList.toggle('dark-mode');localStorage.setItem(THEME_KEY,isDark?'dark':'light');this.textContent=isDark?'🌙':'☀️'});
 (function(){const saved=localStorage.getItem(THEME_KEY)||'light';if(saved==='dark'){document.body.classList.add('dark-mode');document.getElementById('themeToggleBtn').textContent='🌙'}})();
-async function initApp(){await updateStats();document.getElementById('presenceDateDisplay').textContent='📅 '+new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});document.getElementById('filtreDatePresence').value=currentDate;await chargerTousEleves();const dateRef=new Date();const moisActuelNum=dateRef.getMonth();let moisCourant="Septembre";if(moisActuelNum>=8)moisCourant=moisListe[moisActuelNum-8];else if(moisActuelNum>=0&&moisActuelNum<=5)moisCourant=moisListe[moisActuelNum+4];remplirMois('recoverMois',moisCourant);updateRecoverClasses();afficherRecouvrement(true);await chargerProfs().then(p=>afficherProfs(p));await chargerEnseignants().then(e=>afficherEnseignants(e));chargerPunitions()}
+
+async function initApp(){
+await updateStats();
+document.getElementById('presenceDateDisplay').textContent='📅 '+new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
+document.getElementById('filtreDatePresence').value=currentDate;
+await chargerTousEleves();
+const dateRef=new Date();
+const moisActuelNum=dateRef.getMonth();
+let moisCourant="Septembre";
+if(moisActuelNum>=8)moisCourant=moisListe[moisActuelNum-8];
+else if(moisActuelNum>=0&&moisActuelNum<=5)moisCourant=moisListe[moisActuelNum+4];
+remplirMois('recoverMois',moisCourant);
+updateRecoverClasses();
+afficherRecouvrement(true);
+await chargerProfs().then(p=>afficherProfs(p));
+await chargerEnseignants().then(e=>afficherEnseignants(e));
+await chargerAdminPersonnel();
+chargerPunitions();
+}
+
 verifierCodeDirection();
+
 document.addEventListener('selectstart',function(e){const tag=e.target.tagName;if(tag!=='INPUT'&&tag!=='TEXTAREA'&&!e.target.isContentEditable){e.preventDefault();return false}});
 document.addEventListener('mousedown',function(e){if(e.detail>1){e.preventDefault();return false}});
 document.addEventListener('copy',function(e){const tag=e.target.tagName;if(tag!=='INPUT'&&tag!=='TEXTAREA'&&!e.target.isContentEditable){e.preventDefault();return false}});
