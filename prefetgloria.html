@@ -382,6 +382,8 @@ const ALIAS_ECOLES={'GLORIAPRIM':'GLORIA_DEI','GLORIASEC':'GLORIA_DEI'};
 function getNomAfficheEcole(id){const idNorm=String(id||'').toUpperCase().trim();return ALIAS_ECOLES[idNorm]||idNorm}
 const ECOLET_ID=normaliserIdEcole(schoolId);
 const SCHOOL_DISPLAY_NAME=getNomAfficheEcole(ECOLET_ID).replace(/_/g,' ');
+const CODE_PREFET='220022';
+const EMAIL_PREFET='prefecture.gloriaprim@gmail.com';
 let currentAuthUser=null,toastQueue=[],toastActive=false;
 function toast(message,type='success'){toastQueue.push({message,type});if(!toastActive)processToastQueue()}
 function processToastQueue(){
@@ -424,21 +426,16 @@ btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> VÉRIFICATION...';
 try{
 const ecoleSnap=await getDoc(doc(db,"ecoles",ECOLET_ID));
 if(!ecoleSnap.exists())throw new Error("Cette école n'existe pas. Vérifiez le lien.");
-const settingsSnap=await getDoc(doc(db,"ecoles",ECOLET_ID,"settings","data"));
-let emailPrefet='prefecture.'+ECOLET_ID.toLowerCase()+'@gmail.com';
-let codeAttendu=null;
-if(settingsSnap.exists()){const s=settingsSnap.data();if(s.emailPrefigure)emailPrefet=s.emailPrefigure;if(s.emailPrefet)emailPrefet=s.emailPrefet;if(s.codePrefigure)codeAttendu=s.codePrefigure;if(s.codePrefet)codeAttendu=s.codePrefet}
-if(!codeAttendu)throw new Error("Aucun code Préfet enregistré pour cette école.");
-if(code!==codeAttendu)throw new Error("Code incorrect. Veuillez réessayer.");
-try{const cred=await signInWithEmailAndPassword(auth,emailPrefet,code);currentAuthUser=cred.user}
+if(code!==CODE_PREFET)throw new Error("Code incorrect. Veuillez réessayer.");
+try{const cred=await signInWithEmailAndPassword(auth,EMAIL_PREFET,code);currentAuthUser=cred.user}
 catch(authErr){
 if(authErr.code==='auth/user-not-found'){
-try{const cred=await createUserWithEmailAndPassword(auth,emailPrefet,code);currentAuthUser=cred.user}
+try{const cred=await createUserWithEmailAndPassword(auth,EMAIL_PREFET,code);currentAuthUser=cred.user}
 catch(createErr){throw new Error("Impossible de se connecter. Contactez NeTubeX SARL.")}
 }else if(authErr.code==='auth/wrong-password'||authErr.code==='auth/invalid-credential'){
-try{const cred=await createUserWithEmailAndPassword(auth,emailPrefet,code);currentAuthUser=cred.user}
-catch(createErr){throw new Error("Erreur d'authentification.")}
-}else throw new Error("Erreur d'authentification.");
+try{const cred=await createUserWithEmailAndPassword(auth,EMAIL_PREFET,code);currentAuthUser=cred.user}
+catch(createErr){throw new Error("Erreur d'authentification. Contactez NeTubeX SARL.")}
+}else throw new Error("Erreur d'authentification. Contactez NeTubeX SARL.");
 }
 document.getElementById('loginScreen').classList.add('hidden');
 document.getElementById('mainContent').style.display='block';
