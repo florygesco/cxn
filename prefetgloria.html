@@ -81,6 +81,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:v
 .login-btn:active{transform:translateY(0)}
 .login-btn:disabled{opacity:0.6;cursor:not-allowed;transform:none}
 .login-error{color:#fca5a5;font-size:13px;margin-top:16px;min-height:20px;font-weight:500;position:relative;z-index:1}
+.login-status{color:#c4b5fd;font-size:11px;margin-top:8px;min-height:16px;font-weight:500;position:relative;z-index:1;font-style:italic}
 .login-footer{font-size:10px;color:#7c3aed;margin-top:20px;position:relative;z-index:1}
 .presence-section-stats{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
 .presence-section-stats .stat-item{background:#fff;border-radius:10px;padding:8px 14px;border:1px solid var(--border-color);text-align:center;flex:1;min-width:70px}
@@ -193,10 +194,11 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:v
 <div class="login-logo">🏛️</div>
 <h2>ESPACE PRÉFECTURE</h2>
 <div class="school-target" id="loginSchoolName">—</div>
-<div class="login-sub">Entrez votre code Préfecture pour continuer</div>
+<div class="login-sub">Entrez le code Préfecture pour continuer</div>
 <div class="login-input-group"><input type="password" id="loginPasswordInput" placeholder="Code à 6 chiffres" inputmode="numeric" maxlength="6" autocomplete="off"></div>
 <button class="login-btn" id="loginSubmitBtn">SE CONNECTER</button>
 <div class="login-error" id="loginError"></div>
+<div class="login-status" id="loginStatus"></div>
 <div class="login-footer">🔐 Accès sécurisé Préfecture · © 2026</div>
 </div>
 </div>
@@ -304,12 +306,15 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:v
 <script type="module">
 import{initializeApp}from"firebase/app";
 import{getFirestore,collection,doc,getDoc,getDocs}from"firebase/firestore";
-import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut}from"firebase/auth";
+import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut,fetchSignInMethodsForEmail}from"firebase/auth";
 
 const cfg={apiKey:"AIzaSyB_GdmPBnWl3w6g99j1cGO7vxDdxmKr4QA",authDomain:"netubexmoney.firebaseapp.com",databaseURL:"https://netubexmoney-default-rtdb.europe-west1.firebasedatabase.app",projectId:"netubexmoney",storageBucket:"netubexmoney.firebasestorage.app",messagingSenderId:"856592608176",appId:"1:856592608176:web:69f9df9cfd4f8c28630475"};
 const app=initializeApp(cfg);
 const db=getFirestore(app);
 const auth=getAuth(app);
+
+/* ==================== CONFIGURATION PRÉFECTURE ==================== */
+const CODE_PREFECTURE = '220022'; // Code fixe Préfecture
 
 const urlParams=new URLSearchParams(window.location.search);
 const schoolId=urlParams.get('ecole');
@@ -319,9 +324,10 @@ function normaliserIdEcole(raw){return String(raw||'').trim().toUpperCase().norm
 const ECOLET_ID=normaliserIdEcole(schoolId);
 const SCHOOL_DISPLAY_NAME=ECOLET_ID;
 
-let currentAuthUser=null,ACCESS_CODE=null,toastQueue=[],toastActive=false;
-let currentDate=new Date().toISOString().split('T')[0];
-let allEleves=[];
+// Email généré automatiquement pour le compte Préfecture
+const EMAIL_PREFECTURE = `prefecture.${ECOLET_ID.toLowerCase()}@gmail.com`;
+
+let currentAuthUser=null,toastQueue=[],toastActive=false;
 
 function toast(message,type='success'){toastQueue.push({message,type});if(!toastActive)processToastQueue()}
 function processToastQueue(){
@@ -356,50 +362,95 @@ function showConfirm(title,message){
 document.getElementById('loginSchoolName').textContent=SCHOOL_DISPLAY_NAME;
 
 function afficherErreurLogin(msg){document.getElementById('loginError').textContent=msg||''}
+function afficherStatutLogin(msg){document.getElementById('loginStatus').textContent=msg||''}
 
+/* ==================== AUTO-CRÉATION DU COMPTE FIREBASE ==================== */
+async function creerOuConnecterComptePrefigure(){
+  const email = EMAIL_PREFECTURE;
+  const password = CODE_PREFECTURE;
+
+  // Étape 1 : Tenter de se connecter
+  try {
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    console.log('✅ Connexion réussie (compte existant)');
+    return { user: cred.user, created: false };
+  } catch (err) {
+    // Étape 2 : Si le compte n'existe pas → le créer automatiquement
+    if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-login-credentials') {
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        console.log('✅ Compte créé automatiquement :', email);
+        return { user: cred.user, created: true };
+      } catch (createErr) {
+        // Cas rare : email déjà utilisé mais mauvais mot de passe
+        if (createErr.code === 'auth/email-already-in-use') {
+          throw new Error("Ce compte existe déjà avec un mot de passe différent. Contactez l'administrateur.");
+        }
+        if (createErr.code === 'auth/operation-not-allowed') {
+          throw new Error("L'authentification Email/Password n'est pas activée dans Firebase.");
+        }
+        throw new Error("Impossible de créer le compte : " + createErr.message);
+      }
+    }
+    // Autres erreurs
+    if (err.code === 'auth/too-many-requests') {
+      throw new Error("Trop de tentatives. Réessayez plus tard.");
+    }
+    if (err.code === 'auth/network-request-failed') {
+      throw new Error("Problème de connexion internet.");
+    }
+    throw new Error("Erreur d'authentification : " + err.message);
+  }
+}
+
+/* ==================== LOGIN ==================== */
 async function tenterConnexion(){
   const input=document.getElementById('loginPasswordInput');
   const btn=document.getElementById('loginSubmitBtn');
   const code=input.value.trim();
   afficherErreurLogin('');
-  if(!code){afficherErreurLogin('Veuillez entrer votre code');return}
+  afficherStatutLogin('');
+
+  if(!code){afficherErreurLogin('Veuillez entrer le code');return}
   if(!/^\d{6}$/.test(code)){afficherErreurLogin('Le code doit contenir 6 chiffres');return}
+
+  // Vérification du code
+  if(code !== CODE_PREFECTURE){
+    afficherErreurLogin('Code incorrect. Veuillez réessayer.');
+    return;
+  }
+
   btn.disabled=true;
   btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> VÉRIFICATION...';
+  afficherStatutLogin('Connexion au serveur...');
+
   try{
-    const ecoleSnap=await getDoc(doc(db,"ecoles",ECOLET_ID));
+    // Vérifier que l'école existe
+    const ecoleSnap = await getDoc(doc(db,"ecoles",ECOLET_ID));
     if(!ecoleSnap.exists())throw new Error("Cette école n'existe pas. Vérifiez le lien.");
-    const settingsSnap=await getDoc(doc(db,"ecoles",ECOLET_ID,"settings","data"));
-    let emailPrefigure='prefecture.'+ECOLET_ID.toLowerCase()+'@gmail.com';
-    let codeAttendu=null;
-    if(settingsSnap.exists()){
-      const s=settingsSnap.data();
-      if(s.emailPrefigure)emailPrefigure=s.emailPrefigure;
-      if(s.codePrefigure)codeAttendu=s.codePrefigure;
-      if(!codeAttendu && s.codeDirection)codeAttendu=s.codeDirection;
-      if(!emailPrefigure && s.emailDirection)emailPrefigure=s.emailDirection;
-    }
-    if(!codeAttendu)throw new Error("Aucun code Préfecture enregistré pour cette école.");
-    if(code!==codeAttendu)throw new Error("Code incorrect. Veuillez réessayer.");
-    try{const cred=await signInWithEmailAndPassword(auth,emailPrefigure,code);currentAuthUser=cred.user}
-    catch(authErr){
-      if(authErr.code==='auth/user-not-found'){
-        try{const cred=await createUserWithEmailAndPassword(auth,emailPrefigure,code);currentAuthUser=cred.user}
-        catch(createErr){throw new Error("Impossible de se connecter. Contactez l'administrateur.")}
-      }else if(authErr.code==='auth/wrong-password'||authErr.code==='auth/invalid-credential'){
-        try{const cred=await createUserWithEmailAndPassword(auth,emailPrefigure,code);currentAuthUser=cred.user}
-        catch(createErr){throw new Error("Erreur d'authentification.")}
-      }else throw new Error("Erreur d'authentification.");
-    }
-    ACCESS_CODE=code;
+
+    afficherStatutLogin('Authentification en cours...');
+
+    // Auto-création ou connexion au compte Firebase
+    const result = await creerOuConnecterComptePrefigure();
+    currentAuthUser = result.user;
+
+    afficherStatutLogin(result.created ? 'Compte Préfecture créé ✓' : 'Connexion réussie ✓');
+
+    // Afficher l'interface
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('mainContent').style.display='block';
     document.getElementById('floatLogoutBtn').style.display='flex';
     document.getElementById('schoolNameSpan').textContent=SCHOOL_DISPLAY_NAME;
+
     await initApp();
-    toast('Bienvenue Préfecture !','success');
+
+    toast(result.created ? 'Compte Préfecture créé et connecté !' : 'Bienvenue Préfecture !','success');
+
   }catch(err){
+    console.error(err);
     afficherErreurLogin(err.message||'Erreur de connexion');
+    afficherStatutLogin('');
     btn.disabled=false;
     btn.innerHTML='SE CONNECTER';
   }
@@ -535,7 +586,7 @@ async function chargerRepartitionClasses(){
   }
 }
 
-/* ==================== LISTE DES PROFESSEURS (PRÉFECTURE) ==================== */
+/* ==================== LISTE DES PROFESSEURS ==================== */
 let cacheProfesseurs=null;
 let cacheFichesPref=null;
 let cacheTimePref=0;
