@@ -384,7 +384,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:v
 <script type="module">
 import{initializeApp}from"firebase/app";
 import{getFirestore,collection,doc,getDoc,getDocs}from"firebase/firestore";
-import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut}from"firebase/auth";
+import{getAuth,signInWithEmailAndPassword,signOut}from"firebase/auth";
 const cfg={apiKey:"AIzaSyB_GdmPBnWl3w6g99j1cGO7vxDdxmKr4QA",authDomain:"netubexmoney.firebaseapp.com",databaseURL:"https://netubexmoney-default-rtdb.europe-west1.firebasedatabase.app",projectId:"netubexmoney",storageBucket:"netubexmoney.firebasestorage.app",messagingSenderId:"856592608176",appId:"1:856592608176:web:69f9df9cfd4f8c28630475"};
 const app=initializeApp(cfg);
 const db=getFirestore(app);
@@ -397,8 +397,9 @@ const ALIAS_ECOLES={'GLORIAPRIM':'GLORIA_DEI','GLORIASEC':'GLORIA_DEI'};
 function getNomAfficheEcole(id){const idNorm=String(id||'').toUpperCase().trim();return ALIAS_ECOLES[idNorm]||idNorm}
 const ECOLET_ID=normaliserIdEcole(schoolId);
 const SCHOOL_DISPLAY_NAME=getNomAfficheEcole(ECOLET_ID).replace(/_/g,' ');
+const EMAIL_PREFECTURE='prefecture.gloriaprim@gmail.com';
 let currentAuthUser=null,toastQueue=[],toastActive=false;
-let codePrefigureCache=null,emailPrefigureCache=null;
+let codePrefigureCache=null;
 function toast(message,type='success'){toastQueue.push({message,type});if(!toastActive)processToastQueue()}
 function processToastQueue(){
 if(toastQueue.length===0){toastActive=false;return}
@@ -434,38 +435,33 @@ function afficherStatutLogin(msg){document.getElementById('loginStatus').textCon
 async function chargerConfigPrefigure(force){
 if(!force&&codePrefigureCache!==null)return;
 let codeTrouve=null;
-let emailTrouve=null;
 try{
 const settingsSnap=await getDoc(doc(db,"ecoles",ECOLET_ID,"settings","data"));
 if(settingsSnap.exists()){
 const s=settingsSnap.data();
 codeTrouve=s.codePrefigure||s.codeDirection||null;
-emailTrouve=s.emailPrefigure||s.emailDirection||null;
 }
 }catch(e){codeTrouve=null}
 codePrefigureCache=codeTrouve;
-emailPrefigureCache=emailTrouve||('prefecture.'+ECOLET_ID.toLowerCase()+'@gmail.com');
 }
-async function creerOuConnecterComptePrefigure(code){
-const email=emailPrefigureCache;
+async function connecterComptePrefigure(code){
 try{
-const cred=await signInWithEmailAndPassword(auth,email,code);
-return{user:cred.user,created:false};
+const cred=await signInWithEmailAndPassword(auth,EMAIL_PREFECTURE,code);
+return cred.user;
 }catch(err){
-if(err.code==='auth/user-not-found'||err.code==='auth/invalid-credential'||err.code==='auth/invalid-login-credentials'){
-try{
-const cred=await createUserWithEmailAndPassword(auth,email,code);
-return{user:cred.user,created:true};
-}catch(createErr){
-if(createErr.code==='auth/email-already-in-use')throw new Error("Ce compte existe déjà avec un mot de passe différent. Contactez l'administrateur.");
-if(createErr.code==='auth/operation-not-allowed')throw new Error("L'authentification Email/Password n'est pas activée dans Firebase.");
-if(createErr.code==='auth/weak-password')throw new Error("Le mot de passe doit contenir au moins 6 caractères.");
-throw new Error("Impossible de créer le compte : "+createErr.message);
+if(err.code==='auth/user-not-found'){
+throw new Error("Accès non disponible. Contactez NeTubeX SARL.");
 }
+if(err.code==='auth/wrong-password'||err.code==='auth/invalid-credential'||err.code==='auth/invalid-login-credentials'){
+throw new Error("Code incorrect. Veuillez réessayer.");
 }
-if(err.code==='auth/too-many-requests')throw new Error("Trop de tentatives. Réessayez plus tard.");
-if(err.code==='auth/network-request-failed')throw new Error("Problème de connexion internet.");
-throw new Error("Erreur d'authentification : "+err.message);
+if(err.code==='auth/too-many-requests'){
+throw new Error("Trop de tentatives. Réessayez plus tard.");
+}
+if(err.code==='auth/network-request-failed'){
+throw new Error("Pas de connexion internet. Vérifiez votre réseau.");
+}
+throw new Error("Une erreur est survenue. Contactez NeTubeX SARL.");
 }
 }
 async function tenterConnexion(){
@@ -478,14 +474,14 @@ afficherStatutLogin('');
 if(!code){afficherErreurLogin('Veuillez entrer le code');input.focus();return}
 if(!/^\d{6}$/.test(code)){afficherErreurLogin('Le code doit contenir 6 chiffres');input.focus();return}
 btn.disabled=true;
-btn.textContent='VÉRIFICATION...';
-afficherStatutLogin('Connexion au serveur...');
+btn.textContent='CHARGEMENT...';
+afficherStatutLogin('Veuillez patienter...');
 try{
 const ecoleSnap=await getDoc(doc(db,"ecoles",ECOLET_ID));
-if(!ecoleSnap.exists())throw new Error("Cette école n'existe pas. Vérifiez le lien.");
-afficherStatutLogin('Lecture de la configuration...');
+if(!ecoleSnap.exists())throw new Error("Établissement introuvable. Contactez NeTubeX SARL.");
+afficherStatutLogin('Vérification en cours...');
 await chargerConfigPrefigure(true);
-if(!codePrefigureCache)throw new Error("Aucun code Préfecture enregistré pour cette école.");
+if(!codePrefigureCache)throw new Error("Accès non disponible. Contactez NeTubeX SARL.");
 if(code!==String(codePrefigureCache)){
 afficherErreurLogin('Code incorrect. Veuillez réessayer.');
 afficherStatutLogin('');
@@ -493,19 +489,18 @@ input.value='';
 input.focus();
 return;
 }
-afficherStatutLogin('Authentification en cours...');
-const result=await creerOuConnecterComptePrefigure(code);
-currentAuthUser=result.user;
-afficherStatutLogin(result.created?'Compte Préfecture créé ✓':'Connexion réussie ✓');
+afficherStatutLogin('Connexion en cours...');
+currentAuthUser=await connecterComptePrefigure(code);
+afficherStatutLogin('Connexion réussie ✓');
 document.getElementById('loginScreen').classList.add('hidden');
 document.getElementById('mainContent').style.display='block';
 document.getElementById('floatLogoutBtn').style.display='flex';
 document.getElementById('schoolNameSpan').textContent=SCHOOL_DISPLAY_NAME;
 await initApp();
-toast(result.created?'Compte Préfecture créé et connecté !':'Bienvenue Préfecture !','success');
+toast('Bienvenue Préfecture !','success');
 }catch(err){
 console.error(err);
-afficherErreurLogin(err.message||'Erreur de connexion');
+afficherErreurLogin(err.message||'Une erreur est survenue. Contactez NeTubeX SARL.');
 afficherStatutLogin('');
 }finally{
 btn.disabled=false;
