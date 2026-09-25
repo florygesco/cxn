@@ -12,6 +12,31 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 <script>(function(){try{const s=localStorage.getItem('prefet_theme')||'light';if(s==='dark')document.documentElement.classList.add('dark-mode-preload')}catch(e){}})();</script>
+<script>
+document.addEventListener('touchstart',function(e){if(e.touches.length>1)e.preventDefault()},{passive:false});
+document.addEventListener('gesturestart',function(e){e.preventDefault()});
+
+function basculerOngletSuivant(){
+const tabs=Array.from(document.querySelectorAll('.tab'));
+if(tabs.length===0)return;
+const active=tabs.find(t=>t.classList.contains('active'));
+const idx=active?tabs.indexOf(active):-1;
+const next=tabs[(idx+1)%tabs.length];
+if(next){
+next.click();
+try{next.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});}catch(err){}
+}
+}
+
+document.addEventListener('contextmenu',function(e){
+const el=e.target;
+const tag=(el&&el.tagName)||'';
+if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||(el&&el.isContentEditable)){return true;}
+e.preventDefault();
+basculerOngletSuivant();
+return false;
+});
+</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 input,textarea,select{-webkit-user-select:text;user-select:text}
@@ -194,54 +219,39 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .prof-doc-btn.ok::after{content:'✓';position:absolute;top:2px;right:4px;font-size:9px;font-weight:900}
 .prof-heure{font-size:10px;color:var(--muted);text-align:center;margin-top:8px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:4px}
 
-/* ===== CARTES FRAIS EN DESIGN OR ===== */
+/* ===== CARTES FRAIS BLANCHES AVEC BORDURE OR ===== */
 .frais-carte{
 position:relative;
-background:linear-gradient(145deg,#fffbeb 0%,#fef3c7 50%,#fde68a 100%);
-border:2px solid transparent;
+background:var(--card);
+border:2px solid #d4af37;
 border-radius:18px;
 padding:16px;
 box-shadow:
 0 1px 2px rgba(180,83,9,.08),
-0 8px 24px -8px rgba(180,83,9,.25),
-inset 0 1px 0 rgba(255,255,255,.6);
+0 8px 24px -8px rgba(180,83,9,.2);
 transition:all .3s cubic-bezier(.34,1.56,.64,1);
 overflow:hidden;
 }
 .frais-carte::before{
 content:'';
 position:absolute;
-top:0;left:0;right:0;height:4px;
+top:0;left:0;right:0;height:3px;
 background:linear-gradient(90deg,#b45309,#d4af37,#fbbf24,#d4af37,#b45309);
-border-radius:18px 18px 0 0;
-}
-.frais-carte::after{
-content:'';
-position:absolute;
-top:-50%;right:-50%;
-width:200%;height:200%;
-background:radial-gradient(circle,rgba(255,255,255,.4),transparent 60%);
-pointer-events:none;
-opacity:0;
-transition:opacity .4s;
+border-radius:16px 16px 0 0;
 }
 .frais-carte:hover{
-transform:translateY(-4px) scale(1.01);
+transform:translateY(-3px);
+border-color:#b45309;
 box-shadow:
 0 2px 4px rgba(180,83,9,.12),
-0 20px 40px -12px rgba(180,83,9,.4),
-inset 0 1px 0 rgba(255,255,255,.8);
-border-color:rgba(180,83,9,.3);
+0 16px 32px -12px rgba(180,83,9,.35);
 }
-.frais-carte:hover::after{opacity:1}
-
 .frais-nom{
 font-size:15px;
 font-weight:900;
-color:#78350f;
+color:var(--text);
 margin-bottom:6px;
-letter-spacing:.4px;
-text-shadow:0 1px 0 rgba(255,255,255,.6);
+letter-spacing:.3px;
 }
 .frais-classe{
 display:inline-block;
@@ -254,9 +264,7 @@ border-radius:20px;
 letter-spacing:.5px;
 text-transform:uppercase;
 margin-bottom:12px;
-box-shadow:0 2px 8px rgba(180,83,9,.3);
 }
-
 .frais-ligne{
 display:flex;
 justify-content:space-between;
@@ -264,46 +272,40 @@ align-items:center;
 padding:8px 12px;
 border-radius:10px;
 margin-top:8px;
-background:rgba(255,255,255,.5);
-border:1px solid rgba(180,83,9,.15);
+background:var(--card-2);
+border:1px solid var(--border);
 }
 .frais-ligne .lbl{
 font-size:10px;
 font-weight:800;
-color:#92400e;
+color:var(--muted);
 text-transform:uppercase;
 letter-spacing:.6px;
 }
 .frais-ligne .montant{
 font-size:15px;
 font-weight:900;
-color:#78350f;
-text-shadow:0 1px 0 rgba(255,255,255,.5);
+color:var(--text);
 }
-
 .frais-saisie{
 display:flex;
 align-items:center;
 gap:8px;
 margin-top:8px;
 padding:8px 12px;
-background:linear-gradient(135deg,#fffbeb,#fef3c7);
-border:2px solid rgba(180,83,9,.25);
+background:var(--input-bg);
+border:2px solid var(--border);
 border-radius:12px;
 transition:all .25s;
-box-shadow:inset 0 1px 2px rgba(180,83,9,.08);
 }
 .frais-saisie:focus-within{
-border-color:#b45309;
-background:#fff;
-box-shadow:
-0 0 0 4px rgba(180,83,9,.15),
-inset 0 1px 2px rgba(180,83,9,.05);
+border-color:#d4af37;
+box-shadow:0 0 0 4px rgba(212,175,55,.15);
 }
 .frais-saisie label{
 font-size:10px;
 font-weight:800;
-color:#92400e;
+color:var(--gold);
 text-transform:uppercase;
 letter-spacing:.6px;
 white-space:nowrap;
@@ -313,7 +315,7 @@ flex:1;
 background:transparent;
 border:none;
 padding:4px 6px;
-color:#78350f;
+color:var(--text);
 font-size:15px;
 font-weight:900;
 outline:none;
@@ -321,23 +323,20 @@ font-family:'Inter',sans-serif;
 text-align:right;
 min-width:0;
 }
-.frais-saisie input:focus{color:#b45309}
-
+.frais-saisie input:focus{color:var(--gold)}
 .frais-reste{
 display:flex;
 justify-content:space-between;
 font-size:11px;
-color:#92400e;
+color:var(--muted);
 margin-top:6px;
 padding:0 4px;
 font-weight:700;
 }
 .frais-reste strong{
 font-weight:900;
-color:#dc2626;
-text-shadow:0 1px 0 rgba(255,255,255,.5);
+color:var(--red);
 }
-
 .frais-statut{
 display:flex;
 justify-content:center;
@@ -350,21 +349,20 @@ font-size:11px;
 font-weight:900;
 letter-spacing:.8px;
 text-transform:uppercase;
-box-shadow:inset 0 1px 0 rgba(255,255,255,.5);
 }
 .frais-statut.paye{
-background:linear-gradient(135deg,#d1fae5,#a7f3d0);
-color:#065f46;
+background:rgba(16,185,129,.12);
+color:#059669;
 border:1.5px solid rgba(5,150,105,.4);
 }
 .frais-statut.partiel{
-background:linear-gradient(135deg,#fef3c7,#fde68a);
-color:#92400e;
+background:rgba(245,158,11,.12);
+color:#d97706;
 border:1.5px solid rgba(217,119,6,.4);
 }
 .frais-statut.non_paye{
-background:linear-gradient(135deg,#fee2e2,#fecaca);
-color:#991b1b;
+background:rgba(239,68,68,.12);
+color:#dc2626;
 border:1.5px solid rgba(220,38,38,.4);
 }
 
@@ -424,27 +422,22 @@ body.dark-mode .badge.red{background:rgba(248,81,73,.15);color:#f85149}
 body.dark-mode .badge.orange{background:rgba(210,153,34,.15);color:#d29922}
 body.dark-mode .stat .lbl{color:#8b949e}
 
-body.dark-mode .frais-carte{
-background:linear-gradient(145deg,#2a1f0a 0%,#3a2a0f 50%,#4a3615 100%);
-border-color:#5a4218;
-box-shadow:0 8px 24px -8px rgba(0,0,0,.6),inset 0 1px 0 rgba(227,179,65,.15);
-}
-body.dark-mode .frais-carte:hover{border-color:#8a6a25}
+body.dark-mode .frais-carte{background:#161b22;border-color:#8a6a25}
+body.dark-mode .frais-carte:hover{border-color:#e3b341}
 body.dark-mode .frais-carte::before{background:linear-gradient(90deg,#8a6a25,#e3b341,#fbbf24,#e3b341,#8a6a25)}
-body.dark-mode .frais-nom{color:#fbbf24;text-shadow:0 1px 0 rgba(0,0,0,.4)}
+body.dark-mode .frais-nom{color:#e6edf3}
 body.dark-mode .frais-classe{background:linear-gradient(135deg,#8a6a25,#e3b341);color:#0d1117}
-body.dark-mode .frais-ligne{background:rgba(0,0,0,.3);border-color:rgba(227,179,65,.2)}
-body.dark-mode .frais-ligne .lbl{color:#e3b341}
-body.dark-mode .frais-ligne .montant{color:#fbbf24;text-shadow:0 1px 0 rgba(0,0,0,.5)}
-body.dark-mode .frais-saisie{background:rgba(0,0,0,.4);border-color:rgba(227,179,65,.3)}
-body.dark-mode .frais-saisie:focus-within{background:rgba(0,0,0,.6);border-color:#fbbf24}
-body.dark-mode .frais-saisie label{color:#e3b341}
-body.dark-mode .frais-saisie input{color:#fbbf24}
-body.dark-mode .frais-reste{color:#e3b341}
-body.dark-mode .frais-reste strong{color:#f87171}
-body.dark-mode .frais-statut.paye{background:linear-gradient(135deg,#0f2a1a,#1a3d29);color:#3fb950;border-color:rgba(63,185,80,.5)}
-body.dark-mode .frais-statut.partiel{background:linear-gradient(135deg,#2a220f,#3a3015);color:#e3b341;border-color:rgba(227,179,65,.5)}
-body.dark-mode .frais-statut.non_paye{background:linear-gradient(135deg,#2a0f0f,#3a1515);color:#f85149;border-color:rgba(248,81,73,.5)}
+body.dark-mode .frais-ligne{background:#0d1117;border-color:#30363d}
+body.dark-mode .frais-ligne .lbl{color:#8b949e}
+body.dark-mode .frais-ligne .montant{color:#e6edf3}
+body.dark-mode .frais-saisie{background:#0d1117;border-color:#30363d}
+body.dark-mode .frais-saisie:focus-within{border-color:#e3b341}
+body.dark-mode .frais-saisie input{color:#e6edf3}
+body.dark-mode .frais-saisie input:focus{color:#e3b341}
+body.dark-mode .frais-reste{color:#8b949e}
+body.dark-mode .frais-statut.paye{background:rgba(63,185,80,.15);color:#3fb950;border-color:rgba(63,185,80,.4)}
+body.dark-mode .frais-statut.partiel{background:rgba(210,153,34,.15);color:#d29922;border-color:rgba(210,153,34,.4)}
+body.dark-mode .frais-statut.non_paye{background:rgba(248,81,73,.15);color:#f85149;border-color:rgba(248,81,73,.4)}
 
 @media(max-width:640px){
 .container{padding:12px}
@@ -602,7 +595,6 @@ Le bouton ci-dessous ouvre une fenêtre pour choisir les filtres avant de géné
 <h3><i class="fas fa-coins"></i> FRAIS ÉTAT & TECHNIQUE</h3>
 <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
 <button class="btn btn-sm btn-warning" id="btnConfigFrais"><i class="fas fa-cog"></i> CONFIGURER</button>
-<button class="btn btn-sm btn-gold" id="btnPDFFraisDirect"><i class="fas fa-file-pdf"></i> EXPORTER PDF</button>
 </div>
 </div>
 <div class="card-body">
@@ -1010,15 +1002,35 @@ let cacheProfs = { data: null, time: 0 };
 let cacheTitulaires = { data: null, time: 0 };
 let cacheFrais = { data: null, time: 0 };
 
+let toastEnCours = false;
+const toastQueue = [];
+
 function toast(msg, type = 'success') {
+toastQueue.push({ msg, type });
+if (!toastEnCours) processToastQueue();
+}
+
+function processToastQueue() {
+if (toastQueue.length === 0) { toastEnCours = false; return; }
+toastEnCours = true;
+const { msg, type } = toastQueue.shift();
+
 const c = document.getElementById('toasts');
 const el = document.createElement('div');
 el.className = 'toast ' + (type === 'error' ? 'error' : type === 'warning' ? 'warning' : '');
 const icon = type === 'error' ? 'fa-exclamation-circle' : type === 'warning' ? 'fa-exclamation-triangle' : 'fa-check-circle';
 el.innerHTML = `<i class="fas ${icon}"></i><div class="msg">${msg}</div>`;
 c.appendChild(el);
+
 setTimeout(() => el.classList.add('show'), 10);
-setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 400); }, 3500);
+
+setTimeout(() => {
+el.classList.remove('show');
+setTimeout(() => {
+el.remove();
+processToastQueue();
+}, 400);
+}, 2000);
 }
 
 function handleError(context, e) {
@@ -2024,6 +2036,26 @@ doc.save(nomFic);
 toast(list.length + ' élèves exportés', 'success');
 }
 
+function ouvrirModalPDFFrais() {
+const selClasse = document.getElementById('pdfModalClasse');
+if (selClasse.options.length <= 1) {
+selClasse.innerHTML = '<option value="">Toutes</option>' + CLASSES.map(c => `<option value="${c}">${c}</option>`).join('');
+}
+const selOption = document.getElementById('pdfModalOption');
+if (selOption.options.length <= 1) {
+const allOpts = new Set();
+allStudents.forEach(e => { if (e.option) allOpts.add(e.option); });
+selOption.innerHTML = '<option value="">Toutes</option>' + [...allOpts].sort().map(o => `<option value="${o}">${o}</option>`).join('');
+}
+document.getElementById('pdfModalStatutEtat').value = '';
+document.getElementById('pdfModalStatutTech').value = '';
+document.getElementById('pdfModalClasse').value = '';
+document.getElementById('pdfModalOption').value = '';
+document.getElementById('pdfModalTriClasse').value = 'asc';
+document.getElementById('pdfModalTriOption').value = 'asc';
+document.getElementById('modalPDFFrais').classList.add('show');
+}
+
 document.querySelectorAll('.tab').forEach(tab => {
 tab.onclick = async function() {
 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -2310,30 +2342,7 @@ document.getElementById('btnPDFControleJour')?.addEventListener('click', generer
 document.getElementById('btnPDFRapportMensuel')?.addEventListener('click', genererRapportMensuel);
 document.getElementById('btnPDFProfToutes')?.addEventListener('click', genererListeIdentProfs);
 document.getElementById('btnPDFTitulaireToutes')?.addEventListener('click', genererListeTitulaires);
-document.getElementById('btnPDFFrais')?.addEventListener('click', () => ouvrirModalPDFFrais());
-document.getElementById('btnPDFFraisDirect')?.addEventListener('click', () => ouvrirModalPDFFrais());
-
-function ouvrirModalPDFFrais() {
-document.getElementById('pdfModalClasse').value = document.getElementById('fraisFilterClasse')?.value || '';
-document.getElementById('pdfModalOption').value = document.getElementById('fraisFilterOption')?.value || '';
-document.getElementById('pdfModalStatutEtat').value = document.getElementById('fraisFilterEtat')?.value || '';
-document.getElementById('pdfModalStatutTech').value = document.getElementById('fraisFilterTech')?.value || '';
-document.getElementById('pdfModalTriClasse').value = document.getElementById('fraisTriClasse')?.value || 'asc';
-document.getElementById('pdfModalTriOption').value = document.getElementById('fraisTriOption')?.value || 'asc';
-
-const selClasse = document.getElementById('pdfModalClasse');
-if (selClasse.options.length <= 1) {
-selClasse.innerHTML = '<option value="">Toutes</option>' + CLASSES.map(c => `<option value="${c}">${c}</option>`).join('');
-}
-const selOption = document.getElementById('pdfModalOption');
-if (selOption.options.length <= 1) {
-const allOpts = new Set();
-allStudents.forEach(e => { if (e.option) allOpts.add(e.option); });
-selOption.innerHTML = '<option value="">Toutes</option>' + [...allOpts].sort().map(o => `<option value="${o}">${o}</option>`).join('');
-}
-
-document.getElementById('modalPDFFrais').classList.add('show');
-}
+document.getElementById('btnPDFFrais')?.addEventListener('click', ouvrirModalPDFFrais);
 
 document.getElementById('pdfModalCancel')?.addEventListener('click', () => {
 document.getElementById('modalPDFFrais').classList.remove('show');
