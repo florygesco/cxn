@@ -38,63 +38,20 @@ function ouvrirIDB(){
   });
 }
 async function idbSet(store,key,value){
-  try{
-    const idb=await ouvrirIDB();
-    return new Promise((resolve,reject)=>{
-      const tx=idb.transaction(store,'readwrite');
-      const req=tx.objectStore(store).put(value,key);
-      req.onsuccess=()=>resolve(true);
-      req.onerror=()=>reject(req.error);
-    });
-  }catch(e){console.warn('idbSet:',e);return false;}
+  try{const idb=await ouvrirIDB();return new Promise((resolve,reject)=>{const tx=idb.transaction(store,'readwrite');const req=tx.objectStore(store).put(value,key);req.onsuccess=()=>resolve(true);req.onerror=()=>reject(req.error);});}catch(e){console.warn('idbSet:',e);return false;}
 }
 async function idbGet(store,key){
-  try{
-    const idb=await ouvrirIDB();
-    return new Promise((resolve,reject)=>{
-      const tx=idb.transaction(store,'readonly');
-      const req=tx.objectStore(store).get(key);
-      req.onsuccess=()=>resolve(req.result);
-      req.onerror=()=>reject(req.error);
-    });
-  }catch(e){console.warn('idbGet:',e);return null;}
+  try{const idb=await ouvrirIDB();return new Promise((resolve,reject)=>{const tx=idb.transaction(store,'readonly');const req=tx.objectStore(store).get(key);req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}catch(e){console.warn('idbGet:',e);return null;}
 }
 async function idbDelete(store,key){
-  try{
-    const idb=await ouvrirIDB();
-    return new Promise((resolve,reject)=>{
-      const tx=idb.transaction(store,'readwrite');
-      const req=tx.objectStore(store).delete(key);
-      req.onsuccess=()=>resolve(true);
-      req.onerror=()=>reject(req.error);
-    });
-  }catch(e){console.warn('idbDelete:',e);return false;}
+  try{const idb=await ouvrirIDB();return new Promise((resolve,reject)=>{const tx=idb.transaction(store,'readwrite');const req=tx.objectStore(store).delete(key);req.onsuccess=()=>resolve(true);req.onerror=()=>reject(req.error);});}catch(e){console.warn('idbDelete:',e);return false;}
 }
-async function getStored(store,key,fallback=null){
-  const val=await idbGet(store,key);
-  return val!==undefined&&val!==null?val:fallback;
-}
+async function getStored(store,key,fallback=null){const val=await idbGet(store,key);return val!==undefined&&val!==null?val:fallback;}
 async function setStored(store,key,value){return idbSet(store,key,value);}
 async function migrerDepuisLocalStorage(){
-  const done=await idbGet('stats','migration_done');
-  if(done)return;
-  const migrations=[
-    {lsKey:'netubex-account',store:STORES.account,idbKey:'current'},
-    {lsKey:'netubex-boutique',store:STORES.boutique,idbKey:'current'},
-    {lsKey:'netubex-theme',store:STORES.theme,idbKey:'value'},
-    {lsKey:'netubex-current-commerce',store:STORES.commerce,idbKey:'current'},
-    {lsKey:'netubex-current-offre',store:STORES.offre,idbKey:'current'}
-  ];
-  for(const m of migrations){
-    try{
-      const val=localStorage.getItem(m.lsKey);
-      if(val!==null){
-        let parsed=val;
-        try{parsed=JSON.parse(val);}catch(e){}
-        await idbSet(m.store,m.idbKey,parsed);
-      }
-    }catch(e){}
-  }
+  const done=await idbGet('stats','migration_done');if(done)return;
+  const migrations=[{lsKey:'netubex-account',store:STORES.account,idbKey:'current'},{lsKey:'netubex-boutique',store:STORES.boutique,idbKey:'current'},{lsKey:'netubex-theme',store:STORES.theme,idbKey:'value'},{lsKey:'netubex-current-commerce',store:STORES.commerce,idbKey:'current'},{lsKey:'netubex-current-offre',store:STORES.offre,idbKey:'current'}];
+  for(const m of migrations){try{const val=localStorage.getItem(m.lsKey);if(val!==null){let parsed=val;try{parsed=JSON.parse(val);}catch(e){}await idbSet(m.store,m.idbKey,parsed);}}catch(e){}}
   await idbSet('stats','migration_done',true);
 }
 window.idbGet=idbGet;window.idbSet=idbSet;window.idbDelete=idbDelete;
@@ -105,15 +62,7 @@ window.migrerDepuisLocalStorage=migrerDepuisLocalStorage;window.STORES=STORES;
 window.createUser=async function(data){
   const cred=await createUserWithEmailAndPassword(auth,data.email,data.password);
   const uid=cred.user.uid;
-  await setDoc(doc(db,'netubers',uid),{
-    prenom:data.prenom||'',nom:data.nom||'',
-    nomComplet:data.nomComplet||((data.nom||'')+' '+(data.prenom||'')).trim(),
-    phone:data.phone||'',emailAuth:data.email||'',code:data.password||'',
-    ville:data.ville||'',quartier:'',role:'user',actif:true,
-    dateCreation:new Date().toISOString(),
-    stats:{deblocages:0,commandes:0,parrainage:0,jetons:0,badges:[]},
-    notifications:[]
-  });
+  await setDoc(doc(db,'netubers',uid),{prenom:data.prenom||'',nom:data.nom||'',nomComplet:data.nomComplet||((data.nom||'')+' '+(data.prenom||'')).trim(),phone:data.phone||'',emailAuth:data.email||'',code:data.password||'',ville:data.ville||'',quartier:'',role:'user',actif:true,dateCreation:new Date().toISOString(),stats:{deblocages:0,commandes:0,parrainage:0,jetons:0,badges:[]},notifications:[]});
   return {uid:uid,code:data.password};
 };
 window.loginByPhoneCode=async function(phone,code){
@@ -122,10 +71,7 @@ window.loginByPhoneCode=async function(phone,code){
   if(snap.empty)return null;
   const d=snap.docs[0],data=d.data();
   if(data.actif===false)return {error:'compte_desactive'};
-  if(data.emailAuth){
-    try{await signInWithEmailAndPassword(auth,data.emailAuth,code);}
-    catch(e){return null;}
-  }
+  if(data.emailAuth){try{await signInWithEmailAndPassword(auth,data.emailAuth,code);}catch(e){return null;}}
   return {uid:d.id,id:d.id,nomComplet:data.nomComplet,name:data.nomComplet,phone:data.phone,code:data.code,email:data.emailAuth,emailAuth:data.emailAuth,ville:data.ville,role:data.role,boutique:data.boutique||null,actif:data.actif};
 };
 window.updatePhone=async function(uid,nouveauPhone){await updateDoc(doc(db,'netubers',uid),{phone:nouveauPhone});return{success:true,phone:nouveauPhone};};
@@ -135,20 +81,8 @@ window.mesDeblocages=async function(uid){const q=query(collection(db,'deblocages
 window.lireCoordonnees=async function(annonceId){try{const snap=await getDoc(doc(db,'annonces',annonceId,'prive','contact'));if(!snap.exists())return null;return snap.data();}catch(e){return null;}};
 window.creerAnnonce=async function(data,coordonnees){
   const annonceId='ANN-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
-  await setDoc(doc(db,'annonces',annonceId),{
-    titre:data.titre||'',desc:data.desc||'',ville:data.ville||'',quartier:data.quartier||'',
-    prix:data.prix||'',img:data.img||'',cat:data.cat||'autre',tag:data.tag||'',tagClass:data.tagClass||'',
-    proprietaireUid:data.proprietaireUid||null,
-    publieurNom:data.publieurNom||'',
-    publieurType:data.publieurType||'user',
-    publieurBoutique:data.publieurBoutique||null,
-    publieurPhone:data.publieurPhone||'',
-    publieurVille:data.publieurVille||'',
-    dateCreation:new Date().toISOString(),actif:true
-  });
-  await setDoc(doc(db,'annonces',annonceId,'prive','contact'),{
-    nom:coordonnees.nom||'',adresse:coordonnees.adresse||'',telephone:coordonnees.telephone||'',email:coordonnees.email||''
-  });
+  await setDoc(doc(db,'annonces',annonceId),{titre:data.titre||'',desc:data.desc||'',ville:data.ville||'',quartier:data.quartier||'',prix:data.prix||'',img:data.img||'',cat:data.cat||'autre',tag:data.tag||'',tagClass:data.tagClass||'',proprietaireUid:data.proprietaireUid||null,publieurNom:data.publieurNom||'',publieurType:data.publieurType||'user',publieurBoutique:data.publieurBoutique||null,publieurPhone:data.publieurPhone||'',publieurVille:data.publieurVille||'',dateCreation:new Date().toISOString(),actif:true});
+  await setDoc(doc(db,'annonces',annonceId,'prive','contact'),{nom:coordonnees.nom||'',adresse:coordonnees.adresse||'',telephone:coordonnees.telephone||'',email:coordonnees.email||''});
   return{annonceId:annonceId};
 };
 window.creerDemandeBoutique=async function(data){const demandeId='DEM-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);await setDoc(doc(db,'demandes_boutiques',demandeId),Object.assign({},data,{statut:'en_attente',dateCreation:new Date().toISOString()}));return{demandeId:demandeId};};
@@ -161,20 +95,10 @@ window.chargerCommercesFirestore=async function(){
       const data=d.data();
       if(data.statut==='approuve'){
         const tousProduits=Array.isArray(data.produits)?data.produits:[];
-        const produitsApprouves=tousProduits.filter(function(p){
-          if(!p.statut)return true;
-          return p.statut==='approuve';
-        });
+        const produitsApprouves=tousProduits.filter(function(p){if(!p.statut)return true;return p.statut==='approuve';});
         let avatarUrl=data.img||'';
         if(!avatarUrl&&produitsApprouves.length>0&&produitsApprouves[0].img){avatarUrl=produitsApprouves[0].img;}
-        commerces.push({
-          id:d.id,nom:data.nom||'',type:data.type||'Autres',ville:data.ville||'',quartier:data.quartier||'',
-          adresse:data.adresse||'',horaires:data.horaires||'08h - 20h',
-          description:data.description||'Découvrez notre catalogue.',
-          telephone:data.telephone||'',whatsapp:data.whatsapp||data.telephone||'',
-          img:data.img||avatarUrl,avatar:avatarUrl,emoji:data.emoji||'🏪',produits:produitsApprouves,
-          uid:data.uid||null,dateCreation:data.dateCreation||''
-        });
+        commerces.push({id:d.id,nom:data.nom||'',type:data.type||'Autres',ville:data.ville||'',quartier:data.quartier||'',adresse:data.adresse||'',horaires:data.horaires||'08h - 20h',description:data.description||'Découvrez notre catalogue.',telephone:data.telephone||'',whatsapp:data.whatsapp||data.telephone||'',img:data.img||avatarUrl,avatar:avatarUrl,emoji:data.emoji||'🏪',produits:produitsApprouves,uid:data.uid||null,dateCreation:data.dateCreation||''});
       }
     });
     commerces.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
@@ -194,37 +118,11 @@ window.chargerAnnoncesFirestore=async function(){
       const typePublieur=data.publieurType||'user';
       const uid=data.proprietaireUid||null;
       if(uid&&data.img&&!photosParUid[uid]){photosParUid[uid]=data.img;}
-      annonces.push({
-        id:d.id,annonceId:d.id,
-        title:data.titre||'',
-        name:nomPublieur,
-        initials:nomPublieur.substring(0,2).toUpperCase(),
-        avatar:data.avatar||'',
-        location:data.ville||'',
-        dateCreation:data.dateCreation||'',
-        time:data.dateCreation?new Date(data.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}):'Récemment',
-        price:data.prix||'',
-        priceClass:data.tagClass||'post-tag-autre',
-        desc:data.desc||'',
-        img:data.img||'',
-        cat:data.cat||'autre',
-        tag:data.tag||'',
-        tagClass:data.tagClass||'post-tag-autre',
-        unlock:true,urgence:false,
-        publieurType:typePublieur,
-        publieurUid:uid,
-        publieurBoutique:data.publieurBoutique||null,
-        publieurPhone:data.publieurPhone||'',
-        isCommerce:typePublieur==='commerce',
-        _uid:uid
-      });
+      annonces.push({id:d.id,annonceId:d.id,title:data.titre||'',name:nomPublieur,initials:nomPublieur.substring(0,2).toUpperCase(),avatar:data.avatar||'',location:data.ville||'',dateCreation:data.dateCreation||'',time:data.dateCreation?new Date(data.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}):'Récemment',price:data.prix||'',priceClass:data.tagClass||'post-tag-autre',desc:data.desc||'',img:data.img||'',cat:data.cat||'autre',tag:data.tag||'',tagClass:data.tagClass||'post-tag-autre',unlock:true,urgence:false,publieurType:typePublieur,publieurUid:uid,publieurBoutique:data.publieurBoutique||null,publieurPhone:data.publieurPhone||'',isCommerce:typePublieur==='commerce',_uid:uid});
     });
     const usersSnap=await getDocs(collection(db,'netubers'));
     const userInfos={};
-    usersSnap.forEach(d=>{
-      const data=d.data();
-      userInfos[d.id]={avatarUrl:data.avatarUrl||data.photoURL||data.photo||''};
-    });
+    usersSnap.forEach(d=>{const data=d.data();userInfos[d.id]={avatarUrl:data.avatarUrl||data.photoURL||data.photo||''};});
     annonces.forEach(a=>{
       if(userInfos[a._uid]&&userInfos[a._uid].avatarUrl){a.avatar=userInfos[a._uid].avatarUrl;}
       else if(photosParUid[a._uid]){a.avatar=photosParUid[a._uid];}
@@ -241,23 +139,13 @@ window.chargerBoutiqueFraiche=async function(uid){
     const userSnap=await getDoc(userRef);
     if(!userSnap.exists())return null;
     const userData=userSnap.data();
-    if(!userData.boutique||userData.boutique.statut!=='approuve'){
-      return {boutique:userData.boutique||null,produits:[]};
-    }
+    if(!userData.boutique||userData.boutique.statut!=='approuve'){return {boutique:userData.boutique||null,produits:[]};}
     const commSnap=await getDocs(collection(db,'commerces'));
     let commerceData=null;
-    commSnap.forEach(function(d){
-      const data=d.data();
-      if(data.uid===uid||data.nom===(userData.boutique.nom||userData.boutique.nomCommerce)){
-        commerceData={id:d.id,...data};
-      }
-    });
+    commSnap.forEach(function(d){const data=d.data();if(data.uid===uid||data.nom===(userData.boutique.nom||userData.boutique.nomCommerce)){commerceData={id:d.id,...data};}});
     if(!commerceData)return {boutique:userData.boutique,produits:[]};
     const tousProduits=Array.isArray(commerceData.produits)?commerceData.produits:[];
-    const produitsApprouves=tousProduits.filter(function(p){
-      if(!p.statut)return true;
-      return p.statut==='approuve';
-    });
+    const produitsApprouves=tousProduits.filter(function(p){if(!p.statut)return true;return p.statut==='approuve';});
     return {boutique:userData.boutique,commerce:commerceData,produits:produitsApprouves};
   }catch(e){console.warn('chargerBoutiqueFraiche:',e.message);return null;}
 };
@@ -349,7 +237,7 @@ body.dark-mode .page-header-3d{background:linear-gradient(135deg,#0a1a30 0%,#0d2
 .page-subtitle-3d{font-size:13.5px;color:rgba(255,255,255,.75);margin-top:8px;line-height:1.5}
 .container-3d{max-width:100%;margin:0;padding:16px}
 @media(min-width:1024px){.container-3d{max-width:1400px;margin:0 auto;padding:24px 32px}}
-.hero-badge{position:relative;display:inline-flex;align-items:center;gap:12px;padding:12px 24px;border-radius:999px;margin-bottom:22px;max-width:calc(100% - 24px);background:linear-gradient(90deg,#ef4444,#f59e0b,#10b981,#06b6d4,#3b82f6,#8b5cf6,#ec4899);box-shadow:0 8px 24px -8px rgba(37,99,235,.5);overflow:hidden;isolation:isolate}
+.hero-badge{position:relative;display:inline-flex;align-items:center;gap:12px;padding:12px 24px;border-radius:999px;margin-bottom:0;max-width:calc(100% - 24px);background:linear-gradient(90deg,#ef4444,#f59e0b,#10b981,#06b6d4,#3b82f6,#8b5cf6,#ec4899);box-shadow:0 8px 24px -8px rgba(37,99,235,.5);overflow:hidden;isolation:isolate}
 .hero-badge::before{content:'';position:absolute;inset:2px;border-radius:999px;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);z-index:0}
 .hero-badge>*{position:relative;z-index:1}
 .hero-badge-dot{width:8px;height:8px;border-radius:50%;background:#10b981;flex-shrink:0;box-shadow:0 0 0 3px rgba(16,185,129,.25),0 0 12px rgba(16,185,129,.7)}
@@ -357,16 +245,7 @@ body.dark-mode .page-header-3d{background:linear-gradient(135deg,#0a1a30 0%,#0d2
 .hero-typewriter-text{white-space:normal;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word;max-width:100%;height:34px;line-height:1.35}
 @media(min-width:640px){.hero-typewriter-text{white-space:nowrap;-webkit-line-clamp:unset;display:inline-block;height:auto;min-height:16px}.hero-typewriter{height:auto;min-height:16px}}
 .hero-typewriter-cursor{display:inline-block;color:#fbbf24;font-weight:900;margin-left:2px;flex-shrink:0}
-.hero-title-card{position:relative;width:100%;max-width:100%;margin:0;padding:14px 16px 12px;border-radius:0;background:#0a0e1a;border:none;overflow:hidden;box-shadow:none}
-@media(min-width:640px){.hero-title-card{padding:16px 24px 14px;border-radius:0}}
-@media(min-width:1024px){.hero-title-card{padding:18px 32px 16px;border-radius:0}}
-.hero-title-card-glow{position:absolute;top:-60px;right:-60px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(59,130,246,.3) 0%,transparent 70%);pointer-events:none}
-.hero-title{position:relative;z-index:2;font-size:20px;font-weight:900;letter-spacing:-.5px;line-height:1.25;color:#ffffff;text-align:center;margin:0}
-@media(min-width:640px){.hero-title{font-size:22px;letter-spacing:-.6px}}
-@media(min-width:1024px){.hero-title{font-size:26px;letter-spacing:-.7px}}
-.hero-title-divider{position:relative;z-index:2;width:40px;height:2px;margin:10px auto 8px;border-radius:2px;background:linear-gradient(90deg,rgba(59,130,246,.2),rgba(96,165,250,.7),rgba(59,130,246,.2))}
-.hero-subtitle{position:relative;z-index:2;font-size:12.5px;color:rgba(148,163,184,.95);text-align:center;margin:0 auto;font-weight:500;line-height:1.4;max-width:480px}
-.besoin-trigger{width:100%;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:14px 24px;border-radius:14px;background:linear-gradient(180deg,#3b82f6,#1d4ed8);color:#fff;font-weight:900;font-size:13.5px;border:none;cursor:pointer;font-family:inherit;margin:24px 0 0;box-shadow:0 4px 0 #1e3a8a;transition:all .15s ease}
+.besoin-trigger{width:100%;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:14px 24px;border-radius:14px;background:linear-gradient(180deg,#3b82f6,#1d4ed8);color:#fff;font-weight:900;font-size:13.5px;border:none;cursor:pointer;font-family:inherit;margin:14px 0 0;box-shadow:0 4px 0 #1e3a8a;transition:all .15s ease}
 .besoin-trigger:active{transform:translateY(3px);box-shadow:0 1px 0 #1e3a8a}
 .besoin-trigger.hidden{display:none}
 .search-pro-wrapper{max-height:0;overflow:hidden;opacity:0;transition:max-height .5s cubic-bezier(.22,1,.36,1),opacity .35s ease,margin-top .35s ease;margin-top:0}
@@ -408,13 +287,14 @@ body.dark-mode .search-pro-field input{color:var(--text-primary)}
 .search-result-title{font-size:14.5px;font-weight:800;color:var(--text-primary);margin-bottom:6px}
 .search-result-desc{font-size:12.5px;color:var(--text-secondary);line-height:1.5;margin-bottom:8px}
 .search-result-price{display:inline-flex;align-items:center;gap:6px;font-weight:900;font-size:13px;padding:6px 11px;border-radius:8px}
-.commerce-promo{width:100%;background:linear-gradient(90deg,#1e3a8a 0%,#312e81 50%,#0f172a 100%);border-radius:24px;padding:28px 24px;color:#fff;display:flex;flex-direction:column;gap:20px}
-@media(min-width:1024px){.commerce-promo{flex-direction:column;padding:32px;gap:24px}}
+.commerce-promo{width:100vw;max-width:100vw;margin-left:calc(-50vw + 50%);margin-right:calc(-50vw + 50%);background:linear-gradient(90deg,#1e3a8a 0%,#312e81 50%,#0f172a 100%);border-radius:0;padding:28px 20px;color:#fff;display:flex;flex-direction:column;gap:20px}
+@media(min-width:640px){.commerce-promo{padding:32px 32px;gap:22px}}
+@media(min-width:1024px){.commerce-promo{padding:36px 48px;gap:24px}}
 .commerce-promo-content{display:flex;flex-direction:column;gap:8px;text-align:center}
 .commerce-promo-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(6,182,212,.2);color:#67e8f9;border:1px solid rgba(6,182,212,.4);font-size:10px;font-weight:800;padding:5px 12px;border-radius:999px;text-transform:uppercase}
 .commerce-promo h3{font-size:20px;font-weight:900;color:#fff;margin:0}
 .commerce-promo p{font-size:12.5px;color:#cbd5e1;line-height:1.5}
-.commerce-promo-actions{display:flex;flex-direction:column;gap:12px;flex-shrink:0;width:100%}
+.commerce-promo-actions{display:flex;flex-direction:column;gap:12px;flex-shrink:0;width:100%;max-width:600px;margin:0 auto}
 .commerce-promo-btn-primary{display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(90deg,#06b6d4,#2563eb);color:#fff;font-weight:800;font-size:13px;padding:14px 22px;border-radius:12px;text-decoration:none;cursor:pointer;border:none;font-family:inherit;width:100%}
 .commerce-promo-btn-secondary{display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);font-weight:700;font-size:13px;padding:14px 22px;border-radius:12px;text-decoration:none;cursor:pointer;width:100%}
 .fb-feed{display:flex;flex-direction:column;gap:0;background:var(--bg-app)}
@@ -728,12 +608,11 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 </div>
 </header> <main>
 <div id="page-index" class="page active">
-<div class="relative bg-slate-900 text-white py-16 sm:py-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
+<div class="relative bg-slate-900 text-white py-6 sm:py-8 px-4 sm:px-6 lg:px-8 overflow-hidden">
 <div class="absolute -right-10 -bottom-10 w-96 h-96 rounded-full bg-blue-500/10 blur-3xl pointer-events-none"></div>
 <div class="absolute -left-10 -top-10 w-96 h-96 rounded-full bg-blue-500/10 blur-3xl pointer-events-none"></div>
 <div class="relative max-w-5xl mx-auto text-center">
 <div class="hero-badge"><span class="hero-badge-dot"></span><span class="hero-typewriter"><span class="hero-typewriter-text" id="typewriterText"></span><span class="hero-typewriter-cursor">|</span></span></div>
-<div class="hero-title-card"><div class="hero-title-card-glow"></div><h1 class="hero-title">Offres d'Écoles, Locations, Parcelles, Entreprises & Services</h1><div class="hero-title-divider"></div><p class="hero-subtitle">Trouvez, publiez et connectez-vous directement.</p></div>
 <div class="container-3d" style="padding:0;max-width:820px;margin:0 auto">
 <button class="besoin-trigger" onclick="toggleSearchCard()" id="besoinTrigger"><i class="fa-solid fa-hand-holding-heart"></i><span>J'ai besoin de…</span><i class="fa-solid fa-chevron-down besoin-arrow"></i></button>
 <div class="search-pro-wrapper" id="searchCardWrapper">
@@ -754,7 +633,6 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 <datalist id="drc-cities-list"><option value="Kinshasa"><option value="Lubumbashi"><option value="Kasumbalesa"></datalist>
 </div>
 </div>
-<div class="container-3d">
 <div class="commerce-promo">
 <div class="commerce-promo-content">
 <span class="commerce-promo-badge"><span class="dot"></span> Nouveau Module Commerces en RDC</span>
@@ -764,7 +642,6 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 <div class="commerce-promo-actions">
 <a href="#" onclick="event.preventDefault();go('commerces');return false;" class="commerce-promo-btn-primary"><i class="fa-solid fa-bag-shopping"></i> Explorer les Commerces</a>
 <a href="#" onclick="event.preventDefault();go('inscription');return false;" class="commerce-promo-btn-secondary"><i class="fa-solid fa-store"></i> Inscrire ma boutique</a>
-</div>
 </div>
 </div>
 <div class="container-3d" style="padding:0">
@@ -873,9 +750,7 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 <div style="text-align:center;padding:40px 20px;background:var(--bg-card);border-radius:16px;border:1px dashed var(--border-primary)">
 <div style="font-size:56px;margin-bottom:16px">💡</div>
 <h2 style="font-size:20px;font-weight:900;color:var(--text-primary);margin-bottom:12px">Simple et Direct</h2>
-<p style="font-size:14px;color:var(--text-secondary);line-height:1.7;max-width:600px;margin:0 auto">
-Publiez vos offres, découvrez les commerces locaux et connectez-vous directement par WhatsApp ou téléphone. NeTubeX RDC met en relation acheteurs et vendeurs en toute confiance.
-</p>
+<p style="font-size:14px;color:var(--text-secondary);line-height:1.7;max-width:600px;margin:0 auto">Publiez vos offres, découvrez les commerces locaux et connectez-vous directement par WhatsApp ou téléphone. NeTubeX RDC met en relation acheteurs et vendeurs en toute confiance.</p>
 </div>
 </div>
 </div>
@@ -1362,12 +1237,7 @@ setTimeout(function(){var tabIns=document.getElementById('tabInscription');if(ta
 async function doLogout(){
 if(window.logoutUser)try{await window.logoutUser();}catch(e){}
 CURRENT_ACCOUNT=null;CURRENT_COMMERCANT=null;CURRENT_COMMERCE=null;cart=[];DEBLOCAGES_MEMORY=[];
-try{
-await window.idbDelete(window.STORES.account,'current');
-await window.idbDelete(window.STORES.boutique,'current');
-await window.idbDelete(window.STORES.commerce,'current');
-await window.idbDelete(window.STORES.offre,'current');
-}catch(e){}
+try{await window.idbDelete(window.STORES.account,'current');await window.idbDelete(window.STORES.boutique,'current');await window.idbDelete(window.STORES.commerce,'current');await window.idbDelete(window.STORES.offre,'current');}catch(e){}
 showToast('Déconnecté');go('index');
 }
 function appliquerThemeProfilUI(){
@@ -1850,6 +1720,16 @@ if(page==='category'){
 CURRENT_CATEGORY=(!param||param==='all')?null:param;
 renderCategoryFeed(param||'all');
 if(param)updateCategoryHeader(param);
+var catPublishBtn=document.getElementById('catPublishBtn');
+if(catPublishBtn){
+var categoriesAvecPublish=['all','autre'];
+var catNormalise=(!param||param==='all')?'all':param;
+if(categoriesAvecPublish.indexOf(catNormalise)!==-1){
+catPublishBtn.style.display='';
+}else{
+catPublishBtn.style.display='none';
+}
+}
 }
 if(page==='commerces'){refreshCommerces();}
 if(page==='dashboard-utilisateur'){
@@ -2168,15 +2048,38 @@ function submitOrder(){
 if(cart.length===0){showToast('Panier vide');return;}
 var nom=(document.getElementById('client-nom')||{}).value?document.getElementById('client-nom').value.trim():'';
 var tel=(document.getElementById('client-tel')||{}).value?document.getElementById('client-tel').value.trim():'';
+var adresse=(document.getElementById('client-adresse')||{}).value?document.getElementById('client-adresse').value.trim():'';
 if(!nom||!tel){showToast('Remplissez nom et téléphone');return;}
 requireLogin('commander',function(){
-var msg='Bonjour, commande NeTubeX :%0A%0A';
-cart.forEach(function(i){msg+='• '+i.qty+'x '+i.name+' ('+(i.price*i.qty).toLocaleString('fr-FR')+' FC)%0A';});
+var waCommercant='243976953045';
+if(CURRENT_COMMERCE&&CURRENT_COMMERCE.whatsapp){waCommercant=CURRENT_COMMERCE.whatsapp.replace(/[^\d]/g,'');}
+else if(CURRENT_COMMERCE&&CURRENT_COMMERCE.telephone){waCommercant=CURRENT_COMMERCE.telephone.replace(/[^\d]/g,'');}
+var msg='🛒 *NOUVELLE COMMANDE NeTubeX RDC*%0A';
+msg+='━━━━━━━━━━━━━━━━━━━━%0A';
+msg+='🏪 *Commerçant :* '+(CURRENT_COMMERCE?CURRENT_COMMERCE.nom:'—')+'%0A';
+msg+='━━━━━━━━━━━━━━━━━━━━%0A';
+msg+='%0A📋 *ARTICLES COMMANDÉS :*%0A%0A';
+cart.forEach(function(i,idx){
+msg+='*'+(idx+1)+'. '+i.name+'*%0A';
+msg+='   • Quantité : '+i.qty+'%0A';
+msg+='   • Prix unitaire : '+i.price.toLocaleString('fr-FR')+' FC%0A';
+msg+='   • Sous-total : '+(i.price*i.qty).toLocaleString('fr-FR')+' FC%0A%0A';
+});
 var tot=cart.reduce(function(s,i){return s+i.price*i.qty;},0);
-msg+='%0A💰 TOTAL : '+tot.toLocaleString('fr-FR')+' FC%0A%0A👤 '+nom+'%0A📞 '+tel;
-var wa=CURRENT_COMMERCE?CURRENT_COMMERCE.whatsapp.replace(/[^\d]/g,''):'243976953045';
-window.open('https://wa.me/'+wa+'?text='+msg,'_blank');
+msg+='━━━━━━━━━━━━━━━━━━━━%0A';
+msg+='💰 *TOTAL : '+tot.toLocaleString('fr-FR')+' FC*%0A';
+msg+='━━━━━━━━━━━━━━━━━━━━%0A';
+msg+='%0A👤 *INFORMATIONS CLIENT :*%0A%0A';
+msg+='   • Nom : '+nom+'%0A';
+msg+='   • Téléphone : '+tel+'%0A';
+if(adresse)msg+='   • Adresse de livraison : '+adresse+'%0A';
+msg+='%0A━━━━━━━━━━━━━━━━━━━━%0A';
+msg+='✅ Merci de confirmer ma commande.%0A';
+msg+='_Envoyé via NeTubeX RDC_';
+var url='https://wa.me/'+waCommercant+'?text='+msg;
+window.open(url,'_blank');
 closeCart();cart=[];updateCart();refreshAddButtons();
+showToast('Commande envoyée sur WhatsApp');
 });
 }
 
