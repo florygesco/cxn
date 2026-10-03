@@ -386,7 +386,7 @@ body.dark-mode .float-tab:hover{background:rgba(167,139,250,.12)}
 </div>
 <div class="table-wrap">
 <table class="table">
-<thead><tr><th>#</th><th>Date</th><th>Publieur</th><th>Type</th><th>Titre</th><th>Prix</th><th>Ville</th><th>Actions</th></tr></thead>
+<thead><tr><th>#</th><th>Date</th><th>Publieur</th><th>Type</th><th>Titre</th><th>Prix</th><th>Ville</th><th>Vues</th><th>Actions</th></tr></thead>
 <tbody id="bodyAnnonces"></tbody>
 </table>
 </div>
@@ -458,13 +458,15 @@ body.dark-mode .float-tab:hover{background:rgba(167,139,250,.12)}
 {"imports":{
 "firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
 "firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js",
-"firebase/auth":"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"
+"firebase/auth":"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
+"firebase/storage":"https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js"
 }}
 </script>
 <script type="module">
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where } from "firebase/firestore";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB_GdmPBnWl3w6g99j1cGO7vxDdxmKr4QA",
@@ -478,6 +480,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+const storage = getStorage(app);
 
 let currentUser = null;
 let boutiques = [];
@@ -529,7 +532,7 @@ function updateBadge(id, n){
 }
 
 function setupImagePicker(modalEl, prefix){
-  let b64 = '';
+  let uploadedUrl = '';
   const urlInput = modalEl.querySelector(`#${prefix}Img`);
   const fileInput = modalEl.querySelector(`#${prefix}ImgFile`);
   const preview = modalEl.querySelector(`#${prefix}ImgPreview`);
@@ -539,50 +542,81 @@ function setupImagePicker(modalEl, prefix){
   const panelUrl = modalEl.querySelector(`#${prefix}PanelUrl`);
   const panelUpload = modalEl.querySelector(`#${prefix}PanelUpload`);
 
-  tabUrl.onclick = ()=>{
-    panelUrl.style.display='block';
-    panelUpload.style.display='none';
-    tabUrl.style.background='linear-gradient(180deg,#7c3aed,#4c1d95)';
-    tabUrl.style.color='#fff';
-    tabUpload.style.background='transparent';
-    tabUpload.style.color='var(--text-secondary)';
-  };
-  tabUpload.onclick = ()=>{
-    panelUrl.style.display='none';
-    panelUpload.style.display='block';
-    tabUpload.style.background='linear-gradient(180deg,#7c3aed,#4c1d95)';
-    tabUpload.style.color='#fff';
-    tabUrl.style.background='transparent';
-    tabUrl.style.color='var(--text-secondary)';
-  };
-  urlInput.oninput = ()=>{
-    const url = urlInput.value.trim();
-    if(url){
-      b64 = '';
-      preview.innerHTML = `<img src="${esc(url)}" style="max-width:100%;max-height:200px;border-radius:10px" onerror="this.style.display='none'">`;
-    } else {
-      preview.innerHTML = '';
-    }
-  };
-  upZone.onclick = ()=>fileInput.click();
-  fileInput.onchange = ()=>{
-    const f = fileInput.files[0];
-    if(!f) return;
-    if(f.size > 2*1024*1024){ toast('Image trop grande (max 2 Mo)','err'); return; }
-    const r = new FileReader();
-    r.onload = e=>{
-      b64 = e.target.result;
-      urlInput.value = '';
-      preview.innerHTML = `<img src="${b64}" style="max-width:100%;max-height:200px;border-radius:10px">`;
-      upZone.classList.add('loaded');
-      upZone.querySelector('.upload-t').textContent = 'Photo chargee';
+  if(tabUrl && tabUpload && panelUrl && panelUpload){
+    tabUrl.onclick = ()=>{
+      panelUrl.style.display='block';
+      panelUpload.style.display='none';
+      tabUrl.style.background='linear-gradient(180deg,#7c3aed,#4c1d95)';
+      tabUrl.style.color='#fff';
+      tabUpload.style.background='transparent';
+      tabUpload.style.color='var(--text-secondary)';
     };
-    r.readAsDataURL(f);
-  };
+    tabUpload.onclick = ()=>{
+      panelUrl.style.display='none';
+      panelUpload.style.display='block';
+      tabUpload.style.background='linear-gradient(180deg,#7c3aed,#4c1d95)';
+      tabUpload.style.color='#fff';
+      tabUrl.style.background='transparent';
+      tabUrl.style.color='var(--text-secondary)';
+    };
+  }
+
+  if(urlInput){
+    urlInput.oninput = ()=>{
+      const url = urlInput.value.trim();
+      if(url){
+        uploadedUrl = '';
+        preview.innerHTML = `<img src="${esc(url)}" style="max-width:100%;max-height:200px;border-radius:10px" onerror="this.style.display='none'">`;
+      } else {
+        preview.innerHTML = '';
+      }
+    };
+  }
+
+  if(upZone && fileInput){
+    upZone.onclick = ()=>fileInput.click();
+    fileInput.onchange = async ()=>{
+      const f = fileInput.files[0];
+      if(!f) return;
+      if(f.size > 5*1024*1024){ toast('Image trop grande (max 5 Mo)','err'); return; }
+      if(!f.type.startsWith('image/')){ toast('Fichier non image','err'); return; }
+
+      upZone.querySelector('.upload-t').textContent = 'Upload en cours...';
+      preview.innerHTML = '<div style="color:#6d28d9;font-weight:700">⏳ Envoi vers Firebase Storage...</div>';
+
+      try{
+        const ext = (f.name.split('.').pop() || 'jpg').toLowerCase();
+        const path = `${prefix}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+        const fileRef = storageRef(storage, path);
+        await uploadBytes(fileRef, f);
+        const downloadUrl = await getDownloadURL(fileRef);
+
+        uploadedUrl = downloadUrl;
+        urlInput.value = '';
+        preview.innerHTML = `<img src="${downloadUrl}" style="max-width:100%;max-height:200px;border-radius:10px">`;
+        upZone.classList.add('loaded');
+        upZone.querySelector('.upload-t').textContent = 'Photo uploadée ✓';
+        toast('Image uploadée');
+      }catch(err){
+        console.error('Upload error:', err);
+        toast('Erreur upload: '+err.message,'err');
+        upZone.querySelector('.upload-t').textContent = 'Cliquez pour choisir un fichier';
+        preview.innerHTML = '';
+      }
+    };
+  }
 
   return {
-    getValue: ()=> b64 || urlInput.value.trim() || null,
-    reset: ()=>{ b64=''; urlInput.value=''; preview.innerHTML=''; upZone.classList.remove('loaded'); upZone.querySelector('.upload-t').textContent='Cliquez pour choisir un fichier'; }
+    getValue: ()=> uploadedUrl || (urlInput ? urlInput.value.trim() : '') || null,
+    reset: ()=>{
+      uploadedUrl='';
+      if(urlInput) urlInput.value='';
+      if(preview) preview.innerHTML='';
+      if(upZone){
+        upZone.classList.remove('loaded');
+        upZone.querySelector('.upload-t').textContent='Cliquez pour choisir un fichier';
+      }
+    }
   };
 }
 
@@ -731,12 +765,13 @@ function renderKPIs(){
   const enAttenteDeblocages = deblocages.filter(d=>d.statut === 'en_attente').length;
   const totalProduits = boutiquesActives.reduce((s,b)=>s+((b.produits||[]).length), 0);
   const totalAnnonces = annonces.length;
+  const totalVues = annonces.reduce((s,a)=>s+(a.vues||0), 0);
 
   const kpis = [
     { icon:'fa-users', color:'purple', value:totalUsers, label:'Netubers', sub:`${actifsUsers} actifs · ${commercants} commercants` },
     { icon:'fa-store', color:'blue', value:boutiquesActives.length, label:'Boutiques actives', sub:`${enAttenteBoutiques} en attente` },
     { icon:'fa-bullhorn', color:'orange', value:totalProduits, label:'Produits publies', sub:`${publications.length} publications` },
-    { icon:'fa-list', color:'green', value:totalAnnonces, label:'Annonces', sub:`${enAttenteDeblocages} deblocages en attente` }
+    { icon:'fa-eye', color:'green', value:totalVues, label:'Vues cumulees', sub:`${totalAnnonces} annonces actives` }
   ];
 
   const grid = document.getElementById('kpiGrid');
@@ -812,7 +847,8 @@ async function loadBoutiques(){
         horaires: data.horaires||'', description: data.description||'',
         telephone: data.telephone||'', whatsappCommercial: data.whatsappCommercial||'',
         uid: data.uid||null, statut: data.statut||'en_attente',
-        dateCreation: data.dateCreation||'', dateApprobation: data.dateApprobation||''
+        dateCreation: data.dateCreation||'', dateApprobation: data.dateApprobation||'',
+        img: data.img||''
       });
     });
     boutiques.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
@@ -988,7 +1024,8 @@ async function loadAnnonces(){
         publieurType: data.publieurType||'user',
         publieurPhone: data.publieurPhone||'',
         ajouteParAdmin: data.ajouteParAdmin||false,
-        dateCreation: data.dateCreation||'', actif: data.actif !== false
+        dateCreation: data.dateCreation||'', actif: data.actif !== false,
+        vues: data.vues||0
       });
     });
     annonces.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
@@ -1014,7 +1051,7 @@ function renderAnnonces(){
     return true;
   });
   if(list.length === 0){
-    tbody.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-ic"><i class="fas fa-list"></i></div><div class="empty-t">Aucune annonce</div></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="empty-ic"><i class="fas fa-list"></i></div><div class="empty-t">Aucune annonce</div></div></td></tr>`;
     return;
   }
   tbody.innerHTML = list.map((a,i)=>{
@@ -1028,6 +1065,7 @@ function renderAnnonces(){
       <td><strong style="color:var(--text-primary)">${esc(a.titre)}</strong></td>
       <td style="color:#f59e0b;font-weight:800">${esc(a.prix||'-')}</td>
       <td>${esc(a.ville||'-')}</td>
+      <td><span class="badge info"><i class="fas fa-eye"></i> ${a.vues||0}</span></td>
       <td><div class="act">
         <button class="btn-ico info" data-act="view-ann" data-id="${esc(a.id)}"><i class="fas fa-eye"></i></button>
         <button class="btn-ico warn" data-act="edit-ann" data-id="${esc(a.id)}"><i class="fas fa-pen"></i></button>
@@ -1386,6 +1424,7 @@ function detailBoutique(id){
   d.className = 'modal show';
   d.innerHTML = `<div class="modal-box">
     <h2><i class="fas fa-store"></i>Details boutique</h2>
+    ${b.img?`<div style="text-align:center;margin-bottom:16px"><img src="${esc(b.img)}" style="max-width:100%;max-height:200px;border-radius:12px"></div>`:''}
     <div class="field"><label>Gerant</label><input readonly value="${esc(b.nom||'')}"></div>
     <div class="field"><label>Commerce</label><input readonly value="${esc(b.nomCommerce||'')}"></div>
     <div class="field"><label>Type</label><input readonly value="${esc(b.type||'')}"></div>
@@ -1453,6 +1492,7 @@ async function detailAnnonce(id){
     <div class="field"><label>Titre</label><input readonly value="${esc(a.titre)}"></div>
     <div class="field"><label>Prix</label><input readonly value="${esc(a.prix)}"></div>
     <div class="field"><label>Ville</label><input readonly value="${esc(a.ville)}"></div>
+    <div class="field"><label>Vues</label><input readonly value="${a.vues||0}"></div>
     <div class="field"><label>Description</label><textarea readonly>${esc(a.desc)}</textarea></div>
     <div class="form-actions">
       <button class="btn btn-outline" data-close>FERMER</button>
@@ -1497,18 +1537,40 @@ async function ouvrirModalEditAnnonce(id){
     </div>
     <div class="field" style="margin-top:14px"><label>Quartier</label><input type="text" id="editAnnQuartier" value="${esc(a.quartier)}"></div>
     <div class="field"><label>Description</label><textarea id="editAnnDesc">${esc(a.desc)}</textarea></div>
-    <div class="field"><label>Image (URL)</label><input type="text" id="editAnnImg" value="${esc(a.img)}"></div>
+    <div class="field">
+      <label>Image</label>
+      <div style="display:flex;gap:8px;margin-bottom:10px;background:#f1f5f9;padding:5px;border-radius:12px">
+        <button type="button" id="editAnnTabUrl" class="img-tab-btn" style="flex:1;padding:10px;border-radius:8px;font-size:12.5px;font-weight:800;border:none;cursor:pointer;font-family:inherit;background:linear-gradient(180deg,#7c3aed,#4c1d95);color:#fff"><i class="fas fa-link"></i> URL</button>
+        <button type="button" id="editAnnTabUpload" class="img-tab-btn" style="flex:1;padding:10px;border-radius:8px;font-size:12.5px;font-weight:800;border:none;cursor:pointer;font-family:inherit;background:transparent;color:var(--text-secondary)"><i class="fas fa-upload"></i> Uploader</button>
+      </div>
+      <div id="editAnnPanelUrl">
+        <input type="url" id="editAnnImg" value="${esc(a.img)}" style="width:100%;padding:12px 14px;border-radius:12px;background:#f8fafc;border:1.5px solid var(--border-color);font-family:inherit;font-size:13.5px;outline:none">
+      </div>
+      <div id="editAnnPanelUpload" style="display:none">
+        <div class="upload" id="editAnnImgUpload">
+          <div class="upload-ic">📷</div>
+          <div class="upload-t">Cliquez pour uploader</div>
+          <div class="upload-s">JPG, PNG - max 5 Mo</div>
+          <input type="file" id="editAnnImgFile" accept="image/*" hidden>
+        </div>
+      </div>
+      <div id="editAnnImgPreview" style="margin-top:12px;text-align:center">${a.img?`<img src="${esc(a.img)}" style="max-width:100%;max-height:200px;border-radius:10px">`:''}</div>
+    </div>
     <div class="form-actions">
       <button class="btn btn-outline" data-cancel>ANNULER</button>
       <button class="btn btn-success" data-save>ENREGISTRER</button>
     </div>
   </div>`;
   document.body.appendChild(d);
+
+  const picker = setupImagePicker(d, 'editAnn');
+
   d.querySelector('[data-cancel]').onclick = ()=>d.remove();
   d.querySelector('[data-save]').onclick = async ()=>{
     const type = d.querySelector('#editAnnType').value;
     const tagMap = {hopital:{tag:'Urgence',cls:'post-tag-urgence'},ecole:{tag:'Ecole',cls:'post-tag-school'},location:{tag:'Location',cls:'post-tag-property'},parcelle:{tag:'Parcelle',cls:'post-tag-land'},entreprise:{tag:'Entreprise',cls:'post-tag-entreprise'},vehicule:{tag:'Vehicule',cls:'post-tag-vehicule'},electronique:{tag:'Electronique',cls:'post-tag-electronique'},autre:{tag:'Autre',cls:'post-tag-autre'}};
     const tagInfo = tagMap[type] || tagMap.autre;
+    const imgFinal = picker.getValue();
     setLoader(true);
     try{
       await setDoc(doc(db,'annonces',id),{
@@ -1517,7 +1579,7 @@ async function ouvrirModalEditAnnonce(id){
         ville: d.querySelector('#editAnnVille').value,
         quartier: d.querySelector('#editAnnQuartier').value.trim(),
         prix: d.querySelector('#editAnnPrix').value.trim(),
-        img: d.querySelector('#editAnnImg').value.trim(),
+        img: imgFinal || '',
         cat: type, tag: tagInfo.tag, tagClass: tagInfo.cls,
         dateModification: new Date().toISOString()
       },{ merge:true });
@@ -1557,7 +1619,7 @@ function ouvrirModalListeAnnoncesUser(uid){
             ${a.img ? `<img src="${esc(a.img)}" style="width:60px;height:60px;object-fit:cover;border-radius:8px">` : ''}
             <div style="flex:1;min-width:0">
               <div style="font-size:13.5px;font-weight:900;color:var(--text-primary)">${esc(a.titre)}</div>
-              <div style="font-size:11.5px;color:var(--text-muted);margin-top:3px">${esc(a.ville||'')} · ${esc(a.prix||'')}</div>
+              <div style="font-size:11.5px;color:var(--text-muted);margin-top:3px">${esc(a.ville||'')} · ${esc(a.prix||'')} · ${a.vues||0} vues</div>
               <div style="display:flex;gap:6px;margin-top:8px">
                 <button class="btn-ico warn" data-act="edit-ann" data-id="${esc(a.id)}"><i class="fas fa-pen"></i></button>
                 <button class="btn-ico err" data-act="del-ann" data-id="${esc(a.id)}"><i class="fas fa-trash"></i></button>
@@ -1648,7 +1710,7 @@ function openPublicationModal(){
         <div class="upload" id="pubImgUpload">
           <div class="upload-ic">📷</div>
           <div class="upload-t">Cliquez pour choisir un fichier</div>
-          <div class="upload-s">JPG, PNG - max 2 Mo</div>
+          <div class="upload-s">JPG, PNG - max 5 Mo</div>
           <input type="file" id="pubImgFile" accept="image/*" hidden>
         </div>
       </div>
@@ -1803,7 +1865,7 @@ function ouvrirModalCreateBoutique(){
         <div class="upload" id="newBoutiqueImgUpload">
           <div class="upload-ic">📷</div>
           <div class="upload-t">Cliquez pour choisir un fichier</div>
-          <div class="upload-s">JPG, PNG - max 2 Mo</div>
+          <div class="upload-s">JPG, PNG - max 5 Mo</div>
           <input type="file" id="newBoutiqueImgFile" accept="image/*" hidden>
         </div>
       </div>
@@ -1927,7 +1989,7 @@ function ouvrirModalChangeImage(uid){
         <div class="upload" id="changeImgUpload">
           <div class="upload-ic">📷</div>
           <div class="upload-t">Cliquez pour choisir un fichier</div>
-          <div class="upload-s">JPG, PNG - max 2 Mo</div>
+          <div class="upload-s">JPG, PNG - max 5 Mo</div>
           <input type="file" id="changeImgFile" accept="image/*" hidden>
         </div>
       </div>
@@ -2038,7 +2100,7 @@ function ouvrirModalAddArticle(uid){
         <div class="upload" id="addArtImgUpload">
           <div class="upload-ic">📷</div>
           <div class="upload-t">Cliquez pour uploader</div>
-          <div class="upload-s">JPG, PNG - max 2 Mo</div>
+          <div class="upload-s">JPG, PNG - max 5 Mo</div>
           <input type="file" id="addArtImgFile" accept="image/*" hidden>
         </div>
       </div>
@@ -2266,7 +2328,7 @@ function ouvrirModalAddAnnonce(uid){
         <div class="upload" id="addAnnImgUpload">
           <div class="upload-ic">📷</div>
           <div class="upload-t">Cliquez pour uploader</div>
-          <div class="upload-s">JPG, PNG - max 2 Mo</div>
+          <div class="upload-s">JPG, PNG - max 5 Mo</div>
           <input type="file" id="addAnnImgFile" accept="image/*" hidden>
         </div>
       </div>
@@ -2310,7 +2372,7 @@ function ouvrirModalAddAnnonce(uid){
         proprietaireUid: uid, publieurNom, publieurType: isCommerce ? 'commerce' : 'user',
         publieurBoutique: isCommerce ? publieurNom : null,
         publieurPhone, ajouteParAdmin: true,
-        dateCreation: new Date().toISOString(), actif: true
+        dateCreation: new Date().toISOString(), actif: true, vues: 0
       });
       await setDoc(doc(db,'annonces',annonceId,'prive','contact'),{
         nom: d.querySelector('#addAnnCoordNom').value.trim(),
