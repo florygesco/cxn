@@ -126,12 +126,12 @@ tr:hover td{background:rgba(59,130,246,.04);}
 .stat.red .stat-v{color:#ef4444;}
 .grid-2{display:grid;grid-template-columns:2fr 1fr;gap:10px;}
 @media(max-width:640px){
-  .topbar{flex-direction:column;align-items:flex-start;}
-  .toolbar input,.toolbar select{min-width:100%;}
-  .modal-act button{min-width:auto;}
-  .tabs{padding:4px;}
-  .tab{padding:9px 12px;font-size:11.5px;}
-  .grid-2{grid-template-columns:1fr;}
+.topbar{flex-direction:column;align-items:flex-start;}
+.toolbar input,.toolbar select{min-width:100%;}
+.modal-act button{min-width:auto;}
+.tabs{padding:4px;}
+.tab{padding:9px 12px;font-size:11.5px;}
+.grid-2{grid-template-columns:1fr;}
 }
 </style>
 </head>
@@ -212,7 +212,7 @@ tr:hover td{background:rgba(59,130,246,.04);}
 </div></div>
 </div>
 <div class="panel" id="panel-publications">
-<div class="info">📢 <strong>Publier pour un commerçant</strong> — Choisissez dans la liste ou saisissez manuellement. URL image ou upload acceptés.</div>
+<div class="info">📢 <strong>Publications</strong> — Les publications créées sont en <strong>attente</strong>. Elles ne sont visibles dans l'app qu'après approbation.</div>
 <div class="toolbar">
 <button id="addPublication" class="success">➕ Nouvelle publication</button>
 <button id="refreshPublications" class="secondary">🔄 Actualiser</button>
@@ -693,7 +693,7 @@ const badge = p.statut === 'approuve' ? '<span class="badge ok">Publiée</span>'
 p.statut === 'refuse' ? '<span class="badge err">Refusée</span>' :
 '<span class="badge warn">En attente</span>';
 const acts = p.statut === 'en_attente'
-? `<button class="btn-ico ok" data-act="app-pub" data-id="${esc(p.id)}">✅</button>
+? `<button class="btn-ico ok" data-act="app-pub" data-id="${esc(p.id)}">✅ Approuver</button>
 <button class="btn-ico err" data-act="rej-pub" data-id="${esc(p.id)}">❌</button>
 <button class="btn-ico err" data-act="del-pub" data-id="${esc(p.id)}">🗑️</button>`
 : `<button class="btn-ico err" data-act="del-pub" data-id="${esc(p.id)}">🗑️ Supprimer</button>`;
@@ -791,7 +791,7 @@ ${options}
 </div>
 <div class="modal-act">
 <button class="cancel" data-cancel>Annuler</button>
-<button class="confirm" data-save>Publier</button>
+<button class="confirm" data-save>Créer (en attente)</button>
 </div>
 </div>`;
 document.body.appendChild(d);
@@ -854,7 +854,7 @@ const prixLabel = d.querySelector('#pubUnite').value || '';
 const desc = d.querySelector('#pubDesc').value.trim();
 const img = imgB64 || urlInput.value.trim();
 if(!commerce){ toast('Choisissez un commerce','err'); return; }
-if(!type){ toast('Choisissez un type de commerce','err'); return; }
+if(!type){ toast('Choisissez un type','err'); return; }
 if(!titre){ toast('Saisissez un titre','err'); return; }
 if(!prix || prix<=0){ toast('Saisissez un prix valide','err'); return; }
 if(!img){ toast('Ajoutez une image','err'); return; }
@@ -864,36 +864,12 @@ const pubId = 'PUB-' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
 await setDoc(doc(db,'publications',pubId),{
 commerce, uidCommerce: uidCommerce || null,
 type, categorie, titre,
-prix: prix,
-prixLabel: prixLabel,
-desc, img,
-statut: 'approuve',
+prix, prixLabel, desc, img,
+statut: 'en_attente',
 dateCreation: new Date().toISOString(),
 publieParAdmin: true
 });
-const commSnap = await getDocs(collection(db,'commerces'));
-let commerceDocId = null;
-commSnap.forEach(cd=>{
-const cdata = cd.data();
-if(cdata.nom === commerce){ commerceDocId = cd.id; }
-});
-if(commerceDocId){
-const commRef = doc(db,'commerces',commerceDocId);
-const commDoc = await getDoc(commRef);
-const existing = commDoc.data() || {};
-const produits = existing.produits || [];
-produits.push({
-nom: titre,
-prix: prix,
-prixLabel: prixLabel,
-img: img,
-categorie: categorie || type
-});
-await setDoc(commRef, { produits: produits }, { merge: true });
-toast('Publication + produit ajouté ✅');
-}else{
-toast('Publication créée (⚠️ commerce non trouvé)','warn');
-}
+toast('Publication créée — en attente d\'approbation ✅');
 d.remove();
 await loadPublications();
 }catch(e){ toast('Erreur: '+e.message,'err'); }
@@ -903,28 +879,76 @@ finally{ setLoader(false); }
 async function approuverPublication(id){
 setLoader(true);
 try{
-await setDoc(doc(db,'publications',id),{ statut:'approuve', dateApprobation:new Date().toISOString() },{ merge:true });
-toast('Publication approuvée ✅');
+const pub = publications.find(p=>p.id===id);
+if(!pub){ toast('Publication introuvable','err'); setLoader(false); return; }
+await setDoc(doc(db,'publications',id),{
+statut:'approuve',
+dateApprobation: new Date().toISOString()
+},{ merge:true });
+const commSnap = await getDocs(collection(db,'commerces'));
+let commerceDocId = null;
+commSnap.forEach(cd=>{
+if(cd.data().nom === pub.commerce){ commerceDocId = cd.id; }
+});
+if(commerceDocId){
+const commRef = doc(db,'commerces',commerceDocId);
+const commDoc = await getDoc(commRef);
+const existing = commDoc.data() || {};
+const produits = existing.produits || [];
+produits.push({
+nom: pub.titre,
+prix: pub.prix || 0,
+prixLabel: pub.prixLabel || '',
+img: pub.img || '',
+categorie: pub.categorie || pub.type || 'Article',
+statut: 'approuve',
+publicationId: id,
+dateAjout: new Date().toISOString()
+});
+await setDoc(commRef, { produits }, { merge: true });
+toast('Publication approuvée + produit ajouté ✅');
+}else{
+toast('Approuvée (⚠️ commerce non trouvé)','warn');
+}
 await loadPublications();
-}catch(e){ toast('Erreur','err'); }
+}catch(e){ toast('Erreur: '+e.message,'err'); }
 finally{ setLoader(false); }
 }
 async function rejeterPublication(id){
 setLoader(true);
 try{
-await setDoc(doc(db,'publications',id),{ statut:'refuse', dateRefus:new Date().toISOString() },{ merge:true });
+await setDoc(doc(db,'publications',id),{
+statut:'refuse',
+dateRefus:new Date().toISOString()
+},{ merge:true });
 toast('Publication refusée','warn');
 await loadPublications();
-}catch(e){ toast('Erreur','err'); }
+}catch(e){ toast('Erreur: '+e.message,'err'); }
 finally{ setLoader(false); }
 }
 async function supprimerPublication(id){
-confirm('Supprimer cette publication ?', 'Action irréversible.',
+confirm('Supprimer cette publication ?', 'Le produit sera aussi retiré du catalogue.',
 async ()=>{
 setLoader(true);
 try{
+const pub = publications.find(p=>p.id===id);
+if(pub && pub.commerce){
+const commSnap = await getDocs(collection(db,'commerces'));
+let commerceDocId = null;
+commSnap.forEach(cd=>{
+if(cd.data().nom === pub.commerce){ commerceDocId = cd.id; }
+});
+if(commerceDocId){
+const commRef = doc(db,'commerces',commerceDocId);
+const commDoc = await getDoc(commRef);
+const existing = commDoc.data() || {};
+let produits = existing.produits || [];
+produits = produits.filter(p => p.publicationId !== id);
+await setDoc(commRef, { produits }, { merge: true });
+}
+}
 await deleteDoc(doc(db,'publications',id));
-toast('Publication supprimée','warn');
+toast('Publication + produit supprimés','warn');
 await loadPublications();
 }catch(e){ toast('Erreur: '+e.message,'err'); }
 finally{ setLoader(false); }
