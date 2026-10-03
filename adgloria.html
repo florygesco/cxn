@@ -125,147 +125,200 @@ tr:hover td{background:rgba(59,130,246,.04);}
 .stat.orange .stat-v{color:#f59e0b;}
 .stat.red .stat-v{color:#ef4444;}
 .grid-2{display:grid;grid-template-columns:2fr 1fr;gap:10px;}
+.publieur-card{padding:12px 16px;background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(59,130,246,.04));border-left:3px solid #3b82f6;border-radius:10px;margin-bottom:18px;}
+.publieur-card .pl-lbl{font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase;margin-bottom:4px;}
+.publieur-card .pl-name{font-size:14px;font-weight:900;color:#fff;}
+.publieur-card .pl-sub{font-size:11.5px;color:#94a3b8;margin-top:2px;}
 @media(max-width:640px){
-.topbar{flex-direction:column;align-items:flex-start;}
-.toolbar input,.toolbar select{min-width:100%;}
-.modal-act button{min-width:auto;}
-.tabs{padding:4px;}
-.tab{padding:9px 12px;font-size:11.5px;}
-.grid-2{grid-template-columns:1fr;}
+  .topbar{flex-direction:column;align-items:flex-start;}
+  .toolbar input,.toolbar select{min-width:100%;}
+  .modal-act button{min-width:auto;}
+  .tabs{padding:4px;}
+  .tab{padding:9px 12px;font-size:11.5px;}
+  .grid-2{grid-template-columns:1fr;}
 }
 </style>
 </head>
 <body>
+
 <div class="loader" id="loader"><div class="spinner"></div><div style="color:#94a3b8;font-size:13px;">Chargement...</div></div>
+
 <div class="login" id="loginScreen">
-<div class="login-box">
-<div class="login-logo">🔐</div>
-<h1>Administration</h1>
-<p>NeTubeX RDC</p>
-<input type="email" id="loginEmail" placeholder="Email administrateur" autocomplete="email">
-<input type="password" id="loginPassword" placeholder="Mot de passe" autocomplete="current-password">
-<button id="loginBtn">Se connecter</button>
-<div class="login-err" id="loginError"></div>
+  <div class="login-box">
+    <div class="login-logo">🔐</div>
+    <h1>Administration</h1>
+    <p>NeTubeX RDC</p>
+    <input type="email" id="loginEmail" placeholder="Email administrateur" autocomplete="email">
+    <input type="password" id="loginPassword" placeholder="Mot de passe" autocomplete="current-password">
+    <button id="loginBtn">Se connecter</button>
+    <div class="login-err" id="loginError"></div>
+  </div>
 </div>
-</div>
+
 <div class="app" id="app">
-<div class="topbar">
-<div class="topbar-brand">
-<div class="topbar-logo">🛡️</div>
-<div>
-<div class="topbar-title">Panneau d'administration</div>
-<div class="topbar-sub">NeTubeX RDC · Gestion globale</div>
+
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="topbar-logo">🛡️</div>
+      <div>
+        <div class="topbar-title">Panneau d'administration</div>
+        <div class="topbar-sub">NeTubeX RDC · Gestion globale</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <div class="topbar-user"><span class="dot"></span><span id="userEmail">—</span></div>
+      <button class="topbar-logout" id="logoutBtn">Déconnexion</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="boutiques">🏪 Boutiques <span class="badge" id="badgeBoutiques" style="display:none;">0</span></button>
+    <button class="tab" data-tab="deblocages">🔓 Déblocages <span class="badge" id="badgeDeblocages" style="display:none;">0</span></button>
+    <button class="tab" data-tab="publications">📢 Publications <span class="badge" id="badgePublications" style="display:none;">0</span></button>
+    <button class="tab" data-tab="annonces">📋 Annonces</button>
+    <button class="tab" data-tab="actives">🏬 Boutiques actives</button>
+    <button class="tab" data-tab="netubers">👥 Netubers</button>
+  </div>
+
+  <div class="panel active" id="panel-boutiques">
+    <div class="info">🏪 <strong>Demandes d'inscription boutique</strong> — Approuvez pour rendre la boutique visible et lier au compte utilisateur.</div>
+    <div class="toolbar">
+      <select id="filterBoutiqueStatut">
+        <option value="en_attente">⏳ En attente</option>
+        <option value="approuve">✅ Approuvées</option>
+        <option value="refuse">❌ Refusées</option>
+        <option value="">— Toutes —</option>
+      </select>
+      <input type="text" id="searchBoutiques" placeholder="Rechercher...">
+      <button id="addBoutique" class="success">➕ Créer une boutique</button>
+      <button id="refreshBoutiques" class="secondary">🔄 Actualiser</button>
+    </div>
+    <div class="table-wrap"><div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>#</th><th>Date</th><th>Gérant</th><th>Commerce</th><th>Type</th><th>Ville / Quartier</th><th>Contact</th><th>UID</th><th>Statut</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="bodyBoutiques"></tbody>
+      </table>
+    </div></div>
+  </div>
+
+  <div class="panel" id="panel-deblocages">
+    <div class="info">🔓 <strong>Demandes de déblocage</strong> — Vérifiez le paiement puis validez pour libérer les coordonnées du propriétaire.</div>
+    <div class="toolbar">
+      <select id="filterDeblocageStatut">
+        <option value="en_attente">⏳ En attente</option>
+        <option value="debloque">✅ Débloqués</option>
+        <option value="echoue">❌ Échoués</option>
+        <option value="">— Tous —</option>
+      </select>
+      <input type="text" id="searchDeblocages" placeholder="Rechercher...">
+      <button id="refreshDeblocages" class="secondary">🔄 Actualiser</button>
+    </div>
+    <div class="table-wrap"><div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>#</th><th>Date</th><th>UID</th><th>Annonce</th><th>Montant</th><th>Transaction</th><th>Statut</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="bodyDeblocages"></tbody>
+      </table>
+    </div></div>
+  </div>
+
+  <div class="panel" id="panel-publications">
+    <div class="info">📢 <strong>Publications</strong> — Créez une publication, elle reste <strong>en attente</strong> jusqu'à approbation.</div>
+    <div class="toolbar">
+      <button id="addPublication" class="success">➕ Nouvelle publication</button>
+      <button id="refreshPublications" class="secondary">🔄 Actualiser</button>
+    </div>
+    <div class="table-wrap"><div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>#</th><th>Date</th><th>Commerce</th><th>Type</th><th>Titre</th><th>Prix</th><th>Image</th><th>Statut</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="bodyPublications"></tbody>
+      </table>
+    </div></div>
+  </div>
+
+  <div class="panel" id="panel-annonces">
+    <div class="info">📋 <strong>Gestion des annonces</strong> — Modifier, supprimer ou filtrer les annonces publiées par les utilisateurs et commerçants.</div>
+    <div class="toolbar">
+      <select id="filterAnnonceCat">
+        <option value="">— Toutes les catégories —</option>
+        <option value="hopital">🚨 Hôpital</option>
+        <option value="ecole">🎓 École</option>
+        <option value="location">🏠 Location</option>
+        <option value="parcelle">📐 Parcelle</option>
+        <option value="entreprise">🏢 Entreprise</option>
+        <option value="vehicule">🚗 Véhicule</option>
+        <option value="electronique">📱 Électronique</option>
+        <option value="autre">🛠️ Autre</option>
+      </select>
+      <select id="filterAnnoncePublieur">
+        <option value="">— Tous les publieurs —</option>
+        <option value="user">👤 Utilisateurs</option>
+        <option value="commerce">🏪 Commerçants</option>
+        <option value="admin">⚡ Ajoutées par admin</option>
+      </select>
+      <input type="text" id="searchAnnonces" placeholder="Rechercher...">
+      <button id="refreshAnnonces" class="secondary">🔄 Actualiser</button>
+    </div>
+    <div class="table-wrap"><div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>#</th><th>Date</th><th>Publieur</th><th>Type</th><th>Titre</th><th>Prix</th><th>Ville</th><th>Image</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="bodyAnnonces"></tbody>
+      </table>
+    </div></div>
+  </div>
+
+  <div class="panel" id="panel-actives">
+    <div class="info">🏬 <strong>Boutiques en ligne</strong> — Toutes les boutiques approuvées et visibles publiquement.</div>
+    <div class="toolbar">
+      <input type="text" id="searchActives" placeholder="Rechercher...">
+      <button id="addBoutiqueActives" class="success">➕ Créer une boutique</button>
+      <button id="refreshActives" class="secondary">🔄 Actualiser</button>
+    </div>
+    <div class="table-wrap"><div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>#</th><th>Commerce</th><th>Type</th><th>Ville</th><th>Gérant</th><th>Téléphone</th><th>WhatsApp</th><th>Approuvé le</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="bodyActives"></tbody>
+      </table>
+    </div></div>
+  </div>
+
+  <div class="panel" id="panel-netubers">
+    <div class="info">👥 <strong>Tous les utilisateurs inscrits</strong> — Activer/Désactiver un compte, voir les détails, ajouter une annonce.</div>
+    <div class="stats-row" id="netubersStats"></div>
+    <div class="toolbar">
+      <select id="filterNetubersRole">
+        <option value="">— Tous les rôles —</option>
+        <option value="user">👤 Utilisateurs</option>
+        <option value="commerce">🏪 Commerçants</option>
+        <option value="inactif">🚫 Comptes désactivés</option>
+      </select>
+      <input type="text" id="searchNetubers" placeholder="Rechercher...">
+      <button id="refreshNetubers" class="secondary">🔄 Actualiser</button>
+      <button id="exportNetubers" class="secondary">📥 CSV</button>
+    </div>
+    <div class="table-wrap"><div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>#</th><th>Nom complet</th><th>Téléphone</th><th>Email</th><th>Code</th><th>Ville</th><th>Rôle</th><th>Actif</th><th>Inscription</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="bodyNetubers"></tbody>
+      </table>
+    </div></div>
+  </div>
+
 </div>
-</div>
-<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-<div class="topbar-user"><span class="dot"></span><span id="userEmail">—</span></div>
-<button class="topbar-logout" id="logoutBtn">Déconnexion</button>
-</div>
-</div>
-<div class="tabs">
-<button class="tab active" data-tab="boutiques">🏪 Boutiques <span class="badge" id="badgeBoutiques" style="display:none;">0</span></button>
-<button class="tab" data-tab="deblocages">🔓 Déblocages <span class="badge" id="badgeDeblocages" style="display:none;">0</span></button>
-<button class="tab" data-tab="publications">📢 Publications <span class="badge" id="badgePublications" style="display:none;">0</span></button>
-<button class="tab" data-tab="actives">🏬 Boutiques actives</button>
-<button class="tab" data-tab="netubers">👥 Netubers</button>
-</div>
-<div class="panel active" id="panel-boutiques">
-<div class="info">🏪 <strong>Demandes d'inscription boutique</strong> — Approuvez pour rendre la boutique visible et lier au compte utilisateur.</div>
-<div class="toolbar">
-<select id="filterBoutiqueStatut">
-<option value="en_attente">⏳ En attente</option>
-<option value="approuve">✅ Approuvées</option>
-<option value="refuse">❌ Refusées</option>
-<option value="">— Toutes —</option>
-</select>
-<input type="text" id="searchBoutiques" placeholder="Rechercher...">
-<button id="refreshBoutiques" class="secondary">🔄 Actualiser</button>
-</div>
-<div class="table-wrap"><div class="table-scroll">
-<table>
-<thead><tr>
-<th>#</th><th>Date</th><th>Gérant</th><th>Commerce</th><th>Type</th><th>Ville / Quartier</th><th>Contact</th><th>UID</th><th>Statut</th><th>Actions</th>
-</tr></thead>
-<tbody id="bodyBoutiques"></tbody>
-</table>
-</div></div>
-</div>
-<div class="panel" id="panel-deblocages">
-<div class="info">🔓 <strong>Demandes de déblocage</strong> — Vérifiez le paiement puis validez pour libérer les coordonnées du propriétaire.</div>
-<div class="toolbar">
-<select id="filterDeblocageStatut">
-<option value="en_attente">⏳ En attente</option>
-<option value="debloque">✅ Débloqués</option>
-<option value="echoue">❌ Échoués</option>
-<option value="">— Tous —</option>
-</select>
-<input type="text" id="searchDeblocages" placeholder="Rechercher...">
-<button id="refreshDeblocages" class="secondary">🔄 Actualiser</button>
-</div>
-<div class="table-wrap"><div class="table-scroll">
-<table>
-<thead><tr>
-<th>#</th><th>Date</th><th>UID</th><th>Annonce</th><th>Montant</th><th>Transaction</th><th>Statut</th><th>Actions</th>
-</tr></thead>
-<tbody id="bodyDeblocages"></tbody>
-</table>
-</div></div>
-</div>
-<div class="panel" id="panel-publications">
-<div class="info">📢 <strong>Publications</strong> — Les publications créées sont en <strong>attente</strong>. Elles ne sont visibles dans l'app qu'après approbation.</div>
-<div class="toolbar">
-<button id="addPublication" class="success">➕ Nouvelle publication</button>
-<button id="refreshPublications" class="secondary">🔄 Actualiser</button>
-</div>
-<div class="table-wrap"><div class="table-scroll">
-<table>
-<thead><tr>
-<th>#</th><th>Date</th><th>Commerce</th><th>Type</th><th>Titre</th><th>Prix</th><th>Image</th><th>Statut</th><th>Actions</th>
-</tr></thead>
-<tbody id="bodyPublications"></tbody>
-</table>
-</div></div>
-</div>
-<div class="panel" id="panel-actives">
-<div class="info">🏬 <strong>Boutiques en ligne</strong> — Toutes les boutiques approuvées et visibles publiquement.</div>
-<div class="toolbar">
-<input type="text" id="searchActives" placeholder="Rechercher...">
-<button id="refreshActives" class="secondary">🔄 Actualiser</button>
-</div>
-<div class="table-wrap"><div class="table-scroll">
-<table>
-<thead><tr>
-<th>#</th><th>Commerce</th><th>Type</th><th>Ville</th><th>Gérant</th><th>Téléphone</th><th>WhatsApp</th><th>Approuvé le</th><th>Actions</th>
-</tr></thead>
-<tbody id="bodyActives"></tbody>
-</table>
-</div></div>
-</div>
-<div class="panel" id="panel-netubers">
-<div class="info">👥 <strong>Tous les utilisateurs inscrits</strong> — Activer/Désactiver un compte, voir les détails, exporter en CSV.</div>
-<div class="stats-row" id="netubersStats"></div>
-<div class="toolbar">
-<select id="filterNetubersRole">
-<option value="">— Tous les rôles —</option>
-<option value="user">👤 Utilisateurs</option>
-<option value="commerce">🏪 Commerçants</option>
-<option value="inactif">🚫 Comptes désactivés</option>
-</select>
-<input type="text" id="searchNetubers" placeholder="Rechercher...">
-<button id="refreshNetubers" class="secondary">🔄 Actualiser</button>
-<button id="exportNetubers" class="secondary">📥 CSV</button>
-</div>
-<div class="table-wrap"><div class="table-scroll">
-<table>
-<thead><tr>
-<th>#</th><th>Nom complet</th><th>Téléphone</th><th>Email</th><th>Code</th><th>Ville</th><th>Rôle</th><th>Actif</th><th>Inscription</th><th>Actions</th>
-</tr></thead>
-<tbody id="bodyNetubers"></tbody>
-</table>
-</div></div>
-</div>
-</div>
+
 <div class="toast-c" id="toasts"></div>
+
 <script type="importmap">
 {"imports":{
 "firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
@@ -273,925 +326,1866 @@ tr:hover td{background:rgba(59,130,246,.04);}
 "firebase/auth":"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"
 }}
 </script>
+
 <script type="module">
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where } from "firebase/firestore";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
+
 const firebaseConfig = {
-apiKey: "AIzaSyB_GdmPBnWl3w6g99j1cGO7vxDdxmKr4QA",
-authDomain: "netubexmoney.firebaseapp.com",
-projectId: "netubexmoney",
-storageBucket: "netubexmoney.firebasestorage.app",
-messagingSenderId: "856592608176",
-appId: "1:856592608176:web:69f9df9cfd4f8c28630475"
+  apiKey: "AIzaSyB_GdmPBnWl3w6g99j1cGO7vxDdxmKr4QA",
+  authDomain: "netubexmoney.firebaseapp.com",
+  projectId: "netubexmoney",
+  storageBucket: "netubexmoney.firebasestorage.app",
+  messagingSenderId: "856592608176",
+  appId: "1:856592608176:web:69f9df9cfd4f8c28630475"
 };
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+
 let currentUser = null;
 let boutiques = [];
 let deblocages = [];
 let publications = [];
 let netubers = [];
 let boutiquesActives = [];
+let annonces = [];
+
 function esc(s){ if(!s) return ''; return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 function setLoader(show){ document.getElementById('loader').classList.toggle('show', show); }
+
 function toast(msg, type='ok'){
-const c = document.getElementById('toasts');
-const icons = { ok:'✅', err:'❌', warn:'⚠️' };
-const el = document.createElement('div');
-el.className = 'toast ' + (type==='err'?'err':type==='warn'?'warn':'');
-el.innerHTML = `<span style="font-size:18px;">${icons[type]||'✅'}</span><span>${esc(msg)}</span>`;
-c.appendChild(el);
-requestAnimationFrame(()=>el.classList.add('show'));
-setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>el.remove(),300); }, 3200);
+  const c = document.getElementById('toasts');
+  const icons = { ok:'✅', err:'❌', warn:'⚠️' };
+  const el = document.createElement('div');
+  el.className = 'toast ' + (type==='err'?'err':type==='warn'?'warn':'');
+  el.innerHTML = `<span style="font-size:18px;">${icons[type]||'✅'}</span><span>${esc(msg)}</span>`;
+  c.appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('show'));
+  setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>el.remove(),300); }, 3200);
 }
+
 function confirm(title, msg, onOk, danger=true){
-const d = document.createElement('div');
-d.className = 'modal show';
-d.innerHTML = `<div class="modal-box" style="max-width:440px;">
-<h2>${esc(title)}</h2>
-<p style="color:#cbd5e1;font-size:13px;line-height:1.7;margin-bottom:22px;">${msg}</p>
-<div class="modal-act">
-<button class="cancel" data-cancel>Annuler</button>
-<button class="${danger?'danger':'confirm'}" data-ok>Confirmer</button>
-</div>
-</div>`;
-document.body.appendChild(d);
-d.querySelector('[data-cancel]').onclick = ()=>d.remove();
-d.querySelector('[data-ok]').onclick = ()=>{ d.remove(); onOk(); };
-d.onclick = e=>{ if(e.target===d) d.remove(); };
+  const d = document.createElement('div');
+  d.className = 'modal show';
+  d.innerHTML = `<div class="modal-box" style="max-width:440px;">
+    <h2>${esc(title)}</h2>
+    <p style="color:#cbd5e1;font-size:13px;line-height:1.7;margin-bottom:22px;">${msg}</p>
+    <div class="modal-act">
+      <button class="cancel" data-cancel>Annuler</button>
+      <button class="${danger?'danger':'confirm'}" data-ok>Confirmer</button>
+    </div>
+  </div>`;
+  document.body.appendChild(d);
+  d.querySelector('[data-cancel]').onclick = ()=>d.remove();
+  d.querySelector('[data-ok]').onclick = ()=>{ d.remove(); onOk(); };
+  d.onclick = e=>{ if(e.target===d) d.remove(); };
 }
+
 function updateBadge(id, n){
-const el = document.getElementById(id);
-if(!el) return;
-if(n>0){ el.textContent = n; el.style.display = 'inline-block'; }
-else el.style.display = 'none';
+  const el = document.getElementById(id);
+  if(!el) return;
+  if(n>0){ el.textContent = n; el.style.display = 'inline-block'; }
+  else el.style.display = 'none';
 }
+
 document.getElementById('loginBtn').onclick = doLogin;
 document.getElementById('loginPassword').addEventListener('keypress', e=>{ if(e.key==='Enter') doLogin(); });
+
 async function doLogin(){
-const email = document.getElementById('loginEmail').value.trim();
-const pw = document.getElementById('loginPassword').value;
-const err = document.getElementById('loginError');
-err.textContent = '';
-if(!email || !pw){ err.textContent = 'Remplissez tous les champs'; return; }
-setLoader(true);
-try{
-await signInWithEmailAndPassword(auth, email, pw);
-}catch(e){
-let msg = 'Email ou mot de passe incorrect';
-if(e.code === 'auth/user-not-found') msg = 'Aucun compte avec cet email';
-if(e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') msg = 'Mot de passe incorrect';
-if(e.code === 'auth/invalid-email') msg = 'Email invalide';
-if(e.code === 'auth/too-many-requests') msg = 'Trop de tentatives. Réessayez plus tard.';
-if(e.code === 'auth/network-request-failed') msg = 'Problème de connexion.';
-err.textContent = msg;
-}finally{ setLoader(false); }
+  const email = document.getElementById('loginEmail').value.trim();
+  const pw = document.getElementById('loginPassword').value;
+  const err = document.getElementById('loginError');
+  err.textContent = '';
+  if(!email || !pw){ err.textContent = 'Remplissez tous les champs'; return; }
+  setLoader(true);
+  try{
+    await signInWithEmailAndPassword(auth, email, pw);
+  }catch(e){
+    let msg = 'Email ou mot de passe incorrect';
+    if(e.code === 'auth/user-not-found') msg = 'Aucun compte avec cet email';
+    if(e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') msg = 'Mot de passe incorrect';
+    if(e.code === 'auth/invalid-email') msg = 'Email invalide';
+    if(e.code === 'auth/too-many-requests') msg = 'Trop de tentatives. Réessayez plus tard.';
+    if(e.code === 'auth/network-request-failed') msg = 'Problème de connexion.';
+    err.textContent = msg;
+  }finally{ setLoader(false); }
 }
+
 document.getElementById('logoutBtn').onclick = async ()=> await signOut(auth);
+
 onAuthStateChanged(auth, async (user)=>{
-if(user){
-currentUser = user;
-document.getElementById('loginScreen').style.display = 'none';
-document.getElementById('app').classList.add('show');
-document.getElementById('userEmail').textContent = user.email;
-await loadAll();
-}else{
-currentUser = null;
-document.getElementById('loginScreen').style.display = 'flex';
-document.getElementById('app').classList.remove('show');
-}
+  if(user){
+    currentUser = user;
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').classList.add('show');
+    document.getElementById('userEmail').textContent = user.email;
+    await loadAll();
+  }else{
+    currentUser = null;
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('app').classList.remove('show');
+  }
 });
+
 document.querySelectorAll('.tab').forEach(t=>{
-t.onclick = ()=>{
-document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
-t.classList.add('active');
-document.getElementById('panel-' + t.dataset.tab).classList.add('active');
-};
+  t.onclick = ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('panel-' + t.dataset.tab).classList.add('active');
+  };
 });
+
 async function loadAll(){
-setLoader(true);
-await Promise.all([loadBoutiques(), loadDeblocages(), loadPublications(), loadNetubers(), loadActives()]);
-setLoader(false);
+  setLoader(true);
+  await Promise.all([loadBoutiques(), loadDeblocages(), loadPublications(), loadNetubers(), loadActives(), loadAnnonces()]);
+  setLoader(false);
 }
+
+/* ============ BOUTIQUES ============ */
 async function loadBoutiques(){
-try{
-const snap = await getDocs(collection(db,'demandes_boutiques'));
-boutiques = [];
-snap.forEach(d=>{
-const data = d.data();
-boutiques.push({
-id: d.id,
-nom: data.nom || '',
-nomCommerce: data.nomCommerce || '',
-type: data.type || '',
-ville: data.ville || '',
-quartier: data.quartier || '',
-adresse: data.adresse || '',
-horaires: data.horaires || '',
-description: data.description || '',
-telephone: data.telephone || '',
-whatsappCommercial: data.whatsappCommercial || '',
-uid: data.uid || null,
-statut: data.statut || 'en_attente',
-dateCreation: data.dateCreation || '',
-dateApprobation: data.dateApprobation || '',
-dateRefus: data.dateRefus || ''
-});
-});
-boutiques.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
-renderBoutiques();
-updateBadge('badgeBoutiques', boutiques.filter(b=>b.statut==='en_attente').length);
-}catch(e){ console.warn('Boutiques:', e.message); }
+  try{
+    const snap = await getDocs(collection(db,'demandes_boutiques'));
+    boutiques = [];
+    snap.forEach(d=>{
+      const data = d.data();
+      boutiques.push({
+        id: d.id,
+        nom: data.nom || '',
+        nomCommerce: data.nomCommerce || '',
+        type: data.type || '',
+        ville: data.ville || '',
+        quartier: data.quartier || '',
+        adresse: data.adresse || '',
+        horaires: data.horaires || '',
+        description: data.description || '',
+        telephone: data.telephone || '',
+        whatsappCommercial: data.whatsappCommercial || '',
+        uid: data.uid || null,
+        statut: data.statut || 'en_attente',
+        dateCreation: data.dateCreation || '',
+        dateApprobation: data.dateApprobation || '',
+        dateRefus: data.dateRefus || '',
+        creeParAdmin: data.creeParAdmin || false
+      });
+    });
+    boutiques.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
+    renderBoutiques();
+    updateBadge('badgeBoutiques', boutiques.filter(b=>b.statut==='en_attente').length);
+  }catch(e){ console.warn('Boutiques:', e.message); }
 }
+
 function renderBoutiques(){
-const tbody = document.getElementById('bodyBoutiques');
-const q = (document.getElementById('searchBoutiques').value||'').toLowerCase().trim();
-const f = document.getElementById('filterBoutiqueStatut').value;
-const list = boutiques.filter(b=>{
-if(f && b.statut !== f) return false;
-if(q){
-const t = ((b.nom||'')+' '+(b.nomCommerce||'')+' '+(b.ville||'')).toLowerCase();
-if(!t.includes(q)) return false;
+  const tbody = document.getElementById('bodyBoutiques');
+  const q = (document.getElementById('searchBoutiques').value||'').toLowerCase().trim();
+  const f = document.getElementById('filterBoutiqueStatut').value;
+  const list = boutiques.filter(b=>{
+    if(f && b.statut !== f) return false;
+    if(q){
+      const t = ((b.nom||'')+' '+(b.nomCommerce||'')+' '+(b.ville||'')).toLowerCase();
+      if(!t.includes(q)) return false;
+    }
+    return true;
+  });
+  if(list.length === 0){
+    tbody.innerHTML = `<tr><td colspan="10"><div class="empty"><div class="empty-ic">🏪</div><div class="empty-t">Aucune demande</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map((b,i)=>{
+    const date = b.dateCreation ? new Date(b.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'2-digit'}) : '—';
+    const badge = b.statut === 'approuve' ? '<span class="badge ok">Approuvée</span>' :
+                  b.statut === 'refuse' ? '<span class="badge err">Refusée</span>' :
+                  '<span class="badge warn">En attente</span>';
+    const uidDisplay = b.uid ? `<span style="font-family:monospace;font-size:10px;color:#60a5fa;">${esc(b.uid.slice(0,10))}…</span>` : '<span class="badge gray">Non lié</span>';
+    const adminBadge = b.creeParAdmin ? ' <span class="badge warn" style="font-size:8px;">⚡</span>' : '';
+    const acts = b.statut === 'en_attente'
+      ? `<button class="btn-ico ok" data-act="approve" data-id="${esc(b.id)}">✅</button>
+         <button class="btn-ico err" data-act="refuse" data-id="${esc(b.id)}">❌</button>
+         <button class="btn-ico info" data-act="detail" data-id="${esc(b.id)}">👁️</button>
+         ${b.uid ? `<button class="btn-ico ok" data-act="add-annonce" data-id="${esc(b.uid)}" title="Ajouter une annonce">➕</button>` : ''}`
+      : `<button class="btn-ico info" data-act="detail" data-id="${esc(b.id)}">👁️</button>
+         ${b.uid ? `<button class="btn-ico ok" data-act="add-annonce" data-id="${esc(b.uid)}" title="Ajouter une annonce">➕</button>
+         <button class="btn-ico info" data-act="view-ann-user" data-id="${esc(b.uid)}" title="Voir ses annonces">📋</button>` : ''}`;
+    return `<tr>
+      <td>${i+1}</td>
+      <td style="font-size:11.5px;">${esc(date)}</td>
+      <td><strong style="color:#fff;">${esc(b.nom||'—')}</strong>${adminBadge}</td>
+      <td>${esc(b.nomCommerce||'—')}</td>
+      <td style="font-size:11.5px;">${esc(b.type||'—')}</td>
+      <td style="font-size:11.5px;">${esc(b.ville||'')} · ${esc(b.quartier||'')}</td>
+      <td style="font-size:11px;font-family:monospace;">📞 ${esc(b.telephone||'—')}<br>💬 ${esc(b.whatsappCommercial||'—')}</td>
+      <td>${uidDisplay}</td>
+      <td>${badge}</td>
+      <td><div class="act">${acts}</div></td>
+    </tr>`;
+  }).join('');
 }
-return true;
-});
-if(list.length === 0){
-tbody.innerHTML = `<tr><td colspan="10"><div class="empty"><div class="empty-ic">🏪</div><div class="empty-t">Aucune demande</div></div></td></tr>`;
-return;
-}
-tbody.innerHTML = list.map((b,i)=>{
-const date = b.dateCreation ? new Date(b.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'2-digit'}) : '—';
-const badge = b.statut === 'approuve' ? '<span class="badge ok">Approuvée</span>' :
-b.statut === 'refuse' ? '<span class="badge err">Refusée</span>' :
-'<span class="badge warn">En attente</span>';
-const uidDisplay = b.uid ? `<span style="font-family:monospace;font-size:10px;color:#60a5fa;">${esc(b.uid.slice(0,10))}…</span>` : '<span class="badge gray">Non lié</span>';
-const acts = b.statut === 'en_attente'
-? `<button class="btn-ico ok" data-act="approve" data-id="${esc(b.id)}">✅ Approuver</button>
-<button class="btn-ico err" data-act="refuse" data-id="${esc(b.id)}">❌</button>
-<button class="btn-ico info" data-act="detail" data-id="${esc(b.id)}">👁️</button>`
-: `<button class="btn-ico info" data-act="detail" data-id="${esc(b.id)}">👁️ Détails</button>`;
-return `<tr>
-<td>${i+1}</td>
-<td style="font-size:11.5px;">${esc(date)}</td>
-<td><strong style="color:#fff;">${esc(b.nom||'—')}</strong></td>
-<td>${esc(b.nomCommerce||'—')}</td>
-<td style="font-size:11.5px;">${esc(b.type||'—')}</td>
-<td style="font-size:11.5px;">${esc(b.ville||'')} · ${esc(b.quartier||'')}</td>
-<td style="font-size:11px;font-family:monospace;">📞 ${esc(b.telephone||'—')}<br>💬 ${esc(b.whatsappCommercial||'—')}</td>
-<td>${uidDisplay}</td>
-<td>${badge}</td>
-<td><div class="act">${acts}</div></td>
-</tr>`;
-}).join('');
-}
+
 document.getElementById('searchBoutiques').oninput = renderBoutiques;
 document.getElementById('filterBoutiqueStatut').onchange = renderBoutiques;
 document.getElementById('refreshBoutiques').onclick = ()=>loadBoutiques();
+document.getElementById('addBoutique').onclick = ()=>ouvrirModalCreateBoutique();
+
 async function approveBoutique(id){
-const b = boutiques.find(x=>x.id===id);
-if(!b) return;
-confirm('Approuver cette boutique ?',
-`Rendre <strong style="color:#fff;">${esc(b.nomCommerce)}</strong> visible publiquement ?`,
-async ()=>{
-setLoader(true);
-try{
-await setDoc(doc(db,'demandes_boutiques',id),{
-statut:'approuve',
-dateApprobation: new Date().toISOString()
-},{ merge:true });
-let uid = b.uid || null;
-if(!uid){
-try{
-const telephone = b.telephone || b.whatsappCommercial;
-if(telephone){
-const q = query(collection(db,'netubers'), where('phone','==', telephone));
-const snap = await getDocs(q);
-if(!snap.empty){
-uid = snap.docs[0].id;
-await setDoc(doc(db,'demandes_boutiques',id),{ uid: uid },{ merge:true });
+  const b = boutiques.find(x=>x.id===id);
+  if(!b) return;
+  confirm('Approuver cette boutique ?',
+    `Rendre <strong style="color:#fff;">${esc(b.nomCommerce)}</strong> visible publiquement ?`,
+    async ()=>{
+      setLoader(true);
+      try{
+        await setDoc(doc(db,'demandes_boutiques',id),{
+          statut:'approuve',
+          dateApprobation: new Date().toISOString()
+        },{ merge:true });
+
+        let uid = b.uid || null;
+        if(!uid){
+          try{
+            const telephone = b.telephone || b.whatsappCommercial;
+            if(telephone){
+              const q = query(collection(db,'netubers'), where('phone','==', telephone));
+              const snap = await getDocs(q);
+              if(!snap.empty){
+                uid = snap.docs[0].id;
+                await setDoc(doc(db,'demandes_boutiques',id),{ uid: uid },{ merge:true });
+              }
+            }
+          }catch(e){ console.warn('Recherche tél:', e); }
+        }
+
+        if(uid){
+          await setDoc(doc(db,'netubers',uid),{
+            boutique:{
+              nom: b.nomCommerce, type: b.type, ville: b.ville, quartier: b.quartier,
+              adresse: b.adresse, horaires: b.horaires, description: b.description,
+              telephone: b.telephone, whatsappCommercial: b.whatsappCommercial,
+              statut: 'approuve',
+              dateCreation: b.dateCreation || new Date().toISOString(),
+              dateApprobation: new Date().toISOString()
+            }
+          },{ merge:true });
+        }
+
+        const commerceId = 'COM-' + id.replace('DEM-','');
+        await setDoc(doc(db,'commerces',commerceId),{
+          uid: uid || null,
+          demandeId: id,
+          nom: b.nomCommerce,
+          type: b.type,
+          ville: b.ville,
+          quartier: b.quartier,
+          adresse: b.adresse || '',
+          horaires: b.horaires || '08h - 20h',
+          description: b.description || '',
+          telephone: b.telephone,
+          whatsapp: b.whatsappCommercial || b.telephone,
+          img: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80',
+          emoji: '🏪',
+          produits: [],
+          statut: 'approuve',
+          dateCreation: b.dateCreation || new Date().toISOString(),
+          dateApprobation: new Date().toISOString()
+        },{ merge:true });
+
+        toast('Approuvée + commerce créé ✅');
+        await loadBoutiques();
+        await loadActives();
+      }catch(e){ toast('Erreur: '+e.message,'err'); }
+      finally{ setLoader(false); }
+    }, false);
 }
-}
-}catch(e){ console.warn('Recherche tél:', e); }
-}
-if(uid){
-await setDoc(doc(db,'netubers',uid),{
-boutique:{
-nom: b.nomCommerce, type: b.type, ville: b.ville, quartier: b.quartier,
-adresse: b.adresse, horaires: b.horaires, description: b.description,
-telephone: b.telephone, whatsappCommercial: b.whatsappCommercial,
-statut: 'approuve',
-dateCreation: b.dateCreation || new Date().toISOString(),
-dateApprobation: new Date().toISOString()
-}
-},{ merge:true });
-}
-const commerceId = 'COM-' + id.replace('DEM-','');
-await setDoc(doc(db,'commerces',commerceId),{
-uid: uid || null,
-demandeId: id,
-nom: b.nomCommerce,
-type: b.type,
-ville: b.ville,
-quartier: b.quartier,
-adresse: b.adresse || '',
-horaires: b.horaires || '08h - 20h',
-description: b.description || '',
-telephone: b.telephone,
-whatsapp: b.whatsappCommercial || b.telephone,
-img: b.img || 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80',
-emoji: '🏪',
-produits: [],
-statut: 'approuve',
-dateCreation: b.dateCreation || new Date().toISOString(),
-dateApprobation: new Date().toISOString()
-},{ merge:true });
-toast('Approuvée + commerce créé ✅');
-await loadBoutiques();
-await loadActives();
-}catch(e){ toast('Erreur: '+e.message,'err'); }
-finally{ setLoader(false); }
-}, false);
-}
+
 async function refuseBoutique(id){
-const b = boutiques.find(x=>x.id===id);
-if(!b) return;
-confirm('Refuser cette boutique ?', `Refuser <strong>${esc(b.nomCommerce)}</strong> ?`,
-async ()=>{
-setLoader(true);
-try{
-await setDoc(doc(db,'demandes_boutiques',id),{
-statut:'refuse',
-dateRefus: new Date().toISOString()
-},{ merge:true });
-if(b.uid){
-try{ await setDoc(doc(db,'netubers',b.uid),{ boutique: { statut: 'refuse' } },{ merge:true }); }
-catch(e){ console.warn(e); }
+  const b = boutiques.find(x=>x.id===id);
+  if(!b) return;
+  confirm('Refuser cette boutique ?', `Refuser <strong>${esc(b.nomCommerce)}</strong> ?`,
+    async ()=>{
+      setLoader(true);
+      try{
+        await setDoc(doc(db,'demandes_boutiques',id),{
+          statut:'refuse',
+          dateRefus: new Date().toISOString()
+        },{ merge:true });
+        if(b.uid){
+          try{ await setDoc(doc(db,'netubers',b.uid),{ boutique: { statut: 'refuse' } },{ merge:true }); }
+          catch(e){ console.warn(e); }
+        }
+        toast('Boutique refusée','warn');
+        await loadBoutiques();
+      }catch(e){ toast('Erreur: '+e.message,'err'); }
+      finally{ setLoader(false); }
+    });
 }
-toast('Boutique refusée','warn');
-await loadBoutiques();
-}catch(e){ toast('Erreur: '+e.message,'err'); }
-finally{ setLoader(false); }
-});
-}
+
 function detailBoutique(id){
-const b = boutiques.find(x=>x.id===id);
-if(!b) return;
-const d = document.createElement('div');
-d.className = 'modal show';
-d.innerHTML = `<div class="modal-box">
-<h2>🏪 Détails boutique</h2>
-<div class="field"><label>Gérant</label><input readonly value="${esc(b.nom||'')}"></div>
-<div class="field"><label>Commerce</label><input readonly value="${esc(b.nomCommerce||'')}"></div>
-<div class="field"><label>Type</label><input readonly value="${esc(b.type||'')}"></div>
-<div class="field"><label>Ville · Quartier</label><input readonly value="${esc((b.ville||'')+' · '+(b.quartier||''))}"></div>
-<div class="field"><label>Adresse</label><input readonly value="${esc(b.adresse||'—')}"></div>
-<div class="field"><label>Horaires</label><input readonly value="${esc(b.horaires||'—')}"></div>
-<div class="field"><label>Téléphone</label><input readonly value="${esc(b.telephone||'—')}"></div>
-<div class="field"><label>WhatsApp commercial</label><input readonly value="${esc(b.whatsappCommercial||'—')}"></div>
-<div class="field"><label>Description</label><textarea readonly>${esc(b.description||'')}</textarea></div>
-<div class="field"><label>UID utilisateur</label><input readonly value="${esc(b.uid||'— non lié —')}"></div>
-<div class="modal-act"><button class="cancel" data-close>Fermer</button></div>
-</div>`;
-document.body.appendChild(d);
-d.querySelector('[data-close]').onclick = ()=>d.remove();
-d.onclick = e=>{ if(e.target===d) d.remove(); };
+  const b = boutiques.find(x=>x.id===id);
+  if(!b) return;
+  const d = document.createElement('div');
+  d.className = 'modal show';
+  d.innerHTML = `<div class="modal-box">
+    <h2>🏪 Détails boutique</h2>
+    <div class="field"><label>Gérant</label><input readonly value="${esc(b.nom||'')}"></div>
+    <div class="field"><label>Commerce</label><input readonly value="${esc(b.nomCommerce||'')}"></div>
+    <div class="field"><label>Type</label><input readonly value="${esc(b.type||'')}"></div>
+    <div class="field"><label>Ville · Quartier</label><input readonly value="${esc((b.ville||'')+' · '+(b.quartier||''))}"></div>
+    <div class="field"><label>Adresse</label><input readonly value="${esc(b.adresse||'—')}"></div>
+    <div class="field"><label>Horaires</label><input readonly value="${esc(b.horaires||'—')}"></div>
+    <div class="field"><label>Téléphone</label><input readonly value="${esc(b.telephone||'—')}"></div>
+    <div class="field"><label>WhatsApp commercial</label><input readonly value="${esc(b.whatsappCommercial||'—')}"></div>
+    <div class="field"><label>Description</label><textarea readonly>${esc(b.description||'')}</textarea></div>
+    <div class="field"><label>UID utilisateur</label><input readonly value="${esc(b.uid||'— non lié —')}"></div>
+    <div class="modal-act"><button class="cancel" data-close>Fermer</button></div>
+  </div>`;
+  document.body.appendChild(d);
+  d.querySelector('[data-close]').onclick = ()=>d.remove();
+  d.onclick = e=>{ if(e.target===d) d.remove(); };
 }
+
+/* ============ DÉBLOCAGES ============ */
 async function loadDeblocages(){
-try{
-const snap = await getDocs(collection(db,'deblocages'));
-deblocages = [];
-snap.forEach(d=>{
-const data = d.data();
-deblocages.push({
-id: d.id,
-uid: data.uid || '',
-annonceId: data.annonceId || '',
-montant: data.montant || 0,
-transactionId: data.transactionId || '',
-statut: data.statut || 'en_attente',
-dateDemande: data.dateDemande || '',
-dateValidation: data.dateValidation || '',
-dateRejet: data.dateRejet || '',
-coordonnees: data.coordonnees || null
-});
-});
-deblocages.sort((a,b)=>(b.dateDemande||'').localeCompare(a.dateDemande||''));
-renderDeblocages();
-updateBadge('badgeDeblocages', deblocages.filter(d=>d.statut==='en_attente').length);
-}catch(e){ console.warn('Déblocages:', e.message); }
+  try{
+    const snap = await getDocs(collection(db,'deblocages'));
+    deblocages = [];
+    snap.forEach(d=>{
+      const data = d.data();
+      deblocages.push({
+        id: d.id,
+        uid: data.uid || '',
+        annonceId: data.annonceId || '',
+        montant: data.montant || 0,
+        transactionId: data.transactionId || '',
+        statut: data.statut || 'en_attente',
+        dateDemande: data.dateDemande || '',
+        dateValidation: data.dateValidation || '',
+        dateRejet: data.dateRejet || '',
+        coordonnees: data.coordonnees || null
+      });
+    });
+    deblocages.sort((a,b)=>(b.dateDemande||'').localeCompare(a.dateDemande||''));
+    renderDeblocages();
+    updateBadge('badgeDeblocages', deblocages.filter(d=>d.statut==='en_attente').length);
+  }catch(e){ console.warn('Déblocages:', e.message); }
 }
+
 function renderDeblocages(){
-const tbody = document.getElementById('bodyDeblocages');
-const q = (document.getElementById('searchDeblocages').value||'').toLowerCase().trim();
-const f = document.getElementById('filterDeblocageStatut').value;
-const list = deblocages.filter(d=>{
-if(f && d.statut !== f) return false;
-if(q){
-const t = ((d.uid||'')+' '+(d.annonceId||'')+' '+(d.transactionId||'')).toLowerCase();
-if(!t.includes(q)) return false;
+  const tbody = document.getElementById('bodyDeblocages');
+  const q = (document.getElementById('searchDeblocages').value||'').toLowerCase().trim();
+  const f = document.getElementById('filterDeblocageStatut').value;
+  const list = deblocages.filter(d=>{
+    if(f && d.statut !== f) return false;
+    if(q){
+      const t = ((d.uid||'')+' '+(d.annonceId||'')+' '+(d.transactionId||'')).toLowerCase();
+      if(!t.includes(q)) return false;
+    }
+    return true;
+  });
+  if(list.length === 0){
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-ic">🔓</div><div class="empty-t">Aucune demande</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map((d,i)=>{
+    const date = d.dateDemande ? new Date(d.dateDemande).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'2-digit'}) : '—';
+    const badge = d.statut === 'debloque' ? '<span class="badge ok">Débloqué</span>' :
+                  d.statut === 'echoue' ? '<span class="badge err">Échoué</span>' :
+                  '<span class="badge warn">En attente</span>';
+    const acts = d.statut === 'en_attente'
+      ? `<button class="btn-ico ok" data-act="val-deb" data-id="${esc(d.id)}">✅ Valider</button>
+         <button class="btn-ico err" data-act="rej-deb" data-id="${esc(d.id)}">❌</button>`
+      : '';
+    return `<tr>
+      <td>${i+1}</td>
+      <td style="font-size:11.5px;">${esc(date)}</td>
+      <td style="font-size:10.5px;font-family:monospace;">${esc((d.uid||'').slice(0,10))}…</td>
+      <td style="font-size:11px;font-family:monospace;">${esc(d.annonceId||'—')}</td>
+      <td><strong style="color:#fbbf24;">${(d.montant||0).toLocaleString('fr-FR')} FC</strong></td>
+      <td style="font-size:11px;font-family:monospace;">${esc(d.transactionId||'—')}</td>
+      <td>${badge}</td>
+      <td><div class="act">${acts}</div></td>
+    </tr>`;
+  }).join('');
 }
-return true;
-});
-if(list.length === 0){
-tbody.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-ic">🔓</div><div class="empty-t">Aucune demande</div></div></td></tr>`;
-return;
-}
-tbody.innerHTML = list.map((d,i)=>{
-const date = d.dateDemande ? new Date(d.dateDemande).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'2-digit'}) : '—';
-const badge = d.statut === 'debloque' ? '<span class="badge ok">Débloqué</span>' :
-d.statut === 'echoue' ? '<span class="badge err">Échoué</span>' :
-'<span class="badge warn">En attente</span>';
-const acts = d.statut === 'en_attente'
-? `<button class="btn-ico ok" data-act="val-deb" data-id="${esc(d.id)}">✅ Valider</button>
-<button class="btn-ico err" data-act="rej-deb" data-id="${esc(d.id)}">❌</button>`
-: '';
-return `<tr>
-<td>${i+1}</td>
-<td style="font-size:11.5px;">${esc(date)}</td>
-<td style="font-size:10.5px;font-family:monospace;">${esc((d.uid||'').slice(0,10))}…</td>
-<td style="font-size:11px;font-family:monospace;">${esc(d.annonceId||'—')}</td>
-<td><strong style="color:#fbbf24;">${(d.montant||0).toLocaleString('fr-FR')} FC</strong></td>
-<td style="font-size:11px;font-family:monospace;">${esc(d.transactionId||'—')}</td>
-<td>${badge}</td>
-<td><div class="act">${acts}</div></td>
-</tr>`;
-}).join('');
-}
+
 document.getElementById('searchDeblocages').oninput = renderDeblocages;
 document.getElementById('filterDeblocageStatut').onchange = renderDeblocages;
 document.getElementById('refreshDeblocages').onclick = ()=>loadDeblocages();
+
 async function validerDeblocage(id){
-confirm('Valider ce déblocage ?',
-'Confirmer que le paiement est reçu et débloquer les coordonnées ?',
-async ()=>{
-setLoader(true);
-try{
-const d = deblocages.find(x=>x.id===id);
-if(!d){ toast('Déblocage introuvable','err'); setLoader(false); return; }
-let coordonnees = null;
-if(d.annonceId){
-try{
-const coordSnap = await getDoc(doc(db,'annonces',d.annonceId,'prive','contact'));
-if(coordSnap.exists()){
-coordonnees = coordSnap.data();
+  confirm('Valider ce déblocage ?',
+    'Confirmer que le paiement est reçu et débloquer les coordonnées ?',
+    async ()=>{
+      setLoader(true);
+      try{
+        const d = deblocages.find(x=>x.id===id);
+        if(!d){ toast('Déblocage introuvable','err'); setLoader(false); return; }
+
+        let coordonnees = null;
+        if(d.annonceId){
+          try{
+            const coordSnap = await getDoc(doc(db,'annonces',d.annonceId,'prive','contact'));
+            if(coordSnap.exists()){
+              coordonnees = coordSnap.data();
+            }
+          }catch(e){ console.warn('Coords:', e); }
+        }
+
+        await setDoc(doc(db,'deblocages',id),{
+          statut:'debloque',
+          dateValidation:new Date().toISOString(),
+          coordonnees: coordonnees || {
+            nom: 'Propriétaire Certifié',
+            adresse: 'Adresse non fournie',
+            telephone: 'Non disponible',
+            email: ''
+          }
+        },{ merge:true });
+        toast('Déblocage validé ✅');
+        await loadDeblocages();
+      }catch(e){ toast('Erreur: '+e.message,'err'); }
+      finally{ setLoader(false); }
+    }, false);
 }
-}catch(e){ console.warn('Coords:', e); }
-}
-await setDoc(doc(db,'deblocages',id),{
-statut:'debloque',
-dateValidation:new Date().toISOString(),
-coordonnees: coordonnees || {
-nom: 'Propriétaire Certifié',
-adresse: 'Adresse non fournie',
-telephone: 'Non disponible',
-email: ''
-}
-},{ merge:true });
-toast('Déblocage validé ✅');
-await loadDeblocages();
-}catch(e){ toast('Erreur: '+e.message,'err'); }
-finally{ setLoader(false); }
-}, false);
-}
+
 async function rejeterDeblocage(id){
-confirm('Rejeter ce déblocage ?', 'Le paiement sera marqué comme non valide.',
-async ()=>{
-setLoader(true);
-try{
-await setDoc(doc(db,'deblocages',id),{
-statut:'echoue',
-dateRejet:new Date().toISOString()
-},{ merge:true });
-toast('Déblocage rejeté','warn');
-await loadDeblocages();
-}catch(e){ toast('Erreur: '+e.message,'err'); }
-finally{ setLoader(false); }
-});
+  confirm('Rejeter ce déblocage ?', 'Le paiement sera marqué comme non valide.',
+    async ()=>{
+      setLoader(true);
+      try{
+        await setDoc(doc(db,'deblocages',id),{
+          statut:'echoue',
+          dateRejet:new Date().toISOString()
+        },{ merge:true });
+        toast('Déblocage rejeté','warn');
+        await loadDeblocages();
+      }catch(e){ toast('Erreur: '+e.message,'err'); }
+      finally{ setLoader(false); }
+    });
 }
+
+/* ============ PUBLICATIONS ============ */
 async function loadPublications(){
-try{
-const snap = await getDocs(collection(db,'publications'));
-publications = [];
-snap.forEach(d=>publications.push({ id:d.id, ...d.data() }));
-publications.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
-renderPublications();
-updateBadge('badgePublications', publications.filter(p=>p.statut==='en_attente').length);
-}catch(e){ console.warn('Publications:', e.message); }
+  try{
+    const snap = await getDocs(collection(db,'publications'));
+    publications = [];
+    snap.forEach(d=>publications.push({ id:d.id, ...d.data() }));
+    publications.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
+    renderPublications();
+    updateBadge('badgePublications', publications.filter(p=>p.statut==='en_attente').length);
+  }catch(e){ console.warn('Publications:', e.message); }
 }
+
 function renderPublications(){
-const tbody = document.getElementById('bodyPublications');
-if(publications.length === 0){
-tbody.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="empty-ic">📢</div><div class="empty-t">Aucune publication</div><div class="empty-s">Cliquez sur "Nouvelle publication"</div></div></td></tr>`;
-return;
+  const tbody = document.getElementById('bodyPublications');
+  if(publications.length === 0){
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="empty-ic">📢</div><div class="empty-t">Aucune publication</div><div class="empty-s">Cliquez sur "Nouvelle publication"</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = publications.map((p,i)=>{
+    const date = p.dateCreation ? new Date(p.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}) : '—';
+    const badge = p.statut === 'approuve' ? '<span class="badge ok">Publiée</span>' :
+                  p.statut === 'refuse' ? '<span class="badge err">Refusée</span>' :
+                  '<span class="badge warn">En attente</span>';
+    const acts = p.statut === 'en_attente'
+      ? `<button class="btn-ico ok" data-act="app-pub" data-id="${esc(p.id)}">✅ Approuver</button>
+         <button class="btn-ico err" data-act="rej-pub" data-id="${esc(p.id)}">❌</button>
+         <button class="btn-ico err" data-act="del-pub" data-id="${esc(p.id)}">🗑️</button>`
+      : `<button class="btn-ico err" data-act="del-pub" data-id="${esc(p.id)}">🗑️ Supprimer</button>`;
+    const prixAff = (p.prix||0).toLocaleString('fr-FR')+' FC'+(p.prixLabel?` <span style="font-size:10px;color:#94a3b8;font-weight:600;">${esc(p.prixLabel)}</span>`:'');
+    return `<tr>
+      <td>${i+1}</td>
+      <td style="font-size:11.5px;">${esc(date)}</td>
+      <td>${esc(p.commerce||'—')}</td>
+      <td><span class="badge info">${esc(p.type||'—')}</span></td>
+      <td><strong style="color:#fff;">${esc(p.titre||'—')}</strong></td>
+      <td style="color:#fbbf24;font-weight:800;">${prixAff}</td>
+      <td>${p.img ? `<a href="${esc(p.img)}" target="_blank" style="color:#60a5fa;">🔗 Voir</a>` : '—'}</td>
+      <td>${badge}</td>
+      <td><div class="act">${acts}</div></td>
+    </tr>`;
+  }).join('');
 }
-tbody.innerHTML = publications.map((p,i)=>{
-const date = p.dateCreation ? new Date(p.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}) : '—';
-const badge = p.statut === 'approuve' ? '<span class="badge ok">Publiée</span>' :
-p.statut === 'refuse' ? '<span class="badge err">Refusée</span>' :
-'<span class="badge warn">En attente</span>';
-const acts = p.statut === 'en_attente'
-? `<button class="btn-ico ok" data-act="app-pub" data-id="${esc(p.id)}">✅ Approuver</button>
-<button class="btn-ico err" data-act="rej-pub" data-id="${esc(p.id)}">❌</button>
-<button class="btn-ico err" data-act="del-pub" data-id="${esc(p.id)}">🗑️</button>`
-: `<button class="btn-ico err" data-act="del-pub" data-id="${esc(p.id)}">🗑️ Supprimer</button>`;
-const prixAff = (p.prix||0).toLocaleString('fr-FR')+' FC'+(p.prixLabel?` <span style="font-size:10px;color:#94a3b8;font-weight:600;">${esc(p.prixLabel)}</span>`:'');
-return `<tr>
-<td>${i+1}</td>
-<td style="font-size:11.5px;">${esc(date)}</td>
-<td>${esc(p.commerce||'—')}</td>
-<td><span class="badge info">${esc(p.type||'—')}</span></td>
-<td><strong style="color:#fff;">${esc(p.titre||'—')}</strong></td>
-<td style="color:#fbbf24;font-weight:800;">${prixAff}</td>
-<td>${p.img ? `<a href="${esc(p.img)}" target="_blank" style="color:#60a5fa;">🔗 Voir</a>` : '—'}</td>
-<td>${badge}</td>
-<td><div class="act">${acts}</div></td>
-</tr>`;
-}).join('');
-}
+
 document.getElementById('refreshPublications').onclick = ()=>loadPublications();
 document.getElementById('addPublication').onclick = openPublicationModal;
+
 function openPublicationModal(){
-const options = boutiquesActives.length > 0
-? boutiquesActives.map(b => `<option value="${esc(b.nom)}" data-id="${esc(b.uid)}">${esc(b.nom)} — ${esc(b.ville)} (${esc(b.type)})</option>`).join('')
-: '<option value="">— Aucune boutique active —</option>';
-const d = document.createElement('div');
-d.className = 'modal show';
-d.innerHTML = `<div class="modal-box">
-<h2>📢 Nouvelle publication</h2>
-<div class="field">
-<label>Commerce ciblé *</label>
-<select id="pubCommerceSelect">
-<option value="">— Choisir un commerce —</option>
-${options}
-<option value="__autre__">➕ Autre (saisie libre)</option>
-</select>
-<input type="text" id="pubCommerceManual" placeholder="Nom du commerce..." style="margin-top:8px;display:none;">
-</div>
-<div class="field">
-<label>Type de commerce *</label>
-<select id="pubType" required>
-<option value="">— Choisir un type —</option>
-<option value="Supermarché">🛒 Supermarché</option>
-<option value="Restaurant">🍽️ Restaurant</option>
-<option value="Hôtel">🏨 Hôtel</option>
-<option value="Pharmacie">💊 Pharmacie</option>
-<option value="Mode, Vêtements & Beauté">👗 Mode, Vêtements & Beauté</option>
-<option value="Cosmétiques">💇 Cosmétiques</option>
-<option value="Salon de Coiffure">✂️ Salon de Coiffure</option>
-<option value="Services">🛠️ Services / Atelier</option>
-<option value="Boulangerie">🥖 Boulangerie</option>
-<option value="Quincaillerie">🔧 Quincaillerie</option>
-<option value="Électronique">📱 Électronique</option>
-<option value="Concessionnaire">🚗 Concessionnaire</option>
-<option value="Vivriers & Fruits">🌾 Vivriers & Fruits</option>
-<option value="Autres">📦 Autres</option>
-</select>
-</div>
-<div class="field"><label>Catégorie produit (optionnel)</label><input type="text" id="pubCat" placeholder="Ex: Alimentation, Vêtements..."></div>
-<div class="field"><label>Titre *</label><input type="text" id="pubTitre" placeholder="Ex: Riz Parfumé 25kg"></div>
-<div class="grid-2">
-<div class="field" style="margin-bottom:0;">
-<label>Prix (FC) *</label>
-<input type="number" id="pubPrix" placeholder="Ex: 75000" min="0" step="1" required>
-</div>
-<div class="field" style="margin-bottom:0;">
-<label>Unité</label>
-<select id="pubUnite">
-<option value="">— Sans unité —</option>
-<option value="/ pièce">/ pièce</option>
-<option value="/ kg">/ kg</option>
-<option value="/ sac">/ sac</option>
-<option value="/ bidon">/ bidon</option>
-<option value="/ pack">/ pack</option>
-<option value="/ lot">/ lot</option>
-<option value="/ nuit">/ nuit</option>
-<option value="/ mois">/ mois</option>
-<option value="/ service">/ service</option>
-<option value="/ réparation">/ réparation</option>
-<option value="/ plat">/ plat</option>
-<option value="/ verre">/ verre</option>
-</select>
-</div>
-</div>
-<div class="field" style="margin-top:14px;"><label>Description</label><textarea id="pubDesc" placeholder="Description..."></textarea></div>
-<div class="field">
-<label>Image — URL ou upload *</label>
-<input type="text" id="pubUrl" placeholder="https://...">
-<div style="text-align:center;margin:10px 0;color:#64748b;font-size:11px;">— OU —</div>
-<div class="upload" id="pubUpload">
-<div class="upload-ic">📷</div>
-<div class="upload-t">Cliquez pour uploader</div>
-<div class="upload-s">JPG, PNG · max 2 Mo</div>
-<input type="file" id="pubFile" accept="image/*" hidden>
-</div>
-<div id="pubPreview" style="margin-top:12px;text-align:center;"></div>
-</div>
-<div class="modal-act">
-<button class="cancel" data-cancel>Annuler</button>
-<button class="confirm" data-save>Créer (en attente)</button>
-</div>
-</div>`;
-document.body.appendChild(d);
-let imgB64 = null;
-const fileInput = d.querySelector('#pubFile');
-const urlInput = d.querySelector('#pubUrl');
-const preview = d.querySelector('#pubPreview');
-const upZone = d.querySelector('#pubUpload');
-const selectComm = d.querySelector('#pubCommerceSelect');
-const manualComm = d.querySelector('#pubCommerceManual');
-selectComm.onchange = ()=>{
-if(selectComm.value === '__autre__'){
-manualComm.style.display = 'block';
-manualComm.required = true;
-manualComm.value = '';
-manualComm.focus();
-}else{
-manualComm.style.display = 'none';
-manualComm.required = false;
-manualComm.value = '';
+  const options = boutiquesActives.length > 0
+    ? boutiquesActives.map(b => `<option value="${esc(b.nom)}" data-id="${esc(b.uid)}" data-type="${esc(b.type)}">${esc(b.nom)} — ${esc(b.ville)}</option>`).join('')
+    : '<option value="">— Aucune boutique active —</option>';
+
+  const d = document.createElement('div');
+  d.className = 'modal show';
+  d.innerHTML = `<div class="modal-box" style="max-width:560px;">
+    <h2>📢 Nouvelle publication</h2>
+
+    <div class="field">
+      <label>Commerce *</label>
+      <select id="pubCommerceSelect" required>
+        <option value="">— Choisir un commerce —</option>
+        ${options}
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Titre de l'article *</label>
+      <input type="text" id="pubTitre" placeholder="Ex: Riz Parfumé 25kg" required>
+    </div>
+
+    <div class="grid-2">
+      <div class="field" style="margin-bottom:0;">
+        <label>Prix (FC) *</label>
+        <input type="number" id="pubPrix" placeholder="75000" min="0" step="1" required>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Unité</label>
+        <select id="pubUnite">
+          <option value="">— Sans unité —</option>
+          <option value="/ pièce">/ pièce</option>
+          <option value="/ kg">/ kg</option>
+          <option value="/ g">/ g</option>
+          <option value="/ L">/ L</option>
+          <option value="/ ml">/ ml</option>
+          <option value="/ sac">/ sac</option>
+          <option value="/ bidon">/ bidon</option>
+          <option value="/ bouteille">/ bouteille</option>
+          <option value="/ pack">/ pack</option>
+          <option value="/ lot">/ lot</option>
+          <option value="/ carton">/ carton</option>
+          <option value="/ plaquette">/ plaquette</option>
+          <option value="/ comprimé">/ comprimé</option>
+          <option value="/ boîte">/ boîte</option>
+          <option value="/ flacon">/ flacon</option>
+          <option value="/ sachet">/ sachet</option>
+          <option value="/ méga">/ méga</option>
+          <option value="/ GB">/ GB</option>
+          <option value="/ nuit">/ nuit</option>
+          <option value="/ semaine">/ semaine</option>
+          <option value="/ mois">/ mois</option>
+          <option value="/ an">/ an</option>
+          <option value="/ heure">/ heure</option>
+          <option value="/ service">/ service</option>
+          <option value="/ réparation">/ réparation</option>
+          <option value="/ plat">/ plat</option>
+          <option value="/ verre">/ verre</option>
+          <option value="/ portion">/ portion</option>
+          <option value="/ mètre">/ mètre</option>
+          <option value="/ m²">/ m²</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field" style="margin-top:14px;">
+      <label>Catégorie</label>
+      <select id="pubCat">
+        <option value="">— Choisir une catégorie —</option>
+        <option value="Alimentation">🍚 Alimentation</option>
+        <option value="Boissons">🥤 Boissons</option>
+        <option value="Farine & Céréales">🌾 Farine & Céréales</option>
+        <option value="Fruits & Légumes">🍎 Fruits & Légumes</option>
+        <option value="Viandes & Poissons">🥩 Viandes & Poissons</option>
+        <option value="Produits Laitiers">🥛 Produits Laitiers</option>
+        <option value="Plats">🍽️ Plats préparés</option>
+        <option value="Snacks">🍟 Snacks</option>
+        <option value="Pâtisserie">🥐 Pâtisserie</option>
+        <option value="Médicaments">💊 Médicaments</option>
+        <option value="Vitamines">💊 Vitamines</option>
+        <option value="Hygiène & Beauté">🧴 Hygiène & Beauté</option>
+        <option value="Vêtements">👕 Vêtements</option>
+        <option value="Chaussures">👟 Chaussures</option>
+        <option value="Accessoires">👜 Accessoires</option>
+        <option value="Mèches & Perruques">💇 Mèches & Perruques</option>
+        <option value="Cosmétiques">💄 Cosmétiques</option>
+        <option value="Coiffure Femme">💇 Coiffure Femme</option>
+        <option value="Coiffure Homme">💈 Coiffure Homme</option>
+        <option value="Smartphones">📱 Smartphones</option>
+        <option value="Ordinateurs">💻 Ordinateurs</option>
+        <option value="TV & Audio">📺 TV & Audio</option>
+        <option value="Accessoires Électroniques">🔌 Accessoires Électroniques</option>
+        <option value="Chambres">🛏️ Chambres</option>
+        <option value="SUV">🚙 SUV</option>
+        <option value="Berline">🚗 Berline</option>
+        <option value="Moto">🏍️ Moto</option>
+        <option value="Matériaux">🧱 Matériaux</option>
+        <option value="Outils">🔧 Outils</option>
+        <option value="Réparation">🔧 Réparation</option>
+        <option value="Informatique">💻 Informatique</option>
+        <option value="Pains">🥖 Pains</option>
+        <option value="Viennoiseries">🥐 Viennoiseries</option>
+        <option value="Autres">📦 Autres</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Description (optionnel)</label>
+      <textarea id="pubDesc" placeholder="Détails du produit..."></textarea>
+    </div>
+
+    <div class="field">
+      <label>Photo du produit *</label>
+      <div class="upload" id="pubUpload">
+        <div class="upload-ic">📷</div>
+        <div class="upload-t">Cliquez pour choisir une photo</div>
+        <div class="upload-s">JPG, PNG · max 2 Mo</div>
+        <input type="file" id="pubFile" accept="image/*" hidden>
+      </div>
+      <div id="pubPreview" style="margin-top:12px;text-align:center;"></div>
+    </div>
+
+    <div class="modal-act">
+      <button class="cancel" data-cancel>Annuler</button>
+      <button class="confirm" data-save>Créer (en attente)</button>
+    </div>
+  </div>`;
+  document.body.appendChild(d);
+
+  let imgB64 = null;
+  const fileInput = d.querySelector('#pubFile');
+  const preview = d.querySelector('#pubPreview');
+  const upZone = d.querySelector('#pubUpload');
+  const selectComm = d.querySelector('#pubCommerceSelect');
+
+  upZone.onclick = ()=>fileInput.click();
+  fileInput.onchange = ()=>{
+    const f = fileInput.files[0];
+    if(!f) return;
+    if(f.size > 2*1024*1024){ toast('Image trop grande (max 2 Mo)','err'); return; }
+    const r = new FileReader();
+    r.onload = e=>{
+      imgB64 = e.target.result;
+      preview.innerHTML = `<img src="${imgB64}" style="max-width:100%;max-height:200px;border-radius:10px;">`;
+      upZone.classList.add('loaded');
+      upZone.querySelector('.upload-t').textContent = '✅ ' + f.name;
+    };
+    r.readAsDataURL(f);
+  };
+
+  d.querySelector('[data-cancel]').onclick = ()=>d.remove();
+
+  d.querySelector('[data-save]').onclick = async ()=>{
+    let commerce = '';
+    let uidCommerce = null;
+    let typeCommerce = '';
+
+    if(selectComm.value){
+      commerce = selectComm.value;
+      const opt = selectComm.options[selectComm.selectedIndex];
+      uidCommerce = opt?.dataset?.id || null;
+      typeCommerce = opt?.dataset?.type || '';
+    }
+
+    const titre = d.querySelector('#pubTitre').value.trim();
+    const prix = parseInt(d.querySelector('#pubPrix').value, 10) || 0;
+    const prixLabel = d.querySelector('#pubUnite').value || '';
+    const categorie = d.querySelector('#pubCat').value;
+    const desc = d.querySelector('#pubDesc').value.trim();
+
+    if(!commerce){ toast('Choisissez un commerce','err'); return; }
+    if(!titre){ toast('Saisissez un titre','err'); return; }
+    if(!prix || prix<=0){ toast('Saisissez un prix valide','err'); return; }
+    if(!imgB64){ toast('Ajoutez une photo','err'); return; }
+
+    setLoader(true);
+    try{
+      const pubId = 'PUB-' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
+      await setDoc(doc(db,'publications',pubId),{
+        commerce,
+        uidCommerce: uidCommerce || null,
+        type: typeCommerce,
+        categorie: categorie,
+        titre: titre,
+        prix: prix,
+        prixLabel: prixLabel,
+        desc: desc,
+        img: imgB64,
+        statut: 'en_attente',
+        dateCreation: new Date().toISOString(),
+        publieParAdmin: true
+      });
+
+      toast('Publication créée — en attente d\'approbation ✅');
+      d.remove();
+      await loadPublications();
+    }catch(e){
+      toast('Erreur: '+e.message,'err');
+    }finally{
+      setLoader(false);
+    }
+  };
 }
-};
-upZone.onclick = ()=>fileInput.click();
-fileInput.onchange = ()=>{
-const f = fileInput.files[0];
-if(!f) return;
-if(f.size > 2*1024*1024){ toast('Image trop grande (max 2 Mo)','err'); return; }
-const r = new FileReader();
-r.onload = e=>{
-imgB64 = e.target.result;
-urlInput.value = '';
-preview.innerHTML = `<img src="${imgB64}" style="max-width:100%;max-height:200px;border-radius:10px;">`;
-upZone.classList.add('loaded');
-upZone.querySelector('.upload-t').textContent = '✅ ' + f.name;
-};
-r.readAsDataURL(f);
-};
-urlInput.oninput = ()=>{
-if(urlInput.value){
-imgB64 = null;
-preview.innerHTML = `<img src="${esc(urlInput.value)}" style="max-width:100%;max-height:200px;border-radius:10px;" onerror="this.style.display='none'">`;
-}
-};
-d.querySelector('[data-cancel]').onclick = ()=>d.remove();
-d.querySelector('[data-save]').onclick = async ()=>{
-let commerce = '';
-let uidCommerce = null;
-if(selectComm.value === '__autre__'){
-commerce = manualComm.value.trim();
-}else if(selectComm.value){
-commerce = selectComm.value;
-const opt = selectComm.options[selectComm.selectedIndex];
-uidCommerce = opt?.dataset?.id || null;
-}
-const type = d.querySelector('#pubType').value;
-const categorie = d.querySelector('#pubCat').value.trim();
-const titre = d.querySelector('#pubTitre').value.trim();
-const prix = parseInt(d.querySelector('#pubPrix').value, 10) || 0;
-const prixLabel = d.querySelector('#pubUnite').value || '';
-const desc = d.querySelector('#pubDesc').value.trim();
-const img = imgB64 || urlInput.value.trim();
-if(!commerce){ toast('Choisissez un commerce','err'); return; }
-if(!type){ toast('Choisissez un type','err'); return; }
-if(!titre){ toast('Saisissez un titre','err'); return; }
-if(!prix || prix<=0){ toast('Saisissez un prix valide','err'); return; }
-if(!img){ toast('Ajoutez une image','err'); return; }
-setLoader(true);
-try{
-const pubId = 'PUB-' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
-await setDoc(doc(db,'publications',pubId),{
-commerce, uidCommerce: uidCommerce || null,
-type, categorie, titre,
-prix, prixLabel, desc, img,
-statut: 'en_attente',
-dateCreation: new Date().toISOString(),
-publieParAdmin: true
-});
-toast('Publication créée — en attente d\'approbation ✅');
-d.remove();
-await loadPublications();
-}catch(e){ toast('Erreur: '+e.message,'err'); }
-finally{ setLoader(false); }
-};
-}
+
 async function approuverPublication(id){
-setLoader(true);
-try{
-const pub = publications.find(p=>p.id===id);
-if(!pub){ toast('Publication introuvable','err'); setLoader(false); return; }
-await setDoc(doc(db,'publications',id),{
-statut:'approuve',
-dateApprobation: new Date().toISOString()
-},{ merge:true });
-const commSnap = await getDocs(collection(db,'commerces'));
-let commerceDocId = null;
-commSnap.forEach(cd=>{
-if(cd.data().nom === pub.commerce){ commerceDocId = cd.id; }
-});
-if(commerceDocId){
-const commRef = doc(db,'commerces',commerceDocId);
-const commDoc = await getDoc(commRef);
-const existing = commDoc.data() || {};
-const produits = existing.produits || [];
-produits.push({
-nom: pub.titre,
-prix: pub.prix || 0,
-prixLabel: pub.prixLabel || '',
-img: pub.img || '',
-categorie: pub.categorie || pub.type || 'Article',
-statut: 'approuve',
-publicationId: id,
-dateAjout: new Date().toISOString()
-});
-await setDoc(commRef, { produits }, { merge: true });
-toast('Publication approuvée + produit ajouté ✅');
-}else{
-toast('Approuvée (⚠️ commerce non trouvé)','warn');
+  setLoader(true);
+  try{
+    const pub = publications.find(p=>p.id===id);
+    if(!pub){ toast('Publication introuvable','err'); setLoader(false); return; }
+
+    await setDoc(doc(db,'publications',id),{
+      statut:'approuve',
+      dateApprobation: new Date().toISOString()
+    },{ merge:true });
+
+    const commSnap = await getDocs(collection(db,'commerces'));
+    let commerceDocId = null;
+    commSnap.forEach(cd=>{
+      if(cd.data().nom === pub.commerce){ commerceDocId = cd.id; }
+    });
+
+    if(commerceDocId){
+      const commRef = doc(db,'commerces',commerceDocId);
+      const commDoc = await getDoc(commRef);
+      const existing = commDoc.data() || {};
+      const produits = existing.produits || [];
+      produits.push({
+        nom: pub.titre,
+        prix: pub.prix || 0,
+        prixLabel: pub.prixLabel || '',
+        img: pub.img || '',
+        categorie: pub.categorie || pub.type || 'Article',
+        statut: 'approuve',
+        publicationId: id,
+        dateAjout: new Date().toISOString()
+      });
+      await setDoc(commRef, { produits }, { merge: true });
+      toast('Publication approuvée + produit ajouté ✅');
+    }else{
+      toast('Approuvée (⚠️ commerce non trouvé)','warn');
+    }
+    await loadPublications();
+  }catch(e){ toast('Erreur: '+e.message,'err'); }
+  finally{ setLoader(false); }
 }
-await loadPublications();
-}catch(e){ toast('Erreur: '+e.message,'err'); }
-finally{ setLoader(false); }
-}
+
 async function rejeterPublication(id){
-setLoader(true);
-try{
-await setDoc(doc(db,'publications',id),{
-statut:'refuse',
-dateRefus:new Date().toISOString()
-},{ merge:true });
-toast('Publication refusée','warn');
-await loadPublications();
-}catch(e){ toast('Erreur: '+e.message,'err'); }
-finally{ setLoader(false); }
+  setLoader(true);
+  try{
+    await setDoc(doc(db,'publications',id),{
+      statut:'refuse',
+      dateRefus:new Date().toISOString()
+    },{ merge:true });
+    toast('Publication refusée','warn');
+    await loadPublications();
+  }catch(e){ toast('Erreur: '+e.message,'err'); }
+  finally{ setLoader(false); }
 }
+
 async function supprimerPublication(id){
-confirm('Supprimer cette publication ?', 'Le produit sera aussi retiré du catalogue.',
-async ()=>{
-setLoader(true);
-try{
-const pub = publications.find(p=>p.id===id);
-if(pub && pub.commerce){
-const commSnap = await getDocs(collection(db,'commerces'));
-let commerceDocId = null;
-commSnap.forEach(cd=>{
-if(cd.data().nom === pub.commerce){ commerceDocId = cd.id; }
-});
-if(commerceDocId){
-const commRef = doc(db,'commerces',commerceDocId);
-const commDoc = await getDoc(commRef);
-const existing = commDoc.data() || {};
-let produits = existing.produits || [];
-produits = produits.filter(p => p.publicationId !== id);
-await setDoc(commRef, { produits }, { merge: true });
+  confirm('Supprimer cette publication ?', 'Le produit sera aussi retiré du catalogue.',
+    async ()=>{
+      setLoader(true);
+      try{
+        const pub = publications.find(p=>p.id===id);
+        if(pub && pub.commerce){
+          const commSnap = await getDocs(collection(db,'commerces'));
+          let commerceDocId = null;
+          commSnap.forEach(cd=>{
+            if(cd.data().nom === pub.commerce){ commerceDocId = cd.id; }
+          });
+          if(commerceDocId){
+            const commRef = doc(db,'commerces',commerceDocId);
+            const commDoc = await getDoc(commRef);
+            const existing = commDoc.data() || {};
+            let produits = existing.produits || [];
+            produits = produits.filter(p => p.publicationId !== id);
+            await setDoc(commRef, { produits }, { merge: true });
+          }
+        }
+        await deleteDoc(doc(db,'publications',id));
+        toast('Publication + produit supprimés','warn');
+        await loadPublications();
+      }catch(e){ toast('Erreur: '+e.message,'err'); }
+      finally{ setLoader(false); }
+    });
 }
+
+/* ============ ANNONCES ============ */
+async function loadAnnonces(){
+  try{
+    const snap = await getDocs(collection(db,'annonces'));
+    annonces = [];
+    snap.forEach(d=>{
+      const data = d.data();
+      annonces.push({
+        id: d.id,
+        titre: data.titre || '',
+        desc: data.desc || '',
+        ville: data.ville || '',
+        quartier: data.quartier || '',
+        prix: data.prix || '',
+        img: data.img || '',
+        cat: data.cat || 'autre',
+        tag: data.tag || '',
+        tagClass: data.tagClass || 'post-tag-autre',
+        proprietaireUid: data.proprietaireUid || '',
+        publieurNom: data.publieurNom || data.nom || 'Utilisateur',
+        publieurType: data.publieurType || 'user',
+        publieurBoutique: data.publieurBoutique || null,
+        publieurPhone: data.publieurPhone || '',
+        publieurVille: data.publieurVille || '',
+        ajouteParAdmin: data.ajouteParAdmin || false,
+        dateCreation: data.dateCreation || '',
+        actif: data.actif !== false
+      });
+    });
+    annonces.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
+    renderAnnonces();
+  }catch(e){
+    console.warn('Annonces:', e.message);
+  }
 }
-await deleteDoc(doc(db,'publications',id));
-toast('Publication + produit supprimés','warn');
-await loadPublications();
-}catch(e){ toast('Erreur: '+e.message,'err'); }
-finally{ setLoader(false); }
-});
+
+function renderAnnonces(){
+  const tbody = document.getElementById('bodyAnnonces');
+  if(!tbody) return;
+  const q = (document.getElementById('searchAnnonces').value||'').toLowerCase().trim();
+  const catFilter = document.getElementById('filterAnnonceCat').value;
+  const publieurFilter = document.getElementById('filterAnnoncePublieur').value;
+
+  const list = annonces.filter(a=>{
+    if(catFilter && a.cat !== catFilter) return false;
+    if(publieurFilter === 'user' && a.publieurType !== 'user') return false;
+    if(publieurFilter === 'commerce' && a.publieurType !== 'commerce') return false;
+    if(publieurFilter === 'admin' && !a.ajouteParAdmin) return false;
+    if(q){
+      const t = ((a.titre||'')+' '+(a.publieurNom||'')+' '+(a.ville||'')).toLowerCase();
+      if(!t.includes(q)) return false;
+    }
+    return true;
+  });
+
+  if(list.length === 0){
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="empty-ic">📋</div><div class="empty-t">Aucune annonce</div></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map((a,i)=>{
+    const date = a.dateCreation ? new Date(a.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'2-digit'}) : '—';
+    const catLabel = {hopital:'🚨 Hôpital',ecole:'🎓 École',location:'🏠 Location',parcelle:'📐 Parcelle',entreprise:'🏢 Entreprise',vehicule:'🚗 Véhicule',electronique:'📱 Électronique',autre:'🛠️ Autre'}[a.cat] || '📦 Autre';
+    const publieurBadge = a.publieurType === 'commerce' ? '<span class="badge ok">🏪</span>' : '<span class="badge info">👤</span>';
+    const adminBadge = a.ajouteParAdmin ? ' <span class="badge warn" style="font-size:8px;">⚡</span>' : '';
+    return `<tr>
+      <td>${i+1}</td>
+      <td style="font-size:11.5px;">${esc(date)}</td>
+      <td style="font-size:12px;"><strong style="color:#fff;">${esc(a.publieurNom)}</strong> ${publieurBadge}${adminBadge}</td>
+      <td><span class="badge info">${esc(catLabel)}</span></td>
+      <td><strong style="color:#fff;">${esc(a.titre)}</strong></td>
+      <td style="color:#fbbf24;font-weight:800;">${esc(a.prix||'—')}</td>
+      <td style="font-size:11.5px;">${esc(a.ville||'—')}</td>
+      <td>${a.img ? `<a href="${esc(a.img)}" target="_blank" style="color:#60a5fa;">🔗</a>` : '—'}</td>
+      <td><div class="act">
+        <button class="btn-ico info" data-act="view-ann" data-id="${esc(a.id)}">👁️</button>
+        <button class="btn-ico warn" data-act="edit-ann" data-id="${esc(a.id)}">✏️</button>
+        <button class="btn-ico err" data-act="del-ann" data-id="${esc(a.id)}">🗑️</button>
+      </div></td>
+    </tr>`;
+  }).join('');
 }
+
+document.getElementById('searchAnnonces').oninput = renderAnnonces;
+document.getElementById('filterAnnonceCat').onchange = renderAnnonces;
+document.getElementById('filterAnnoncePublieur').onchange = renderAnnonces;
+document.getElementById('refreshAnnonces').onclick = ()=>loadAnnonces();
+
+async function detailAnnonce(id){
+  const a = annonces.find(x=>x.id===id);
+  if(!a) return;
+  const d = document.createElement('div');
+  d.className = 'modal show';
+  d.innerHTML = `<div class="modal-box">
+    <h2>👁️ Détails annonce</h2>
+    ${a.img ? `<div style="text-align:center;margin-bottom:16px;"><img src="${esc(a.img)}" style="max-width:100%;max-height:200px;border-radius:12px;"></div>` : ''}
+    <div class="field"><label>Publieur</label><input readonly value="${esc(a.publieurNom)} (${a.publieurType})"></div>
+    <div class="field"><label>Titre</label><input readonly value="${esc(a.titre)}"></div>
+    <div class="field"><label>Type</label><input readonly value="${esc(a.cat)}"></div>
+    <div class="field"><label>Prix</label><input readonly value="${esc(a.prix)}"></div>
+    <div class="field"><label>Ville</label><input readonly value="${esc(a.ville)}"></div>
+    <div class="field"><label>Quartier</label><input readonly value="${esc(a.quartier)}"></div>
+    <div class="field"><label>Description</label><textarea readonly>${esc(a.desc)}</textarea></div>
+    <div class="modal-act">
+      <button class="cancel" data-close>Fermer</button>
+      <button class="confirm" data-edit>Modifier</button>
+    </div>
+  </div>`;
+  document.body.appendChild(d);
+  d.querySelector('[data-close]').onclick = ()=>d.remove();
+  d.querySelector('[data-edit]').onclick = ()=>{ d.remove(); ouvrirModalEditAnnonce(id); };
+  d.onclick = e=>{ if(e.target===d) d.remove(); };
+}
+
+async function ouvrirModalEditAnnonce(id){
+  const a = annonces.find(x=>x.id===id);
+  if(!a){ toast('Annonce introuvable','err'); return; }
+
+  const d = document.createElement('div');
+  d.className = 'modal show';
+  d.innerHTML = `<div class="modal-box">
+    <h2>✏️ Modifier l'annonce</h2>
+
+    <div class="field">
+      <label>Type d'annonce *</label>
+      <select id="editAnnType" required>
+        <option value="hopital" ${a.cat==='hopital'?'selected':''}>🚨 Hôpital / Urgence</option>
+        <option value="ecole" ${a.cat==='ecole'?'selected':''}>🎓 École</option>
+        <option value="location" ${a.cat==='location'?'selected':''}>🏠 Location</option>
+        <option value="parcelle" ${a.cat==='parcelle'?'selected':''}>📐 Parcelle</option>
+        <option value="entreprise" ${a.cat==='entreprise'?'selected':''}>🏢 Entreprise / Emploi</option>
+        <option value="vehicule" ${a.cat==='vehicule'?'selected':''}>🚗 Véhicule</option>
+        <option value="electronique" ${a.cat==='electronique'?'selected':''}>📱 Électronique</option>
+        <option value="autre" ${a.cat==='autre'?'selected':''}>🛠️ Autre</option>
+      </select>
+    </div>
+
+    <div class="field"><label>Titre *</label><input type="text" id="editAnnTitre" value="${esc(a.titre)}"></div>
+
+    <div class="grid-2">
+      <div class="field" style="margin-bottom:0;">
+        <label>Prix *</label>
+        <input type="text" id="editAnnPrix" value="${esc(a.prix)}">
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Ville *</label>
+        <select id="editAnnVille">
+          <option value="Kinshasa" ${a.ville==='Kinshasa'?'selected':''}>Kinshasa</option>
+          <option value="Lubumbashi" ${a.ville==='Lubumbashi'?'selected':''}>Lubumbashi</option>
+          <option value="Kasumbalesa" ${a.ville==='Kasumbalesa'?'selected':''}>Kasumbalesa</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field" style="margin-top:14px;"><label>Quartier</label><input type="text" id="editAnnQuartier" value="${esc(a.quartier)}"></div>
+
+    <div class="field"><label>Description</label><textarea id="editAnnDesc">${esc(a.desc)}</textarea></div>
+
+    <div class="field">
+      <label>Image (URL)</label>
+      <input type="text" id="editAnnImg" value="${esc(a.img)}">
+    </div>
+
+    <div class="modal-act">
+      <button class="cancel" data-cancel>Annuler</button>
+      <button class="confirm" data-save>Enregistrer</button>
+    </div>
+  </div>`;
+  document.body.appendChild(d);
+
+  d.querySelector('[data-cancel]').onclick = ()=>d.remove();
+  d.querySelector('[data-save]').onclick = async ()=>{
+    const type = d.querySelector('#editAnnType').value;
+    const titre = d.querySelector('#editAnnTitre').value.trim();
+    const prix = d.querySelector('#editAnnPrix').value.trim();
+    const ville = d.querySelector('#editAnnVille').value;
+    const quartier = d.querySelector('#editAnnQuartier').value.trim();
+    const desc = d.querySelector('#editAnnDesc').value.trim();
+    const img = d.querySelector('#editAnnImg').value.trim();
+
+    if(!titre||!prix){ toast('Remplissez les champs obligatoires','err'); return; }
+
+    const tagMap = {
+      hopital:{tag:'🚨 Urgence',cls:'post-tag-urgence'},
+      ecole:{tag:'🎓 École',cls:'post-tag-school'},
+      location:{tag:'🏠 Location',cls:'post-tag-property'},
+      parcelle:{tag:'📐 Parcelle',cls:'post-tag-land'},
+      entreprise:{tag:'🏢 Entreprise',cls:'post-tag-entreprise'},
+      vehicule:{tag:'🚗 Véhicule',cls:'post-tag-vehicule'},
+      electronique:{tag:'📱 Électronique',cls:'post-tag-electronique'},
+      autre:{tag:'🛠️ Autre',cls:'post-tag-autre'}
+    };
+    const tagInfo = tagMap[type] || tagMap.autre;
+
+    setLoader(true);
+    try{
+      await setDoc(doc(db,'annonces',id),{
+        titre: titre,
+        desc: desc,
+        ville: ville,
+        quartier: quartier,
+        prix: prix,
+        img: img,
+        cat: type,
+        tag: tagInfo.tag,
+        tagClass: tagInfo.cls,
+        dateModification: new Date().toISOString()
+      },{ merge:true });
+      toast('Annonce modifiée ✅');
+      d.remove();
+      await loadAnnonces();
+    }catch(e){
+      toast('Erreur: '+e.message,'err');
+    }finally{
+      setLoader(false);
+    }
+  };
+}
+
+async function supprimerAnnonce(id){
+  confirm('Supprimer cette annonce ?', 'Action irréversible.',
+    async ()=>{
+      setLoader(true);
+      try{
+        await deleteDoc(doc(db,'annonces',id));
+        toast('Annonce supprimée','warn');
+        await loadAnnonces();
+      }catch(e){ toast('Erreur: '+e.message,'err'); }
+      finally{ setLoader(false); }
+    });
+}
+
+function ouvrirModalListeAnnoncesUser(uid){
+  const userAnnonces = annonces.filter(a => a.proprietaireUid === uid);
+  const publieur = netubers.find(n => n.id === uid);
+  const nom = publieur ? (publieur.nomComplet||publieur.nom) : 'Utilisateur';
+
+  const d = document.createElement('div');
+  d.className = 'modal show';
+  d.innerHTML = `<div class="modal-box" style="max-width:700px;">
+    <h2>📋 Annonces de ${esc(nom)}</h2>
+    ${userAnnonces.length === 0
+      ? '<div style="text-align:center;padding:40px 20px;color:#64748b;">Aucune annonce</div>'
+      : `<div style="display:flex;flex-direction:column;gap:10px;max-height:500px;overflow-y:auto;">${userAnnonces.map(a => `
+          <div style="padding:14px;background:#0a0e1a;border:1px solid #334155;border-radius:12px;display:flex;gap:12px;align-items:flex-start;">
+            ${a.img ? `<img src="${esc(a.img)}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;flex-shrink:0;">` : ''}
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13.5px;font-weight:900;color:#fff;">${esc(a.titre)}</div>
+              <div style="font-size:11.5px;color:#94a3b8;margin-top:3px;">${esc(a.ville||'')} · ${esc(a.prix||'')}</div>
+              <div style="display:flex;gap:6px;margin-top:8px;">
+                <button class="btn-ico warn" data-act="edit-ann" data-id="${esc(a.id)}">✏️ Modifier</button>
+                <button class="btn-ico err" data-act="del-ann" data-id="${esc(a.id)}">🗑️</button>
+              </div>
+            </div>
+          </div>
+        `).join('')}</div>`
+    }
+    <div class="modal-act"><button class="cancel" data-close>Fermer</button></div>
+  </div>`;
+  document.body.appendChild(d);
+  d.querySelector('[data-close]').onclick = ()=>d.remove();
+  d.onclick = e=>{ if(e.target===d) d.remove(); };
+}
+
+/* ============ BOUTIQUES ACTIVES ============ */
 async function loadActives(){
-try{
-const snap = await getDocs(collection(db,'netubers'));
-boutiquesActives = [];
-snap.forEach(d=>{
-const data = d.data();
-if(data.boutique && data.boutique.statut === 'approuve'){
-boutiquesActives.push({
-uid: d.id,
-nomComplet: data.nomComplet || data.nom || '—',
-phone: data.phone || '—',
-emailAuth: data.emailAuth || '—',
-...data.boutique
-});
+  try{
+    const snap = await getDocs(collection(db,'netubers'));
+    boutiquesActives = [];
+    snap.forEach(d=>{
+      const data = d.data();
+      if(data.boutique && data.boutique.statut === 'approuve'){
+        boutiquesActives.push({
+          uid: d.id,
+          nomComplet: data.nomComplet || data.nom || '—',
+          phone: data.phone || '—',
+          emailAuth: data.emailAuth || '—',
+          ...data.boutique
+        });
+      }
+    });
+    boutiquesActives.sort((a,b)=>(b.dateApprobation||'').localeCompare(a.dateApprobation||''));
+    renderActives();
+  }catch(e){ console.warn('Actives:', e.message); }
 }
-});
-boutiquesActives.sort((a,b)=>(b.dateApprobation||'').localeCompare(a.dateApprobation||''));
-renderActives();
-}catch(e){ console.warn('Actives:', e.message); }
-}
+
 function renderActives(){
-const tbody = document.getElementById('bodyActives');
-const q = (document.getElementById('searchActives').value||'').toLowerCase().trim();
-const list = boutiquesActives.filter(b=>{
-if(!q) return true;
-const t = ((b.nom||'')+' '+(b.type||'')+' '+(b.ville||'')+' '+(b.nomComplet||'')).toLowerCase();
-return t.includes(q);
-});
-if(list.length === 0){
-tbody.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="empty-ic">🏬</div><div class="empty-t">Aucune boutique active</div></div></td></tr>`;
-return;
+  const tbody = document.getElementById('bodyActives');
+  const q = (document.getElementById('searchActives').value||'').toLowerCase().trim();
+  const list = boutiquesActives.filter(b=>{
+    if(!q) return true;
+    const t = ((b.nom||'')+' '+(b.type||'')+' '+(b.ville||'')+' '+(b.nomComplet||'')).toLowerCase();
+    return t.includes(q);
+  });
+  if(list.length === 0){
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="empty-ic">🏬</div><div class="empty-t">Aucune boutique active</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map((b,i)=>{
+    const date = b.dateApprobation ? new Date(b.dateApprobation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'2-digit'}) : '—';
+    return `<tr>
+      <td>${i+1}</td>
+      <td><strong style="color:#fff;">${esc(b.nom||'—')}</strong></td>
+      <td style="font-size:11.5px;">${esc(b.type||'—')}</td>
+      <td style="font-size:11.5px;">${esc(b.ville||'')} · ${esc(b.quartier||'')}</td>
+      <td>${esc(b.nomComplet||'—')}</td>
+      <td style="font-size:11px;font-family:monospace;">${esc(b.telephone||'—')}</td>
+      <td style="font-size:11px;font-family:monospace;">${esc(b.whatsappCommercial||'—')}</td>
+      <td style="font-size:11.5px;">${esc(date)}</td>
+      <td><div class="act">
+        <button class="btn-ico ok" data-act="add-annonce" data-id="${esc(b.uid)}" title="Ajouter une annonce">➕</button>
+        <button class="btn-ico info" data-act="view-ann-user" data-id="${esc(b.uid)}" title="Voir ses annonces">📋</button>
+        <button class="btn-ico err" data-act="retirer-active" data-id="${esc(b.uid)}">🚫</button>
+      </div></td>
+    </tr>`;
+  }).join('');
 }
-tbody.innerHTML = list.map((b,i)=>{
-const date = b.dateApprobation ? new Date(b.dateApprobation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'2-digit'}) : '—';
-return `<tr>
-<td>${i+1}</td>
-<td><strong style="color:#fff;">${esc(b.nom||'—')}</strong></td>
-<td style="font-size:11.5px;">${esc(b.type||'—')}</td>
-<td style="font-size:11.5px;">${esc(b.ville||'')} · ${esc(b.quartier||'')}</td>
-<td>${esc(b.nomComplet||'—')}</td>
-<td style="font-size:11px;font-family:monospace;">${esc(b.telephone||'—')}</td>
-<td style="font-size:11px;font-family:monospace;">${esc(b.whatsappCommercial||'—')}</td>
-<td style="font-size:11.5px;">${esc(date)}</td>
-<td><button class="btn-ico err" data-act="retirer-active" data-id="${esc(b.uid)}">🚫 Retirer</button></td>
-</tr>`;
-}).join('');
-}
+
 document.getElementById('searchActives').oninput = renderActives;
 document.getElementById('refreshActives').onclick = ()=>loadActives();
+document.getElementById('addBoutiqueActives').onclick = ()=>ouvrirModalCreateBoutique();
+
 async function retirerActive(uid){
-confirm('Retirer cette boutique ?',
-'La boutique ne sera plus visible publiquement. Le compte utilisateur reste actif.',
-async ()=>{
-setLoader(true);
-try{
-await setDoc(doc(db,'netubers',uid),{ boutique: { statut: 'refuse' } },{ merge:true });
-toast('Boutique retirée','warn');
-await loadActives();
-}catch(e){ toast('Erreur: '+e.message,'err'); }
-finally{ setLoader(false); }
-});
+  confirm('Retirer cette boutique ?',
+    'La boutique ne sera plus visible publiquement. Le compte utilisateur reste actif.',
+    async ()=>{
+      setLoader(true);
+      try{
+        await setDoc(doc(db,'netubers',uid),{ boutique: { statut: 'refuse' } },{ merge:true });
+        toast('Boutique retirée','warn');
+        await loadActives();
+      }catch(e){ toast('Erreur: '+e.message,'err'); }
+      finally{ setLoader(false); }
+    });
 }
+
+/* ============ NETUBERS ============ */
 async function loadNetubers(){
-try{
-const snap = await getDocs(collection(db,'netubers'));
-netubers = [];
-snap.forEach(d=>{
-const data = d.data();
-netubers.push({
-id: d.id,
-nomComplet: data.nomComplet || data.nom || '—',
-nom: data.nom || '',
-prenom: data.prenom || '',
-phone: data.phone || '—',
-emailAuth: data.emailAuth || '—',
-code: data.code || '—',
-ville: data.ville || '—',
-quartier: data.quartier || '',
-role: data.role || 'user',
-actif: data.actif !== false,
-dateCreation: data.dateCreation || '',
-boutique: data.boutique || null,
-stats: data.stats || {}
-});
-});
-netubers.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
-renderNetubers();
-renderNetubersStats();
-}catch(e){
-console.warn('Netubers:', e.message);
-toast('Erreur chargement utilisateurs: '+e.message,'err');
+  try{
+    const snap = await getDocs(collection(db,'netubers'));
+    netubers = [];
+    snap.forEach(d=>{
+      const data = d.data();
+      netubers.push({
+        id: d.id,
+        nomComplet: data.nomComplet || data.nom || '—',
+        nom: data.nom || '',
+        prenom: data.prenom || '',
+        phone: data.phone || '—',
+        emailAuth: data.emailAuth || '—',
+        code: data.code || '—',
+        ville: data.ville || '—',
+        quartier: data.quartier || '',
+        role: data.role || 'user',
+        actif: data.actif !== false,
+        dateCreation: data.dateCreation || '',
+        boutique: data.boutique || null,
+        stats: data.stats || {}
+      });
+    });
+    netubers.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
+    renderNetubers();
+    renderNetubersStats();
+  }catch(e){
+    console.warn('Netubers:', e.message);
+    toast('Erreur chargement utilisateurs: '+e.message,'err');
+  }
 }
-}
+
 function renderNetubersStats(){
-const el = document.getElementById('netubersStats');
-if(!el) return;
-const total = netubers.length;
-const actifs = netubers.filter(n=>n.actif !== false).length;
-const inactifs = netubers.filter(n=>n.actif === false).length;
-const commercants = netubers.filter(n=>n.boutique && n.boutique.statut === 'approuve').length;
-el.innerHTML = `
-<div class="stat"><div class="stat-v">${total}</div><div class="stat-l">Total inscrits</div></div>
-<div class="stat green"><div class="stat-v">${actifs}</div><div class="stat-l">Comptes actifs</div></div>
-<div class="stat red"><div class="stat-v">${inactifs}</div><div class="stat-l">Comptes désactivés</div></div>
-<div class="stat orange"><div class="stat-v">${commercants}</div><div class="stat-l">Commerçants</div></div>
-`;
+  const el = document.getElementById('netubersStats');
+  if(!el) return;
+  const total = netubers.length;
+  const actifs = netubers.filter(n=>n.actif !== false).length;
+  const inactifs = netubers.filter(n=>n.actif === false).length;
+  const commercants = netubers.filter(n=>n.boutique && n.boutique.statut === 'approuve').length;
+  el.innerHTML = `
+    <div class="stat"><div class="stat-v">${total}</div><div class="stat-l">Total inscrits</div></div>
+    <div class="stat green"><div class="stat-v">${actifs}</div><div class="stat-l">Comptes actifs</div></div>
+    <div class="stat red"><div class="stat-v">${inactifs}</div><div class="stat-l">Comptes désactivés</div></div>
+    <div class="stat orange"><div class="stat-v">${commercants}</div><div class="stat-l">Commerçants</div></div>
+  `;
 }
+
 function renderNetubers(){
-const tbody = document.getElementById('bodyNetubers');
-const q = (document.getElementById('searchNetubers').value||'').toLowerCase().trim();
-const roleFilter = document.getElementById('filterNetubersRole').value;
-const list = netubers.filter(n=>{
-if(roleFilter === 'user' && n.boutique) return false;
-if(roleFilter === 'commerce' && (!n.boutique || n.boutique.statut !== 'approuve')) return false;
-if(roleFilter === 'inactif' && n.actif !== false) return false;
-if(q){
-const t = ((n.nomComplet||'')+' '+(n.phone||'')+' '+(n.ville||'')).toLowerCase();
-if(!t.includes(q)) return false;
+  const tbody = document.getElementById('bodyNetubers');
+  const q = (document.getElementById('searchNetubers').value||'').toLowerCase().trim();
+  const roleFilter = document.getElementById('filterNetubersRole').value;
+  const list = netubers.filter(n=>{
+    if(roleFilter === 'user' && n.boutique) return false;
+    if(roleFilter === 'commerce' && (!n.boutique || n.boutique.statut !== 'approuve')) return false;
+    if(roleFilter === 'inactif' && n.actif !== false) return false;
+    if(q){
+      const t = ((n.nomComplet||'')+' '+(n.phone||'')+' '+(n.ville||'')).toLowerCase();
+      if(!t.includes(q)) return false;
+    }
+    return true;
+  });
+  if(list.length === 0){
+    tbody.innerHTML = `<tr><td colspan="10"><div class="empty"><div class="empty-ic">👥</div><div class="empty-t">Aucun utilisateur</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map((n,i)=>{
+    const date = n.dateCreation ? new Date(n.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}) : '—';
+    const role = n.boutique && n.boutique.statut === 'approuve'
+      ? '<span class="badge ok">🏪 Commerçant</span>'
+      : '<span class="badge info">👤 User</span>';
+    const actif = n.actif === false
+      ? '<span class="badge err">Désactivé</span>'
+      : '<span class="badge ok">Actif</span>';
+    const toggleBtn = n.actif === false
+      ? `<button class="btn-ico ok" data-act="activer-user" data-id="${esc(n.id)}">✅</button>`
+      : `<button class="btn-ico warn" data-act="desactiver-user" data-id="${esc(n.id)}">🚫</button>`;
+    return `<tr>
+      <td>${i+1}</td>
+      <td><strong style="color:#fff;">${esc(n.nomComplet||'—')}</strong></td>
+      <td style="font-family:monospace;font-size:11.5px;">${esc(n.phone||'—')}</td>
+      <td style="font-size:11px;">${esc(n.emailAuth||'—')}</td>
+      <td><strong style="color:#fbbf24;font-family:monospace;">${esc(n.code||'—')}</strong></td>
+      <td>${esc(n.ville||'—')}</td>
+      <td>${role}</td>
+      <td>${actif}</td>
+      <td style="font-size:11.5px;">${esc(date)}</td>
+      <td><div class="act">
+        <button class="btn-ico info" data-act="detail-net" data-id="${esc(n.id)}">👁️</button>
+        <button class="btn-ico ok" data-act="add-annonce" data-id="${esc(n.id)}" title="Ajouter une annonce">➕</button>
+        <button class="btn-ico info" data-act="view-ann-user" data-id="${esc(n.id)}" title="Voir ses annonces">📋</button>
+        ${toggleBtn}
+      </div></td>
+    </tr>`;
+  }).join('');
 }
-return true;
-});
-if(list.length === 0){
-tbody.innerHTML = `<tr><td colspan="10"><div class="empty"><div class="empty-ic">👥</div><div class="empty-t">Aucun utilisateur</div></div></td></tr>`;
-return;
-}
-tbody.innerHTML = list.map((n,i)=>{
-const date = n.dateCreation ? new Date(n.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}) : '—';
-const role = n.boutique && n.boutique.statut === 'approuve'
-? '<span class="badge ok">🏪 Commerçant</span>'
-: '<span class="badge info">👤 User</span>';
-const actif = n.actif === false
-? '<span class="badge err">Désactivé</span>'
-: '<span class="badge ok">Actif</span>';
-const toggleBtn = n.actif === false
-? `<button class="btn-ico ok" data-act="activer-user" data-id="${esc(n.id)}">✅ Activer</button>`
-: `<button class="btn-ico warn" data-act="desactiver-user" data-id="${esc(n.id)}">🚫 Désactiver</button>`;
-return `<tr>
-<td>${i+1}</td>
-<td><strong style="color:#fff;">${esc(n.nomComplet||'—')}</strong></td>
-<td style="font-family:monospace;font-size:11.5px;">${esc(n.phone||'—')}</td>
-<td style="font-size:11px;">${esc(n.emailAuth||'—')}</td>
-<td><strong style="color:#fbbf24;font-family:monospace;">${esc(n.code||'—')}</strong></td>
-<td>${esc(n.ville||'—')}</td>
-<td>${role}</td>
-<td>${actif}</td>
-<td style="font-size:11.5px;">${esc(date)}</td>
-<td><div class="act">
-<button class="btn-ico info" data-act="detail-net" data-id="${esc(n.id)}">👁️</button>
-${toggleBtn}
-</div></td>
-</tr>`;
-}).join('');
-}
+
 document.getElementById('searchNetubers').oninput = renderNetubers;
 document.getElementById('filterNetubersRole').onchange = renderNetubers;
 document.getElementById('refreshNetubers').onclick = ()=>loadNetubers();
 document.getElementById('exportNetubers').onclick = exportNetubersCSV;
+
 async function toggleActifUser(id, actif){
-const n = netubers.find(x=>x.id===id);
-if(!n) return;
-const action = actif ? 'activer' : 'désactiver';
-confirm(`${action.charAt(0).toUpperCase()+action.slice(1)} ce compte ?`,
-`${esc(n.nomComplet || n.phone)}<br><br>
-${actif ? '✅ Le compte pourra se reconnecter.' : '<span style="color:#ef4444;">🚫 Le compte ne pourra plus se connecter.</span>'}`,
-async ()=>{
-setLoader(true);
-try{
-await setDoc(doc(db,'netubers',id),{ actif: actif },{ merge:true });
-toast(`Compte ${action}`);
-await loadNetubers();
-}catch(e){ toast('Erreur: '+e.message,'err'); }
-finally{ setLoader(false); }
-}, !actif);
+  const n = netubers.find(x=>x.id===id);
+  if(!n) return;
+  const action = actif ? 'activer' : 'désactiver';
+  confirm(`${action.charAt(0).toUpperCase()+action.slice(1)} ce compte ?`,
+    `${esc(n.nomComplet || n.phone)}<br><br>
+     ${actif ? '✅ Le compte pourra se reconnecter.' : '<span style="color:#ef4444;">🚫 Le compte ne pourra plus se connecter.</span>'}`,
+    async ()=>{
+      setLoader(true);
+      try{
+        await setDoc(doc(db,'netubers',id),{ actif: actif },{ merge:true });
+        toast(`Compte ${action}`);
+        await loadNetubers();
+      }catch(e){ toast('Erreur: '+e.message,'err'); }
+      finally{ setLoader(false); }
+    }, !actif);
 }
+
 function detailNetuber(id){
-const n = netubers.find(x=>x.id===id);
-if(!n) return;
-const d = document.createElement('div');
-d.className = 'modal show';
-d.innerHTML = `<div class="modal-box">
-<h2>👤 Détails utilisateur</h2>
-<div class="field"><label>Nom complet</label><input readonly value="${esc(n.nomComplet||'')}"></div>
-<div class="field"><label>Téléphone</label><input readonly value="${esc(n.phone||'')}"></div>
-<div class="field"><label>Email</label><input readonly value="${esc(n.emailAuth||'')}"></div>
-<div class="field"><label>Code d'accès</label><input readonly value="${esc(n.code||'')}"></div>
-<div class="field"><label>Ville</label><input readonly value="${esc(n.ville||'')}"></div>
-<div class="field"><label>UID</label><input readonly value="${esc(n.id)}"></div>
-<div class="field"><label>Statut</label><input readonly value="${n.actif === false ? 'Désactivé' : 'Actif'}"></div>
-<div class="field"><label>Boutique</label><input readonly value="${n.boutique ? esc(n.boutique.nom + ' (' + (n.boutique.statut||'') + ')') : 'Aucune'}"></div>
-<div class="modal-act"><button class="cancel" data-close>Fermer</button></div>
-</div>`;
-document.body.appendChild(d);
-d.querySelector('[data-close]').onclick = ()=>d.remove();
-d.onclick = e=>{ if(e.target===d) d.remove(); };
+  const n = netubers.find(x=>x.id===id);
+  if(!n) return;
+  const d = document.createElement('div');
+  d.className = 'modal show';
+  d.innerHTML = `<div class="modal-box">
+    <h2>👤 Détails utilisateur</h2>
+    <div class="field"><label>Nom complet</label><input readonly value="${esc(n.nomComplet||'')}"></div>
+    <div class="field"><label>Téléphone</label><input readonly value="${esc(n.phone||'')}"></div>
+    <div class="field"><label>Email</label><input readonly value="${esc(n.emailAuth||'')}"></div>
+    <div class="field"><label>Code d'accès</label><input readonly value="${esc(n.code||'')}"></div>
+    <div class="field"><label>Ville</label><input readonly value="${esc(n.ville||'')}"></div>
+    <div class="field"><label>UID</label><input readonly value="${esc(n.id)}"></div>
+    <div class="field"><label>Statut</label><input readonly value="${n.actif === false ? 'Désactivé' : 'Actif'}"></div>
+    <div class="field"><label>Boutique</label><input readonly value="${n.boutique ? esc(n.boutique.nom + ' (' + (n.boutique.statut||'') + ')') : 'Aucune'}"></div>
+    <div class="modal-act"><button class="cancel" data-close>Fermer</button></div>
+  </div>`;
+  document.body.appendChild(d);
+  d.querySelector('[data-close]').onclick = ()=>d.remove();
+  d.onclick = e=>{ if(e.target===d) d.remove(); };
 }
+
 function exportNetubersCSV(){
-if(netubers.length === 0){ toast('Aucune donnée','warn'); return; }
-let csv = 'nomComplet,phone,email,code,ville,actif,dateCreation,boutique\n';
-netubers.forEach(n=>{
-csv += [
-(n.nomComplet||'').replace(/,/g,' '),
-(n.phone||'').replace(/,/g,' '),
-(n.emailAuth||'').replace(/,/g,' '),
-(n.code||''),
-(n.ville||'').replace(/,/g,' '),
-n.actif === false ? 'non' : 'oui',
-n.dateCreation||'',
-n.boutique ? n.boutique.nom.replace(/,/g,' ') : ''
-].join(',') + '\n';
-});
-const blob = new Blob(['\uFEFF' + csv], { type:'text/csv;charset=utf-8;' });
-const url = URL.createObjectURL(blob);
-const a = document.createElement('a');
-a.href = url;
-a.download = 'netubers_' + new Date().toISOString().slice(0,10) + '.csv';
-document.body.appendChild(a);
-a.click();
-document.body.removeChild(a);
-URL.revokeObjectURL(url);
-toast('CSV exporté ✅');
+  if(netubers.length === 0){ toast('Aucune donnée','warn'); return; }
+  let csv = 'nomComplet,phone,email,code,ville,actif,dateCreation,boutique\n';
+  netubers.forEach(n=>{
+    csv += [
+      (n.nomComplet||'').replace(/,/g,' '),
+      (n.phone||'').replace(/,/g,' '),
+      (n.emailAuth||'').replace(/,/g,' '),
+      (n.code||''),
+      (n.ville||'').replace(/,/g,' '),
+      n.actif === false ? 'non' : 'oui',
+      n.dateCreation||'',
+      n.boutique ? n.boutique.nom.replace(/,/g,' ') : ''
+    ].join(',') + '\n';
+  });
+  const blob = new Blob(['\uFEFF' + csv], { type:'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'netubers_' + new Date().toISOString().slice(0,10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('CSV exporté ✅');
 }
+
+/* ============ CRÉER BOUTIQUE ============ */
+function ouvrirModalCreateBoutique(){
+  const usersOptions = netubers.length > 0
+    ? netubers.map(n => `<option value="${esc(n.id)}" data-nom="${esc(n.nomComplet||n.nom||'')}" data-phone="${esc(n.phone||'')}" data-ville="${esc(n.ville||'')}">${esc(n.nomComplet||n.nom||n.phone)} — ${esc(n.phone||'')}</option>`).join('')
+    : '<option value="">— Aucun utilisateur inscrit —</option>';
+
+  const d = document.createElement('div');
+  d.className = 'modal show';
+  d.innerHTML = `<div class="modal-box" style="max-width:600px;">
+    <h2>🏪 Créer une boutique</h2>
+
+    <div class="field">
+      <label>Propriétaire (Netuber) *</label>
+      <select id="newBoutiqueUid" required>
+        <option value="">— Choisir un utilisateur —</option>
+        ${usersOptions}
+      </select>
+      <div style="font-size:11.5px;color:#94a3b8;margin-top:6px;line-height:1.5;">
+        💡 L'utilisateur doit être inscrit sur l'app NeTubeX RDC.
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Nom du commerce *</label>
+      <input type="text" id="newBoutiqueNom" placeholder="Ex: Supermarché Kin-Express" required>
+    </div>
+
+    <div class="field">
+      <label>Type de commerce *</label>
+      <select id="newBoutiqueType" required>
+        <option value="">— Choisir un type —</option>
+        <option value="Supermarché">🛒 Supermarché / Alimentation</option>
+        <option value="Restaurant">🍽️ Restaurant / Traiteur</option>
+        <option value="Hôtel">🏨 Hôtel / Hébergement</option>
+        <option value="Pharmacie">💊 Pharmacie / Parapharmacie</option>
+        <option value="Mode, Vêtements & Beauté">👗 Mode, Vêtements & Beauté</option>
+        <option value="Cosmétiques">💇 Cosmétiques</option>
+        <option value="Salon de Coiffure">✂️ Salon de Coiffure</option>
+        <option value="Services">🛠️ Services / Atelier</option>
+        <option value="Boulangerie">🥖 Boulangerie</option>
+        <option value="Quincaillerie">🔧 Quincaillerie</option>
+        <option value="Électronique">📱 Électronique</option>
+        <option value="Concessionnaire">🚗 Concessionnaire (Auto)</option>
+        <option value="Vivriers & Fruits">🌾 Vivriers & Fruits</option>
+        <option value="Autres">📦 Autres</option>
+      </select>
+    </div>
+
+    <div class="grid-2">
+      <div class="field" style="margin-bottom:0;">
+        <label>Ville *</label>
+        <select id="newBoutiqueVille" required>
+          <option value="">— Choisir une ville —</option>
+          <option value="Kinshasa">Kinshasa</option>
+          <option value="Lubumbashi">Lubumbashi</option>
+          <option value="Kasumbalesa">Kasumbalesa</option>
+        </select>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Commune / Quartier *</label>
+        <select id="newBoutiqueQuartier" required>
+          <option value="">— Choisir —</option>
+          <option value="Gombe">Gombe</option>
+          <option value="Limete">Limete</option>
+          <option value="Lingwala">Lingwala</option>
+          <option value="Kintambo">Kintambo</option>
+          <option value="Bandalungwa">Bandalungwa</option>
+          <option value="Matonge">Matonge</option>
+          <option value="Kalamu">Kalamu</option>
+          <option value="Ngaliema">Ngaliema</option>
+          <option value="Ma Campagne">Ma Campagne</option>
+          <option value="N'Sele">N'Sele</option>
+          <option value="Kimbanseke">Kimbanseke</option>
+          <option value="Masina">Masina</option>
+          <option value="Selembao">Selembao</option>
+          <option value="Bumbu">Bumbu</option>
+          <option value="Makala">Makala</option>
+          <option value="Ngaba">Ngaba</option>
+          <option value="Kasa-Vubu">Kasa-Vubu</option>
+          <option value="Centre">Centre-ville</option>
+          <option value="Golf">Golf</option>
+          <option value="Kampemba">Kampemba</option>
+          <option value="Katuba">Katuba</option>
+          <option value="Ruashi">Ruashi</option>
+          <option value="Annexe">Annexe</option>
+          <option value="Kanyaka">Kanyaka</option>
+          <option value="Autre">📦 Autre (préciser)</option>
+        </select>
+      </div>
+    </div>
+
+    <input type="text" id="newBoutiqueQuartierLibre" placeholder="Précisez le quartier..." style="display:none;margin-top:10px;padding:12px 14px;border-radius:10px;background:#0a0e1a;border:1px solid #334155;color:#fff;font-size:13px;font-family:inherit;width:100%;">
+
+    <div class="grid-2" style="margin-top:14px;">
+      <div class="field" style="margin-bottom:0;">
+        <label>Téléphone *</label>
+        <input type="tel" id="newBoutiqueTel" placeholder="+243..." required>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>WhatsApp commercial *</label>
+        <input type="tel" id="newBoutiqueWhatsapp" placeholder="+243..." required>
+      </div>
+    </div>
+
+    <div class="field" style="margin-top:14px;">
+      <label>Horaires d'ouverture</label>
+      <select id="newBoutiqueHoraires">
+        <option value="">— Choisir des horaires —</option>
+        <option value="24h/24 - 7j/7">🕐 24h/24 - 7j/7</option>
+        <option value="06h - 18h">🕕 06h - 18h</option>
+        <option value="07h - 19h">🕖 07h - 19h</option>
+        <option value="08h - 20h">🕗 08h - 20h (Standard)</option>
+        <option value="08h - 21h">🕗 08h - 21h</option>
+        <option value="08h - 22h">🕗 08h - 22h</option>
+        <option value="09h - 18h">🕘 09h - 18h</option>
+        <option value="09h - 20h">🕘 09h - 20h</option>
+        <option value="10h - 23h">🕙 10h - 23h</option>
+        <option value="05h - 20h">🕔 05h - 20h (Boulangerie)</option>
+        <option value="Lun - Sam · 08h - 20h">📅 Lun-Sam · 08h - 20h</option>
+        <option value="Lun - Ven · 08h - 18h">📅 Lun-Ven · 08h - 18h</option>
+        <option value="Weekend uniquement">📅 Weekend uniquement</option>
+        <option value="Sur rendez-vous">📅 Sur rendez-vous</option>
+        <option value="Autre">📦 Autre (préciser)</option>
+      </select>
+    </div>
+
+    <input type="text" id="newBoutiqueHorairesLibre" placeholder="Précisez les horaires..." style="display:none;margin-top:10px;padding:12px 14px;border-radius:10px;background:#0a0e1a;border:1px solid #334155;color:#fff;font-size:13px;font-family:inherit;width:100%;">
+
+    <div class="field" style="margin-top:14px;">
+      <label>Adresse (optionnel)</label>
+      <input type="text" id="newBoutiqueAdresse" placeholder="Ex: Av. Lumumba N° 45">
+    </div>
+
+    <div class="field">
+      <label>Description (optionnel)</label>
+      <textarea id="newBoutiqueDesc" placeholder="Courte description..." maxlength="200"></textarea>
+    </div>
+
+    <div class="field">
+      <label>Logo / Photo du commerce (optionnel)</label>
+      <div class="upload" id="newBoutiqueUpload">
+        <div class="upload-ic">📷</div>
+        <div class="upload-t">Cliquez pour uploader</div>
+        <div class="upload-s">JPG, PNG · max 2 Mo</div>
+        <input type="file" id="newBoutiqueFile" accept="image/*" hidden>
+      </div>
+      <div id="newBoutiquePreview" style="margin-top:12px;text-align:center;"></div>
+    </div>
+
+    <div class="modal-act">
+      <button class="cancel" data-cancel>Annuler</button>
+      <button class="confirm" data-save>Créer la boutique</button>
+    </div>
+  </div>`;
+  document.body.appendChild(d);
+
+  let imgB64 = null;
+  const fileInput = d.querySelector('#newBoutiqueFile');
+  const preview = d.querySelector('#newBoutiquePreview');
+  const upZone = d.querySelector('#newBoutiqueUpload');
+  const selectUser = d.querySelector('#newBoutiqueUid');
+  const selectQuartier = d.querySelector('#newBoutiqueQuartier');
+  const quartierLibreInput = d.querySelector('#newBoutiqueQuartierLibre');
+  const selectHoraires = d.querySelector('#newBoutiqueHoraires');
+  const horairesLibreInput = d.querySelector('#newBoutiqueHorairesLibre');
+
+  selectUser.onchange = ()=>{
+    const opt = selectUser.options[selectUser.selectedIndex];
+    if(opt && opt.value){
+      const tel = opt.dataset.phone || '';
+      const ville = opt.dataset.ville || '';
+      if(tel){
+        d.querySelector('#newBoutiqueTel').value = tel;
+        d.querySelector('#newBoutiqueWhatsapp').value = tel;
+      }
+      if(ville){
+        const villeSelect = d.querySelector('#newBoutiqueVille');
+        for(let i=0;i<villeSelect.options.length;i++){
+          if(villeSelect.options[i].value === ville){
+            villeSelect.selectedIndex = i;
+            break;
+          }
+        }
+      }
+    }
+  };
+
+  selectQuartier.onchange = ()=>{
+    if(selectQuartier.value === 'Autre'){
+      quartierLibreInput.style.display = 'block';
+      quartierLibreInput.required = true;
+      quartierLibreInput.focus();
+    }else{
+      quartierLibreInput.style.display = 'none';
+      quartierLibreInput.required = false;
+      quartierLibreInput.value = '';
+    }
+  };
+
+  selectHoraires.onchange = ()=>{
+    if(selectHoraires.value === 'Autre'){
+      horairesLibreInput.style.display = 'block';
+      horairesLibreInput.required = true;
+      horairesLibreInput.focus();
+    }else{
+      horairesLibreInput.style.display = 'none';
+      horairesLibreInput.required = false;
+      horairesLibreInput.value = '';
+    }
+  };
+
+  upZone.onclick = ()=>fileInput.click();
+  fileInput.onchange = ()=>{
+    const f = fileInput.files[0];
+    if(!f) return;
+    if(f.size > 2*1024*1024){ toast('Image trop grande (max 2 Mo)','err'); return; }
+    const r = new FileReader();
+    r.onload = e=>{
+      imgB64 = e.target.result;
+      preview.innerHTML = `<img src="${imgB64}" style="max-width:100%;max-height:200px;border-radius:10px;">`;
+      upZone.classList.add('loaded');
+      upZone.querySelector('.upload-t').textContent = '✅ ' + f.name;
+    };
+    r.readAsDataURL(f);
+  };
+
+  d.querySelector('[data-cancel]').onclick = ()=>d.remove();
+
+  d.querySelector('[data-save]').onclick = async ()=>{
+    const uid = d.querySelector('#newBoutiqueUid').value;
+    const nomCommerce = d.querySelector('#newBoutiqueNom').value.trim();
+    const type = d.querySelector('#newBoutiqueType').value;
+    const ville = d.querySelector('#newBoutiqueVille').value;
+    let quartier = d.querySelector('#newBoutiqueQuartier').value;
+    let horaires = d.querySelector('#newBoutiqueHoraires').value;
+    const tel = d.querySelector('#newBoutiqueTel').value.trim();
+    const whatsapp = d.querySelector('#newBoutiqueWhatsapp').value.trim();
+    const adresse = d.querySelector('#newBoutiqueAdresse').value.trim();
+    const desc = d.querySelector('#newBoutiqueDesc').value.trim();
+
+    if(quartier === 'Autre'){
+      quartier = d.querySelector('#newBoutiqueQuartierLibre').value.trim();
+    }
+    if(horaires === 'Autre'){
+      horaires = d.querySelector('#newBoutiqueHorairesLibre').value.trim();
+    }
+
+    if(!uid){ toast('Choisissez un utilisateur','err'); return; }
+    if(!nomCommerce){ toast('Saisissez le nom du commerce','err'); return; }
+    if(!type){ toast('Choisissez un type','err'); return; }
+    if(!ville){ toast('Choisissez une ville','err'); return; }
+    if(!quartier){ toast('Choisissez un quartier','err'); return; }
+    if(!tel){ toast('Saisissez un téléphone','err'); return; }
+    if(!whatsapp){ toast('Saisissez un WhatsApp','err'); return; }
+
+    setLoader(true);
+    try{
+      const imgFinal = imgB64 || 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80';
+      const now = new Date().toISOString();
+
+      const commerceId = 'COM-ADMIN-' + Date.now();
+      await setDoc(doc(db,'commerces',commerceId),{
+        uid: uid,
+        nom: nomCommerce,
+        type: type,
+        ville: ville,
+        quartier: quartier,
+        adresse: adresse,
+        horaires: horaires || '08h - 20h',
+        description: desc || 'Découvrez notre catalogue.',
+        telephone: tel,
+        whatsapp: whatsapp,
+        img: imgFinal,
+        emoji: '🏪',
+        produits: [],
+        statut: 'approuve',
+        creeParAdmin: true,
+        dateCreation: now,
+        dateApprobation: now
+      });
+
+      await setDoc(doc(db,'netubers',uid),{
+        boutique: {
+          nom: nomCommerce,
+          type: type,
+          ville: ville,
+          quartier: quartier,
+          adresse: adresse,
+          horaires: horaires || '08h - 20h',
+          description: desc || '',
+          telephone: tel,
+          whatsappCommercial: whatsapp,
+          statut: 'approuve',
+          dateCreation: now,
+          dateApprobation: now
+        }
+      },{ merge:true });
+
+      const demandeId = 'DEM-ADMIN-' + Date.now();
+      await setDoc(doc(db,'demandes_boutiques',demandeId),{
+        uid: uid,
+        nomCommerce: nomCommerce,
+        type: type,
+        ville: ville,
+        quartier: quartier,
+        adresse: adresse,
+        horaires: horaires || '08h - 20h',
+        description: desc || '',
+        telephone: tel,
+        whatsappCommercial: whatsapp,
+        statut: 'approuve',
+        creeParAdmin: true,
+        dateCreation: now,
+        dateApprobation: now
+      });
+
+      toast('Boutique créée avec succès ✅');
+      d.remove();
+      await Promise.all([loadBoutiques(), loadActives(), loadNetubers()]);
+    }catch(e){
+      console.error(e);
+      toast('Erreur: '+e.message,'err');
+    }finally{
+      setLoader(false);
+    }
+  };
+}
+
+/* ============ AJOUTER ANNONCE ============ */
+function ouvrirModalAddAnnonce(uid, source){
+  let publieur = null;
+  if(source === 'netuber'){
+    publieur = netubers.find(n => n.id === uid);
+  } else {
+    publieur = netubers.find(n => n.id === uid);
+    if(!publieur){
+      publieur = boutiquesActives.find(b => b.uid === uid);
+    }
+  }
+  if(!publieur){ toast('Utilisateur introuvable','err'); return; }
+
+  const isCommerce = publieur.boutique && publieur.boutique.statut === 'approuve';
+  const publieurNom = isCommerce && publieur.boutique
+    ? publieur.boutique.nom
+    : (publieur.nomComplet || publieur.nom || 'Utilisateur');
+  const publieurPhone = publieur.phone || publieur.telephone || '';
+  const publieurVille = publieur.ville || '';
+
+  const d = document.createElement('div');
+  d.className = 'modal show';
+  d.innerHTML = `<div class="modal-box" style="max-width:640px;">
+    <h2>➕ Ajouter une annonce</h2>
+
+    <div class="publieur-card">
+      <div class="pl-lbl">Publieur</div>
+      <div class="pl-name">${esc(publieurNom)}</div>
+      <div class="pl-sub">
+        ${isCommerce ? '🏪 Commerçant' : '👤 Netuber'} · UID: ${esc(uid.slice(0,12))}…
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Type d'annonce *</label>
+      <select id="addAnnType" required>
+        <option value="">— Choisir un type —</option>
+        <option value="hopital">🚨 Hôpital / Urgence</option>
+        <option value="ecole">🎓 École</option>
+        <option value="location">🏠 Location</option>
+        <option value="parcelle">📐 Parcelle</option>
+        <option value="entreprise">🏢 Entreprise / Emploi</option>
+        <option value="vehicule">🚗 Véhicule</option>
+        <option value="electronique">📱 Électronique</option>
+        <option value="autre">🛠️ Autre</option>
+      </select>
+    </div>
+
+    <div class="field"><label>Titre *</label><input type="text" id="addAnnTitre" placeholder="Ex: Appartement 3 chambres"></div>
+
+    <div class="grid-2">
+      <div class="field" style="margin-bottom:0;">
+        <label>Prix *</label>
+        <input type="text" id="addAnnPrix" placeholder="Ex: 450$ / mois">
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Ville *</label>
+        <select id="addAnnVille" required>
+          <option value="">— Choisir —</option>
+          <option value="Kinshasa">Kinshasa</option>
+          <option value="Lubumbashi">Lubumbashi</option>
+          <option value="Kasumbalesa">Kasumbalesa</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field" style="margin-top:14px;">
+      <label>Quartier</label>
+      <select id="addAnnQuartier">
+        <option value="">— Choisir —</option>
+        <option value="Gombe">Gombe</option>
+        <option value="Limete">Limete</option>
+        <option value="Lingwala">Lingwala</option>
+        <option value="Kintambo">Kintambo</option>
+        <option value="Bandalungwa">Bandalungwa</option>
+        <option value="Matonge">Matonge</option>
+        <option value="Kalamu">Kalamu</option>
+        <option value="Ngaliema">Ngaliema</option>
+        <option value="Ma Campagne">Ma Campagne</option>
+        <option value="N'Sele">N'Sele</option>
+        <option value="Kimbanseke">Kimbanseke</option>
+        <option value="Masina">Masina</option>
+        <option value="Kampemba">Kampemba</option>
+        <option value="Katuba">Katuba</option>
+        <option value="Ruashi">Ruashi</option>
+        <option value="Annexe">Annexe</option>
+        <option value="Kanyaka">Kanyaka</option>
+        <option value="Autre">📦 Autre</option>
+      </select>
+    </div>
+
+    <div class="field"><label>Description *</label><textarea id="addAnnDesc" placeholder="Description détaillée..."></textarea></div>
+
+    <div class="field">
+      <label>Image — URL ou upload *</label>
+      <input type="text" id="addAnnUrl" placeholder="https://...">
+      <div style="text-align:center;margin:10px 0;color:#64748b;font-size:11px;">— OU —</div>
+      <div class="upload" id="addAnnUpload">
+        <div class="upload-ic">📷</div>
+        <div class="upload-t">Cliquez pour uploader</div>
+        <div class="upload-s">JPG, PNG · max 2 Mo</div>
+        <input type="file" id="addAnnFile" accept="image/*" hidden>
+      </div>
+      <div id="addAnnPreview" style="margin-top:12px;text-align:center;"></div>
+    </div>
+
+    <div class="field">
+      <label>Coordonnées privées (visibles après déblocage)</label>
+      <input type="text" id="addAnnCoordNom" placeholder="Nom du propriétaire" value="${esc(publieurNom)}">
+      <input type="text" id="addAnnCoordAdresse" placeholder="Adresse complète" style="margin-top:8px;">
+      <input type="tel" id="addAnnCoordTel" placeholder="Téléphone" value="${esc(publieurPhone)}" style="margin-top:8px;">
+      <input type="email" id="addAnnCoordEmail" placeholder="Email (optionnel)" style="margin-top:8px;">
+    </div>
+
+    <div class="modal-act">
+      <button class="cancel" data-cancel>Annuler</button>
+      <button class="confirm" data-save>Publier l'annonce</button>
+    </div>
+  </div>`;
+  document.body.appendChild(d);
+
+  let imgB64 = null;
+  const fileInput = d.querySelector('#addAnnFile');
+  const urlInput = d.querySelector('#addAnnUrl');
+  const preview = d.querySelector('#addAnnPreview');
+  const upZone = d.querySelector('#addAnnUpload');
+
+  upZone.onclick = ()=>fileInput.click();
+  fileInput.onchange = ()=>{
+    const f = fileInput.files[0];
+    if(!f) return;
+    if(f.size > 2*1024*1024){ toast('Image trop grande (max 2 Mo)','err'); return; }
+    const r = new FileReader();
+    r.onload = e=>{
+      imgB64 = e.target.result;
+      urlInput.value = '';
+      preview.innerHTML = `<img src="${imgB64}" style="max-width:100%;max-height:200px;border-radius:10px;">`;
+      upZone.classList.add('loaded');
+      upZone.querySelector('.upload-t').textContent = '✅ ' + f.name;
+    };
+    r.readAsDataURL(f);
+  };
+  urlInput.oninput = ()=>{
+    if(urlInput.value){
+      imgB64 = null;
+      preview.innerHTML = `<img src="${esc(urlInput.value)}" style="max-width:100%;max-height:200px;border-radius:10px;" onerror="this.style.display='none'">`;
+    }
+  };
+
+  d.querySelector('[data-cancel]').onclick = ()=>d.remove();
+
+  d.querySelector('[data-save]').onclick = async ()=>{
+    const type = d.querySelector('#addAnnType').value;
+    const titre = d.querySelector('#addAnnTitre').value.trim();
+    const prix = d.querySelector('#addAnnPrix').value.trim();
+    const ville = d.querySelector('#addAnnVille').value;
+    const quartier = d.querySelector('#addAnnQuartier').value;
+    const desc = d.querySelector('#addAnnDesc').value.trim();
+    const img = imgB64 || urlInput.value.trim();
+
+    const coordNom = d.querySelector('#addAnnCoordNom').value.trim();
+    const coordAdresse = d.querySelector('#addAnnCoordAdresse').value.trim();
+    const coordTel = d.querySelector('#addAnnCoordTel').value.trim();
+    const coordEmail = d.querySelector('#addAnnCoordEmail').value.trim();
+
+    if(!type){ toast('Choisissez un type','err'); return; }
+    if(!titre){ toast('Saisissez un titre','err'); return; }
+    if(!prix){ toast('Saisissez un prix','err'); return; }
+    if(!ville){ toast('Choisissez une ville','err'); return; }
+    if(!desc){ toast('Saisissez une description','err'); return; }
+    if(!img){ toast('Ajoutez une image','err'); return; }
+    if(!coordNom || !coordTel){ toast('Renseignez les coordonnées privées','err'); return; }
+
+    setLoader(true);
+    try{
+      const annonceId = 'ANN-' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
+
+      const tagMap = {
+        hopital:{tag:'🚨 Urgence',cls:'post-tag-urgence'},
+        ecole:{tag:'🎓 École',cls:'post-tag-school'},
+        location:{tag:'🏠 Location',cls:'post-tag-property'},
+        parcelle:{tag:'📐 Parcelle',cls:'post-tag-land'},
+        entreprise:{tag:'🏢 Entreprise',cls:'post-tag-entreprise'},
+        vehicule:{tag:'🚗 Véhicule',cls:'post-tag-vehicule'},
+        electronique:{tag:'📱 Électronique',cls:'post-tag-electronique'},
+        autre:{tag:'🛠️ Autre',cls:'post-tag-autre'}
+      };
+      const tagInfo = tagMap[type] || tagMap.autre;
+
+      await setDoc(doc(db,'annonces',annonceId),{
+        titre: titre,
+        desc: desc,
+        ville: ville,
+        quartier: quartier,
+        prix: prix,
+        img: img,
+        cat: type,
+        tag: tagInfo.tag,
+        tagClass: tagInfo.cls,
+        proprietaireUid: uid,
+        publieurNom: publieurNom,
+        publieurType: isCommerce ? 'commerce' : 'user',
+        publieurBoutique: isCommerce ? publieurNom : null,
+        publieurPhone: publieurPhone,
+        publieurVille: publieurVille,
+        ajouteParAdmin: true,
+        dateCreation: new Date().toISOString(),
+        actif: true
+      });
+
+      await setDoc(doc(db,'annonces',annonceId,'prive','contact'),{
+        nom: coordNom,
+        adresse: coordAdresse,
+        telephone: coordTel,
+        email: coordEmail
+      });
+
+      toast('Annonce publiée avec succès ✅');
+      d.remove();
+      await loadAnnonces();
+    }catch(e){
+      console.error(e);
+      toast('Erreur: '+e.message,'err');
+    }finally{
+      setLoader(false);
+    }
+  };
+}
+
+/* ============ EVENT LISTENER ============ */
 document.addEventListener('click', e=>{
-const btn = e.target.closest('[data-act]');
-if(!btn) return;
-const act = btn.dataset.act;
-const id = btn.dataset.id;
-if(act === 'approve') approveBoutique(id);
-if(act === 'refuse') refuseBoutique(id);
-if(act === 'detail') detailBoutique(id);
-if(act === 'val-deb') validerDeblocage(id);
-if(act === 'rej-deb') rejeterDeblocage(id);
-if(act === 'app-pub') approuverPublication(id);
-if(act === 'rej-pub') rejeterPublication(id);
-if(act === 'del-pub') supprimerPublication(id);
-if(act === 'retirer-active') retirerActive(id);
-if(act === 'detail-net') detailNetuber(id);
-if(act === 'activer-user') toggleActifUser(id, true);
-if(act === 'desactiver-user') toggleActifUser(id, false);
+  const btn = e.target.closest('[data-act]');
+  if(!btn) return;
+  const act = btn.dataset.act;
+  const id = btn.dataset.id;
+
+  if(act === 'approve') approveBoutique(id);
+  if(act === 'refuse') refuseBoutique(id);
+  if(act === 'detail') detailBoutique(id);
+  if(act === 'val-deb') validerDeblocage(id);
+  if(act === 'rej-deb') rejeterDeblocage(id);
+  if(act === 'app-pub') approuverPublication(id);
+  if(act === 'rej-pub') rejeterPublication(id);
+  if(act === 'del-pub') supprimerPublication(id);
+  if(act === 'retirer-active') retirerActive(id);
+  if(act === 'detail-net') detailNetuber(id);
+  if(act === 'activer-user') toggleActifUser(id, true);
+  if(act === 'desactiver-user') toggleActifUser(id, false);
+  if(act === 'add-annonce') ouvrirModalAddAnnonce(id, 'auto');
+  if(act === 'view-ann-user') ouvrirModalListeAnnoncesUser(id);
+  if(act === 'view-ann') detailAnnonce(id);
+  if(act === 'edit-ann') ouvrirModalEditAnnonce(id);
+  if(act === 'del-ann') supprimerAnnonce(id);
 });
 </script>
 </body>
