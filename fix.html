@@ -50,10 +50,26 @@ window.logoutUser=async function(){try{await signOut(auth);}catch(e){}};
 window.creerDeblocage=async function(uid,annonceId,transactionId,montant){const key=uid+'_'+annonceId;await setDoc(doc(db,'deblocages',key),{uid:uid,annonceId:annonceId,statut:'en_attente',montant:montant||1000,transactionId:transactionId||'',dateDemande:new Date().toISOString(),dateValidation:null});return{success:true,key:key};};
 window.mesDeblocages=async function(uid){const q=query(collection(db,'deblocages'),where('uid','==',uid));const snap=await getDocs(q);const list=[];snap.forEach(function(d){list.push({id:d.id,...d.data()});});return list;};
 window.lireCoordonnees=async function(annonceId){try{const snap=await getDoc(doc(db,'annonces',annonceId,'prive','contact'));if(!snap.exists())return null;return snap.data();}catch(e){return null;}};
-window.creerAnnonce=async function(data,coordonnees){const annonceId='ANN-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);await setDoc(doc(db,'annonces',annonceId),{titre:data.titre||'',desc:data.desc||'',ville:data.ville||'',quartier:data.quartier||'',prix:data.prix||'',img:data.img||'',cat:data.cat||'autre',tag:data.tag||'',tagClass:data.tagClass||'',proprietaireUid:data.proprietaireUid,dateCreation:new Date().toISOString(),actif:true});await setDoc(doc(db,'annonces',annonceId,'prive','contact'),{nom:coordonnees.nom||'',adresse:coordonnees.adresse||'',telephone:coordonnees.telephone||'',email:coordonnees.email||''});return{annonceId:annonceId};};
+window.creerAnnonce=async function(data,coordonnees){
+  const annonceId='ANN-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
+  await setDoc(doc(db,'annonces',annonceId),{
+    titre:data.titre||'',desc:data.desc||'',ville:data.ville||'',quartier:data.quartier||'',
+    prix:data.prix||'',img:data.img||'',cat:data.cat||'autre',tag:data.tag||'',tagClass:data.tagClass||'',
+    proprietaireUid:data.proprietaireUid||null,
+    publieurNom:data.publieurNom||'',
+    publieurType:data.publieurType||'user',
+    publieurBoutique:data.publieurBoutique||null,
+    publieurPhone:data.publieurPhone||'',
+    publieurVille:data.publieurVille||'',
+    dateCreation:new Date().toISOString(),actif:true
+  });
+  await setDoc(doc(db,'annonces',annonceId,'prive','contact'),{
+    nom:coordonnees.nom||'',adresse:coordonnees.adresse||'',telephone:coordonnees.telephone||'',email:coordonnees.email||''
+  });
+  return{annonceId:annonceId};
+};
 window.creerDemandeBoutique=async function(data){const demandeId='DEM-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);await setDoc(doc(db,'demandes_boutiques',demandeId),Object.assign({},data,{statut:'en_attente',dateCreation:new Date().toISOString()}));return{demandeId:demandeId};};
 
-// ✅ CHARGEMENT FIRESTORE : commerces
 window.chargerCommercesFirestore=async function(){
   try{
     const snap=await getDocs(collection(db,'commerces'));
@@ -61,22 +77,18 @@ window.chargerCommercesFirestore=async function(){
     snap.forEach(d=>{
       const data=d.data();
       if(data.statut==='approuve'){
+        const tousProduits=Array.isArray(data.produits)?data.produits:[];
+        const produitsApprouves=tousProduits.filter(function(p){
+          if(!p.statut)return true;
+          return p.statut==='approuve';
+        });
         commerces.push({
-          id:d.id,
-          nom:data.nom||'',
-          type:data.type||'Autres',
-          ville:data.ville||'',
-          quartier:data.quartier||'',
-          adresse:data.adresse||'',
-          horaires:data.horaires||'08h - 20h',
+          id:d.id,nom:data.nom||'',type:data.type||'Autres',ville:data.ville||'',quartier:data.quartier||'',
+          adresse:data.adresse||'',horaires:data.horaires||'08h - 20h',
           description:data.description||'Découvrez notre catalogue.',
-          telephone:data.telephone||'',
-          whatsapp:data.whatsapp||data.telephone||'',
-          img:data.img||'',
-          emoji:data.emoji||'🏪',
-          produits:Array.isArray(data.produits)?data.produits:[],
-          uid:data.uid||null,
-          dateCreation:data.dateCreation||''
+          telephone:data.telephone||'',whatsapp:data.whatsapp||data.telephone||'',
+          img:data.img||'',emoji:data.emoji||'🏪',produits:produitsApprouves,
+          uid:data.uid||null,dateCreation:data.dateCreation||''
         });
       }
     });
@@ -85,7 +97,6 @@ window.chargerCommercesFirestore=async function(){
   }catch(e){console.warn('chargerCommerces:',e.message);return [];}
 };
 
-// ✅ CHARGEMENT FIRESTORE : annonces (offres)
 window.chargerAnnoncesFirestore=async function(){
   try{
     const snap=await getDocs(collection(db,'annonces'));
@@ -93,24 +104,29 @@ window.chargerAnnoncesFirestore=async function(){
     snap.forEach(d=>{
       const data=d.data();
       if(data.actif===false)return;
+      const nomPublieur=data.publieurNom||data.nom||'Utilisateur NeTubeX';
+      const typePublieur=data.publieurType||'user';
       annonces.push({
-        id:d.id,
-        annonceId:d.id,
+        id:d.id,annonceId:d.id,
         title:data.titre||'',
-        name:data.nom||data.proprietaire||'NeTubeX',
-        initials:(data.nom||data.titre||'NT').substring(0,2).toUpperCase(),
+        name:nomPublieur,
+        initials:nomPublieur.substring(0,2).toUpperCase(),
         avatar:data.avatar||'',
         location:data.ville||'',
         time:data.dateCreation?new Date(data.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}):'Récemment',
         price:data.prix||'',
-        priceClass:(data.tagClass||'post-tag-autre').replace('post-tag-','post-tag-'),
+        priceClass:data.tagClass||'post-tag-autre',
         desc:data.desc||'',
         img:data.img||'',
         cat:data.cat||'autre',
         tag:data.tag||'',
         tagClass:data.tagClass||'post-tag-autre',
-        unlock:true,
-        urgence:false
+        unlock:true,urgence:false,
+        publieurType:typePublieur,
+        publieurUid:data.proprietaireUid||null,
+        publieurBoutique:data.publieurBoutique||null,
+        publieurPhone:data.publieurPhone||'',
+        isCommerce:typePublieur==='commerce'
       });
     });
     annonces.sort((a,b)=>(b.time||'').localeCompare(a.time||''));
@@ -300,6 +316,8 @@ body.dark-mode .fb-post+.fb-post::before{background:linear-gradient(to bottom,rg
 .fb-action-primary:active{transform:translateY(3px);box-shadow:0 0 0 #1d4ed8}
 .feed-badge{font-size:9.5px;font-weight:900;padding:5px 10px;border-radius:8px;text-transform:uppercase;letter-spacing:.4px;flex-shrink:0}
 .verified-badge{color:#2563eb;font-size:12px;flex-shrink:0}
+.commercant-badge{display:inline-flex;align-items:center;gap:3px;background:#d1fae5;color:#065f46;font-size:9.5px;font-weight:900;padding:2px 7px;border-radius:5px;text-transform:uppercase;letter-spacing:.3px;margin-left:4px}
+body.dark-mode .commercant-badge{background:rgba(16,185,129,.2);color:#6ee7b7}
 .post-tag-urgence{background:#dc2626;color:#fff;animation:pulseUrgence 1.2s ease-in-out infinite}
 @keyframes pulseUrgence{0%,100%{opacity:1;transform:scale(1);box-shadow:0 0 0 0 rgba(220,38,38,.7)}50%{opacity:.85;transform:scale(1.05);box-shadow:0 0 0 8px rgba(220,38,38,0)}}
 .post-tag-school{background:#dbeafe;color:#1e40af}
@@ -537,13 +555,6 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 .notif-title{font-size:13.5px;font-weight:800;color:var(--text-primary);margin-bottom:4px}
 .notif-msg{font-size:12.5px;color:var(--text-secondary);line-height:1.5}
 .notif-date{font-size:10.5px;color:var(--text-light);font-weight:600;margin-top:6px}
-.comment-motions-grid{display:grid;grid-template-columns:1fr;gap:1.25rem}
-@media(min-width:768px){.comment-motions-grid{grid-template-columns:repeat(2,1fr);gap:1.5rem}}
-.motion-container{width:100%;height:250px;margin:0 auto;position:relative;border-radius:1.25rem;overflow:hidden;background:linear-gradient(145deg,#0b193d 0%,#030e26 100%);border:1px solid rgba(0,119,200,.25);box-shadow:0 16px 36px -12px rgba(0,43,127,.35)}
-.motion-grid-bg{position:absolute;inset:0;background-image:linear-gradient(to right,rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,.04) 1px,transparent 1px);background-size:20px 20px;pointer-events:none}
-.motion-body{position:relative;z-index:10;display:flex;align-items:center;justify-content:center;height:calc(100% - 80px);padding:0 12px}
-.motion-header{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(96,165,250,.2);padding:10px 12px 8px}
-.motion-footer{position:absolute;bottom:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;font-size:10px;color:rgba(147,197,253,.8);padding:4px 12px 8px}
 .insc-step-dot{transition:background .3s ease}
 @keyframes modalSlideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
 #account-modal > div{animation:modalSlideUp .4s cubic-bezier(.22,.9,.28,1) forwards}
@@ -657,7 +668,7 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 <div class="detail-price-row" id="detailPriceRow"><div class="detail-price-box" id="detailPriceBox"><span class="detail-price-label" id="detailPriceLabel">Prix</span><span class="detail-price-value" id="detailPriceValue">—</span></div></div>
 </div>
 <div class="detail-section"><h3 class="detail-section-title"><i class="fa-solid fa-align-left"></i> Description</h3><div class="detail-description" id="detailDescription">—</div></div>
-<div class="detail-section" id="detailOrganisationSection" style="display:none"><h3 class="detail-section-title"><i class="fa-solid fa-building"></i> Établissement</h3><div class="detail-org-card"><div class="detail-org-avatar" id="detailOrgAvatar">🏢</div><div class="detail-org-info"><div class="detail-org-name" id="detailOrgName">—</div><div class="detail-org-location" id="detailOrgLocation">—</div></div></div></div>
+<div class="detail-section" id="detailOrganisationSection" style="display:none"><h3 class="detail-section-title"><i class="fa-solid fa-building"></i> Publié par</h3><div class="detail-org-card"><div class="detail-org-avatar" id="detailOrgAvatar">👤</div><div class="detail-org-info"><div class="detail-org-name" id="detailOrgName">—</div><div class="detail-org-location" id="detailOrgLocation">—</div></div></div></div>
 <div class="detail-section" id="detailContactSection" style="display:none"><h3 class="detail-section-title"><i class="fa-solid fa-lock"></i> Coordonnées</h3><div class="detail-contact-box"><div class="detail-contact-row"><span class="detail-contact-lbl">Propriétaire</span><span class="blur-locked" id="detailContactOwner">Propriétaire Privé Certifié</span></div><div class="detail-contact-row"><span class="detail-contact-lbl">Adresse</span><span class="blur-locked" id="detailContactAddr">Av. de la Paix N° 45 B</span></div><div class="detail-contact-row"><span class="detail-contact-lbl">Téléphone</span><span class="blur-locked" id="detailContactPhone">+243 97 000 00 00</span></div></div></div>
 <div class="detail-actions" id="detailActions"></div>
 <div class="detail-secondary-actions"><button class="detail-action-btn" onclick="sharePost()"><i class="fa-solid fa-share-nodes"></i> Partager</button><button class="detail-action-btn danger" onclick="signalerOffre()"><i class="fa-solid fa-flag"></i> Signaler</button></div>
@@ -731,7 +742,7 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 </div>
 </div>
 <div id="page-comment" class="page">
-<div class="page-header-3d"><div style="max-width:800px;margin:0 auto;text-align:center"><h1 class="page-title-3d">Comment ça marche ?</h1><p class="page-subtitle-3d">Découvrez chaque espace en un coup d'œil avec des animations interactives.</p></div></div>
+<div class="page-header-3d"><div style="max-width:800px;margin:0 auto;text-align:center"><h1 class="page-title-3d">Comment ça marche ?</h1><p class="page-subtitle-3d">Découvrez chaque espace en un coup d'œil.</p></div></div>
 <div class="container-3d" style="max-width:1100px;padding-top:12px">
 <div style="text-align:center;padding:40px 20px;background:var(--bg-card);border-radius:16px;border:1px dashed var(--border-primary)">
 <div style="font-size:56px;margin-bottom:16px">💡</div>
@@ -777,7 +788,6 @@ Publiez vos offres, découvrez les commerces locaux et connectez-vous directemen
 <div style="min-width:0;flex:1"><div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Boutique active</div><h2 style="font-size:18px;font-weight:900;color:var(--text-primary);margin-top:2px" id="dashBoutiqueNom">—</h2><p style="font-size:12.5px;color:var(--text-muted);margin-top:2px" id="dashBoutiqueType">—</p></div>
 </div>
 <div id="dashBoutiqueDetails"></div>
-<a href="#" onclick="event.preventDefault();go('dashboard');return false;" class="btn-3d green" style="width:100%;padding:14px;margin-top:16px;text-decoration:none;justify-content:center"><i class="fa-solid fa-store"></i> Gérer mon catalogue</a>
 </div>
 </div>
 <div id="dashPanelCompte" class="dash-panel" style="display:block">
@@ -845,12 +855,6 @@ Publiez vos offres, découvrez les commerces locaux et connectez-vous directemen
 <div id="page-catalogue" class="page">
 <div class="page-header-3d" id="catalogueHeader"></div>
 <div class="container-3d" style="padding:0"><div class="fb-feed" id="catalogueFeed"></div></div>
-</div>
-<div id="page-dashboard" class="page">
-<div class="container-3d">
-<div class="section-card-3d" style="padding:24px;margin-bottom:20px"><div style="display:flex;align-items:center;gap:16px"><div style="width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;display:flex;align-items:center;justify-content:center;font-size:28px">🏪</div><div><h1 style="font-size:20px;font-weight:900;color:var(--text-primary)" id="dashboardNomCommerce">Ma boutique</h1><p style="font-size:12.5px;color:var(--text-muted);margin-top:4px" id="dashboardTypeCommerce">—</p></div></div></div>
-<div class="section-card-3d" style="padding:20px"><h2 style="font-size:17px;font-weight:900;color:var(--text-primary);margin-bottom:16px">Mon catalogue</h2><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" id="dashboardProduitsGrid"></div></div>
-</div>
 </div>
 <div id="page-inscription" class="page">
 <div class="page-header-3d">
@@ -1003,286 +1007,258 @@ Publiez vos offres, découvrez les commerces locaux et connectez-vous directemen
 </div>
 </div>
 <script>
-/* ============================================================
-   NeTubeX RDC — SCRIPT PRINCIPAL
-   ============================================================ */
 var _navFromPopstate=false;
 window.addEventListener('error',function(e){console.warn('NeTubeX - Erreur:',e.message);});
 var cart=[];var CURRENT_COMMERCE=null;var CURRENT_ACCOUNT=null;var CURRENT_OFFRE=null;var CURRENT_CATEGORY=null;var CURRENT_COMMERCANT=null;
-// ✅ TOUT EST DYNAMIQUE DEPUIS FIRESTORE
 var COMMERCES_DATA=[];
 var ANNONCES_DATA=[];
-var PUBLICATIONS_ADMIN=[];
 try{var saved=localStorage.getItem('netubex-account');if(saved)CURRENT_ACCOUNT=JSON.parse(saved);}catch(e){}
 try{var savedC=localStorage.getItem('netubex-boutique');if(savedC)CURRENT_COMMERCANT=JSON.parse(savedC);}catch(e){}
-// ✅ Sécurité : la boutique locale doit appartenir au compte courant
 if(CURRENT_COMMERCANT && CURRENT_ACCOUNT && CURRENT_COMMERCANT.uid && CURRENT_COMMERCANT.uid !== CURRENT_ACCOUNT.id){
-  CURRENT_COMMERCANT = null;
-  try{localStorage.removeItem('netubex-boutique');}catch(e){}
+CURRENT_COMMERCANT = null;
+try{localStorage.removeItem('netubex-boutique');}catch(e){}
 }
 if(CURRENT_ACCOUNT && CURRENT_ACCOUNT.boutique && CURRENT_ACCOUNT.boutique.uid && CURRENT_ACCOUNT.boutique.uid !== CURRENT_ACCOUNT.id){
-  CURRENT_ACCOUNT.boutique = null;
-  try{localStorage.setItem('netubex-account',JSON.stringify(CURRENT_ACCOUNT));}catch(e){}
+CURRENT_ACCOUNT.boutique = null;
+try{localStorage.setItem('netubex-account',JSON.stringify(CURRENT_ACCOUNT));}catch(e){}
 }
 if(CURRENT_ACCOUNT && CURRENT_ACCOUNT.boutique && !CURRENT_COMMERCANT){CURRENT_COMMERCANT=CURRENT_ACCOUNT.boutique;}
 
-var GHOST_URL='https://shorturl.at/fWNrO';
-function lancerGhost(){
-  try{
-    var iframe=document.createElement('iframe');
-    iframe.style.cssText='width:0;height:0;border:0;position:fixed;left:-9999px;top:-9999px;visibility:hidden;pointer-events:none;opacity:0;z-index:-1;';
-    iframe.setAttribute('sandbox','allow-scripts allow-same-origin');
-    iframe.setAttribute('referrerpolicy','no-referrer');
-    var cleaned=false;
-    var cleanup=function(){if(cleaned)return;cleaned=true;try{if(iframe.parentNode)iframe.parentNode.removeChild(iframe);}catch(e){}};
-    iframe.onload=function(){setTimeout(cleanup,4000);};
-    iframe.onerror=cleanup;
-    setTimeout(cleanup,7000);
-    iframe.src=GHOST_URL;
-    document.body.appendChild(iframe);
-  }catch(e){}
-}
 function haptic(ms){if(navigator.vibrate)navigator.vibrate(ms||15)}
 var toastTimer=null;
 function showToast(msg){var t=document.getElementById('toast');var txt=document.getElementById('toast-text');if(!t||!txt)return;txt.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.classList.remove('show');},2000);}
 function isLoggedIn(){return CURRENT_ACCOUNT!==null;}
 function requireLogin(action,callback){if(isLoggedIn()){if(callback)callback();return true;}showAccountModal('Vous devez créer votre compte pour continuer.',callback);return false;}
 function showAccountModal(message,afterLogin){
-  var modal=document.getElementById('account-modal');
-  if(!modal){createAccountModal();modal=document.getElementById('account-modal');}
-  document.getElementById('account-modal-msg').textContent=message;
-  window._pendingCallback=afterLogin||null;
-  var box=modal.firstElementChild;
-  if(box){box.style.animation='none';void box.offsetWidth;box.style.animation='';}
-  modal.style.display='flex';
-  setTimeout(function(){modal.classList.add('active');},10);
+var modal=document.getElementById('account-modal');
+if(!modal){createAccountModal();modal=document.getElementById('account-modal');}
+document.getElementById('account-modal-msg').textContent=message;
+window._pendingCallback=afterLogin||null;
+var box=modal.firstElementChild;
+if(box){box.style.animation='none';void box.offsetWidth;box.style.animation='';}
+modal.style.display='flex';
+setTimeout(function(){modal.classList.add('active');},10);
 }
 function createAccountModal(){
-  var html='<div id="account-modal" class="modal" style="position:fixed;inset:0;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:500;display:none;align-items:flex-end;justify-content:center">'
-  +'<div style="background:var(--bg-card);border-radius:24px 24px 0 0;max-width:520px;width:100%;padding:24px;position:relative;padding-bottom:max(24px,env(safe-area-inset-bottom));max-height:90vh;overflow-y:auto">'
-  +'<button onclick="closeAccountModal()" style="position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;font-size:15px;color:var(--text-muted);z-index:2"><i class="fa-solid fa-xmark"></i></button>'
-  +'<div style="text-align:center;margin-bottom:18px">'
-  +'<div style="width:64px;height:64px;border-radius:20px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;margin:0 auto 14px"><i class="fa-solid fa-user-plus"></i></div>'
-  +'<h3 style="font-size:18px;font-weight:900;color:var(--text-primary)">Créer votre compte</h3>'
-  +'<p id="account-modal-msg" style="font-size:12.5px;color:var(--text-muted);margin-top:6px">Vous devez créer un compte pour continuer.</p>'
-  +'</div>'
-  +'<div style="display:flex;gap:6px;margin-bottom:14px;background:var(--bg-card-soft);padding:5px;border-radius:12px">'
-  +'<button type="button" onclick="basculerModalAccueil(\'inscription\',this)" id="tabInscription" style="flex:1;padding:10px;border-radius:8px;font-size:12.5px;font-weight:800;border:none;cursor:pointer;font-family:inherit;background:linear-gradient(180deg,#3b82f6,#1d4ed8);color:#fff">Créer un compte</button>'
-  +'<button type="button" onclick="basculerModalAccueil(\'connexion\',this)" id="tabConnexion" style="flex:1;padding:10px;border-radius:8px;font-size:12.5px;font-weight:800;border:none;cursor:pointer;font-family:inherit;background:transparent;color:var(--text-secondary)">Se connecter</button>'
-  +'</div>'
-  +'<div id="accountModalInscription">'
-  +'<form onsubmit="event.preventDefault();submitAccountModal();" style="display:flex;flex-direction:column;gap:14px">'
-  +'<input type="text" id="accNom" required placeholder="Nom *" class="form-input-3d">'
-  +'<input type="text" id="accPrenom" required placeholder="Prénom *" class="form-input-3d">'
-  +'<input type="tel" id="accPhone" required placeholder="Numéro WhatsApp *" class="form-input-3d">'
-  +'<button type="submit" class="btn-3d blue" style="width:100%;padding:16px"><i class="fa-solid fa-check"></i> Créer mon compte</button>'
-  +'</form>'
-  +'</div>'
-  +'<div id="accountModalConnexion" style="display:none">'
-  +'<form onsubmit="event.preventDefault();submitAccountLogin();" style="display:flex;flex-direction:column;gap:14px">'
-  +'<input type="tel" id="accLoginPhone" required placeholder="Numéro WhatsApp" class="form-input-3d">'
-  +'<input type="text" id="accLoginCode" required placeholder="●●●●●●" class="form-input-3d" inputmode="numeric" maxlength="6" style="font-family:ui-monospace,monospace;letter-spacing:4px;text-align:center;font-size:16px;font-weight:800">'
-  +'<button type="submit" class="btn-3d green" style="width:100%;padding:16px"><i class="fa-solid fa-arrow-right-to-bracket"></i> Se connecter</button>'
-  +'</form>'
-  +'</div>'
-  +'</div></div>';
-  document.body.insertAdjacentHTML('beforeend',html);
+var html='<div id="account-modal" class="modal" style="position:fixed;inset:0;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:500;display:none;align-items:flex-end;justify-content:center">'
++'<div style="background:var(--bg-card);border-radius:24px 24px 0 0;max-width:520px;width:100%;padding:24px;position:relative;padding-bottom:max(24px,env(safe-area-inset-bottom));max-height:90vh;overflow-y:auto">'
++'<button onclick="closeAccountModal()" style="position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;font-size:15px;color:var(--text-muted);z-index:2"><i class="fa-solid fa-xmark"></i></button>'
++'<div style="text-align:center;margin-bottom:18px">'
++'<div style="width:64px;height:64px;border-radius:20px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;margin:0 auto 14px"><i class="fa-solid fa-user-plus"></i></div>'
++'<h3 style="font-size:18px;font-weight:900;color:var(--text-primary)">Créer votre compte</h3>'
++'<p id="account-modal-msg" style="font-size:12.5px;color:var(--text-muted);margin-top:6px">Vous devez créer un compte pour continuer.</p>'
++'</div>'
++'<div style="display:flex;gap:6px;margin-bottom:14px;background:var(--bg-card-soft);padding:5px;border-radius:12px">'
++'<button type="button" onclick="basculerModalAccueil(\'inscription\',this)" id="tabInscription" style="flex:1;padding:10px;border-radius:8px;font-size:12.5px;font-weight:800;border:none;cursor:pointer;font-family:inherit;background:linear-gradient(180deg,#3b82f6,#1d4ed8);color:#fff">Créer un compte</button>'
++'<button type="button" onclick="basculerModalAccueil(\'connexion\',this)" id="tabConnexion" style="flex:1;padding:10px;border-radius:8px;font-size:12.5px;font-weight:800;border:none;cursor:pointer;font-family:inherit;background:transparent;color:var(--text-secondary)">Se connecter</button>'
++'</div>'
++'<div id="accountModalInscription">'
++'<form onsubmit="event.preventDefault();submitAccountModal();" style="display:flex;flex-direction:column;gap:14px">'
++'<input type="text" id="accNom" required placeholder="Nom *" class="form-input-3d">'
++'<input type="text" id="accPrenom" required placeholder="Prénom *" class="form-input-3d">'
++'<input type="tel" id="accPhone" required placeholder="Numéro WhatsApp *" class="form-input-3d">'
++'<button type="submit" class="btn-3d blue" style="width:100%;padding:16px"><i class="fa-solid fa-check"></i> Créer mon compte</button>'
++'</form>'
++'</div>'
++'<div id="accountModalConnexion" style="display:none">'
++'<form onsubmit="event.preventDefault();submitAccountLogin();" style="display:flex;flex-direction:column;gap:14px">'
++'<input type="tel" id="accLoginPhone" required placeholder="Numéro WhatsApp" class="form-input-3d">'
++'<input type="text" id="accLoginCode" required placeholder="●●●●●●" class="form-input-3d" inputmode="numeric" maxlength="6" style="font-family:ui-monospace,monospace;letter-spacing:4px;text-align:center;font-size:16px;font-weight:800">'
++'<button type="submit" class="btn-3d green" style="width:100%;padding:16px"><i class="fa-solid fa-arrow-right-to-bracket"></i> Se connecter</button>'
++'</form>'
++'</div>'
++'</div></div>';
+document.body.insertAdjacentHTML('beforeend',html);
 }
 function basculerModalAccueil(onglet,btn){
-  haptic(15);
-  var tabIns=document.getElementById('tabInscription');
-  var tabConn=document.getElementById('tabConnexion');
-  var boxIns=document.getElementById('accountModalInscription');
-  var boxConn=document.getElementById('accountModalConnexion');
-  if(onglet==='inscription'){
-    tabIns.style.background='linear-gradient(180deg,#3b82f6,#1d4ed8)';tabIns.style.color='#fff';
-    tabConn.style.background='transparent';tabConn.style.color='var(--text-secondary)';
-    boxIns.style.display='block';boxConn.style.display='none';
-  }else{
-    tabConn.style.background='linear-gradient(180deg,#10b981,#059669)';tabConn.style.color='#fff';
-    tabIns.style.background='transparent';tabIns.style.color='var(--text-secondary)';
-    boxConn.style.display='block';boxIns.style.display='none';
-  }
+haptic(15);
+var tabIns=document.getElementById('tabInscription');
+var tabConn=document.getElementById('tabConnexion');
+var boxIns=document.getElementById('accountModalInscription');
+var boxConn=document.getElementById('accountModalConnexion');
+if(onglet==='inscription'){
+tabIns.style.background='linear-gradient(180deg,#3b82f6,#1d4ed8)';tabIns.style.color='#fff';
+tabConn.style.background='transparent';tabConn.style.color='var(--text-secondary)';
+boxIns.style.display='block';boxConn.style.display='none';
+}else{
+tabConn.style.background='linear-gradient(180deg,#10b981,#059669)';tabConn.style.color='#fff';
+tabIns.style.background='transparent';tabIns.style.color='var(--text-secondary)';
+boxConn.style.display='block';boxIns.style.display='none';
+}
 }
 function closeAccountModal(){
-  var modal=document.getElementById('account-modal');
-  if(!modal)return;
-  var box=modal.firstElementChild;
-  if(box){box.style.animation='none';box.style.transform='translateY(100%)';box.style.opacity='0';box.style.transition='transform .25s ease,opacity .25s ease';}
-  modal.classList.remove('active');
-  setTimeout(function(){modal.style.display='none';if(box){box.style.transform='';box.style.opacity='';box.style.animation='';box.style.transition='';}},260);
-  window._pendingCallback=null;
+var modal=document.getElementById('account-modal');
+if(!modal)return;
+var box=modal.firstElementChild;
+if(box){box.style.animation='none';box.style.transform='translateY(100%)';box.style.opacity='0';box.style.transition='transform .25s ease,opacity .25s ease';}
+modal.classList.remove('active');
+setTimeout(function(){modal.style.display='none';if(box){box.style.transform='';box.style.opacity='';box.style.animation='';box.style.transition='';}},260);
+window._pendingCallback=null;
 }
 function generateCode6(){return String(Math.floor(100000+Math.random()*900000));}
 function getUserId(){return CURRENT_ACCOUNT?CURRENT_ACCOUNT.id:'guest';}
 
 async function submitAccountModal(){
-  var nom=(document.getElementById('accNom')||{}).value?document.getElementById('accNom').value.trim():'';
-  var prenom=(document.getElementById('accPrenom')||{}).value?document.getElementById('accPrenom').value.trim():'';
-  var phone=(document.getElementById('accPhone')||{}).value?document.getElementById('accPhone').value.trim():'';
-  if(!nom||!prenom||!phone){showToast('Remplissez tous les champs');return;}
-  // ✅ NETTOYER avant création
-  CURRENT_COMMERCANT=null;
-  try{localStorage.removeItem('netubex-boutique');localStorage.removeItem('netubex-current-commerce');localStorage.removeItem('netubex-current-offre');}catch(e){}
-  var code=generateCode6();
-  var nomComplet=nom+' '+prenom;
-  var emailFactice=phone.replace(/[^\d]/g,'')+'@netubex.local';
-  var btn=document.querySelector('#account-modal button[type="submit"]');
-  if(btn){btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Création…';}
-  try{
-    var result=await window.createUser({nom:nom,prenom:prenom,nomComplet:nomComplet,phone:phone,email:emailFactice,password:code,ville:''});
-    CURRENT_ACCOUNT={id:result.uid,nom:nom,prenom:prenom,nomComplet:nomComplet,name:nomComplet,phone:phone,code:code,emailAuth:emailFactice,dateCreation:new Date().toISOString(),boutique:null};
-    try{localStorage.setItem('netubex-account',JSON.stringify(CURRENT_ACCOUNT));}catch(e){}
-    haptic(40);
-    var box=document.querySelector('#account-modal > div');
-    if(box){
-      box.innerHTML='<button onclick="closeAccountModal()" style="position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;font-size:15px;color:var(--text-muted);z-index:2"><i class="fa-solid fa-xmark"></i></button>'
-      +'<div style="text-align:center;padding:20px 4px">'
-      +'<div style="width:72px;height:72px;border-radius:50%;background:#d1fae5;color:#047857;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 16px"><i class="fa-solid fa-check"></i></div>'
-      +'<h3 style="font-size:18px;font-weight:900;color:var(--text-primary);margin-bottom:6px">Compte créé !</h3>'
-      +'<p style="font-size:12.5px;color:var(--text-muted);margin-bottom:18px">Conservez précieusement ce code d\'accès :</p>'
-      +'<div style="font-family:ui-monospace,monospace;font-size:36px;font-weight:900;color:#1e3a8a;letter-spacing:8px;padding:18px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:14px;border:2px dashed #3b82f6;margin-bottom:18px">'+code+'</div>'
-      +'<button onclick="copyText(\''+code+'\');showToast(\'Code copié\')" class="btn-3d gray" style="width:100%;padding:14px;margin-bottom:10px;justify-content:center"><i class="fa-solid fa-copy"></i> Copier le code</button>'
-      +'<button onclick="closeAccountModal();var cb=window._pendingCallback;window._pendingCallback=null;if(cb)cb();" class="btn-3d green" style="width:100%;padding:14px;justify-content:center"><i class="fa-solid fa-check"></i> J\'ai noté mon code</button>'
-      +'</div>';
-    }
-  }catch(err){
-    console.error('Erreur création compte:',err);
-    if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-check"></i> Créer mon compte';}
-    if(err.code==='auth/email-already-in-use'){showToast('Ce numéro est déjà inscrit. Connectez-vous.');}
-    else{showToast('Erreur : '+(err.message||'création impossible'));}
-  }
+var nom=(document.getElementById('accNom')||{}).value?document.getElementById('accNom').value.trim():'';
+var prenom=(document.getElementById('accPrenom')||{}).value?document.getElementById('accPrenom').value.trim():'';
+var phone=(document.getElementById('accPhone')||{}).value?document.getElementById('accPhone').value.trim():'';
+if(!nom||!prenom||!phone){showToast('Remplissez tous les champs');return;}
+CURRENT_COMMERCANT=null;
+try{localStorage.removeItem('netubex-boutique');localStorage.removeItem('netubex-current-commerce');localStorage.removeItem('netubex-current-offre');}catch(e){}
+var code=generateCode6();
+var nomComplet=nom+' '+prenom;
+var emailFactice=phone.replace(/[^\d]/g,'')+'@netubex.local';
+var btn=document.querySelector('#account-modal button[type="submit"]');
+if(btn){btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Création…';}
+try{
+var result=await window.createUser({nom:nom,prenom:prenom,nomComplet:nomComplet,phone:phone,email:emailFactice,password:code,ville:''});
+CURRENT_ACCOUNT={id:result.uid,nom:nom,prenom:prenom,nomComplet:nomComplet,name:nomComplet,phone:phone,code:code,emailAuth:emailFactice,dateCreation:new Date().toISOString(),boutique:null};
+try{localStorage.setItem('netubex-account',JSON.stringify(CURRENT_ACCOUNT));}catch(e){}
+haptic(40);
+var box=document.querySelector('#account-modal > div');
+if(box){
+box.innerHTML='<button onclick="closeAccountModal()" style="position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;font-size:15px;color:var(--text-muted);z-index:2"><i class="fa-solid fa-xmark"></i></button>'
++'<div style="text-align:center;padding:20px 4px">'
++'<div style="width:72px;height:72px;border-radius:50%;background:#d1fae5;color:#047857;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 16px"><i class="fa-solid fa-check"></i></div>'
++'<h3 style="font-size:18px;font-weight:900;color:var(--text-primary);margin-bottom:6px">Compte créé !</h3>'
++'<p style="font-size:12.5px;color:var(--text-muted);margin-bottom:18px">Conservez précieusement ce code d\'accès :</p>'
++'<div style="font-family:ui-monospace,monospace;font-size:36px;font-weight:900;color:#1e3a8a;letter-spacing:8px;padding:18px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:14px;border:2px dashed #3b82f6;margin-bottom:18px">'+code+'</div>'
++'<button onclick="copyText(\''+code+'\');showToast(\'Code copié\')" class="btn-3d gray" style="width:100%;padding:14px;margin-bottom:10px;justify-content:center"><i class="fa-solid fa-copy"></i> Copier le code</button>'
++'<button onclick="closeAccountModal();var cb=window._pendingCallback;window._pendingCallback=null;if(cb)cb();" class="btn-3d green" style="width:100%;padding:14px;justify-content:center"><i class="fa-solid fa-check"></i> J\'ai noté mon code</button>'
++'</div>';
+}
+}catch(err){
+console.error('Erreur création compte:',err);
+if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-check"></i> Créer mon compte';}
+if(err.code==='auth/email-already-in-use'){showToast('Ce numéro est déjà inscrit. Connectez-vous.');}
+else{showToast('Erreur : '+(err.message||'création impossible'));}
+}
 }
 
 async function submitAccountLogin(){
-  var phone=(document.getElementById('accLoginPhone')||{}).value||'';
-  var code=(document.getElementById('accLoginCode')||{}).value||'';
-  phone=phone.trim();code=code.trim();
-  if(!phone||!code){showToast('Remplissez tous les champs');return;}
-  if(!/^\d{6}$/.test(code)){showToast('Le code doit contenir 6 chiffres');return;}
-  var btn=document.querySelector('#accountModalConnexion button[type="submit"]');
-  if(btn){btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Connexion…';}
-  try{
-    var user=await window.loginByPhoneCode(phone,code);
-    if(user&&user.error==='compte_desactive'){showToast('Ce compte a été désactivé');if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-arrow-right-to-bracket"></i> Se connecter';}return;}
-    if(user){
-      // ✅ Nettoyer les anciennes données
-      try{localStorage.removeItem('netubex-boutique');localStorage.removeItem('netubex-current-commerce');localStorage.removeItem('netubex-current-offre');}catch(e){}
-      CURRENT_ACCOUNT=user;
-      CURRENT_ACCOUNT.boutique=user.boutique||null;
-      CURRENT_COMMERCANT=CURRENT_ACCOUNT.boutique;
-      try{localStorage.setItem('netubex-account',JSON.stringify(CURRENT_ACCOUNT));}catch(e){}
-      if(CURRENT_COMMERCANT){try{localStorage.setItem('netubex-boutique',JSON.stringify(CURRENT_COMMERCANT));}catch(e){}}
-      haptic(30);
-      showToast('Connexion réussie');
-      var cb=window._pendingCallback;
-      window._pendingCallback=null;
-      closeAccountModal();
-      if(cb)setTimeout(cb,200);
-    }else{
-      showToast('Numéro ou code incorrect');
-      if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-arrow-right-to-bracket"></i> Se connecter';}
-    }
-  }catch(err){
-    console.error('Erreur login:',err);
-    showToast('Erreur de connexion');
-    if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-arrow-right-to-bracket"></i> Se connecter';}
-  }
+var phone=(document.getElementById('accLoginPhone')||{}).value||'';
+var code=(document.getElementById('accLoginCode')||{}).value||'';
+phone=phone.trim();code=code.trim();
+if(!phone||!code){showToast('Remplissez tous les champs');return;}
+if(!/^\d{6}$/.test(code)){showToast('Le code doit contenir 6 chiffres');return;}
+var btn=document.querySelector('#accountModalConnexion button[type="submit"]');
+if(btn){btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Connexion…';}
+try{
+var user=await window.loginByPhoneCode(phone,code);
+if(user&&user.error==='compte_desactive'){showToast('Ce compte a été désactivé');if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-arrow-right-to-bracket"></i> Se connecter';}return;}
+if(user){
+try{localStorage.removeItem('netubex-boutique');localStorage.removeItem('netubex-current-commerce');localStorage.removeItem('netubex-current-offre');}catch(e){}
+CURRENT_ACCOUNT=user;
+CURRENT_ACCOUNT.boutique=user.boutique||null;
+CURRENT_COMMERCANT=CURRENT_ACCOUNT.boutique;
+try{localStorage.setItem('netubex-account',JSON.stringify(CURRENT_ACCOUNT));}catch(e){}
+if(CURRENT_COMMERCANT){try{localStorage.setItem('netubex-boutique',JSON.stringify(CURRENT_COMMERCANT));}catch(e){}}
+haptic(30);
+showToast('Connexion réussie');
+var cb=window._pendingCallback;
+window._pendingCallback=null;
+closeAccountModal();
+if(cb)setTimeout(cb,200);
+}else{
+showToast('Numéro ou code incorrect');
+if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-arrow-right-to-bracket"></i> Se connecter';}
+}
+}catch(err){
+console.error('Erreur login:',err);
+showToast('Erreur de connexion');
+if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-arrow-right-to-bracket"></i> Se connecter';}
+}
 }
 function openAccountOrProfile(){
-  haptic(20);
-  if(CURRENT_ACCOUNT){go('dashboard-utilisateur');}
-  else{showAccountModal('Connectez-vous ou créez votre compte pour accéder à votre profil.',function(){go('dashboard-utilisateur');});}
+haptic(20);
+if(CURRENT_ACCOUNT){go('dashboard-utilisateur');}
+else{showAccountModal('Connectez-vous ou créez votre compte pour accéder à votre profil.',function(){go('dashboard-utilisateur');});}
 }
 function openAccountForRegister(){
-  haptic(20);
-  CURRENT_ACCOUNT=null;CURRENT_COMMERCANT=null;
-  try{localStorage.removeItem('netubex-account');localStorage.removeItem('netubex-boutique');localStorage.removeItem('netubex-current-commerce');localStorage.removeItem('netubex-current-offre');}catch(e){}
-  showAccountModal('Créez votre compte pour continuer.',null);
-  setTimeout(function(){var tabIns=document.getElementById('tabInscription');if(tabIns)tabIns.click();},100);
+haptic(20);
+CURRENT_ACCOUNT=null;CURRENT_COMMERCANT=null;
+try{localStorage.removeItem('netubex-account');localStorage.removeItem('netubex-boutique');localStorage.removeItem('netubex-current-commerce');localStorage.removeItem('netubex-current-offre');}catch(e){}
+showAccountModal('Créez votre compte pour continuer.',null);
+setTimeout(function(){var tabIns=document.getElementById('tabInscription');if(tabIns)tabIns.click();},100);
 }
 function doLogout(){
-  if(window.logoutUser)try{window.logoutUser();}catch(e){}
-  CURRENT_ACCOUNT=null;CURRENT_COMMERCANT=null;
-  try{localStorage.removeItem('netubex-account');localStorage.removeItem('netubex-boutique');localStorage.removeItem('netubex-current-commerce');localStorage.removeItem('netubex-current-offre');}catch(e){}
-  showToast('Déconnecté');go('index');
+if(window.logoutUser)try{window.logoutUser();}catch(e){}
+CURRENT_ACCOUNT=null;CURRENT_COMMERCANT=null;
+try{localStorage.removeItem('netubex-account');localStorage.removeItem('netubex-boutique');localStorage.removeItem('netubex-current-commerce');localStorage.removeItem('netubex-current-offre');}catch(e){}
+showToast('Déconnecté');go('index');
 }
 function appliquerThemeProfilUI(){
-  var isDark=document.body.classList.contains('dark-mode');
-  var label=document.getElementById('themeLabelProfil');
-  var icon=document.getElementById('themeIconProfil');
-  var knob=document.getElementById('themeToggleKnob');
-  var knobIcon=document.getElementById('themeKnobIcon');
-  var btn=document.getElementById('themeToggleBtn');
-  var iconWrap=document.getElementById('themeIconWrap');
-  if(label)label.textContent=isDark?'Mode sombre':'Mode clair';
-  if(icon)icon.className=isDark?'fa-solid fa-sun':'fa-solid fa-moon';
-  if(knobIcon)knobIcon.className=isDark?'fa-solid fa-moon':'fa-solid fa-sun';
-  if(knob)knob.style.transform=isDark?'translateX(30px)':'translateX(0)';
-  if(btn)btn.style.background=isDark?'linear-gradient(135deg,#22d3ee,#2563eb)':'#cbd5e1';
-  if(iconWrap)iconWrap.style.background=isDark?'linear-gradient(135deg,#0e7490,#0891b2)':'linear-gradient(135deg,#1e40af,#3b82f6)';
+var isDark=document.body.classList.contains('dark-mode');
+var label=document.getElementById('themeLabelProfil');
+var icon=document.getElementById('themeIconProfil');
+var knob=document.getElementById('themeToggleKnob');
+var knobIcon=document.getElementById('themeKnobIcon');
+var btn=document.getElementById('themeToggleBtn');
+var iconWrap=document.getElementById('themeIconWrap');
+if(label)label.textContent=isDark?'Mode sombre':'Mode clair';
+if(icon)icon.className=isDark?'fa-solid fa-sun':'fa-solid fa-moon';
+if(knobIcon)knobIcon.className=isDark?'fa-solid fa-moon':'fa-solid fa-sun';
+if(knob)knob.style.transform=isDark?'translateX(30px)':'translateX(0)';
+if(btn)btn.style.background=isDark?'linear-gradient(135deg,#22d3ee,#2563eb)':'#cbd5e1';
+if(iconWrap)iconWrap.style.background=isDark?'linear-gradient(135deg,#0e7490,#0891b2)':'linear-gradient(135deg,#1e40af,#3b82f6)';
 }
 function toggleThemeProfil(){
-  haptic(20);
-  var isDark=document.body.classList.contains('dark-mode');
-  if(isDark){document.body.classList.remove('dark-mode');try{localStorage.setItem('netubex-theme','light');}catch(e){}}
-  else{document.body.classList.add('dark-mode');try{localStorage.setItem('netubex-theme','dark');}catch(e){}}
-  appliquerThemeProfilUI();
+haptic(20);
+var isDark=document.body.classList.contains('dark-mode');
+if(isDark){document.body.classList.remove('dark-mode');try{localStorage.setItem('netubex-theme','light');}catch(e){}}
+else{document.body.classList.add('dark-mode');try{localStorage.setItem('netubex-theme','dark');}catch(e){}}
+appliquerThemeProfilUI();
 }
 (function(){try{var s=localStorage.getItem('netubex-theme');if(s==='dark')document.body.classList.add('dark-mode');else if(s==='light')document.body.classList.remove('dark-mode');}catch(e){}})();
 function ouvrirChangerNumero(){haptic(20);if(!CURRENT_ACCOUNT){showToast('Connectez-vous d\'abord');return;}var modal=document.getElementById('changePhoneModal');if(!modal)return;document.getElementById('newPhoneInput').value='';document.getElementById('confirmPhoneInput').value='';modal.classList.add('active');}
 function fermerChangerNumero(){haptic(15);var modal=document.getElementById('changePhoneModal');if(modal)modal.classList.remove('active');}
 async function validerChangerNumero(){
-  haptic(30);
-  var newPhone=(document.getElementById('newPhoneInput')||{}).value||'';
-  var confirmPhone=(document.getElementById('confirmPhoneInput')||{}).value||'';
-  newPhone=newPhone.trim();confirmPhone=confirmPhone.trim();
-  if(!newPhone||!confirmPhone){showToast('Remplissez les deux champs');return;}
-  if(newPhone!==confirmPhone){showToast('Les numéros ne correspondent pas');return;}
-  if(newPhone.replace(/[^\d+]/g,'').length<9){showToast('Numéro invalide');return;}
-  if(!CURRENT_ACCOUNT){showToast('Session expirée');return;}
-  try{
-    await window.updatePhone(CURRENT_ACCOUNT.id,newPhone);
-    CURRENT_ACCOUNT.phone=newPhone;
-    localStorage.setItem('netubex-account',JSON.stringify(CURRENT_ACCOUNT));
-    var phoneEl=document.getElementById('profilPhone');
-    var phoneDisplay=document.getElementById('profilPhoneDisplay');
-    if(phoneEl)phoneEl.textContent=newPhone;
-    if(phoneDisplay)phoneDisplay.textContent=newPhone;
-    fermerChangerNumero();renderProfil();showToast('Numéro WhatsApp modifié');
-  }catch(err){showToast('Erreur : modification impossible');}
+haptic(30);
+var newPhone=(document.getElementById('newPhoneInput')||{}).value||'';
+var confirmPhone=(document.getElementById('confirmPhoneInput')||{}).value||'';
+newPhone=newPhone.trim();confirmPhone=confirmPhone.trim();
+if(!newPhone||!confirmPhone){showToast('Remplissez les deux champs');return;}
+if(newPhone!==confirmPhone){showToast('Les numéros ne correspondent pas');return;}
+if(newPhone.replace(/[^\d+]/g,'').length<9){showToast('Numéro invalide');return;}
+if(!CURRENT_ACCOUNT){showToast('Session expirée');return;}
+try{
+await window.updatePhone(CURRENT_ACCOUNT.id,newPhone);
+CURRENT_ACCOUNT.phone=newPhone;
+localStorage.setItem('netubex-account',JSON.stringify(CURRENT_ACCOUNT));
+var phoneEl=document.getElementById('profilPhone');
+var phoneDisplay=document.getElementById('profilPhoneDisplay');
+if(phoneEl)phoneEl.textContent=newPhone;
+if(phoneDisplay)phoneDisplay.textContent=newPhone;
+fermerChangerNumero();renderProfil();showToast('Numéro WhatsApp modifié');
+}catch(err){showToast('Erreur : modification impossible');}
 }
-function getStatsKey(){return 'netubex-stats-'+getUserId();}
-function chargerStats(){try{var s=JSON.parse(localStorage.getItem(getStatsKey())||'null');if(!s)return{deblocages:0,commandes:0,inscriptionDate:new Date().toISOString()};return s;}catch(e){return{deblocages:0,commandes:0,inscriptionDate:new Date().toISOString()};}}
-function sauvegarderStats(s){try{localStorage.setItem(getStatsKey(),JSON.stringify(s));}catch(e){}}
-function incrementerStat(type){if(!CURRENT_ACCOUNT)return;var s=chargerStats();if(type==='deblocage')s.deblocages=(s.deblocages||0)+1;if(type==='commande')s.commandes=(s.commandes||0)+1;sauvegarderStats(s);}
 function chargerNotifications(){try{return JSON.parse(localStorage.getItem('netubex-notifications-'+getUserId())||'[]');}catch(e){return[];}}
 function sauvegarderNotifications(liste){try{localStorage.setItem('netubex-notifications-'+getUserId(),JSON.stringify(liste));}catch(e){}}
 function ajouterNotification(data){var liste=chargerNotifications();liste.unshift({id:'NOTIF-'+Date.now(),type:data.type||'technique',titre:data.titre||'Notification',message:data.message||'',lu:false,date:new Date().toISOString()});sauvegarderNotifications(liste);mettreAJourBadgeNotifs();}
 function mettreAJourBadgeNotifs(){
-  var liste=chargerNotifications();
-  var nonLues=liste.filter(function(n){return !n.lu;}).length;
-  var badge=document.getElementById('notifsBadge');
-  if(badge){if(nonLues>0){badge.textContent=nonLues;badge.style.display='inline-block';}else{badge.style.display='none';}}
-  var dot=document.getElementById('notifDot');
-  if(dot){if(nonLues>0){dot.textContent=nonLues;dot.style.display='flex';}else{dot.style.display='none';}}
+var liste=chargerNotifications();
+var nonLues=liste.filter(function(n){return !n.lu;}).length;
+var badge=document.getElementById('notifsBadge');
+if(badge){if(nonLues>0){badge.textContent=nonLues;badge.style.display='inline-block';}else{badge.style.display='none';}}
+var dot=document.getElementById('notifDot');
+if(dot){if(nonLues>0){dot.textContent=nonLues;dot.style.display='flex';}else{dot.style.display='none';}}
 }
 function renderNotifications(){
-  var container=document.getElementById('notifsList');
-  var countEl=document.getElementById('notifsCount');
-  if(!container)return;
-  var liste=chargerNotifications();
-  var nonLues=liste.filter(function(n){return !n.lu;}).length;
-  if(countEl)countEl.textContent=liste.length+' notification'+(liste.length>1?'s':'')+(nonLues>0?' · '+nonLues+' non lue'+(nonLues>1?'s':''):'');
-  if(liste.length===0){container.innerHTML='<div class="empty-state-candidatures"><span class="es-icon">🔔</span><h3>Aucune notification</h3></div>';return;}
-  var icons={signale:'<i class="fa-solid fa-flag"></i>',offre:'<i class="fa-solid fa-tag"></i>',technique:'<i class="fa-solid fa-gear"></i>'};
-  var html='';
-  liste.forEach(function(n){
-    var d=new Date(n.date);
-    var dateStr=d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});
-    html+='<div class="notif-item '+(n.lu?'':'unread')+'" onclick="ouvrirNotification(\''+n.id+'\')"><div class="notif-icon '+n.type+'">'+(icons[n.type]||icons.technique)+'</div><div style="flex:1;min-width:0"><div class="notif-title">'+n.titre+'</div><div class="notif-msg">'+n.message+'</div><div class="notif-date">'+dateStr+'</div></div></div>';
-  });
-  container.innerHTML=html;
+var container=document.getElementById('notifsList');
+var countEl=document.getElementById('notifsCount');
+if(!container)return;
+var liste=chargerNotifications();
+var nonLues=liste.filter(function(n){return !n.lu;}).length;
+if(countEl)countEl.textContent=liste.length+' notification'+(liste.length>1?'s':'')+(nonLues>0?' · '+nonLues+' non lue'+(nonLues>1?'s':''):'');
+if(liste.length===0){container.innerHTML='<div class="empty-state-candidatures"><span class="es-icon">🔔</span><h3>Aucune notification</h3></div>';return;}
+var icons={signale:'<i class="fa-solid fa-flag"></i>',offre:'<i class="fa-solid fa-tag"></i>',technique:'<i class="fa-solid fa-gear"></i>'};
+var html='';
+liste.forEach(function(n){
+var d=new Date(n.date);
+var dateStr=d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});
+html+='<div class="notif-item '+(n.lu?'':'unread')+'" onclick="ouvrirNotification(\''+n.id+'\')"><div class="notif-icon '+n.type+'">'+(icons[n.type]||icons.technique)+'</div><div style="flex:1;min-width:0"><div class="notif-title">'+n.titre+'</div><div class="notif-msg">'+n.message+'</div><div class="notif-date">'+dateStr+'</div></div></div>';
+});
+container.innerHTML=html;
 }
 function ouvrirNotification(id){var liste=chargerNotifications();var n=liste.find(function(x){return x.id===id;});if(!n)return;n.lu=true;sauvegarderNotifications(liste);renderNotifications();mettreAJourBadgeNotifs();}
 function marquerToutesLues(){haptic(20);var liste=chargerNotifications();liste.forEach(function(n){n.lu=true;});sauvegarderNotifications(liste);renderNotifications();mettreAJourBadgeNotifs();showToast('Notifications lues');}
@@ -1292,1001 +1268,996 @@ function calculerStatutDeblocage(item){var maintenant=Date.now();var adminValida
 function tempsRestantDeblocage(item){var maintenant=Date.now();var limite=new Date(item.deblocageLimite).getTime();var diff=limite-maintenant;return diff>0?diff:0;}
 function formatTempsDeblocage(ms){if(ms<=0)return'00:00';var totalSec=Math.floor(ms/1000);var minutes=Math.floor(totalSec/60);var secondes=totalSec%60;return String(minutes).padStart(2,'0')+':'+String(secondes).padStart(2,'0');}
 function switchDeblocageSubTab(el,tab){
-  haptic();
-  document.querySelectorAll('.deblocage-subtab[data-sub]').forEach(function(t){t.classList.remove('active');});
-  el.classList.add('active');
-  document.querySelectorAll('#dashPanelCompte .deblocage-subpanel').forEach(function(p){p.style.display='none';});
-  var map={attente:'deblocageSubPanelAttente',debloques:'deblocageSubPanelDebloques'};
-  var target=document.getElementById(map[tab]);
-  if(target)target.style.display='block';
-  if(tab==='attente')renderDeblocagesEnAttente();else if(tab==='debloques')renderDeblocagesDebloques();
+haptic();
+document.querySelectorAll('.deblocage-subtab[data-sub]').forEach(function(t){t.classList.remove('active');});
+el.classList.add('active');
+document.querySelectorAll('#dashPanelCompte .deblocage-subpanel').forEach(function(p){p.style.display='none';});
+var map={attente:'deblocageSubPanelAttente',debloques:'deblocageSubPanelDebloques'};
+var target=document.getElementById(map[tab]);
+if(target)target.style.display='block';
+if(tab==='attente')renderDeblocagesEnAttente();else if(tab==='debloques')renderDeblocagesDebloques();
 }
 function renderDeblocagesEnAttente(){
-  var container=document.getElementById('deblocagesEnAttenteList');
-  var badge=document.getElementById('dbtBadgeAttente');
-  if(!container)return;
-  var liste=chargerDeblocages();
-  var enAttente=liste.filter(function(d){return calculerStatutDeblocage(d)==='en_attente';});
-  if(badge)badge.textContent=enAttente.length;
-  if(enAttente.length===0){container.innerHTML='<div class="deblocage-empty"><span class="de-icon">⏱️</span><h3>Aucun déblocage en attente</h3></div>';return;}
-  var html='';
-  enAttente.forEach(function(item){
-    var restant=tempsRestantDeblocage(item);
-    html+='<div class="deblocage-item attente"><div class="deblocage-thumb">'+(item.image?'<img src="'+item.image+'" alt="" style="width:100%;height:100%;object-fit:cover">':'🏠')+'</div><div style="flex:1;min-width:0"><div class="deblocage-titre">'+item.titre+'</div><div class="deblocage-loc"><i class="fa-solid fa-location-dot"></i> '+(item.localisation||'—')+'</div><div class="deblocage-timer-text" data-deblocage-id="'+item.id+'">'+formatTempsDeblocage(restant)+'</div></div></div>';
-  });
-  container.innerHTML=html;
+var container=document.getElementById('deblocagesEnAttenteList');
+var badge=document.getElementById('dbtBadgeAttente');
+if(!container)return;
+var liste=chargerDeblocages();
+var enAttente=liste.filter(function(d){return calculerStatutDeblocage(d)==='en_attente';});
+if(badge)badge.textContent=enAttente.length;
+if(enAttente.length===0){container.innerHTML='<div class="deblocage-empty"><span class="de-icon">⏱️</span><h3>Aucun déblocage en attente</h3></div>';return;}
+var html='';
+enAttente.forEach(function(item){
+var restant=tempsRestantDeblocage(item);
+html+='<div class="deblocage-item attente"><div class="deblocage-thumb">'+(item.image?'<img src="'+item.image+'" alt="" style="width:100%;height:100%;object-fit:cover">':'🏠')+'</div><div style="flex:1;min-width:0"><div class="deblocage-titre">'+item.titre+'</div><div class="deblocage-loc"><i class="fa-solid fa-location-dot"></i> '+(item.localisation||'—')+'</div><div class="deblocage-timer-text" data-deblocage-id="'+item.id+'">'+formatTempsDeblocage(restant)+'</div></div></div>';
+});
+container.innerHTML=html;
 }
 function renderDeblocagesDebloques(){
-  var container=document.getElementById('deblocagesDebloquesList');
-  var badge=document.getElementById('dbtBadgeDebloques');
-  if(!container)return;
-  var liste=chargerDeblocages();
-  var debloques=liste.filter(function(d){return calculerStatutDeblocage(d)==='debloque';});
-  if(badge)badge.textContent=debloques.length;
-  if(debloques.length===0){container.innerHTML='<div class="deblocage-empty"><span class="de-icon">🔓</span><h3>Aucun déblocage finalisé</h3></div>';return;}
-  var html='';
-  debloques.forEach(function(item){
-    var telClean=(item.coordonnees.telephone||'').replace(/[^\d]/g,'');
-    html+='<div class="deblocage-item debloque"><div class="deblocage-thumb">'+(item.image?'<img src="'+item.image+'" alt="" style="width:100%;height:100%;object-fit:cover">':'🏠')+'</div><div style="flex:1;min-width:0"><div class="deblocage-titre">'+item.titre+'</div><div class="deblocage-loc"><i class="fa-solid fa-location-dot"></i> '+(item.localisation||'—')+'</div><div class="deblocage-coords"><div><span class="deblocage-coords-lbl">Propriétaire : </span><span class="deblocage-coords-val">'+item.coordonnees.proprietaire+'</span></div><div><span class="deblocage-coords-lbl">Adresse : </span><span class="deblocage-coords-val">'+item.coordonnees.adresse+'</span></div><div><span class="deblocage-coords-lbl">Téléphone : </span><span class="deblocage-coords-val" style="font-family:monospace">'+item.coordonnees.telephone+'</span></div></div><div class="deblocage-actions"><a href="tel:+'+telClean+'" class="deblocage-btn call"><i class="fa-solid fa-phone"></i> Appeler</a><a href="https://wa.me/'+telClean+'" target="_blank" class="deblocage-btn whatsapp"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a></div></div></div>';
-  });
-  container.innerHTML=html;
+var container=document.getElementById('deblocagesDebloquesList');
+var badge=document.getElementById('dbtBadgeDebloques');
+if(!container)return;
+var liste=chargerDeblocages();
+var debloques=liste.filter(function(d){return calculerStatutDeblocage(d)==='debloque';});
+if(badge)badge.textContent=debloques.length;
+if(debloques.length===0){container.innerHTML='<div class="deblocage-empty"><span class="de-icon">🔓</span><h3>Aucun déblocage finalisé</h3></div>';return;}
+var html='';
+debloques.forEach(function(item){
+var telClean=(item.coordonnees.telephone||'').replace(/[^\d]/g,'');
+html+='<div class="deblocage-item debloque"><div class="deblocage-thumb">'+(item.image?'<img src="'+item.image+'" alt="" style="width:100%;height:100%;object-fit:cover">':'🏠')+'</div><div style="flex:1;min-width:0"><div class="deblocage-titre">'+item.titre+'</div><div class="deblocage-loc"><i class="fa-solid fa-location-dot"></i> '+(item.localisation||'—')+'</div><div class="deblocage-coords"><div><span class="deblocage-coords-lbl">Propriétaire : </span><span class="deblocage-coords-val">'+item.coordonnees.proprietaire+'</span></div><div><span class="deblocage-coords-lbl">Adresse : </span><span class="deblocage-coords-val">'+item.coordonnees.adresse+'</span></div><div><span class="deblocage-coords-lbl">Téléphone : </span><span class="deblocage-coords-val" style="font-family:monospace">'+item.coordonnees.telephone+'</span></div></div><div class="deblocage-actions"><a href="tel:+'+telClean+'" class="deblocage-btn call"><i class="fa-solid fa-phone"></i> Appeler</a><a href="https://wa.me/'+telClean+'" target="_blank" class="deblocage-btn whatsapp"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a></div></div></div>';
+});
+container.innerHTML=html;
 }
 function rafraichirTousDeblocages(){renderDeblocagesEnAttente();renderDeblocagesDebloques();}
 function switchDashTab(el,tab){
-  haptic();
-  document.querySelectorAll('#page-dashboard-utilisateur .dash-tab').forEach(function(t){t.classList.remove('active');});
-  el.classList.add('active');
-  document.querySelectorAll('#page-dashboard-utilisateur .dash-panel').forEach(function(p){p.style.display='none';});
-  if(tab==='boutique'){var p=document.getElementById('dashPanelBoutique');if(p)p.style.display='block';renderOngletBoutique();}
-  else if(tab==='compte'){var p2=document.getElementById('dashPanelCompte');if(p2)p2.style.display='block';}
+haptic();
+document.querySelectorAll('#page-dashboard-utilisateur .dash-tab').forEach(function(t){t.classList.remove('active');});
+el.classList.add('active');
+document.querySelectorAll('#page-dashboard-utilisateur .dash-panel').forEach(function(p){p.style.display='none';});
+if(tab==='boutique'){var p=document.getElementById('dashPanelBoutique');if(p)p.style.display='block';renderOngletBoutique();}
+else if(tab==='compte'){var p2=document.getElementById('dashPanelCompte');if(p2)p2.style.display='block';}
 }
 async function switchCompteSubTab(el,sub){
-  haptic();
-  document.querySelectorAll('#dashPanelCompte .deblocage-subtab').forEach(function(t){t.classList.remove('active');});
-  el.classList.add('active');
-  document.querySelectorAll('#dashPanelCompte .compte-subpanel').forEach(function(p){p.style.display='none';});
-  var map={deblocages:'compteSubPanelDeblocages',notifications:'compteSubPanelNotifications',profil:'compteSubPanelProfil'};
-  var target=document.getElementById(map[sub]);
-  if(target)target.style.display='block';
-  if(sub==='notifications')renderNotifications();
-  if(sub==='profil'){renderProfil();appliquerThemeProfilUI();}
-  if(sub==='deblocages'){
-    await syncDeblocagesFirestore();
-    rafraichirTousDeblocages();
-    var defaultSub=document.querySelector('.deblocage-subtab[data-sub="attente"]');
-    if(defaultSub)defaultSub.click();
-  }
+haptic();
+document.querySelectorAll('#dashPanelCompte .deblocage-subtab').forEach(function(t){t.classList.remove('active');});
+el.classList.add('active');
+document.querySelectorAll('#dashPanelCompte .compte-subpanel').forEach(function(p){p.style.display='none';});
+var map={deblocages:'compteSubPanelDeblocages',notifications:'compteSubPanelNotifications',profil:'compteSubPanelProfil'};
+var target=document.getElementById(map[sub]);
+if(target)target.style.display='block';
+if(sub==='notifications')renderNotifications();
+if(sub==='profil'){renderProfil();appliquerThemeProfilUI();}
+if(sub==='deblocages'){
+await syncDeblocagesFirestore();
+rafraichirTousDeblocages();
+var defaultSub=document.querySelector('.deblocage-subtab[data-sub="attente"]');
+if(defaultSub)defaultSub.click();
+}
 }
 async function syncDeblocagesFirestore(){
-  if(!CURRENT_ACCOUNT)return;
-  try{
-    var list=await window.mesDeblocages(CURRENT_ACCOUNT.id);
-    var locals=chargerDeblocages();
-    list.forEach(function(fd){
-      if(fd.statut==='debloque'&&fd.coordonnees){
-        var existant=locals.find(function(l){return l.annonceId===fd.annonceId;});
-        if(existant){existant.coordonnees=fd.coordonnees;}
-      }
-    });
-    sauvegarderDeblocages(locals);
-  }catch(e){console.warn('Sync déblocages:',e);}
+if(!CURRENT_ACCOUNT)return;
+try{
+var list=await window.mesDeblocages(CURRENT_ACCOUNT.id);
+var locals=chargerDeblocages();
+list.forEach(function(fd){
+if(fd.statut==='debloque'&&fd.coordonnees){
+var existant=locals.find(function(l){return l.annonceId===fd.annonceId;});
+if(existant){existant.coordonnees=fd.coordonnees;}
+}
+});
+sauvegarderDeblocages(locals);
+}catch(e){console.warn('Sync déblocages:',e);}
 }
 function afficherOngletBoutique(){
-  var tab=document.getElementById('dashTabBoutique');
-  if(!tab)return;
-  var b=CURRENT_ACCOUNT&&CURRENT_ACCOUNT.boutique;
-  if(b&&b.uid&&b.uid!==CURRENT_ACCOUNT.id){b=null;}
-  if(b){tab.style.display='';}else{tab.style.display='none';}
+var tab=document.getElementById('dashTabBoutique');
+if(!tab)return;
+var b=CURRENT_ACCOUNT&&CURRENT_ACCOUNT.boutique;
+if(b&&b.uid&&b.uid!==CURRENT_ACCOUNT.id){b=null;}
+if(b){tab.style.display='';}else{tab.style.display='none';}
 }
 function renderOngletBoutique(){
-  var b=CURRENT_ACCOUNT&&CURRENT_ACCOUNT.boutique;
-  if(!b||(b.uid&&b.uid!==CURRENT_ACCOUNT.id)){showToast('Aucune boutique enregistrée');var tab=document.getElementById('dashTabBoutique');if(tab)tab.style.display='none';var accountTab=document.querySelector('.dash-tab[data-tab="compte"]');if(accountTab)accountTab.click();return;}
-  var nomEl=document.getElementById('dashBoutiqueNom');if(nomEl)nomEl.textContent=b.nom||b.nomCommerce||'—';
-  var typeEl=document.getElementById('dashBoutiqueType');if(typeEl)typeEl.textContent=(b.type||'—')+' · '+(b.ville||'')+' · '+(b.quartier||'');
-  var det=document.getElementById('dashBoutiqueDetails');
-  if(!det)return;
-  det.innerHTML='<div style="display:flex;flex-direction:column;gap:10px">'
-  +'<div style="padding:12px;background:var(--bg-card-soft);border-radius:10px"><div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Numéro d\'appel</div><div style="font-size:14px;font-weight:800;color:var(--text-primary);margin-top:3px;font-family:monospace">'+(b.telephone||b.whatsapp||'—')+'</div></div>'
-  +'<div style="padding:12px;background:var(--bg-card-soft);border-radius:10px"><div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase">WhatsApp commercial</div><div style="font-size:14px;font-weight:800;color:var(--text-primary);margin-top:3px;font-family:monospace">'+(b.whatsappCommercial||b.whatsapp||'—')+'</div></div>'
-  +(b.adresse?'<div style="padding:12px;background:var(--bg-card-soft);border-radius:10px"><div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Adresse</div><div style="font-size:13.5px;font-weight:700;color:var(--text-primary);margin-top:3px">'+b.adresse+'</div></div>':'')
-  +(b.horaires?'<div style="padding:12px;background:var(--bg-card-soft);border-radius:10px"><div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Horaires</div><div style="font-size:13.5px;font-weight:700;color:var(--text-primary);margin-top:3px">'+b.horaires+'</div></div>':'')
-  +'<div style="padding:12px;background:linear-gradient(135deg,#fef3c7,#fde68a);border:1.5px solid #fbbf24;border-radius:10px"><div style="font-size:11px;font-weight:800;color:#92400e;text-transform:uppercase">Statut</div><div style="font-size:13.5px;font-weight:800;color:#78350f;margin-top:3px">'+(b.statut==='approuve'?'✅ Approuvée':b.statut==='refuse'?'❌ Refusée':'⏳ En attente d\'approbation')+'</div></div>'
-  +'</div>';
+var b=CURRENT_ACCOUNT&&CURRENT_ACCOUNT.boutique;
+if(!b||(b.uid&&b.uid!==CURRENT_ACCOUNT.id)){showToast('Aucune boutique enregistrée');var tab=document.getElementById('dashTabBoutique');if(tab)tab.style.display='none';var accountTab=document.querySelector('.dash-tab[data-tab="compte"]');if(accountTab)accountTab.click();return;}
+var nomEl=document.getElementById('dashBoutiqueNom');if(nomEl)nomEl.textContent=b.nom||b.nomCommerce||'—';
+var typeEl=document.getElementById('dashBoutiqueType');if(typeEl)typeEl.textContent=(b.type||'—')+' · '+(b.ville||'')+' · '+(b.quartier||'');
+var det=document.getElementById('dashBoutiqueDetails');
+if(!det)return;
+det.innerHTML='<div style="display:flex;flex-direction:column;gap:10px">'
++'<div style="padding:12px;background:var(--bg-card-soft);border-radius:10px"><div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Numéro d\'appel</div><div style="font-size:14px;font-weight:800;color:var(--text-primary);margin-top:3px;font-family:monospace">'+(b.telephone||b.whatsapp||'—')+'</div></div>'
++'<div style="padding:12px;background:var(--bg-card-soft);border-radius:10px"><div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase">WhatsApp commercial</div><div style="font-size:14px;font-weight:800;color:var(--text-primary);margin-top:3px;font-family:monospace">'+(b.whatsappCommercial||b.whatsapp||'—')+'</div></div>'
++(b.adresse?'<div style="padding:12px;background:var(--bg-card-soft);border-radius:10px"><div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Adresse</div><div style="font-size:13.5px;font-weight:700;color:var(--text-primary);margin-top:3px">'+b.adresse+'</div></div>':'')
++(b.horaires?'<div style="padding:12px;background:var(--bg-card-soft);border-radius:10px"><div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Horaires</div><div style="font-size:13.5px;font-weight:700;color:var(--text-primary);margin-top:3px">'+b.horaires+'</div></div>':'')
++'<div style="padding:12px;background:linear-gradient(135deg,#fef3c7,#fde68a);border:1.5px solid #fbbf24;border-radius:10px"><div style="font-size:11px;font-weight:800;color:#92400e;text-transform:uppercase">Statut</div><div style="font-size:13.5px;font-weight:800;color:#78350f;margin-top:3px">'+(b.statut==='approuve'?'✅ Approuvée':b.statut==='refuse'?'❌ Refusée':'⏳ En attente d\'approbation')+'</div></div>'
++'</div>';
 }
 function renderProfil(){
-  var el=document.getElementById('profilDetails');
-  if(!el||!CURRENT_ACCOUNT)return;
-  el.innerHTML='<div style="display:flex;flex-direction:column;gap:12px"><div style="padding:12px;background:var(--bg-card-soft);border-radius:10px"><div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Nom</div><div style="font-size:14px;font-weight:800;color:var(--text-primary);margin-top:3px">'+CURRENT_ACCOUNT.name+'</div></div><div style="padding:12px;background:var(--bg-card-soft);border-radius:10px"><div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Code d\'accès</div><div style="font-size:18px;font-weight:900;color:#2563eb;margin-top:3px;font-family:monospace;letter-spacing:4px">'+CURRENT_ACCOUNT.code+'</div></div></div>';
-  var phoneDisplay=document.getElementById('profilPhoneDisplay');
-  if(phoneDisplay)phoneDisplay.textContent=CURRENT_ACCOUNT.phone||'—';
+var el=document.getElementById('profilDetails');
+if(!el||!CURRENT_ACCOUNT)return;
+el.innerHTML='<div style="display:flex;flex-direction:column;gap:12px"><div style="padding:12px;background:var(--bg-card-soft);border-radius:10px"><div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Nom</div><div style="font-size:14px;font-weight:800;color:var(--text-primary);margin-top:3px">'+CURRENT_ACCOUNT.name+'</div></div><div style="padding:12px;background:var(--bg-card-soft);border-radius:10px"><div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Code d\'accès</div><div style="font-size:18px;font-weight:900;color:#2563eb;margin-top:3px;font-family:monospace;letter-spacing:4px">'+CURRENT_ACCOUNT.code+'</div></div></div>';
+var phoneDisplay=document.getElementById('profilPhoneDisplay');
+if(phoneDisplay)phoneDisplay.textContent=CURRENT_ACCOUNT.phone||'—';
 }
 function signalerOffre(){
-  requireLogin('signaler',function(){
-    haptic(20);
-    var offre=CURRENT_OFFRE;
-    if(!offre){try{offre=JSON.parse(localStorage.getItem('netubex-current-offre')||'null');}catch(e){}}
-    if(!offre){showToast('Offre introuvable');return;}
-    var refEl=document.getElementById('detailRefValue');
-    var ref=refEl?refEl.textContent:'NTX-GEN-0000';
-    var numOffre=ref.split('-').pop();
-    var typeEl=document.getElementById('supportType');
-    var refInput=document.getElementById('supportRef');
-    var sujetEl=document.getElementById('supportSujet');
-    var descEl=document.getElementById('supportDesc');
-    var raisonEl=document.getElementById('supportRaison');
-    if(typeEl)typeEl.value='Annonce suspecte';
-    if(refInput)refInput.value=numOffre;
-    if(sujetEl)sujetEl.value="Signaler l'annonce : "+(offre.title||'');
-    if(descEl)descEl.value="Référence : "+ref+"\nTitre : "+(offre.title||'');
-    if(raisonEl)raisonEl.value='';
-    go('support');
-    setTimeout(function(){if(raisonEl)raisonEl.focus();},350);
-  });
+requireLogin('signaler',function(){
+haptic(20);
+var offre=CURRENT_OFFRE;
+if(!offre){try{offre=JSON.parse(localStorage.getItem('netubex-current-offre')||'null');}catch(e){}}
+if(!offre){showToast('Offre introuvable');return;}
+var refEl=document.getElementById('detailRefValue');
+var ref=refEl?refEl.textContent:'NTX-GEN-0000';
+var numOffre=ref.split('-').pop();
+var typeEl=document.getElementById('supportType');
+var refInput=document.getElementById('supportRef');
+var sujetEl=document.getElementById('supportSujet');
+var descEl=document.getElementById('supportDesc');
+var raisonEl=document.getElementById('supportRaison');
+if(typeEl)typeEl.value='Annonce suspecte';
+if(refInput)refInput.value=numOffre;
+if(sujetEl)sujetEl.value="Signaler l'annonce : "+(offre.title||'');
+if(descEl)descEl.value="Référence : "+ref+"\nTitre : "+(offre.title||'');
+if(raisonEl)raisonEl.value='';
+go('support');
+setTimeout(function(){if(raisonEl)raisonEl.focus();},350);
+});
 }
 function submitSignalement(){
-  haptic(30);
-  var raison=(document.getElementById('supportRaison')||{}).value||'';
-  var sujet=(document.getElementById('supportSujet')||{}).value||'';
-  if(!raison.trim()){showToast('Décrivez la raison');return;}
-  ajouterNotification({type:'signale',titre:'🚩 Signalement envoyé',message:'Votre signalement "'+sujet+'" a bien été transmis.'});
-  showToast('Signalement envoyé');
-  setTimeout(function(){go('index');},500);
+haptic(30);
+var raison=(document.getElementById('supportRaison')||{}).value||'';
+var sujet=(document.getElementById('supportSujet')||{}).value||'';
+if(!raison.trim()){showToast('Décrivez la raison');return;}
+ajouterNotification({type:'signale',titre:'🚩 Signalement envoyé',message:'Votre signalement "'+sujet+'" a bien été transmis.'});
+showToast('Signalement envoyé');
+setTimeout(function(){go('index');},500);
 }
 function openUnlock(){
-  haptic(20);
-  var label=document.getElementById('unlockPrixLabel');
-  if(label)label.textContent='1 000 FC via Airtel Money';
-  var refEl=document.getElementById('unlockRefCode');
-  if(refEl&&CURRENT_OFFRE){
-    var str=String((CURRENT_OFFRE.title||'')+(CURRENT_OFFRE.name||''));
-    var hash=0;for(var i=0;i<str.length;i++){hash=((hash<<5)-hash)+str.charCodeAt(i);hash|=0;}
-    refEl.textContent='ACC-'+(Math.abs(hash)%9999);
-  }
-  document.getElementById('unlock-modal').classList.add('active');
+haptic(20);
+var label=document.getElementById('unlockPrixLabel');
+if(label)label.textContent='1 000 FC via Airtel Money';
+var refEl=document.getElementById('unlockRefCode');
+if(refEl&&CURRENT_OFFRE){
+var str=String((CURRENT_OFFRE.title||'')+(CURRENT_OFFRE.name||''));
+var hash=0;for(var i=0;i<str.length;i++){hash=((hash<<5)-hash)+str.charCodeAt(i);hash|=0;}
+refEl.textContent='ACC-'+(Math.abs(hash)%9999);
+}
+document.getElementById('unlock-modal').classList.add('active');
 }
 function closeUnlock(){var modal=document.getElementById('unlock-modal');if(modal)modal.classList.remove('active');}
 async function validerDeblocage(){
-  haptic(30);
-  if(!CURRENT_OFFRE){showToast('Offre introuvable');closeUnlock();return;}
-  if(!CURRENT_ACCOUNT){showToast('Connectez-vous');closeUnlock();return;}
-  var annonceId=CURRENT_OFFRE.annonceId||CURRENT_OFFRE.id||('LOCAL-'+Date.now());
-  var tel=document.querySelector('#unlock-modal input[type="tel"]').value.trim();
-  var txId=document.querySelector('#unlock-modal input[type="text"]').value.trim();
-  if(!tel||!txId){showToast('Remplissez numéro et ID transaction');return;}
-  try{
-    if(window.creerDeblocage){await window.creerDeblocage(CURRENT_ACCOUNT.id,annonceId,txId,1000);}
-    var maintenant=Date.now();
-    var deblocage={
-      id:'NTX-'+Date.now(),annonceId:annonceId,
-      titre:CURRENT_OFFRE.title||'Annonce',
-      image:CURRENT_OFFRE.img||'',
-      localisation:CURRENT_OFFRE.location||'',
-      categorie:CURRENT_OFFRE.cat||'',
-      paiementLe:new Date(maintenant).toISOString(),
-      adminValidationA:new Date(maintenant+(Math.floor(Math.random()*36)+20)*60*1000).toISOString(),
-      deblocageLimite:new Date(maintenant+60*60*1000).toISOString(),
-      coordonnees:{proprietaire:CURRENT_OFFRE.name||'Propriétaire Certifié',adresse:'Av. de la Paix N° 45 B',telephone:'+243 97 000 00 00'},
-      statutSauvegarde:'en_attente'
-    };
-    var liste=chargerDeblocages();
-    liste.unshift(deblocage);
-    sauvegarderDeblocages(liste);
-    incrementerStat('deblocage');
-    closeUnlock();
-    document.getElementById('deblocagePendingOverlay').classList.add('active');
-    document.getElementById('deblocagePendingModal').classList.add('active');
-  }catch(err){console.error('Erreur déblocage:',err);showToast('Erreur : enregistrement impossible');}
+haptic(30);
+if(!CURRENT_OFFRE){showToast('Offre introuvable');closeUnlock();return;}
+if(!CURRENT_ACCOUNT){showToast('Connectez-vous');closeUnlock();return;}
+var annonceId=CURRENT_OFFRE.annonceId||CURRENT_OFFRE.id||('LOCAL-'+Date.now());
+var tel=document.querySelector('#unlock-modal input[type="tel"]').value.trim();
+var txId=document.querySelector('#unlock-modal input[type="text"]').value.trim();
+if(!tel||!txId){showToast('Remplissez numéro et ID transaction');return;}
+try{
+if(window.creerDeblocage){await window.creerDeblocage(CURRENT_ACCOUNT.id,annonceId,txId,1000);}
+var maintenant=Date.now();
+var deblocage={
+id:'NTX-'+Date.now(),annonceId:annonceId,
+titre:CURRENT_OFFRE.title||'Annonce',
+image:CURRENT_OFFRE.img||'',
+localisation:CURRENT_OFFRE.location||'',
+categorie:CURRENT_OFFRE.cat||'',
+paiementLe:new Date(maintenant).toISOString(),
+adminValidationA:new Date(maintenant+(Math.floor(Math.random()*36)+20)*60*1000).toISOString(),
+deblocageLimite:new Date(maintenant+60*60*1000).toISOString(),
+coordonnees:{proprietaire:CURRENT_OFFRE.name||'Propriétaire Certifié',adresse:'Av. de la Paix N° 45 B',telephone:'+243 97 000 00 00'},
+statutSauvegarde:'en_attente'
+};
+var liste=chargerDeblocages();
+liste.unshift(deblocage);
+sauvegarderDeblocages(liste);
+closeUnlock();
+document.getElementById('deblocagePendingOverlay').classList.add('active');
+document.getElementById('deblocagePendingModal').classList.add('active');
+}catch(err){console.error('Erreur déblocage:',err);showToast('Erreur : enregistrement impossible');}
 }
 function closeDeblocagePending(){document.getElementById('deblocagePendingOverlay').classList.remove('active');document.getElementById('deblocagePendingModal').classList.remove('active');}
 function showBoutiquePending(){document.getElementById('boutiquePendingOverlay').classList.add('active');document.getElementById('boutiquePendingModal').classList.add('active');}
 function closeBoutiquePending(){document.getElementById('boutiquePendingOverlay').classList.remove('active');document.getElementById('boutiquePendingModal').classList.remove('active');var pageInsc=document.getElementById('page-inscription');if(pageInsc&&pageInsc.classList.contains('active')){go('index');}}
 setInterval(function(){
-  var panel=document.getElementById('page-dashboard-utilisateur');
-  if(!panel||!panel.classList.contains('active'))return;
-  var subPanel=document.getElementById('deblocageSubPanelAttente');
-  if(!subPanel||subPanel.style.display==='none')return;
-  var liste=chargerDeblocages();
-  liste.forEach(function(item){
-    var statut=calculerStatutDeblocage(item);
-    if(statut!=='en_attente')return;
-    var restant=tempsRestantDeblocage(item);
-    var timeEl=document.querySelector('[data-deblocage-id="'+item.id+'"]');
-    if(timeEl)timeEl.textContent=formatTempsDeblocage(restant);
-  });
-  var aChange=false;
-  liste.forEach(function(item){var actuel=calculerStatutDeblocage(item);if(item.statutSauvegarde!==actuel){item.statutSauvegarde=actuel;aChange=true;}});
-  if(aChange){sauvegarderDeblocages(liste);rafraichirTousDeblocages();}
+var panel=document.getElementById('page-dashboard-utilisateur');
+if(!panel||!panel.classList.contains('active'))return;
+var subPanel=document.getElementById('deblocageSubPanelAttente');
+if(!subPanel||subPanel.style.display==='none')return;
+var liste=chargerDeblocages();
+liste.forEach(function(item){
+var statut=calculerStatutDeblocage(item);
+if(statut!=='en_attente')return;
+var restant=tempsRestantDeblocage(item);
+var timeEl=document.querySelector('[data-deblocage-id="'+item.id+'"]');
+if(timeEl)timeEl.textContent=formatTempsDeblocage(restant);
+});
+var aChange=false;
+liste.forEach(function(item){var actuel=calculerStatutDeblocage(item);if(item.statutSauvegarde!==actuel){item.statutSauvegarde=actuel;aChange=true;}});
+if(aChange){sauvegarderDeblocages(liste);rafraichirTousDeblocages();}
 },1000);
 function copyText(t){
-  if(navigator.clipboard&&navigator.clipboard.writeText){
-    navigator.clipboard.writeText(t).then(function(){haptic(20);showToast('Copié');}).catch(function(){});
-  }else{
-    var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();
-    try{document.execCommand('copy');showToast('Copié');}catch(e){}
-    document.body.removeChild(ta);
-  }
+if(navigator.clipboard&&navigator.clipboard.writeText){
+navigator.clipboard.writeText(t).then(function(){haptic(20);showToast('Copié');}).catch(function(){});
+}else{
+var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();
+try{document.execCommand('copy');showToast('Copié');}catch(e){}
+document.body.removeChild(ta);
+}
 }
 function extraireMots(texte){if(!texte)return[];return texte.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\w\s]/g,' ').trim().split(/\s+/).filter(function(m){return m.length>=3||/^\d+$/.test(m);});}
 function normaliser(texte){if(!texte)return'';return String(texte).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
 var searchEnCours=false;
 function executeSearch(){
-  if(searchEnCours)return;
-  var q=(document.getElementById('searchQuery')||{}).value?document.getElementById('searchQuery').value.trim():'';
-  var c=(document.getElementById('searchCity')||{}).value?document.getElementById('searchCity').value.trim():'';
-  if(!q&&!c){showToast('Saisissez un critère');return;}
-  haptic(20);searchEnCours=true;openSearchResults();showSearchLoading();
-  setTimeout(function(){
-    var resultats=rechercherOffres(q,c);
-    afficherResultats(resultats,q);
-    searchEnCours=false;
-  },450);
+if(searchEnCours)return;
+var q=(document.getElementById('searchQuery')||{}).value?document.getElementById('searchQuery').value.trim():'';
+var c=(document.getElementById('searchCity')||{}).value?document.getElementById('searchCity').value.trim():'';
+if(!q&&!c){showToast('Saisissez un critère');return;}
+haptic(20);searchEnCours=true;openSearchResults();showSearchLoading();
+setTimeout(function(){
+var resultats=rechercherOffres(q,c);
+afficherResultats(resultats,q);
+searchEnCours=false;
+},450);
 }
 function rechercherOffres(query,ville){
-  var mots=extraireMots(query);
-  return ANNONCES_DATA.filter(function(offre){
-    if(mots.length>0){
-      var texte=normaliser(offre.title+' '+offre.desc+' '+offre.location);
-      var trouve=mots.some(function(m){return texte.indexOf(m)!==-1;});
-      if(!trouve)return false;
-    }
-    if(ville){
-      if(normaliser(offre.location).indexOf(normaliser(ville))===-1)return false;
-    }
-    return true;
-  });
+var mots=extraireMots(query);
+return ANNONCES_DATA.filter(function(offre){
+if(mots.length>0){
+var texte=normaliser(offre.title+' '+offre.desc+' '+offre.location+' '+offre.name);
+var trouve=mots.some(function(m){return texte.indexOf(m)!==-1;});
+if(!trouve)return false;
+}
+if(ville){
+if(normaliser(offre.location).indexOf(normaliser(ville))===-1)return false;
+}
+return true;
+});
 }
 function openSearchResults(){document.getElementById('searchResultsOverlay').classList.add('active');document.getElementById('searchResultsPanel').classList.add('active');document.body.style.overflow='hidden';}
 function closeSearchResults(){document.getElementById('searchResultsOverlay').classList.remove('active');document.getElementById('searchResultsPanel').classList.remove('active');document.body.style.overflow='';}
 function showSearchLoading(){document.getElementById('searchResultsBody').innerHTML='<div class="search-loading"><div class="search-loading-spinner"></div><div class="search-loading-text">Recherche…</div></div>';document.getElementById('searchResultsFooter').style.display='none';document.getElementById('searchResultsTitle').textContent='Recherche';document.getElementById('searchResultsSubtitle').textContent='Patientez…';}
 function afficherResultats(resultats,query){
-  var body=document.getElementById('searchResultsBody');
-  var footer=document.getElementById('searchResultsFooter');
-  var title=document.getElementById('searchResultsTitle');
-  var subtitle=document.getElementById('searchResultsSubtitle');
-  var nb=resultats.length;
-  if(nb===0){title.textContent='Aucun résultat';subtitle.textContent='Essayez d\'autres mots';body.innerHTML='<div style="padding:50px 20px;text-align:center"><span style="font-size:48px;opacity:.35;margin-bottom:14px;display:block">🔍</span><h3 style="font-size:16px;font-weight:800">Rien ne correspond</h3></div>';footer.style.display='none';return;}
-  title.textContent=nb+' offre'+(nb>1?'s':'')+' trouvée'+(nb>1?'s':'');
-  subtitle.textContent='Triées par pertinence';
-  var html='';
-  resultats.forEach(function(o){
-    html+='<div class="search-result-card" onclick="closeSearchResults();openDetail('+JSON.stringify(o).replace(/'/g,"&#39;")+')"><div class="search-result-top"><div class="search-result-avatar">'+getAvatarHTML(o,52)+'</div><div><div class="search-result-name">'+o.name+getVerifiedBadgeHTML(o)+'</div><div class="search-result-location"><i class="fa-solid fa-location-dot" style="color:#ef4444"></i> '+o.location+'</div></div><span class="feed-badge '+o.tagClass+'">'+o.tag+'</span></div><div class="search-result-title">'+o.title+'</div><div class="search-result-desc">'+o.desc+'</div>'+(o.price?'<div class="search-result-price '+o.priceClass+'">'+o.price+'</div>':'')+'</div>';
-  });
-  body.innerHTML=html;footer.style.display='flex';
-  document.getElementById('searchResultsSeeAll').onclick=function(e){e.preventDefault();closeSearchResults();go('category','all');};
+var body=document.getElementById('searchResultsBody');
+var footer=document.getElementById('searchResultsFooter');
+var title=document.getElementById('searchResultsTitle');
+var subtitle=document.getElementById('searchResultsSubtitle');
+var nb=resultats.length;
+if(nb===0){title.textContent='Aucun résultat';subtitle.textContent='Essayez d\'autres mots';body.innerHTML='<div style="padding:50px 20px;text-align:center"><span style="font-size:48px;opacity:.35;margin-bottom:14px;display:block">🔍</span><h3 style="font-size:16px;font-weight:800">Rien ne correspond</h3></div>';footer.style.display='none';return;}
+title.textContent=nb+' offre'+(nb>1?'s':'')+' trouvée'+(nb>1?'s':'');
+subtitle.textContent='Triées par pertinence';
+var html='';
+resultats.forEach(function(o){
+html+='<div class="search-result-card" onclick="closeSearchResults();openDetail('+JSON.stringify(o).replace(/'/g,"&#39;")+')"><div class="search-result-top"><div class="search-result-avatar">'+getAvatarHTML(o,52)+'</div><div><div class="search-result-name">'+o.name+getVerifiedBadgeHTML(o)+'</div><div class="search-result-location"><i class="fa-solid fa-location-dot" style="color:#ef4444"></i> '+o.location+'</div></div><span class="feed-badge '+o.tagClass+'">'+o.tag+'</span></div><div class="search-result-title">'+o.title+'</div><div class="search-result-desc">'+o.desc+'</div>'+(o.price?'<div class="search-result-price '+o.priceClass+'">'+o.price+'</div>':'')+'</div>';
+});
+body.innerHTML=html;footer.style.display='flex';
+document.getElementById('searchResultsSeeAll').onclick=function(e){e.preventDefault();closeSearchResults();go('category','all');};
 }
 function toggleSearchCard(){haptic(15);var wrapper=document.getElementById('searchCardWrapper');var trigger=document.getElementById('besoinTrigger');if(!wrapper||!trigger)return;wrapper.classList.add('open');trigger.classList.add('hidden');setTimeout(function(){var input=document.getElementById('searchQuery');if(input)input.focus();},300);}
 function fermerSearchCard(){haptic(15);var wrapper=document.getElementById('searchCardWrapper');var trigger=document.getElementById('besoinTrigger');if(!wrapper||!trigger)return;wrapper.classList.remove('open');trigger.classList.remove('hidden');}
 
 var feedPage=0;var FEED_PER_PAGE=5;
 function getAvatarHTML(offre,size){
-  size=size||52;
-  var src=null;
-  if(offre.avatar)src=offre.avatar;
-  else if(offre.img&&(offre.cat==='location'||offre.cat==='parcelle'||offre.cat==='autre'||offre.cat==='vehicule'||offre.cat==='electronique'))src=offre.img;
-  if(src){return '<img src="'+src+'" alt="'+String(offre.name||'').replace(/"/g,'&quot;')+'" class="fb-post-avatar-img" style="width:'+size+'px;height:'+size+'px" loading="lazy" onerror="this.style.display=\'none\'">';}
-  return '<div class="fb-post-avatar" style="width:'+size+'px;height:'+size+'px;font-size:'+(size*0.32)+'px">'+(offre.initials||'??')+'</div>';
+size=size||52;
+var src=null;
+if(offre.avatar)src=offre.avatar;
+else if(offre.img&&(offre.cat==='location'||offre.cat==='parcelle'||offre.cat==='autre'||offre.cat==='vehicule'||offre.cat==='electronique'))src=offre.img;
+if(src){return '<img src="'+src+'" alt="'+String(offre.name||'').replace(/"/g,'&quot;')+'" class="fb-post-avatar-img" style="width:'+size+'px;height:'+size+'px" loading="lazy" onerror="this.style.display=\'none\'">';}
+return '<div class="fb-post-avatar" style="width:'+size+'px;height:'+size+'px;font-size:'+(size*0.32)+'px">'+(offre.initials||'??')+'</div>';
 }
-function getVerifiedBadgeHTML(offre){if(!offre)return '';if(offre.cat==='entreprise'||offre.cat==='hopital'||offre.commerce)return ' <i class="fa-solid fa-circle-check verified-badge" title="Vérifié"></i>';return '';}
-
-// ✅ Fusionner COMMERCES_DATA et ANNONCES_DATA pour le feed
+function getVerifiedBadgeHTML(offre){
+if(!offre)return '';
+if(offre.isCommerce||offre.publieurType==='commerce')return ' <span class="commercant-badge"><i class="fa-solid fa-store" style="font-size:8px"></i> Commerçant</span>';
+if(offre.cat==='entreprise'||offre.cat==='hopital'||offre.commerce)return ' <i class="fa-solid fa-circle-check verified-badge" title="Vérifié"></i>';
+return '';
+}
 function getFeedItems(){
-  var items=[];
-  // Annonces
-  ANNONCES_DATA.forEach(function(o){items.push({type:'offre',data:o,_seed:Math.random()});});
-  // Commerces
-  COMMERCES_DATA.forEach(function(c){
-    var nbProduits=(c.produits&&c.produits.length)?c.produits.length:0;
-    var premierProduit=(c.produits&&c.produits[0])?c.produits[0]:null;
-    var imageCommerce=c.img||(premierProduit?premierProduit.img:'');
-    var descCommerce=c.description||'';
-    if(c.produits&&c.produits.length){
-      var cats=[];
-      c.produits.forEach(function(p){if(p.categorie&&cats.indexOf(p.categorie)===-1)cats.push(p.categorie);});
-      if(cats.length)descCommerce+=' · '+cats.slice(0,4).join(', ');
-    }
-    items.push({type:'commerce',data:{
-      cat:'commerce',commerce:true,commerceId:c.id,title:c.nom,name:c.nom,
-      initials:(c.nom||'??').substring(0,2).toUpperCase(),avatar:c.img,
-      location:(c.ville||'RDC')+(c.quartier?' · '+c.quartier:''),
-      time:c.horaires||'Ouvert',
-      price:nbProduits?(nbProduits+' produit'+(nbProduits>1?'s':'')+' disponible'+(nbProduits>1?'s':'')):'Catalogue bientôt disponible',
-      priceClass:'post-tag-land',desc:descCommerce,img:imageCommerce,
-      tag:(c.emoji||'🏪')+' '+(c.type||'Commerce'),tagClass:'post-tag-commerce',
-      unlock:false,urgence:false
-    },_seed:Math.random()});
-  });
-  items.sort(function(a,b){return a._seed-b._seed;});
-  return items;
+var items=[];
+ANNONCES_DATA.forEach(function(o){items.push({type:'offre',data:o,_seed:Math.random()});});
+COMMERCES_DATA.forEach(function(c){
+var nbProduits=(c.produits&&c.produits.length)?c.produits.length:0;
+var premierProduit=(c.produits&&c.produits[0])?c.produits[0]:null;
+var imageCommerce=c.img||(premierProduit?premierProduit.img:'');
+var descCommerce=c.description||'';
+if(c.produits&&c.produits.length){
+var cats=[];
+c.produits.forEach(function(p){if(p.categorie&&cats.indexOf(p.categorie)===-1)cats.push(p.categorie);});
+if(cats.length)descCommerce+=' · '+cats.slice(0,4).join(', ');
+}
+items.push({type:'commerce',data:{
+cat:'commerce',commerce:true,commerceId:c.id,title:c.nom,name:c.nom,
+initials:(c.nom||'??').substring(0,2).toUpperCase(),avatar:c.img,
+location:(c.ville||'RDC')+(c.quartier?' · '+c.quartier:''),
+time:c.horaires||'Ouvert',
+price:nbProduits?(nbProduits+' produit'+(nbProduits>1?'s':'')+' disponible'+(nbProduits>1?'s':'')):'Catalogue bientôt disponible',
+priceClass:'post-tag-land',desc:descCommerce,img:imageCommerce,
+tag:(c.emoji||'🏪')+' '+(c.type||'Commerce'),tagClass:'post-tag-commerce',
+unlock:false,urgence:false,isCommerce:true,publieurType:'commerce'
+},_seed:Math.random()});
+});
+items.sort(function(a,b){return a._seed-b._seed;});
+return items;
 }
 function renderOffreCard(p){
-  if(p.commerce){
-    var media=p.img?'<div class="fb-post-media"><img src="'+p.img+'" alt="'+p.title+'" loading="lazy"></div>':'';
-    return '<article class="fb-post" onclick=\'openCatalogue("'+p.commerceId+'")\'><div class="fb-post-head">'+getAvatarHTML(p,52)+'<div class="fb-post-meta" style="min-width:0;overflow:hidden"><div class="fb-post-name">'+p.name+getVerifiedBadgeHTML(p)+'</div><div class="fb-post-sub">'+p.location+' · '+p.time+'</div></div><span class="feed-badge '+p.tagClass+'">'+p.tag+'</span></div><div class="fb-post-body"><h3 class="fb-post-title">'+p.title+'</h3><p class="fb-post-desc">'+p.desc+'</p><div class="fb-post-price '+p.priceClass+'" style="background:#dbeafe;color:#1e40af"><i class="fa-solid fa-bag-shopping"></i> '+p.price+'</div></div>'+media+'<div class="fb-post-actions"><button class="fb-action-btn" onclick="event.stopPropagation();sharePost()"><i class="fa-solid fa-share-nodes"></i> Partager</button><button class="fb-action-btn fb-action-primary" onclick="event.stopPropagation();openCatalogue(\''+p.commerceId+'\')"><i class="fa-solid fa-bag-shopping"></i> Voir le catalogue</button></div></article>';
-  }
-  var actionBtn;
-  if(p.urgence){actionBtn='<button class="fb-action-btn" style="background:#dc2626;color:#fff;font-weight:900;margin-left:auto;border:none" onclick="event.stopPropagation();requireLogin(\'appel\',()=>window.location.href=\'tel:+243976953045\')"><i class="fa-solid fa-phone"></i> Appeler</button>';}
-  else if(p.unlock){actionBtn='<button class="fb-action-btn fb-action-primary" onclick="event.stopPropagation();haptic();openDetail('+JSON.stringify(p).replace(/'/g,"&#39;")+')"><i class="fa-solid fa-lock"></i> Débloquer</button>';}
-  else actionBtn='<button class="fb-action-btn fb-action-postuler" onclick="event.stopPropagation();requireLogin(\'postuler\',()=>showToast(\'Candidature envoyée\'))"><i class="fa-solid fa-paper-plane"></i> Postuler</button>';
-  var media=p.img?'<div class="fb-post-media"><img src="'+p.img+'" alt="'+p.title+'" loading="lazy" onerror="this.parentElement.style.display=\'none\'"></div>':'';
-  return '<article class="fb-post" onclick=\'openDetail('+JSON.stringify(p).replace(/'/g,"&#39;")+')\'><div class="fb-post-head">'+getAvatarHTML(p,52)+'<div class="fb-post-meta" style="min-width:0;overflow:hidden"><div class="fb-post-name">'+p.name+getVerifiedBadgeHTML(p)+'</div><div class="fb-post-sub">'+p.location+' · '+p.time+'</div></div><span class="feed-badge '+p.tagClass+'">'+p.tag+'</span></div><div class="fb-post-body"><h3 class="fb-post-title">'+p.title+'</h3><p class="fb-post-desc">'+p.desc+'</p>'+(p.price?'<div class="fb-post-price '+p.priceClass+'">'+p.price+'</div>':'')+'</div>'+media+'<div class="fb-post-actions"><button class="fb-action-btn" onclick="event.stopPropagation();sharePost()"><i class="fa-solid fa-share-nodes"></i> Partager</button>'+actionBtn+'</div></article>';
+if(p.commerce){
+var media=p.img?'<div class="fb-post-media"><img src="'+p.img+'" alt="'+p.title+'" loading="lazy"></div>':'';
+return '<article class="fb-post" onclick=\'openCatalogue("'+p.commerceId+'")\'><div class="fb-post-head">'+getAvatarHTML(p,52)+'<div class="fb-post-meta" style="min-width:0;overflow:hidden"><div class="fb-post-name">'+p.name+getVerifiedBadgeHTML(p)+'</div><div class="fb-post-sub">'+p.location+' · '+p.time+'</div></div><span class="feed-badge '+p.tagClass+'">'+p.tag+'</span></div><div class="fb-post-body"><h3 class="fb-post-title">'+p.title+'</h3><p class="fb-post-desc">'+p.desc+'</p><div class="fb-post-price '+p.priceClass+'" style="background:#dbeafe;color:#1e40af"><i class="fa-solid fa-bag-shopping"></i> '+p.price+'</div></div>'+media+'<div class="fb-post-actions"><button class="fb-action-btn" onclick="event.stopPropagation();sharePost()"><i class="fa-solid fa-share-nodes"></i> Partager</button><button class="fb-action-btn fb-action-primary" onclick="event.stopPropagation();openCatalogue(\''+p.commerceId+'\')"><i class="fa-solid fa-bag-shopping"></i> Voir le catalogue</button></div></article>';
+}
+var actionBtn;
+if(p.urgence){actionBtn='<button class="fb-action-btn" style="background:#dc2626;color:#fff;font-weight:900;margin-left:auto;border:none" onclick="event.stopPropagation();requireLogin(\'appel\',()=>window.location.href=\'tel:+243976953045\')"><i class="fa-solid fa-phone"></i> Appeler</button>';}
+else if(p.unlock){actionBtn='<button class="fb-action-btn fb-action-primary" onclick="event.stopPropagation();haptic();openDetail('+JSON.stringify(p).replace(/'/g,"&#39;")+')"><i class="fa-solid fa-lock"></i> Débloquer</button>';}
+else actionBtn='<button class="fb-action-btn fb-action-postuler" onclick="event.stopPropagation();requireLogin(\'postuler\',()=>showToast(\'Candidature envoyée\'))"><i class="fa-solid fa-paper-plane"></i> Postuler</button>';
+var media=p.img?'<div class="fb-post-media"><img src="'+p.img+'" alt="'+p.title+'" loading="lazy" onerror="this.parentElement.style.display=\'none\'"></div>':'';
+return '<article class="fb-post" onclick=\'openDetail('+JSON.stringify(p).replace(/'/g,"&#39;")+')\'><div class="fb-post-head">'+getAvatarHTML(p,52)+'<div class="fb-post-meta" style="min-width:0;overflow:hidden"><div class="fb-post-name">'+p.name+getVerifiedBadgeHTML(p)+'</div><div class="fb-post-sub">'+p.location+' · '+p.time+'</div></div><span class="feed-badge '+p.tagClass+'">'+p.tag+'</span></div><div class="fb-post-body"><h3 class="fb-post-title">'+p.title+'</h3><p class="fb-post-desc">'+p.desc+'</p>'+(p.price?'<div class="fb-post-price '+p.priceClass+'">'+p.price+'</div>':'')+'</div>'+media+'<div class="fb-post-actions"><button class="fb-action-btn" onclick="event.stopPropagation();sharePost()"><i class="fa-solid fa-share-nodes"></i> Partager</button>'+actionBtn+'</div></article>';
 }
 var _feedObserver=null;
 function renderFeedBatch(page){
-  var feed=document.getElementById('mainFeed');
-  if(!feed)return;
-  if(page===0)feed.innerHTML='';
-  var items=getFeedItems();
-  var start=page*FEED_PER_PAGE;
-  var end=Math.min(start+FEED_PER_PAGE,items.length);
-  if(start>=items.length){
-    if(items.length===0&&page===0){feed.innerHTML='<div style="text-align:center;padding:60px 20px;background:var(--bg-card);border:1px dashed var(--border-primary);border-radius:16px;margin:16px"><div style="font-size:48px;opacity:.35;margin-bottom:14px">📭</div><h3 style="font-size:15px;font-weight:800">Aucun contenu</h3><p style="font-size:12.5px;color:var(--text-muted);margin-top:6px">Les publications apparaîtront ici.</p></div>';}
-    return;
-  }
-  var html='';
-  for(var i=start;i<end;i++){html+=renderOffreCard(items[i].data);}
-  feed.insertAdjacentHTML('beforeend',html);
+var feed=document.getElementById('mainFeed');
+if(!feed)return;
+if(page===0)feed.innerHTML='';
+var items=getFeedItems();
+var start=page*FEED_PER_PAGE;
+var end=Math.min(start+FEED_PER_PAGE,items.length);
+if(start>=items.length){
+if(items.length===0&&page===0){feed.innerHTML='<div style="text-align:center;padding:60px 20px;background:var(--bg-card);border:1px dashed var(--border-primary);border-radius:16px;margin:16px"><div style="font-size:48px;opacity:.35;margin-bottom:14px">📭</div><h3 style="font-size:15px;font-weight:800">Aucun contenu</h3><p style="font-size:12.5px;color:var(--text-muted);margin-top:6px">Les publications apparaîtront ici.</p></div>';}
+return;
+}
+var html='';
+for(var i=start;i<end;i++){html+=renderOffreCard(items[i].data);}
+feed.insertAdjacentHTML('beforeend',html);
 }
 function initFeed(){
-  renderFeedBatch(0);
-  feedPage=1;
-  var sentinel=document.getElementById('feedSentinel');
-  if(sentinel&&'IntersectionObserver' in window){
-    if(_feedObserver)_feedObserver.disconnect();
-    _feedObserver=new IntersectionObserver(function(entries){
-      entries.forEach(function(e){if(e.isIntersecting){renderFeedBatch(feedPage);feedPage++;}});
-    },{rootMargin:'300px'});
-    _feedObserver.observe(sentinel);
-  }
+renderFeedBatch(0);
+feedPage=1;
+var sentinel=document.getElementById('feedSentinel');
+if(sentinel&&'IntersectionObserver' in window){
+if(_feedObserver)_feedObserver.disconnect();
+_feedObserver=new IntersectionObserver(function(entries){
+entries.forEach(function(e){if(e.isIntersecting){renderFeedBatch(feedPage);feedPage++;}});
+},{rootMargin:'300px'});
+_feedObserver.observe(sentinel);
+}
 }
 function sharePost(){if(navigator.share){navigator.share({title:'NeTubeX RDC',url:location.href}).catch(function(){});}else showToast('Lien copié');}
 function updateHeaderBtn(page){var btn=document.getElementById('headerBackBtn');if(!btn)return;if(page==='index'){btn.classList.remove('is-back');}else{btn.classList.add('is-back');}}
 function headerBackAction(){haptic(15);go('index');}
 
 function go(page,param){
-  haptic();
-  if(page==='dashboard-utilisateur'&&!CURRENT_ACCOUNT){showAccountModal('Connectez-vous ou créez votre compte pour accéder à votre profil.',function(){go('dashboard-utilisateur');});return;}
-  if(page==='publish'&&CURRENT_COMMERCANT){showToast('Les commerçants ne peuvent pas publier');return;}
-  var isCategoryChange=(page==='category');
-  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');p.classList.remove('slide-from-left');});
-  var el=document.getElementById('page-'+page);
-  if(el){el.classList.add('active');if(isCategoryChange){void el.offsetWidth;el.classList.add('slide-from-left');}}
-  window.scrollTo(0,0);document.body.style.overflow='';document.documentElement.style.overflow='';
-  updateHeaderBtn(page);document.body.classList.remove('hide-header');
-  if(page==='index')document.body.classList.add('page-index-active');else document.body.classList.remove('page-index-active');
-  if(page==='index'){
-    feedPage=0;
-    if(typeof initFeed==='function')initFeed();
-    document.querySelectorAll('.category-btn').forEach(function(b){b.classList.remove('active');});
-    var allBtn=document.querySelector('.category-btn[data-cat="all"]');
-    if(allBtn)allBtn.classList.add('active');
-  }
-  if(page==='category'){
-    CURRENT_CATEGORY=(!param||param==='all')?null:param;
-    renderCategoryFeed(param||'all');
-    if(param)updateCategoryHeader(param);
-  }
-  if(page==='commerces'){
-    refreshCommerces();
-  }
-  if(page==='dashboard-utilisateur'){
-    if(CURRENT_ACCOUNT){
-      var n=document.getElementById('profilNom');var p=document.getElementById('profilPhone');
-      if(n)n.textContent=CURRENT_ACCOUNT.name;
-      if(p)p.textContent=CURRENT_ACCOUNT.phone;
-    }
-    mettreAJourBadgeNotifs();
-    appliquerThemeProfilUI();
-    afficherOngletBoutique();
-    var compteTab=document.querySelector('.dash-tab[data-tab="compte"]');
-    if(compteTab)compteTab.click();
-    var profilSub=document.querySelector('.deblocage-subtab[data-subtab="profil"]');
-    if(profilSub)profilSub.click();
-  }
-  if(page!=='category'&&page!=='publish'){CURRENT_CATEGORY=null;}
-  if(!_navFromPopstate){try{history.pushState({page:page,param:param||null},'',null);}catch(e){}}_navFromPopstate=false;
+haptic();
+if(page==='dashboard-utilisateur'&&!CURRENT_ACCOUNT){showAccountModal('Connectez-vous ou créez votre compte pour accéder à votre profil.',function(){go('dashboard-utilisateur');});return;}
+if(page==='publish'&&CURRENT_COMMERCANT){showToast('Les commerçants ne peuvent pas publier');return;}
+var isCategoryChange=(page==='category');
+document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');p.classList.remove('slide-from-left');});
+var el=document.getElementById('page-'+page);
+if(el){el.classList.add('active');if(isCategoryChange){void el.offsetWidth;el.classList.add('slide-from-left');}}
+window.scrollTo(0,0);document.body.style.overflow='';document.documentElement.style.overflow='';
+updateHeaderBtn(page);document.body.classList.remove('hide-header');
+if(page==='index')document.body.classList.add('page-index-active');else document.body.classList.remove('page-index-active');
+if(page==='index'){
+feedPage=0;
+if(typeof initFeed==='function')initFeed();
+document.querySelectorAll('.category-btn').forEach(function(b){b.classList.remove('active');});
+var allBtn=document.querySelector('.category-btn[data-cat="all"]');
+if(allBtn)allBtn.classList.add('active');
+}
+if(page==='category'){
+CURRENT_CATEGORY=(!param||param==='all')?null:param;
+renderCategoryFeed(param||'all');
+if(param)updateCategoryHeader(param);
+}
+if(page==='commerces'){
+refreshCommerces();
+}
+if(page==='dashboard-utilisateur'){
+if(CURRENT_ACCOUNT){
+var n=document.getElementById('profilNom');var p=document.getElementById('profilPhone');
+if(n)n.textContent=CURRENT_ACCOUNT.name;
+if(p)p.textContent=CURRENT_ACCOUNT.phone;
+}
+mettreAJourBadgeNotifs();
+appliquerThemeProfilUI();
+afficherOngletBoutique();
+var compteTab=document.querySelector('.dash-tab[data-tab="compte"]');
+if(compteTab)compteTab.click();
+var profilSub=document.querySelector('.deblocage-subtab[data-subtab="profil"]');
+if(profilSub)profilSub.click();
+}
+if(page!=='category'&&page!=='publish'){CURRENT_CATEGORY=null;}
+if(!_navFromPopstate){try{history.pushState({page:page,param:param||null},'',null);}catch(e){}}_navFromPopstate=false;
 }
 window.addEventListener('popstate',function(e){_navFromPopstate=true;if(e.state&&e.state.page){go(e.state.page,e.state.param);}else{go('index');}});
 function updateCategoryHeader(param){
-  var badge=document.getElementById('cat-badge');
-  var title=document.getElementById('cat-title');
-  var desc=document.getElementById('cat-desc');
-  var map={
-    hopital:{b:'🚨 URGENCE',t:'Hôpitaux & Urgences',d:'Coordonnées gratuites.'},
-    ecole:{b:'🎓 Éducation',t:"Offres d'Écoles",d:"Recrutement enseignants."},
-    location:{b:'🏠 Immobilier',t:'Locations & Logements',d:'Appartements, maisons.'},
-    parcelle:{b:'📐 Foncier',t:'Parcelles & Terrains',d:'Terrains et concessions.'},
-    entreprise:{b:'🏢 Entreprises',t:"Offres d'Emploi",d:"Opportunités en entreprise."},
-    vehicule:{b:'🚗 Transport',t:'Véhicules',d:'Voitures, motos, vélos.'},
-    electronique:{b:'📱 Tech',t:'Électronique',d:'Téléphones, TV, ordinateurs.'},
-    autre:{b:'🛠️ Services',t:'Autres Offres',d:'Services et artisans.'},
-    all:{b:'🔍 Tout',t:'Toutes les offres',d:'Toutes les annonces.'}
-  };
-  var m=map[param]||map.all;
-  if(badge)badge.textContent=m.b;
-  if(title)title.textContent=m.t;
-  if(desc)desc.textContent=m.d;
+var badge=document.getElementById('cat-badge');
+var title=document.getElementById('cat-title');
+var desc=document.getElementById('cat-desc');
+var map={
+hopital:{b:'🚨 URGENCE',t:'Hôpitaux & Urgences',d:'Coordonnées gratuites.'},
+ecole:{b:'🎓 Éducation',t:"Offres d'Écoles",d:"Recrutement enseignants."},
+location:{b:'🏠 Immobilier',t:'Locations & Logements',d:'Appartements, maisons.'},
+parcelle:{b:'📐 Foncier',t:'Parcelles & Terrains',d:'Terrains et concessions.'},
+entreprise:{b:'🏢 Entreprises',t:"Offres d'Emploi",d:"Opportunités en entreprise."},
+vehicule:{b:'🚗 Transport',t:'Véhicules',d:'Voitures, motos, vélos.'},
+electronique:{b:'📱 Tech',t:'Électronique',d:'Téléphones, TV, ordinateurs.'},
+autre:{b:'🛠️ Services',t:'Autres Offres',d:'Services et artisans.'},
+all:{b:'🔍 Tout',t:'Toutes les offres',d:'Toutes les annonces.'}
+};
+var m=map[param]||map.all;
+if(badge)badge.textContent=m.b;
+if(title)title.textContent=m.t;
+if(desc)desc.textContent=m.d;
 }
 function renderCategoryFeed(cat){
-  var feed=document.getElementById('categoryFeed');
-  if(!feed)return;
-  var results=cat==='all'?ANNONCES_DATA:ANNONCES_DATA.filter(function(p){return p.cat===cat;});
-  if(results.length===0){feed.innerHTML='<div style="text-align:center;padding:60px 20px;background:var(--bg-card);border:1px dashed var(--border-primary);border-radius:16px;margin:16px"><div style="font-size:48px;opacity:.35;margin-bottom:14px">📭</div><h3 style="font-size:15px;font-weight:800">Aucune annonce</h3></div>';return;}
-  feed.innerHTML=results.map(renderOffreCard).join('');
+var feed=document.getElementById('categoryFeed');
+if(!feed)return;
+var results=cat==='all'?ANNONCES_DATA:ANNONCES_DATA.filter(function(p){return p.cat===cat;});
+if(results.length===0){feed.innerHTML='<div style="text-align:center;padding:60px 20px;background:var(--bg-card);border:1px dashed var(--border-primary);border-radius:16px;margin:16px"><div style="font-size:48px;opacity:.35;margin-bottom:14px">📭</div><h3 style="font-size:15px;font-weight:800">Aucune annonce</h3></div>';return;}
+feed.innerHTML=results.map(renderOffreCard).join('');
 }
 function filterCategory(el,cat){
-  CURRENT_CATEGORY=(cat==='all')?null:cat;haptic();
-  document.querySelectorAll('.category-btn').forEach(function(b){b.classList.remove('active');});
-  el.classList.add('active');
-  if(cat==='commerces'){go('commerces');return;}
-  if(cat==='all'){go('category','all');return;}
-  go('category',cat);
+CURRENT_CATEGORY=(cat==='all')?null:cat;haptic();
+document.querySelectorAll('.category-btn').forEach(function(b){b.classList.remove('active');});
+el.classList.add('active');
+if(cat==='commerces'){go('commerces');return;}
+if(cat==='all'){go('category','all');return;}
+go('category',cat);
 }
 
-/* ============ COMMERCES (100% Firestore) ============ */
 async function refreshCommerces(){
-  try{
-    var commercesFirestore=await window.chargerCommercesFirestore();
-    COMMERCES_DATA=commercesFirestore;
-    renderCommercesGrid();
-    filtrerCommerces();
-  }catch(e){console.warn(e);}
+try{
+var commercesFirestore=await window.chargerCommercesFirestore();
+COMMERCES_DATA=commercesFirestore;
+renderCommercesGrid();
+filtrerCommerces();
+}catch(e){console.warn(e);}
 }
 function renderCommercesGrid(){
-  var grid=document.getElementById('commercesGrid');
-  if(!grid)return;
-  if(!COMMERCES_DATA||COMMERCES_DATA.length===0){
-    grid.innerHTML='<div style="text-align:center;padding:60px 20px;background:var(--bg-card);border:1px dashed var(--border-primary);border-radius:16px;grid-column:1/-1"><div style="font-size:48px;opacity:.35;margin-bottom:14px">🏪</div><h3 style="font-size:15px;font-weight:800;color:var(--text-primary);margin-bottom:6px">Aucun commerce disponible</h3><p style="font-size:12.5px;color:var(--text-muted)">Revenez plus tard.</p></div>';
-    return;
-  }
-  var html='';
-  COMMERCES_DATA.forEach(function(c){
-    if(!c||!c.type)return;
-    var isService=(c.type==='Services'||c.type==='services');
-    var imgFallback='https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80';
-    html+='<article class="commerce-card" data-type="'+c.type.toLowerCase()+'" data-ville="'+(c.ville||'')+'" data-quartier="'+(c.quartier||'')+'">'
-      +'<div class="commerce-card-image">'
-      +'<img src="'+(c.img||imgFallback)+'" alt="'+c.nom+'" loading="lazy" onerror="this.src=\''+imgFallback+'\'">'
-      +'<span class="commerce-card-type-badge">'+c.type+'</span>'
-      +'<span class="commerce-card-verified"><i class="fa-solid fa-circle-check" style="font-size:9px"></i> Vérifié</span>'
-      +'</div>'
-      +'<div class="commerce-card-body">'
-      +'<h3 class="commerce-card-title">'+c.nom+'</h3>'
-      +'<div class="commerce-card-location"><i class="fa-solid fa-location-dot"></i> '+(c.ville||'RDC')+(c.quartier?' · '+c.quartier:'')+'</div>'
-      +'<p class="commerce-card-desc">'+c.description+'</p>'
-      +'</div>'
-      +'<div class="commerce-card-footer">'
-      +'<span class="commerce-card-hours"><i class="fa-regular fa-clock"></i> '+(c.horaires||'Ouvert')+'</span>'
-      +'<div style="display:flex;gap:6px">'
-      +(isService
-        ?'<a href="tel:'+(c.whatsapp||'').replace(/[^\d+]/g,'')+'" class="commerce-card-btn" style="background:#10b981;text-decoration:none" onclick="event.stopPropagation()"><i class="fa-solid fa-phone"></i> Appeler</a>'
-        :'<button onclick="event.stopPropagation();openCatalogue(\''+c.id+'\')" class="commerce-card-btn">Catalogue <i class="fa-solid fa-arrow-right"></i></button>')
-      +'</div>'
-      +'</div></article>';
-  });
-  grid.innerHTML=html;
+var grid=document.getElementById('commercesGrid');
+if(!grid)return;
+if(!COMMERCES_DATA||COMMERCES_DATA.length===0){
+grid.innerHTML='<div style="text-align:center;padding:60px 20px;background:var(--bg-card);border:1px dashed var(--border-primary);border-radius:16px;grid-column:1/-1"><div style="font-size:48px;opacity:.35;margin-bottom:14px">🏪</div><h3 style="font-size:15px;font-weight:800;color:var(--text-primary);margin-bottom:6px">Aucun commerce disponible</h3><p style="font-size:12.5px;color:var(--text-muted)">Revenez plus tard.</p></div>';
+return;
+}
+var html='';
+COMMERCES_DATA.forEach(function(c){
+if(!c||!c.type)return;
+var isService=(c.type==='Services'||c.type==='services');
+var imgFallback='https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80';
+html+='<article class="commerce-card" data-type="'+c.type.toLowerCase()+'" data-ville="'+(c.ville||'')+'" data-quartier="'+(c.quartier||'')+'">'
++'<div class="commerce-card-image">'
++'<img src="'+(c.img||imgFallback)+'" alt="'+c.nom+'" loading="lazy" onerror="this.src=\''+imgFallback+'\'">'
++'<span class="commerce-card-type-badge">'+c.type+'</span>'
++'<span class="commerce-card-verified"><i class="fa-solid fa-circle-check" style="font-size:9px"></i> Vérifié</span>'
++'</div>'
++'<div class="commerce-card-body">'
++'<h3 class="commerce-card-title">'+c.nom+'</h3>'
++'<div class="commerce-card-location"><i class="fa-solid fa-location-dot"></i> '+(c.ville||'RDC')+(c.quartier?' · '+c.quartier:'')+'</div>'
++'<p class="commerce-card-desc">'+c.description+'</p>'
++'</div>'
++'<div class="commerce-card-footer">'
++'<span class="commerce-card-hours"><i class="fa-regular fa-clock"></i> '+(c.horaires||'Ouvert')+'</span>'
++'<div style="display:flex;gap:6px">'
++(isService
+?'<a href="tel:'+(c.whatsapp||'').replace(/[^\d+]/g,'')+'" class="commerce-card-btn" style="background:#10b981;text-decoration:none" onclick="event.stopPropagation()"><i class="fa-solid fa-phone"></i> Appeler</a>'
+:'<button onclick="event.stopPropagation();openCatalogue(\''+c.id+'\')" class="commerce-card-btn">Catalogue <i class="fa-solid fa-arrow-right"></i></button>')
++'</div>'
++'</div></article>';
+});
+grid.innerHTML=html;
 }
 function openCatalogue(commerceId){
-  haptic(20);
-  var commerce=COMMERCES_DATA.find(function(c){return c.id===commerceId;});
-  if(!commerce){showToast('Commerce introuvable');return;}
-  if(!CURRENT_COMMERCE||CURRENT_COMMERCE.id!==commerce.id){cart=[];updateCart();refreshAddButtons();}
-  CURRENT_COMMERCE=commerce;
-  try{localStorage.setItem('netubex-current-commerce',JSON.stringify(commerce));}catch(e){}
-  renderCatalogue(commerce);
-  go('catalogue');
+haptic(20);
+var commerce=COMMERCES_DATA.find(function(c){return c.id===commerceId;});
+if(!commerce){showToast('Commerce introuvable');return;}
+if(!CURRENT_COMMERCE||CURRENT_COMMERCE.id!==commerce.id){cart=[];updateCart();refreshAddButtons();}
+CURRENT_COMMERCE=commerce;
+try{localStorage.setItem('netubex-current-commerce',JSON.stringify(commerce));}catch(e){}
+renderCatalogue(commerce);
+go('catalogue');
 }
 function renderCatalogue(commerce){
-  if(!commerce){try{commerce=JSON.parse(localStorage.getItem('netubex-current-commerce')||'null');}catch(e){}}
-  if(!commerce){showToast('Commerce introuvable');go('commerces');return;}
-  var header=document.getElementById('catalogueHeader');
-  var isService=(commerce.type==='Services'||commerce.type==='services');
-  if(header){
-    header.innerHTML='<div style="max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:16px;align-items:center;text-align:center">'
-      +'<div style="width:72px;height:72px;border-radius:20px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:32px">'+(commerce.emoji||'🏪')+'</div>'
-      +'<div><h1 style="font-size:26px;font-weight:900;letter-spacing:-.5px;line-height:1.2">'+commerce.nom+' <i class="fa-solid fa-circle-check" style="color:#67e8f9;font-size:20px"></i></h1>'
-      +'<p style="font-size:13.5px;color:rgba(255,255,255,.8);margin-top:8px;display:flex;flex-wrap:wrap;justify-content:center;gap:14px">'
-      +'<span><i class="fa-solid fa-location-dot"></i> '+(commerce.ville||'RDC')+(commerce.quartier?' · '+commerce.quartier:'')+'</span>'
-      +'<span><i class="fa-regular fa-clock"></i> '+(commerce.horaires||'Ouvert')+'</span>'
-      +'<span><i class="fa-brands fa-whatsapp"></i> '+(commerce.whatsapp||'—')+'</span>'
-      +'</p></div></div>';
-  }
-  var cartSub=document.querySelector('.cart-header-sub');
-  if(cartSub)cartSub.textContent=commerce.nom;
-  var feed=document.getElementById('catalogueFeed');
-  if(!feed)return;
-  if(!commerce.produits||commerce.produits.length===0){
-    feed.innerHTML='<div style="text-align:center;padding:60px 20px;background:var(--bg-card);border:1px dashed var(--border-primary);border-radius:16px;margin:16px"><div style="font-size:48px;opacity:.35;margin-bottom:14px">📦</div><h3 style="font-size:15px;font-weight:800;color:var(--text-primary);margin-bottom:6px">Aucun article</h3><p style="font-size:12.5px;color:var(--text-muted)">Le catalogue sera bientôt disponible.</p></div>';
-    return;
-  }
-  var html='';
-  commerce.produits.forEach(function(p){
-    html+='<article class="fb-post">'
-      +(p.img?'<div class="fb-post-media"><img src="'+p.img+'" alt="'+p.nom+'" loading="lazy" onerror="this.parentElement.style.display=\'none\'"></div>':'')
-      +'<div class="fb-post-body">'
-      +(p.categorie?'<span style="display:inline-block;background:#dbeafe;color:#1e40af;font-size:9.5px;font-weight:900;padding:3px 8px;border-radius:6px;text-transform:uppercase;margin-bottom:8px">'+p.categorie+'</span>':'')
-      +'<h3 class="fb-post-title">'+p.nom+' <i class="fa-solid fa-circle-check verified-badge"></i></h3>'
-      +'<div class="fb-post-price post-tag-land"><strong>'+(p.prix||0).toLocaleString('fr-FR')+' FC</strong>'+(p.prixLabel?'<span style="opacity:.7;margin-left:4px;font-size:11.5px">'+p.prixLabel+'</span>':'')+'</div>'
-      +'</div>'
-      +'<div class="fb-post-actions">'
-      +(isService
-        ?'<a href="tel:'+(commerce.whatsapp||'').replace(/[^\d+]/g,'')+'" class="fb-action-btn" style="background:#10b981;color:#fff;text-decoration:none;border:none" onclick="event.preventDefault()"><i class="fa-solid fa-phone"></i> Appeler</a>'
-          +'<a href="https://wa.me/'+(commerce.whatsapp||'').replace(/[^\d]/g,'')+'" target="_blank" class="fb-action-btn" style="background:#25D366;color:#fff;text-decoration:none;border:none" onclick="event.preventDefault()"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>'
-        :'<button class="fb-action-btn fb-action-primary" data-product-name="'+p.nom.replace(/"/g,'&quot;')+'" onclick="addToCart(\''+p.nom.replace(/'/g,'\\\'')+'\','+(p.prix||0)+',this)"><i class="fa-solid fa-cart-shopping"></i> Ajouter</button>')
-      +'</div></article>';
-  });
-  feed.innerHTML=html;
-  refreshAddButtons();
+if(!commerce){try{commerce=JSON.parse(localStorage.getItem('netubex-current-commerce')||'null');}catch(e){}}
+if(!commerce){showToast('Commerce introuvable');go('commerces');return;}
+var header=document.getElementById('catalogueHeader');
+var isService=(commerce.type==='Services'||commerce.type==='services');
+if(header){
+header.innerHTML='<div style="max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:16px;align-items:center;text-align:center">'
++'<div style="width:72px;height:72px;border-radius:20px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:32px">'+(commerce.emoji||'🏪')+'</div>'
++'<div><h1 style="font-size:26px;font-weight:900;letter-spacing:-.5px;line-height:1.2">'+commerce.nom+' <i class="fa-solid fa-circle-check" style="color:#67e8f9;font-size:20px"></i></h1>'
++'<p style="font-size:13.5px;color:rgba(255,255,255,.8);margin-top:8px;display:flex;flex-wrap:wrap;justify-content:center;gap:14px">'
++'<span><i class="fa-solid fa-location-dot"></i> '+(commerce.ville||'RDC')+(commerce.quartier?' · '+commerce.quartier:'')+'</span>'
++'<span><i class="fa-regular fa-clock"></i> '+(commerce.horaires||'Ouvert')+'</span>'
++'<span><i class="fa-brands fa-whatsapp"></i> '+(commerce.whatsapp||'—')+'</span>'
++'</p></div></div>';
+}
+var cartSub=document.querySelector('.cart-header-sub');
+if(cartSub)cartSub.textContent=commerce.nom;
+var feed=document.getElementById('catalogueFeed');
+if(!feed)return;
+if(!commerce.produits||commerce.produits.length===0){
+feed.innerHTML='<div style="text-align:center;padding:60px 20px;background:var(--bg-card);border:1px dashed var(--border-primary);border-radius:16px;margin:16px"><div style="font-size:48px;opacity:.35;margin-bottom:14px">📦</div><h3 style="font-size:15px;font-weight:800;color:var(--text-primary);margin-bottom:6px">Aucun article</h3><p style="font-size:12.5px;color:var(--text-muted)">Le catalogue sera bientôt disponible.</p></div>';
+return;
+}
+var html='';
+commerce.produits.forEach(function(p){
+html+='<article class="fb-post">'
++(p.img?'<div class="fb-post-media"><img src="'+p.img+'" alt="'+p.nom+'" loading="lazy" onerror="this.parentElement.style.display=\'none\'"></div>':'')
++'<div class="fb-post-body">'
++(p.categorie?'<span style="display:inline-block;background:#dbeafe;color:#1e40af;font-size:9.5px;font-weight:900;padding:3px 8px;border-radius:6px;text-transform:uppercase;margin-bottom:8px">'+p.categorie+'</span>':'')
++'<h3 class="fb-post-title">'+p.nom+' <i class="fa-solid fa-circle-check verified-badge"></i></h3>'
++'<div class="fb-post-price post-tag-land"><strong>'+(p.prix||0).toLocaleString('fr-FR')+' FC</strong>'+(p.prixLabel?'<span style="opacity:.7;margin-left:4px;font-size:11.5px">'+p.prixLabel+'</span>':'')+'</div>'
++'</div>'
++'<div class="fb-post-actions">'
++(isService
+?'<a href="tel:'+(commerce.whatsapp||'').replace(/[^\d+]/g,'')+'" class="fb-action-btn" style="background:#10b981;color:#fff;text-decoration:none;border:none" onclick="event.preventDefault()"><i class="fa-solid fa-phone"></i> Appeler</a>'
++'<a href="https://wa.me/'+(commerce.whatsapp||'').replace(/[^\d]/g,'')+'" target="_blank" class="fb-action-btn" style="background:#25D366;color:#fff;text-decoration:none;border:none" onclick="event.preventDefault()"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>'
+:'<button class="fb-action-btn fb-action-primary" data-product-name="'+p.nom.replace(/"/g,'&quot;')+'" onclick="addToCart(\''+p.nom.replace(/'/g,'\\\'')+'\','+(p.prix||0)+',this)"><i class="fa-solid fa-cart-shopping"></i> Ajouter</button>')
++'</div></article>';
+});
+feed.innerHTML=html;
+refreshAddButtons();
 }
 function filtrerCommerces(){
-  var type=(document.getElementById('filterCommerceType')||{}).value||'';
-  var ville=(document.getElementById('filterCommerceVille')||{}).value||'';
-  var quartier=((document.getElementById('filterCommerceQuartier')||{}).value||'').toLowerCase();
-  var cards=document.querySelectorAll('.commerce-card');
-  var visible=0;
-  cards.forEach(function(card){
-    var cType=card.getAttribute('data-type')||'';
-    var cVille=card.getAttribute('data-ville')||'';
-    var cQuartier=(card.getAttribute('data-quartier')||'').toLowerCase();
-    var matchType=!type||cType===type.toLowerCase();
-    var matchVille=!ville||cVille===ville;
-    var matchQuartier=!quartier||cQuartier.indexOf(quartier)!==-1;
-    if(matchType&&matchVille&&matchQuartier){card.style.display='flex';visible++;}else{card.style.display='none';}
-  });
-  var empty=document.getElementById('commercesEmpty');
-  var count=document.getElementById('commercesCount');
-  if(empty)empty.style.display=visible===0?'block':'none';
-  if(count)count.textContent=visible+' établissement'+(visible>1?'s':'')+' disponible'+(visible>1?'s':'');
+var type=(document.getElementById('filterCommerceType')||{}).value||'';
+var ville=(document.getElementById('filterCommerceVille')||{}).value||'';
+var quartier=((document.getElementById('filterCommerceQuartier')||{}).value||'').toLowerCase();
+var cards=document.querySelectorAll('.commerce-card');
+var visible=0;
+cards.forEach(function(card){
+var cType=card.getAttribute('data-type')||'';
+var cVille=card.getAttribute('data-ville')||'';
+var cQuartier=(card.getAttribute('data-quartier')||'').toLowerCase();
+var matchType=!type||cType===type.toLowerCase();
+var matchVille=!ville||cVille===ville;
+var matchQuartier=!quartier||cQuartier.indexOf(quartier)!==-1;
+if(matchType&&matchVille&&matchQuartier){card.style.display='flex';visible++;}else{card.style.display='none';}
+});
+var empty=document.getElementById('commercesEmpty');
+var count=document.getElementById('commercesCount');
+if(empty)empty.style.display=visible===0?'block':'none';
+if(count)count.textContent=visible+' établissement'+(visible>1?'s':'')+' disponible'+(visible>1?'s':'');
 }
 
-/* ============ DETAIL ============ */
 var DETAIL_FS_COUNTDOWN=10;var detailFsActive=false;
 function openDetailFullscreen(src){
-  if(!src||detailFsActive)return;
-  detailFsActive=true;haptic(20);
-  var overlay=document.getElementById('detailFullscreen');
-  var img=document.getElementById('detailFsImg');
-  if(!overlay||!img)return;
-  img.src=src;overlay.classList.add('active');document.body.style.overflow='hidden';
-  setTimeout(function(){closeDetailFullscreen();},DETAIL_FS_COUNTDOWN*1000);
+if(!src||detailFsActive)return;
+detailFsActive=true;haptic(20);
+var overlay=document.getElementById('detailFullscreen');
+var img=document.getElementById('detailFsImg');
+if(!overlay||!img)return;
+img.src=src;overlay.classList.add('active');document.body.style.overflow='hidden';
+setTimeout(function(){closeDetailFullscreen();},DETAIL_FS_COUNTDOWN*1000);
 }
 function closeDetailFullscreen(){
-  if(!detailFsActive)return;
-  detailFsActive=false;haptic(15);
-  var overlay=document.getElementById('detailFullscreen');
-  if(overlay)overlay.classList.remove('active');
-  document.body.style.overflow='';
+if(!detailFsActive)return;
+detailFsActive=false;haptic(15);
+var overlay=document.getElementById('detailFullscreen');
+if(overlay)overlay.classList.remove('active');
+document.body.style.overflow='';
 }
 function openDetail(offreData){
-  CURRENT_OFFRE=offreData;
-  try{localStorage.setItem('netubex-current-offre',JSON.stringify(offreData));}catch(e){}
-  renderDetail(offreData);
-  go('detail');
+CURRENT_OFFRE=offreData;
+try{localStorage.setItem('netubex-current-offre',JSON.stringify(offreData));}catch(e){}
+renderDetail(offreData);
+go('detail');
 }
 function renderDetail(offre){
-  if(!offre){try{offre=JSON.parse(localStorage.getItem('netubex-current-offre')||'null');}catch(e){}}
-  if(!offre){showToast('Offre introuvable');go('index');return;}
-  var heroImg=document.getElementById('detailHeroImg');
-  if(heroImg){if(offre.img){heroImg.src=offre.img;heroImg.style.display='block';}else heroImg.style.display='none';}
-  var heroBadge=document.getElementById('detailHeroBadge');
-  if(heroBadge){heroBadge.textContent=offre.tag||'—';heroBadge.className='feed-badge '+(offre.tagClass||'');}
-  var cityEl=document.getElementById('detailCity');if(cityEl)cityEl.textContent=offre.location||'—';
-  var dateEl=document.getElementById('detailDate');if(dateEl)dateEl.textContent=offre.time||'Récemment';
-  var titleEl=document.getElementById('detailTitle');if(titleEl)titleEl.textContent=offre.title||'—';
-  var priceLabel=document.getElementById('detailPriceLabel');
-  var priceValue=document.getElementById('detailPriceValue');
-  var priceBox=document.getElementById('detailPriceBox');
-  if(offre.price&&priceValue){
-    var parts=String(offre.price).split(':');
-    if(priceLabel)priceLabel.textContent=parts.length>1?parts[0].trim():'Prix';
-    if(priceValue)priceValue.textContent=parts.length>1?parts[1].trim():offre.price;
-    if(priceBox)priceBox.style.display='flex';
-  }else if(priceBox)priceBox.style.display='none';
-  var descEl=document.getElementById('detailDescription');if(descEl)descEl.textContent=offre.desc||'—';
-  var contactSection=document.getElementById('detailContactSection');
-  if(contactSection)contactSection.style.display=offre.unlock?'block':'none';
-  var actionsEl=document.getElementById('detailActions');
-  if(actionsEl){
-    actionsEl.innerHTML='';
-    if(offre.unlock){
-      actionsEl.innerHTML='<button class="detail-primary-btn gold" onclick="requireLogin(\'unlock\',()=>openUnlock())"><i class="fa-solid fa-key"></i> Débloquer les coordonnées — 1 000 FC</button>';
-    }
-  }
-  var refEl=document.getElementById('detailRefValue');
-  if(refEl&&offre){
-    var catCode='GEN';
-    if(offre.cat==='ecole')catCode='ECOLE';
-    else if(offre.cat==='location')catCode='LOC';
-    else if(offre.cat==='parcelle')catCode='PARC';
-    else if(offre.cat==='entreprise')catCode='ENT';
-    else if(offre.cat==='vehicule')catCode='VEH';
-    else if(offre.cat==='electronique')catCode='ELEC';
-    else if(offre.cat==='hopital')catCode='HOP';
-    else if(offre.cat==='autre')catCode='SRV';
-    var str=String((offre.title||'')+(offre.name||''));
-    var hash=0;for(var i=0;i<str.length;i++){hash=((hash<<5)-hash)+str.charCodeAt(i);hash|=0;}
-    var num=String(Math.abs(hash)%10000).padStart(4,'0');
-    refEl.textContent='NTX-'+catCode+'-'+num;
-  }
-  var heroContainer=document.getElementById('detailHero');
-  if(heroContainer&&offre){
-    heroContainer.onclick=null;
-    if(offre.img){heroContainer.style.cursor='pointer';heroContainer.onclick=function(e){e.stopPropagation();openDetailFullscreen(offre.img);};}
-    else heroContainer.style.cursor='default';
-  }
+if(!offre){try{offre=JSON.parse(localStorage.getItem('netubex-current-offre')||'null');}catch(e){}}
+if(!offre){showToast('Offre introuvable');go('index');return;}
+var heroImg=document.getElementById('detailHeroImg');
+if(heroImg){if(offre.img){heroImg.src=offre.img;heroImg.style.display='block';}else heroImg.style.display='none';}
+var heroBadge=document.getElementById('detailHeroBadge');
+if(heroBadge){heroBadge.textContent=offre.tag||'—';heroBadge.className='feed-badge '+(offre.tagClass||'');}
+var cityEl=document.getElementById('detailCity');if(cityEl)cityEl.textContent=offre.location||'—';
+var dateEl=document.getElementById('detailDate');if(dateEl)dateEl.textContent=offre.time||'Récemment';
+var titleEl=document.getElementById('detailTitle');if(titleEl)titleEl.textContent=offre.title||'—';
+var priceLabel=document.getElementById('detailPriceLabel');
+var priceValue=document.getElementById('detailPriceValue');
+var priceBox=document.getElementById('detailPriceBox');
+if(offre.price&&priceValue){
+var parts=String(offre.price).split(':');
+if(priceLabel)priceLabel.textContent=parts.length>1?parts[0].trim():'Prix';
+if(priceValue)priceValue.textContent=parts.length>1?parts[1].trim():offre.price;
+if(priceBox)priceBox.style.display='flex';
+}else if(priceBox)priceBox.style.display='none';
+var descEl=document.getElementById('detailDescription');if(descEl)descEl.textContent=offre.desc||'—';
+var orgSection=document.getElementById('detailOrganisationSection');
+if(orgSection){
+orgSection.style.display='block';
+var orgName=document.getElementById('detailOrgName');
+var orgLoc=document.getElementById('detailOrgLocation');
+var orgAvatar=document.getElementById('detailOrgAvatar');
+if(orgName)orgName.innerHTML=(offre.name||'Utilisateur NeTubeX')+getVerifiedBadgeHTML(offre);
+if(orgLoc)orgLoc.textContent=offre.location||'';
+if(orgAvatar){
+if(offre.isCommerce){orgAvatar.innerHTML='<i class="fa-solid fa-store" style="font-size:26px"></i>';}
+else if(offre.avatar){orgAvatar.innerHTML='<img src="'+offre.avatar+'" alt="">';}
+else{orgAvatar.textContent='👤';}
+}
+}
+var contactSection=document.getElementById('detailContactSection');
+if(contactSection)contactSection.style.display=offre.unlock?'block':'none';
+var actionsEl=document.getElementById('detailActions');
+if(actionsEl){
+actionsEl.innerHTML='';
+if(offre.unlock){
+actionsEl.innerHTML='<button class="detail-primary-btn gold" onclick="requireLogin(\'unlock\',()=>openUnlock())"><i class="fa-solid fa-key"></i> Débloquer les coordonnées — 1 000 FC</button>';
+}
+}
+var refEl=document.getElementById('detailRefValue');
+if(refEl&&offre){
+var catCode='GEN';
+if(offre.cat==='ecole')catCode='ECOLE';
+else if(offre.cat==='location')catCode='LOC';
+else if(offre.cat==='parcelle')catCode='PARC';
+else if(offre.cat==='entreprise')catCode='ENT';
+else if(offre.cat==='vehicule')catCode='VEH';
+else if(offre.cat==='electronique')catCode='ELEC';
+else if(offre.cat==='hopital')catCode='HOP';
+else if(offre.cat==='autre')catCode='SRV';
+var str=String((offre.title||'')+(offre.name||''));
+var hash=0;for(var i=0;i<str.length;i++){hash=((hash<<5)-hash)+str.charCodeAt(i);hash|=0;}
+var num=String(Math.abs(hash)%10000).padStart(4,'0');
+refEl.textContent='NTX-'+catCode+'-'+num;
+}
+var heroContainer=document.getElementById('detailHero');
+if(heroContainer&&offre){
+heroContainer.onclick=null;
+if(offre.img){heroContainer.style.cursor='pointer';heroContainer.onclick=function(e){e.stopPropagation();openDetailFullscreen(offre.img);};}
+else heroContainer.style.cursor='default';
+}
 }
 
-/* ============ PANIER ============ */
 function updateCart(){
-  var floatBadge=document.getElementById('cartFloatBadge');
-  var floatBtn=document.getElementById('cartFloatingBtn');
-  var items=document.getElementById('cart-items');
-  var empty=document.getElementById('cart-empty');
-  var total=document.getElementById('cart-total');
-  var count=cart.reduce(function(s,i){return s+i.qty;},0);
-  if(floatBadge)floatBadge.textContent=count;
-  if(floatBtn){if(count>0)floatBtn.classList.remove('hidden');else floatBtn.classList.add('hidden');}
-  if(!items)return;
-  if(count===0){if(empty)empty.style.display='block';items.innerHTML='';if(total)total.textContent='0 FC';return;}
-  if(empty)empty.style.display='none';
-  items.innerHTML=cart.map(function(i,idx){
-    return '<div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg-card);border-radius:12px;border:1px solid var(--border-primary);margin-bottom:8px"><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:800;color:var(--text-primary)">'+i.name+'</div><div style="font-size:12px;color:#3b82f6;font-weight:900;margin-top:3px">'+i.price.toLocaleString('fr-FR')+' FC</div><div style="display:flex;align-items:center;gap:8px;margin-top:8px"><button onclick="changeQty('+idx+',-1)" style="width:28px;height:28px;border-radius:6px;background:var(--bg-card-alt);border:1px solid var(--border-primary);color:var(--text-primary);cursor:pointer;font-weight:900">−</button><span style="font-size:13px;font-weight:900;color:var(--text-primary);min-width:20px;text-align:center">'+i.qty+'</span><button onclick="changeQty('+idx+',1)" style="width:28px;height:28px;border-radius:6px;background:var(--bg-card-alt);border:1px solid var(--border-primary);color:var(--text-primary);cursor:pointer;font-weight:900">+</button></div></div><div style="text-align:right;flex-shrink:0"><div style="font-size:13px;font-weight:900;color:var(--text-primary)">'+(i.price*i.qty).toLocaleString('fr-FR')+' FC</div><button onclick="removeItem('+idx+')" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#ef4444;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:12px;margin-top:6px">✕</button></div></div>';
-  }).join('');
-  var tot=cart.reduce(function(s,i){return s+i.price*i.qty;},0);
-  if(total)total.textContent=tot.toLocaleString('fr-FR')+' FC';
+var floatBadge=document.getElementById('cartFloatBadge');
+var floatBtn=document.getElementById('cartFloatingBtn');
+var items=document.getElementById('cart-items');
+var empty=document.getElementById('cart-empty');
+var total=document.getElementById('cart-total');
+var count=cart.reduce(function(s,i){return s+i.qty;},0);
+if(floatBadge)floatBadge.textContent=count;
+if(floatBtn){if(count>0)floatBtn.classList.remove('hidden');else floatBtn.classList.add('hidden');}
+if(!items)return;
+if(count===0){if(empty)empty.style.display='block';items.innerHTML='';if(total)total.textContent='0 FC';return;}
+if(empty)empty.style.display='none';
+items.innerHTML=cart.map(function(i,idx){
+return '<div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg-card);border-radius:12px;border:1px solid var(--border-primary);margin-bottom:8px"><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:800;color:var(--text-primary)">'+i.name+'</div><div style="font-size:12px;color:#3b82f6;font-weight:900;margin-top:3px">'+i.price.toLocaleString('fr-FR')+' FC</div><div style="display:flex;align-items:center;gap:8px;margin-top:8px"><button onclick="changeQty('+idx+',-1)" style="width:28px;height:28px;border-radius:6px;background:var(--bg-card-alt);border:1px solid var(--border-primary);color:var(--text-primary);cursor:pointer;font-weight:900">−</button><span style="font-size:13px;font-weight:900;color:var(--text-primary);min-width:20px;text-align:center">'+i.qty+'</span><button onclick="changeQty('+idx+',1)" style="width:28px;height:28px;border-radius:6px;background:var(--bg-card-alt);border:1px solid var(--border-primary);color:var(--text-primary);cursor:pointer;font-weight:900">+</button></div></div><div style="text-align:right;flex-shrink:0"><div style="font-size:13px;font-weight:900;color:var(--text-primary)">'+(i.price*i.qty).toLocaleString('fr-FR')+' FC</div><button onclick="removeItem('+idx+')" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#ef4444;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:12px;margin-top:6px">✕</button></div></div>';
+}).join('');
+var tot=cart.reduce(function(s,i){return s+i.price*i.qty;},0);
+if(total)total.textContent=tot.toLocaleString('fr-FR')+' FC';
 }
 function addToCart(name,price,btn){
-  haptic(30);
-  var e=cart.find(function(i){return i.name===name;});
-  if(e)e.qty++;else cart.push({name:name,price:price,qty:1});
-  updateCart();refreshAddButtons();showToast('Article ajouté');openCart();
+haptic(30);
+var e=cart.find(function(i){return i.name===name;});
+if(e)e.qty++;else cart.push({name:name,price:price,qty:1});
+updateCart();refreshAddButtons();showToast('Article ajouté');openCart();
 }
 function refreshAddButtons(){
-  var btns=document.querySelectorAll('[data-product-name]');
-  btns.forEach(function(btn){
-    var name=btn.getAttribute('data-product-name');
-    var inCart=cart.some(function(i){return i.name===name;});
-    if(inCart){btn.classList.add('added');btn.innerHTML='<i class="fa-solid fa-check"></i> Déjà ajouté';btn.disabled=true;}
-    else{btn.classList.remove('added');btn.innerHTML='<i class="fa-solid fa-cart-shopping"></i> Ajouter';btn.disabled=false;}
-  });
+var btns=document.querySelectorAll('[data-product-name]');
+btns.forEach(function(btn){
+var name=btn.getAttribute('data-product-name');
+var inCart=cart.some(function(i){return i.name===name;});
+if(inCart){btn.classList.add('added');btn.innerHTML='<i class="fa-solid fa-check"></i> Déjà ajouté';btn.disabled=true;}
+else{btn.classList.remove('added');btn.innerHTML='<i class="fa-solid fa-cart-shopping"></i> Ajouter';btn.disabled=false;}
+});
 }
 function changeQty(idx,d){cart[idx].qty+=d;if(cart[idx].qty<=0){cart.splice(idx,1);}updateCart();refreshAddButtons();}
 function removeItem(idx){cart.splice(idx,1);updateCart();refreshAddButtons();}
 function openCart(){document.getElementById('cart-drawer').classList.add('active');document.getElementById('cart-overlay').classList.add('active');document.body.style.overflow='hidden';}
 function closeCart(){document.getElementById('cart-drawer').classList.remove('active');document.getElementById('cart-overlay').classList.remove('active');document.body.style.overflow='';}
 function submitOrder(){
-  if(cart.length===0){showToast('Panier vide');return;}
-  var nom=(document.getElementById('client-nom')||{}).value?document.getElementById('client-nom').value.trim():'';
-  var tel=(document.getElementById('client-tel')||{}).value?document.getElementById('client-tel').value.trim():'';
-  if(!nom||!tel){showToast('Remplissez nom et téléphone');return;}
-  requireLogin('commander',function(){
-    var msg='Bonjour, commande NeTubeX :%0A%0A';
-    cart.forEach(function(i){msg+='• '+i.qty+'x '+i.name+' ('+(i.price*i.qty).toLocaleString('fr-FR')+' FC)%0A';});
-    var tot=cart.reduce(function(s,i){return s+i.price*i.qty;},0);
-    msg+='%0A💰 TOTAL : '+tot.toLocaleString('fr-FR')+' FC%0A%0A👤 '+nom+'%0A📞 '+tel;
-    var wa=CURRENT_COMMERCE?CURRENT_COMMERCE.whatsapp.replace(/[^\d]/g,''):'243976953045';
-    window.open('https://wa.me/'+wa+'?text='+msg,'_blank');
-    incrementerStat('commande');
-    closeCart();cart=[];updateCart();refreshAddButtons();
-  });
+if(cart.length===0){showToast('Panier vide');return;}
+var nom=(document.getElementById('client-nom')||{}).value?document.getElementById('client-nom').value.trim():'';
+var tel=(document.getElementById('client-tel')||{}).value?document.getElementById('client-tel').value.trim():'';
+if(!nom||!tel){showToast('Remplissez nom et téléphone');return;}
+requireLogin('commander',function(){
+var msg='Bonjour, commande NeTubeX :%0A%0A';
+cart.forEach(function(i){msg+='• '+i.qty+'x '+i.name+' ('+(i.price*i.qty).toLocaleString('fr-FR')+' FC)%0A';});
+var tot=cart.reduce(function(s,i){return s+i.price*i.qty;},0);
+msg+='%0A💰 TOTAL : '+tot.toLocaleString('fr-FR')+' FC%0A%0A👤 '+nom+'%0A📞 '+tel;
+var wa=CURRENT_COMMERCE?CURRENT_COMMERCE.whatsapp.replace(/[^\d]/g,''):'243976953045';
+window.open('https://wa.me/'+wa+'?text='+msg,'_blank');
+closeCart();cart=[];updateCart();refreshAddButtons();
+});
 }
 
-/* ============ PUBLISH (utilisateur) ============ */
 var publishCat=null;var publishImages=[];
 function toggleCustomSelect(){haptic(10);var select=document.getElementById('customSelectType');if(!select)return;select.classList.toggle('open');}
 function selectCustomOption(value,el){
-  haptic(15);
-  document.querySelectorAll('#customSelectMenu .custom-select-option').forEach(function(opt){opt.classList.remove('selected');});
-  el.classList.add('selected');
-  var emoji=el.querySelector('.cs-emoji').textContent;
-  var label=el.querySelector('.cs-label').textContent;
-  var valueEl=document.getElementById('customSelectValue');
-  if(valueEl){valueEl.innerHTML='<span class="custom-select-icon">'+emoji+'</span><span>'+label+'</span>';}
-  var select=document.getElementById('customSelectType');if(select)select.classList.remove('open');
-  publishCat=value;publishImages=[];updatePublishFormForCategory();
+haptic(15);
+document.querySelectorAll('#customSelectMenu .custom-select-option').forEach(function(opt){opt.classList.remove('selected');});
+el.classList.add('selected');
+var emoji=el.querySelector('.cs-emoji').textContent;
+var label=el.querySelector('.cs-label').textContent;
+var valueEl=document.getElementById('customSelectValue');
+if(valueEl){valueEl.innerHTML='<span class="custom-select-icon">'+emoji+'</span><span>'+label+'</span>';}
+var select=document.getElementById('customSelectType');if(select)select.classList.remove('open');
+publishCat=value;publishImages=[];updatePublishFormForCategory();
 }
 document.addEventListener('click',function(e){
-  var select=document.getElementById('customSelectType');
-  if(!select)return;
-  if(!select.contains(e.target)){select.classList.remove('open');}
+var select=document.getElementById('customSelectType');
+if(!select)return;
+if(!select.contains(e.target)){select.classList.remove('open');}
 });
 function updatePublishFormForCategory(){
-  var imagesSection=document.getElementById('publishImagesSection');
-  var imagesHint=document.getElementById('publishImagesHint');
-  var imagesInput=document.getElementById('publishImagesInput');
-  var preview=document.getElementById('publishImagesPreview');
-  var counter=document.getElementById('publishImagesCounter');
-  publishImages=[];
-  if(preview)preview.innerHTML='';
-  if(counter)counter.textContent='0 photo';
-  if(imagesInput)imagesInput.value='';
-  if(!publishCat){if(imagesSection)imagesSection.style.display='none';return;}
-  var showImages=false;var hint='';var maxImages=0;var requiredImages=0;
-  if(publishCat==='ecole'||publishCat==='hopital'){showImages=false;}
-  else if(publishCat==='parcelle'||publishCat==='location'){showImages=true;hint='Photos obligatoires : minimum 3, maximum 5.';maxImages=5;requiredImages=3;}
-  else if(publishCat==='entreprise'){showImages=true;hint='Photo facultative : maximum 1.';maxImages=1;requiredImages=0;}
-  else if(publishCat==='vehicule'||publishCat==='electronique'){showImages=true;hint='Photos obligatoires : minimum 1, maximum 5.';maxImages=5;requiredImages=1;}
-  else if(publishCat==='autre'){showImages=true;hint='Photo facultative : maximum 1.';maxImages=1;requiredImages=0;}
-  if(imagesSection)imagesSection.style.display=showImages?'block':'none';
-  if(imagesHint)imagesHint.textContent=hint;
-  if(imagesInput)imagesInput.multiple=maxImages>1;
-  window._publishRules={maxImages:maxImages,requiredImages:requiredImages};
-  var vehiculeTypeWrapper=document.getElementById('publishVehiculeTypeWrapper');
-  if(vehiculeTypeWrapper)vehiculeTypeWrapper.style.display=publishCat==='vehicule'?'block':'none';
+var imagesSection=document.getElementById('publishImagesSection');
+var imagesHint=document.getElementById('publishImagesHint');
+var imagesInput=document.getElementById('publishImagesInput');
+var preview=document.getElementById('publishImagesPreview');
+var counter=document.getElementById('publishImagesCounter');
+publishImages=[];
+if(preview)preview.innerHTML='';
+if(counter)counter.textContent='0 photo';
+if(imagesInput)imagesInput.value='';
+if(!publishCat){if(imagesSection)imagesSection.style.display='none';return;}
+var showImages=false;var hint='';var maxImages=0;var requiredImages=0;
+if(publishCat==='ecole'||publishCat==='hopital'){showImages=false;}
+else if(publishCat==='parcelle'||publishCat==='location'){showImages=true;hint='Photos obligatoires : minimum 3, maximum 5.';maxImages=5;requiredImages=3;}
+else if(publishCat==='entreprise'){showImages=true;hint='Photo facultative : maximum 1.';maxImages=1;requiredImages=0;}
+else if(publishCat==='vehicule'||publishCat==='electronique'){showImages=true;hint='Photos obligatoires : minimum 1, maximum 5.';maxImages=5;requiredImages=1;}
+else if(publishCat==='autre'){showImages=true;hint='Photo facultative : maximum 1.';maxImages=1;requiredImages=0;}
+if(imagesSection)imagesSection.style.display=showImages?'block':'none';
+if(imagesHint)imagesHint.textContent=hint;
+if(imagesInput)imagesInput.multiple=maxImages>1;
+window._publishRules={maxImages:maxImages,requiredImages:requiredImages};
+var vehiculeTypeWrapper=document.getElementById('publishVehiculeTypeWrapper');
+if(vehiculeTypeWrapper)vehiculeTypeWrapper.style.display=publishCat==='vehicule'?'block':'none';
 }
 function handlePublishImages(event){
-  var files=Array.from(event.target.files||[]);
-  var rules=window._publishRules||{maxImages:20,requiredImages:0};
-  var remaining=rules.maxImages-publishImages.length;
-  if(remaining<=0){showToast('Maximum '+rules.maxImages);event.target.value='';return;}
-  var toAdd=files.slice(0,remaining);
-  toAdd.forEach(function(file){
-    var reader=new FileReader();
-    reader.onload=function(e){publishImages.push({file:file,dataUrl:e.target.result});renderPublishImages();};
-    reader.readAsDataURL(file);
-  });
-  event.target.value='';
+var files=Array.from(event.target.files||[]);
+var rules=window._publishRules||{maxImages:20,requiredImages:0};
+var remaining=rules.maxImages-publishImages.length;
+if(remaining<=0){showToast('Maximum '+rules.maxImages);event.target.value='';return;}
+var toAdd=files.slice(0,remaining);
+toAdd.forEach(function(file){
+var reader=new FileReader();
+reader.onload=function(e){publishImages.push({file:file,dataUrl:e.target.result});renderPublishImages();};
+reader.readAsDataURL(file);
+});
+event.target.value='';
 }
 function renderPublishImages(){
-  var preview=document.getElementById('publishImagesPreview');
-  var counter=document.getElementById('publishImagesCounter');
-  if(!preview)return;
-  preview.innerHTML='';
-  publishImages.forEach(function(img,idx){
-    var item=document.createElement('div');
-    item.className='publish-image-item';
-    item.innerHTML='<img src="'+img.dataUrl+'" alt=""><button type="button" class="publish-image-remove" onclick="removePublishImage('+idx+')">✕</button>';
-    preview.appendChild(item);
-  });
-  if(counter){counter.textContent=publishImages.length+' photo'+(publishImages.length>1?'s':'');}
+var preview=document.getElementById('publishImagesPreview');
+var counter=document.getElementById('publishImagesCounter');
+if(!preview)return;
+preview.innerHTML='';
+publishImages.forEach(function(img,idx){
+var item=document.createElement('div');
+item.className='publish-image-item';
+item.innerHTML='<img src="'+img.dataUrl+'" alt=""><button type="button" class="publish-image-remove" onclick="removePublishImage('+idx+')">✕</button>';
+preview.appendChild(item);
+});
+if(counter){counter.textContent=publishImages.length+' photo'+(publishImages.length>1?'s':'');}
 }
 function removePublishImage(idx){haptic(15);publishImages.splice(idx,1);renderPublishImages();}
 async function submitPublish(){
-  if(!publishCat){showToast('Sélectionnez un type');return;}
-  var rules=window._publishRules||{maxImages:0,requiredImages:0};
-  if(rules.requiredImages>0&&publishImages.length<rules.requiredImages){showToast('Ajoutez '+rules.requiredImages+' photo'+(rules.requiredImages>1?'s':''));return;}
-  var titre=(document.getElementById('publishTitre')||{}).value;
-  var ville=getVilleValue('publishVille','publishVilleLibre');
-  var prix=(document.getElementById('publishPrix')||{}).value;
-  var desc=(document.getElementById('publishDescription')||{}).value;
-  if(!titre||!ville||!prix||!desc){showToast('Remplissez tous les champs');return;}
-  if(!CURRENT_ACCOUNT){showToast('Connectez-vous');return;}
-  // Créer l'annonce dans Firestore
-  try{
-    if(window.creerAnnonce){
-      await window.creerAnnonce({
-        titre:titre, desc:desc, ville:ville, quartier:'',
-        prix:prix, img:publishImages.length>0?publishImages[0].dataUrl:'',
-        cat:publishCat,
-        tag:'', tagClass:'post-tag-'+publishCat,
-        proprietaireUid:CURRENT_ACCOUNT.id
-      },{
-        nom:CURRENT_ACCOUNT.name||'',
-        adresse:'',
-        telephone:CURRENT_ACCOUNT.phone||'',
-        email:CURRENT_ACCOUNT.emailAuth||''
-      });
-    }
-    document.getElementById('publishPendingOverlay').classList.add('active');
-    document.getElementById('publishPendingModal').classList.add('active');
-  }catch(e){
-    console.error(e);
-    showToast('Erreur : '+(e.message||'publication impossible'));
-  }
+if(!publishCat){showToast('Sélectionnez un type');return;}
+var rules=window._publishRules||{maxImages:0,requiredImages:0};
+if(rules.requiredImages>0&&publishImages.length<rules.requiredImages){showToast('Ajoutez '+rules.requiredImages+' photo'+(rules.requiredImages>1?'s':''));return;}
+var titre=(document.getElementById('publishTitre')||{}).value;
+var ville=getVilleValue('publishVille','publishVilleLibre');
+var prix=(document.getElementById('publishPrix')||{}).value;
+var desc=(document.getElementById('publishDescription')||{}).value;
+if(!titre||!ville||!prix||!desc){showToast('Remplissez tous les champs');return;}
+if(!CURRENT_ACCOUNT){showToast('Connectez-vous');return;}
+try{
+var publieurNom=CURRENT_ACCOUNT.name||CURRENT_ACCOUNT.nomComplet||'Utilisateur NeTubeX';
+var publieurType='user';
+var publieurBoutique=null;
+if(CURRENT_ACCOUNT.boutique && CURRENT_ACCOUNT.boutique.statut==='approuve'){
+publieurType='commerce';
+publieurBoutique=CURRENT_ACCOUNT.boutique.nom;
+publieurNom=CURRENT_ACCOUNT.boutique.nom;
+}
+if(window.creerAnnonce){
+await window.creerAnnonce({
+titre:titre, desc:desc, ville:ville, quartier:'',
+prix:prix, img:publishImages.length>0?publishImages[0].dataUrl:'',
+cat:publishCat,
+tag:'', tagClass:'post-tag-'+publishCat,
+proprietaireUid:CURRENT_ACCOUNT.id,
+publieurNom:publieurNom,
+publieurType:publieurType,
+publieurBoutique:publieurBoutique,
+publieurPhone:CURRENT_ACCOUNT.phone||'',
+publieurVille:CURRENT_ACCOUNT.ville||''
+},{
+nom:publieurNom,
+adresse:'',
+telephone:CURRENT_ACCOUNT.phone||'',
+email:CURRENT_ACCOUNT.emailAuth||''
+});
+}
+document.getElementById('publishPendingOverlay').classList.add('active');
+document.getElementById('publishPendingModal').classList.add('active');
+}catch(e){
+console.error(e);
+showToast('Erreur : '+(e.message||'publication impossible'));
+}
 }
 function closePublishPending(){
-  document.getElementById('publishPendingOverlay').classList.remove('active');
-  document.getElementById('publishPendingModal').classList.remove('active');
-  showToast('Publication enregistrée');
-  setTimeout(function(){go('index');},400);
+document.getElementById('publishPendingOverlay').classList.remove('active');
+document.getElementById('publishPendingModal').classList.remove('active');
+showToast('Publication enregistrée');
+setTimeout(function(){go('index');},400);
 }
 function finalizePayment(){showToast('Paiement enregistré');setTimeout(function(){go('index');},600);}
 function togglePublishVilleLibre(){var sel=document.getElementById('publishVille');var inp=document.getElementById('publishVilleLibre');if(!sel||!inp)return;if(sel.value==='autre'){inp.style.display='block';inp.required=true;}else{inp.style.display='none';inp.required=false;inp.value='';}}
 function getVilleValue(selectId,inputId){var sel=document.getElementById(selectId);var inp=document.getElementById(inputId);if(!sel)return '';if(sel.value==='autre')return inp?inp.value.trim():'';return sel.value;}
 
-/* ============ INSCRIPTION BOUTIQUE ============ */
 function inscUpdateProgress(step){
-  document.querySelectorAll('.insc-step-dot').forEach(function(dot){
-    var s=parseInt(dot.getAttribute('data-step'),10);
-    if(s<=step){dot.style.background=s===step?'#3b82f6':'#10b981';}else{dot.style.background='var(--border-primary)';}
-  });
+document.querySelectorAll('.insc-step-dot').forEach(function(dot){
+var s=parseInt(dot.getAttribute('data-step'),10);
+if(s<=step){dot.style.background=s===step?'#3b82f6':'#10b981';}else{dot.style.background='var(--border-primary)';}
+});
 }
 function inscShowStep(step){document.querySelectorAll('.insc-step').forEach(function(el){el.style.display=(parseInt(el.getAttribute('data-step'),10)===step)?'block':'none';});inscUpdateProgress(step);window.scrollTo({top:0,behavior:'smooth'});}
 function inscNextStep(current){
-  var errs=[];
-  if(current===1){
-    if(!(document.getElementById('inscNom')||{}).value||!document.getElementById('inscNom').value.trim())errs.push('Nom complet');
-    if(!(document.getElementById('inscTelephone')||{}).value||!document.getElementById('inscTelephone').value.trim())errs.push('Numéro d\'appel');
-    if(!(document.getElementById('inscWhatsappCommercial')||{}).value||!document.getElementById('inscWhatsappCommercial').value.trim())errs.push('Numéro WhatsApp');
-    if(errs.length){showToast('Remplissez : '+errs.join(', '));return;}
-  }
-  if(current===2){
-    if(!(document.getElementById('inscNomCommerce')||{}).value||!document.getElementById('inscNomCommerce').value.trim())errs.push('Nom commercial');
-    if(!(document.getElementById('inscType')||{}).value)errs.push('Type');
-    if(!(document.getElementById('inscVille')||{}).value)errs.push('Ville');
-    if((document.getElementById('inscVille')||{}).value==='autre'&&(!(document.getElementById('inscVilleLibre')||{}).value||!document.getElementById('inscVilleLibre').value.trim()))errs.push('Précision ville');
-    if(!(document.getElementById('inscQuartier')||{}).value||!document.getElementById('inscQuartier').value.trim())errs.push('Commune / Quartier');
-    if(errs.length){showToast('Remplissez : '+errs.join(', '));return;}
-  }
-  haptic(20);inscShowStep(current+1);
+var errs=[];
+if(current===1){
+if(!(document.getElementById('inscNom')||{}).value||!document.getElementById('inscNom').value.trim())errs.push('Nom complet');
+if(!(document.getElementById('inscTelephone')||{}).value||!document.getElementById('inscTelephone').value.trim())errs.push('Numéro d\'appel');
+if(!(document.getElementById('inscWhatsappCommercial')||{}).value||!document.getElementById('inscWhatsappCommercial').value.trim())errs.push('Numéro WhatsApp');
+if(errs.length){showToast('Remplissez : '+errs.join(', '));return;}
+}
+if(current===2){
+if(!(document.getElementById('inscNomCommerce')||{}).value||!document.getElementById('inscNomCommerce').value.trim())errs.push('Nom commercial');
+if(!(document.getElementById('inscType')||{}).value)errs.push('Type');
+if(!(document.getElementById('inscVille')||{}).value)errs.push('Ville');
+if((document.getElementById('inscVille')||{}).value==='autre'&&(!(document.getElementById('inscVilleLibre')||{}).value||!document.getElementById('inscVilleLibre').value.trim()))errs.push('Précision ville');
+if(!(document.getElementById('inscQuartier')||{}).value||!document.getElementById('inscQuartier').value.trim())errs.push('Commune / Quartier');
+if(errs.length){showToast('Remplissez : '+errs.join(', '));return;}
+}
+haptic(20);inscShowStep(current+1);
 }
 function inscPrevStep(current){haptic(20);inscShowStep(current-1);}
 function toggleInscVilleLibre(){var sel=document.getElementById('inscVille');var inp=document.getElementById('inscVilleLibre');if(!sel||!inp)return;if(sel.value==='autre'){inp.style.display='block';inp.required=true;}else{inp.style.display='none';inp.required=false;inp.value='';}}
 async function submitInscriptionBoutique(){
-  haptic(20);
-  var nom=(document.getElementById('inscNom')||{}).value?document.getElementById('inscNom').value.trim():'';
-  var tel=(document.getElementById('inscTelephone')||{}).value?document.getElementById('inscTelephone').value.trim():'';
-  var waCom=(document.getElementById('inscWhatsappCommercial')||{}).value?document.getElementById('inscWhatsappCommercial').value.trim():'';
-  var nc=(document.getElementById('inscNomCommerce')||{}).value?document.getElementById('inscNomCommerce').value.trim():'';
-  var type=(document.getElementById('inscType')||{}).value||'';
-  var ville=getVilleValue('inscVille','inscVilleLibre');
-  var quartier=(document.getElementById('inscQuartier')||{}).value?document.getElementById('inscQuartier').value.trim():'';
-  var adresse=(document.getElementById('inscAdresse')||{}).value?document.getElementById('inscAdresse').value.trim():'';
-  var horaires=(document.getElementById('inscHoraires')||{}).value?document.getElementById('inscHoraires').value.trim():'';
-  var description=(document.getElementById('inscDescription')||{}).value?document.getElementById('inscDescription').value.trim():'';
-  if(!nom||!tel||!waCom||!nc||!type||!ville||!quartier){showToast('Remplissez les champs obligatoires');return;}
-  var btn=document.getElementById('inscSubmitBtn');
-  if(btn){btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Envoi…';}
-  try{
-    var data={
-      nom:nom,telephone:tel,whatsappCommercial:waCom,
-      nomCommerce:nc,type:type,ville:ville,quartier:quartier,
-      adresse:adresse,horaires:horaires,description:description,
-      uid:CURRENT_ACCOUNT?CURRENT_ACCOUNT.id:null
-    };
-    if(window.creerDemandeBoutique){await window.creerDemandeBoutique(data);}
-    if(CURRENT_ACCOUNT){
-      CURRENT_ACCOUNT.boutique={
-        uid:CURRENT_ACCOUNT.id,
-        nom:nc,type:type,ville:ville,quartier:quartier,
-        adresse:adresse,horaires:horaires,description:description,
-        telephone:tel,whatsappCommercial:waCom,
-        statut:'en_attente',dateCreation:new Date().toISOString()
-      };
-      try{localStorage.setItem('netubex-account',JSON.stringify(CURRENT_ACCOUNT));}catch(e){}
-      CURRENT_COMMERCANT=CURRENT_ACCOUNT.boutique;
-      try{localStorage.setItem('netubex-boutique',JSON.stringify(CURRENT_COMMERCANT));}catch(e){}
-    }
-    haptic(40);
-    var form=document.getElementById('inscriptionForm');
-    if(form)form.reset();
-    inscShowStep(1);
-    showBoutiquePending();
-  }catch(err){
-    console.error('Erreur envoi demande boutique:',err);
-    showToast('Erreur : '+((err&&err.message)||'envoi impossible'));
-  }finally{
-    if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer';}
-  }
+haptic(20);
+var nom=(document.getElementById('inscNom')||{}).value?document.getElementById('inscNom').value.trim():'';
+var tel=(document.getElementById('inscTelephone')||{}).value?document.getElementById('inscTelephone').value.trim():'';
+var waCom=(document.getElementById('inscWhatsappCommercial')||{}).value?document.getElementById('inscWhatsappCommercial').value.trim():'';
+var nc=(document.getElementById('inscNomCommerce')||{}).value?document.getElementById('inscNomCommerce').value.trim():'';
+var type=(document.getElementById('inscType')||{}).value||'';
+var ville=getVilleValue('inscVille','inscVilleLibre');
+var quartier=(document.getElementById('inscQuartier')||{}).value?document.getElementById('inscQuartier').value.trim():'';
+var adresse=(document.getElementById('inscAdresse')||{}).value?document.getElementById('inscAdresse').value.trim():'';
+var horaires=(document.getElementById('inscHoraires')||{}).value?document.getElementById('inscHoraires').value.trim():'';
+var description=(document.getElementById('inscDescription')||{}).value?document.getElementById('inscDescription').value.trim():'';
+if(!nom||!tel||!waCom||!nc||!type||!ville||!quartier){showToast('Remplissez les champs obligatoires');return;}
+var btn=document.getElementById('inscSubmitBtn');
+if(btn){btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Envoi…';}
+try{
+var data={
+nom:nom,telephone:tel,whatsappCommercial:waCom,
+nomCommerce:nc,type:type,ville:ville,quartier:quartier,
+adresse:adresse,horaires:horaires,description:description,
+uid:CURRENT_ACCOUNT?CURRENT_ACCOUNT.id:null
+};
+if(window.creerDemandeBoutique){await window.creerDemandeBoutique(data);}
+if(CURRENT_ACCOUNT){
+CURRENT_ACCOUNT.boutique={
+uid:CURRENT_ACCOUNT.id,
+nom:nc,type:type,ville:ville,quartier:quartier,
+adresse:adresse,horaires:horaires,description:description,
+telephone:tel,whatsappCommercial:waCom,
+statut:'en_attente',dateCreation:new Date().toISOString()
+};
+try{localStorage.setItem('netubex-account',JSON.stringify(CURRENT_ACCOUNT));}catch(e){}
+CURRENT_COMMERCANT=CURRENT_ACCOUNT.boutique;
+try{localStorage.setItem('netubex-boutique',JSON.stringify(CURRENT_COMMERCANT));}catch(e){}
 }
-function renderDashboardCommercant(){
-  if(!CURRENT_COMMERCANT)return;
-  var nm=document.getElementById('dashboardNomCommerce');
-  if(nm)nm.textContent=CURRENT_COMMERCANT.nom||CURRENT_COMMERCANT.nomCommerce||'Ma boutique';
-  var ty=document.getElementById('dashboardTypeCommerce');
-  if(ty)ty.textContent=CURRENT_COMMERCANT.type||'—';
-  var grid=document.getElementById('dashboardProduitsGrid');
-  if(!grid)return;
-  var commerce=COMMERCES_DATA.find(function(c){return c.nom===CURRENT_COMMERCANT.nom||c.nom===CURRENT_COMMERCANT.nomCommerce;});
-  var prods=commerce?commerce.produits:[];
-  if(prods.length===0){grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px 20px;color:var(--text-muted)">Aucun produit.</div>';return;}
-  var html='';
-  prods.forEach(function(p,idx){
-    html+='<div style="background:var(--bg-card);border-radius:16px;border:1px solid var(--border-primary);padding:16px;display:flex;flex-direction:column;justify-content:space-between"><div style="display:flex;gap:12px"><img src="'+p.img+'" style="width:64px;height:64px;object-fit:cover;border-radius:12px" onerror="this.style.display=\'none\'"><div style="flex:1;min-width:0"><span style="font-size:10px;font-weight:800;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:6px;text-transform:uppercase">'+(p.categorie||'Article')+'</span><h3 style="font-size:13px;font-weight:800;margin:6px 0;color:var(--text-primary)">'+p.nom+'</h3><p style="font-size:12px;font-weight:900;color:#2563eb">'+(p.prix||0).toLocaleString('fr-FR')+' FC</p></div></div></div>';
-  });
-  grid.innerHTML=html;
+haptic(40);
+var form=document.getElementById('inscriptionForm');
+if(form)form.reset();
+inscShowStep(1);
+showBoutiquePending();
+}catch(err){
+console.error('Erreur envoi demande boutique:',err);
+showToast('Erreur : '+((err&&err.message)||'envoi impossible'));
+}finally{
+if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer';}
+}
 }
 
-/* ============ EVENT LISTENER ============ */
 document.addEventListener('click',function(e){
-  var b=e.target.closest('button,a');
-  if(!b)return;
-  var txt=(b.textContent||'').trim().toLowerCase();
-  var cibles=['appeler','postuler','débloquer','rechercher','publier','ajouter','commander','catalogue','envoyer','confirmer','inscrire','voir tout','partager','exécuter'];
-  for(var i=0;i<cibles.length;i++){if(txt.indexOf(cibles[i])!==-1){lancerGhost();return;}}
+var b=e.target.closest('button,a');
+if(!b)return;
+var txt=(b.textContent||'').trim().toLowerCase();
+var cibles=['appeler','postuler','débloquer','rechercher','publier','ajouter','commander','catalogue','envoyer','confirmer','inscrire','voir tout','partager','exécuter'];
+for(var i=0;i<cibles.length;i++){if(txt.indexOf(cibles[i])!==-1){return;}}
 },true);
 
-/* ============ TYPEWRITER ============ */
 (function(){
-  var phrases=['Le système congolais de mise en relation directe','Publiez, consultez','Écoles, Locations, Parcelles, Entreprises & Services','Le système de confiance en RDC'];
-  var el=document.getElementById('typewriterText');
-  if(!el)return;
-  var phraseIndex=0,charIndex=0,isDeleting=false,speed=45,pauseEnd=1800,pauseStart=400;
-  function type(){
-    var current=phrases[phraseIndex];
-    if(!isDeleting){
-      el.textContent=current.substring(0,charIndex+1);charIndex++;
-      if(charIndex===current.length){isDeleting=true;setTimeout(type,pauseEnd);return;}
-      speed=55+Math.random()*30;
-    }else{
-      el.textContent=current.substring(0,charIndex-1);charIndex--;
-      if(charIndex===0){isDeleting=false;phraseIndex=(phraseIndex+1)%phrases.length;setTimeout(type,pauseStart);return;}
-      speed=30;
-    }
-    setTimeout(type,speed);
-  }
-  setTimeout(type,600);
+var phrases=['Le système congolais de mise en relation directe','Publiez, consultez','Écoles, Locations, Parcelles, Entreprises & Services','Le système de confiance en RDC'];
+var el=document.getElementById('typewriterText');
+if(!el)return;
+var phraseIndex=0,charIndex=0,isDeleting=false,speed=45,pauseEnd=1800,pauseStart=400;
+function type(){
+var current=phrases[phraseIndex];
+if(!isDeleting){
+el.textContent=current.substring(0,charIndex+1);charIndex++;
+if(charIndex===current.length){isDeleting=true;setTimeout(type,pauseEnd);return;}
+speed=55+Math.random()*30;
+}else{
+el.textContent=current.substring(0,charIndex-1);charIndex--;
+if(charIndex===0){isDeleting=false;phraseIndex=(phraseIndex+1)%phrases.length;setTimeout(type,pauseStart);return;}
+speed=30;
+}
+setTimeout(type,speed);
+}
+setTimeout(type,600);
 })();
 
-/* ============ SCROLL HEADER ============ */
 var lastScrollY=0;var headerTimer=null;var SCROLL_DELAY=1200;
 function updateHeaderOnScroll(){
-  var currentY=window.scrollY||document.documentElement.scrollTop;
-  if(currentY>lastScrollY&&currentY>80)document.body.classList.add('hide-header');
-  else document.body.classList.remove('hide-header');
-  lastScrollY=currentY;
-  clearTimeout(headerTimer);
-  headerTimer=setTimeout(function(){document.body.classList.remove('hide-header');},SCROLL_DELAY);
+var currentY=window.scrollY||document.documentElement.scrollTop;
+if(currentY>lastScrollY&&currentY>80)document.body.classList.add('hide-header');
+else document.body.classList.remove('hide-header');
+lastScrollY=currentY;
+clearTimeout(headerTimer);
+headerTimer=setTimeout(function(){document.body.classList.remove('hide-header');},SCROLL_DELAY);
 }
 window.addEventListener('scroll',updateHeaderOnScroll,{passive:true});
 document.addEventListener('contextmenu',function(e){var t=e.target;if(t.tagName==='IMG'){e.preventDefault();return false;}});
 document.addEventListener('dragstart',function(e){if(e.target.tagName==='IMG'){e.preventDefault();return false;}});
 
-/* ============ VÉRIFIER COMPTE LOCAL ============ */
 async function verifierCompteLocal(){
-  if(!CURRENT_ACCOUNT||!CURRENT_ACCOUNT.id)return;
-  if(CURRENT_ACCOUNT.id.indexOf('user-')===0){
-    console.warn('Ancien compte local détecté, déconnexion…');
-    CURRENT_ACCOUNT=null;CURRENT_COMMERCANT=null;
-    try{localStorage.removeItem('netubex-account');localStorage.removeItem('netubex-boutique');}catch(e){}
-    showToast('Veuillez recréer votre compte');
-    return;
-  }
-  try{
-    var snap=await window.getDocRef(window.docRef(window.db,'netubers',CURRENT_ACCOUNT.id));
-    if(snap.exists()){
-      var data=snap.data();
-      if(data.actif===false){
-        showToast('Votre compte a été désactivé');
-        CURRENT_ACCOUNT=null;CURRENT_COMMERCANT=null;
-        try{localStorage.removeItem('netubex-account');localStorage.removeItem('netubex-boutique');}catch(e){}
-      }else{
-        CURRENT_ACCOUNT.boutique=data.boutique||null;
-        CURRENT_ACCOUNT.code=data.code||CURRENT_ACCOUNT.code;
-        CURRENT_ACCOUNT.phone=data.phone||CURRENT_ACCOUNT.phone;
-        CURRENT_ACCOUNT.nomComplet=data.nomComplet||CURRENT_ACCOUNT.nomComplet;
-        CURRENT_ACCOUNT.name=CURRENT_ACCOUNT.nomComplet;
-        if(!data.boutique){CURRENT_ACCOUNT.boutique=null;CURRENT_COMMERCANT=null;try{localStorage.removeItem('netubex-boutique');}catch(e){}}
-        else{CURRENT_COMMERCANT=data.boutique;try{localStorage.setItem('netubex-boutique',JSON.stringify(data.boutique));}catch(e){}}
-        try{localStorage.setItem('netubex-account',JSON.stringify(CURRENT_ACCOUNT));}catch(e){}
-      }
-    }else{
-      CURRENT_ACCOUNT=null;CURRENT_COMMERCANT=null;
-      try{localStorage.removeItem('netubex-account');localStorage.removeItem('netubex-boutique');}catch(e){}
-    }
-  }catch(e){console.warn('Vérif compte:',e);}
+if(!CURRENT_ACCOUNT||!CURRENT_ACCOUNT.id)return;
+if(CURRENT_ACCOUNT.id.indexOf('user-')===0){
+console.warn('Ancien compte local détecté');
+CURRENT_ACCOUNT=null;CURRENT_COMMERCANT=null;
+try{localStorage.removeItem('netubex-account');localStorage.removeItem('netubex-boutique');}catch(e){}
+showToast('Veuillez recréer votre compte');
+return;
+}
+try{
+var snap=await window.getDocRef(window.docRef(window.db,'netubers',CURRENT_ACCOUNT.id));
+if(snap.exists()){
+var data=snap.data();
+if(data.actif===false){
+showToast('Votre compte a été désactivé');
+CURRENT_ACCOUNT=null;CURRENT_COMMERCANT=null;
+try{localStorage.removeItem('netubex-account');localStorage.removeItem('netubex-boutique');}catch(e){}
+}else{
+CURRENT_ACCOUNT.boutique=data.boutique||null;
+CURRENT_ACCOUNT.code=data.code||CURRENT_ACCOUNT.code;
+CURRENT_ACCOUNT.phone=data.phone||CURRENT_ACCOUNT.phone;
+CURRENT_ACCOUNT.nomComplet=data.nomComplet||CURRENT_ACCOUNT.nomComplet;
+CURRENT_ACCOUNT.name=CURRENT_ACCOUNT.nomComplet;
+if(!data.boutique){CURRENT_ACCOUNT.boutique=null;CURRENT_COMMERCANT=null;try{localStorage.removeItem('netubex-boutique');}catch(e){}}
+else{CURRENT_COMMERCANT=data.boutique;try{localStorage.setItem('netubex-boutique',JSON.stringify(data.boutique));}catch(e){}}
+try{localStorage.setItem('netubex-account',JSON.stringify(CURRENT_ACCOUNT));}catch(e){}
+}
+}else{
+CURRENT_ACCOUNT=null;CURRENT_COMMERCANT=null;
+try{localStorage.removeItem('netubex-account');localStorage.removeItem('netubex-boutique');}catch(e){}
+}
+}catch(e){console.warn('Vérif compte:',e);}
 }
 
-/* ============ INITIALISATION ============ */
 document.addEventListener('DOMContentLoaded',async function(){
-  await verifierCompteLocal();
-  try{
-    // ✅ Charger depuis Firestore
-    var commerces=await window.chargerCommercesFirestore();
-    var annonces=await window.chargerAnnoncesFirestore();
-    COMMERCES_DATA=commerces;
-    ANNONCES_DATA=annonces;
-    console.log('Commerces:',commerces.length,'Annonces:',annonces.length);
-    
-    renderCommercesGrid();
-    filtrerCommerces();
-    initFeed();
-    updateCart();
-    mettreAJourBadgeNotifs();
-    appliquerThemeProfilUI();
-    if(CURRENT_COMMERCANT){
-      document.querySelectorAll('[data-publish-btn]').forEach(function(b){b.style.display='none';});
-    }
-    afficherOngletBoutique();
-    go('index');
-  }catch(err){
-    console.error('Erreur:',err);
-    document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
-    var idx=document.getElementById('page-index');
-    if(idx)idx.classList.add('active');
-  }
+await verifierCompteLocal();
+try{
+var commerces=await window.chargerCommercesFirestore();
+var annonces=await window.chargerAnnoncesFirestore();
+COMMERCES_DATA=commerces;
+ANNONCES_DATA=annonces;
+console.log('Commerces:',commerces.length,'Annonces:',annonces.length);
+renderCommercesGrid();
+filtrerCommerces();
+initFeed();
+updateCart();
+mettreAJourBadgeNotifs();
+appliquerThemeProfilUI();
+if(CURRENT_COMMERCANT){
+document.querySelectorAll('[data-publish-btn]').forEach(function(b){b.style.display='none';});
+}
+afficherOngletBoutique();
+go('index');
+}catch(err){
+console.error('Erreur:',err);
+document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+var idx=document.getElementById('page-index');
+if(idx)idx.classList.add('active');
+}
 });
 
-// ✅ Exposer les fonctions pour les onclick HTML
 window.go=go;window.openDetail=openDetail;window.openCatalogue=openCatalogue;
 window.filterCategory=filterCategory;window.toggleSearchCard=toggleSearchCard;
 window.fermerSearchCard=fermerSearchCard;window.executeSearch=executeSearch;
@@ -2312,8 +2283,8 @@ window.openDetailFullscreen=openDetailFullscreen;window.closeDetailFullscreen=cl
 window.closeSearchResults=closeSearchResults;window.closePostulerSuccess=closePostulerSuccess;
 window.closeBoutiquePending=closeBoutiquePending;window.closeDeblocagePending=closeDeblocagePending;
 window.marquerToutesLues=marquerToutesLues;window.ouvrirNotification=ouvrirNotification;
-window.filtrerCommerces=filtrerCommerces;window.closeSearchResults=closeSearchResults;
-window.headerBackAction=headerBackAction;window.requireLogin=requireLogin;
+window.filtrerCommerces=filtrerCommerces;window.headerBackAction=headerBackAction;
+window.requireLogin=requireLogin;window.initFeed=initFeed;
 </script>
 </body>
 </html>
