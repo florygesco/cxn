@@ -21,6 +21,5 @@
         window.backendReady=true;
     }catch(e){
         window.backendReady=false;
-        console.warn('Backend init failed',e);
     }
 })();
