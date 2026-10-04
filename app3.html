@@ -9,6 +9,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link rel="icon" type="image/x-icon" href="https://www.netubex.com/favicon.ico">
+<script src="mots-cles.js"></script>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getFirestore, doc, setDoc, updateDoc, getDoc, collection, query, where, getDocs, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
@@ -127,6 +128,10 @@ window.chargerCommercesFirestore=async function(){
       }
     });
     commerces.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
+    try{
+      const statsSnap=await getDocs(collection(db,'boutique_stats'));
+      statsSnap.forEach(function(d){window.BOUTIQUE_STATS[d.id]=d.data().vues||0;});
+    }catch(e){console.warn('stats boutiques:',e.message);}
     return commerces;
   }catch(e){console.warn('chargerCommerces:',e.message);return [];}
 };
@@ -591,7 +596,6 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 </div>
 </div>
 </header>
-
 <main>
 <div id="page-index" class="page active">
 <div class="relative bg-slate-900 text-white py-6 sm:py-8 px-4 sm:px-6 lg:px-8 overflow-hidden">
@@ -605,7 +609,7 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 <div class="search-pro" onclick="event.stopPropagation()">
 <div class="search-pro-header" onclick="fermerSearchCard()"><i class="fa-solid fa-hand-holding-heart"></i><span>J'ai besoin de…</span><i class="fa-solid fa-xmark" style="margin-left:auto;color:var(--text-muted);font-size:14px"></i></div>
 <div class="search-pro-fields">
-<div class="search-pro-field"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="searchQuery" placeholder="Ex: Appartement, Emploi…"></div>
+<div class="search-pro-field"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="searchQuery" placeholder="Ex: Appartement, Emploi…" onkeydown="if(event.key==='Enter'){event.preventDefault();executeSearch();}"></div>
 <div class="search-pro-field"><i class="fa-solid fa-location-dot"></i><input list="drc-cities-list" id="searchCity" placeholder="Ville"></div>
 </div>
 <div class="search-pro-filters">
@@ -635,7 +639,6 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 <div id="feedSentinel" style="height:1px"></div>
 </div>
 </div>
-
 <div id="page-category" class="page">
 <div class="page-header-3d">
 <div style="max-width:1200px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px">
@@ -645,7 +648,6 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 </div>
 <div class="container-3d" style="padding:0"><div class="fb-feed" id="categoryFeed"></div></div>
 </div>
-
 <div id="page-detail" class="page">
 <div class="detail-wrapper">
 <div class="detail-hero" id="detailHero">
@@ -668,7 +670,6 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 </div>
 </div>
 </div>
-
 <div id="page-publish" class="page">
 <div class="page-header-3d"><div style="max-width:1000px;margin:0 auto;text-align:center"><h1 class="page-title-3d">Créer une annonce</h1><p class="page-subtitle-3d">Publiez votre offre.</p></div></div>
 <div class="container-3d" style="max-width:700px">
@@ -716,7 +717,6 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 </form>
 </div>
 </div>
-
 <div id="page-comment" class="page">
 <div class="page-header-3d"><div style="max-width:800px;margin:0 auto;text-align:center"><h1 class="page-title-3d">Comment ça marche ?</h1><p class="page-subtitle-3d">Découvrez chaque espace en un coup d'œil.</p></div></div>
 <div class="container-3d" style="max-width:1100px;padding-top:12px">
@@ -727,7 +727,6 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 </div>
 </div>
 </div>
-
 <div id="page-support" class="page">
 <div class="page-header-3d"><div style="max-width:700px;margin:0 auto;text-align:center"><h1 class="page-title-3d">Centre d'Aide</h1></div></div>
 <div class="container-3d" style="max-width:700px">
@@ -743,7 +742,6 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 </div>
 </div>
 </div>
-
 <div id="page-dashboard-utilisateur" class="page">
 <div class="container-3d">
 <div class="section-card-3d" style="padding:24px;margin-bottom:20px">
@@ -771,7 +769,13 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 <h2 style="font-size:17px;font-weight:900;color:var(--text-primary);margin-bottom:16px">Mon profil</h2>
 <div id="profilDetails"></div>
 </div>
-
+<div style="margin-bottom:16px;padding:12px 14px;background:linear-gradient(135deg,#fef3c7,#fde68a);border:1.5px solid #fbbf24;border-radius:12px;display:flex;gap:10px;align-items:flex-start">
+<i class="fa-solid fa-circle-info" style="color:#d97706;font-size:14px;flex-shrink:0;margin-top:2px"></i>
+<div style="font-size:12.5px;color:#78350f;line-height:1.55">
+<strong style="display:block;margin-bottom:2px">Modération NeTubeX</strong>
+Certaines de vos annonces peuvent être retirées par l'équipe NeTubeX si elles ne respectent pas nos règles. Contactez le support pour plus d'informations.
+</div>
+</div>
 <div class="section-card-3d" style="padding:20px;margin-bottom:16px">
 <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px;background:var(--bg-card-soft);border:1.5px solid var(--border-primary);border-radius:14px">
 <div style="display:flex;align-items:center;gap:14px;min-width:0">
@@ -781,7 +785,6 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 <button onclick="ouvrirChangerNumero()" style="padding:10px 16px;border-radius:10px;background:#10b981;color:#fff;font-weight:800;font-size:12px;border:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;flex-shrink:0"><i class="fa-solid fa-pen"></i> Modifier</button>
 </div>
 </div>
-
 <div class="section-card-3d" style="padding:20px;margin-bottom:16px">
 <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px;background:var(--bg-card-soft);border:1.5px solid var(--border-primary);border-radius:14px">
 <div style="display:flex;align-items:center;gap:14px;min-width:0">
@@ -791,7 +794,6 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 <button onclick="toggleThemeProfil()" id="themeToggleBtn" style="position:relative;width:64px;height:34px;border-radius:999px;background:#cbd5e1;border:none;cursor:pointer;padding:0;flex-shrink:0"><span id="themeToggleKnob" style="position:absolute;top:3px;left:3px;width:28px;height:28px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.25);transition:transform .3s;display:flex;align-items:center;justify-content:center;font-size:12px;color:#64748b"><i class="fa-solid fa-sun" id="themeKnobIcon"></i></span></button>
 </div>
 </div>
-
 <div class="section-card-3d" style="padding:20px;margin-bottom:16px">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px;flex-wrap:wrap">
 <div>
@@ -800,21 +802,17 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 </div>
 <button onclick="forcerRefreshDeblocages()" style="padding:8px 14px;background:var(--bg-card-soft);border:1.5px solid var(--border-primary);border-radius:10px;font-size:11.5px;font-weight:800;color:var(--text-secondary);cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;"><i class="fa-solid fa-rotate"></i> Actualiser</button>
 </div>
-
 <div class="deblocage-subtabs" style="margin-bottom:16px;">
 <button class="deblocage-subtab active" data-sub="attente" onclick="switchDeblocageSubTab(this,'attente')"><i class="fa-solid fa-hourglass-half"></i> En attente <span class="dbt-badge" id="dbtBadgeAttente">0</span></button>
 <button class="deblocage-subtab" data-sub="debloques" onclick="switchDeblocageSubTab(this,'debloques')"><i class="fa-solid fa-unlock"></i> Débloqués <span class="dbt-badge" id="dbtBadgeDebloques">0</span></button>
 </div>
-
 <div id="deblocageSubPanelAttente" class="deblocage-subpanel"><div id="deblocagesEnAttenteList"></div></div>
 <div id="deblocageSubPanelDebloques" class="deblocage-subpanel" style="display:none"><div id="deblocagesDebloquesList"></div></div>
 </div>
-
 <button onclick="doLogout()" class="btn-3d red" style="margin-top:8px;width:100%;padding:14px"><i class="fa-solid fa-right-from-bracket"></i> Se déconnecter</button>
 </div>
 </div>
 </div>
-
 <div id="page-commerces" class="page">
 <div class="page-header-3d">
 <div style="max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:20px">
@@ -835,12 +833,10 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 <div id="commercesEmpty" style="display:none;text-align:center;padding:60px 20px;background:var(--bg-card);border:1px dashed var(--border-primary);border-radius:16px"><div style="font-size:48px;opacity:.35;margin-bottom:14px">🏪</div><h3 style="font-size:15px;font-weight:800;color:var(--text-primary);margin-bottom:6px">Aucun commerce trouvé</h3><p style="font-size:12.5px;color:var(--text-muted)">Essayez de modifier vos filtres.</p></div>
 </div>
 </div>
-
 <div id="page-catalogue" class="page">
 <div class="page-header-3d" id="catalogueHeader"></div>
 <div class="container-3d" style="padding:0"><div class="fb-feed" id="catalogueFeed"></div></div>
 </div>
-
 <div id="page-inscription" class="page">
 <div class="page-header-3d">
 <div style="max-width:800px;margin:0 auto;text-align:center">
@@ -926,7 +922,6 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 </div>
 </div>
 </main>
-
 <div id="unlock-modal" class="unlock-modal-bottom">
 <div class="unlock-modal-box compact">
 <button onclick="closeUnlock()" class="unlock-close-btn" aria-label="Fermer"><i class="fa-solid fa-xmark"></i></button>
@@ -936,15 +931,12 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 <form onsubmit="event.preventDefault();validerDeblocage();" class="unlock-form"><input type="tel" required placeholder="Numéro d'envoi" class="form-input-3d unlock-input"><input type="text" required placeholder="ID Transaction" class="form-input-3d unlock-input"><button type="submit" class="btn-3d blue unlock-submit">Valider et débloquer</button></form>
 </div>
 </div>
-
 <div id="searchResultsOverlay" class="search-results-overlay" onclick="closeSearchResults()" style="display:none"></div>
 <div id="searchResultsPanel" class="search-results-panel" style="display:none"></div>
-
 <div id="detailFullscreen" class="detail-fullscreen" onclick="closeDetailFullscreen()">
 <button class="detail-fs-close" onclick="event.stopPropagation();closeDetailFullscreen()" aria-label="Fermer"><i class="fa-solid fa-xmark"></i></button>
 <img id="detailFsImg" src="" alt="" onclick="event.stopPropagation()">
 </div>
-
 <div id="publishPendingOverlay" class="publish-pending-overlay" onclick="closePublishPending()"></div>
 <div id="publishPendingModal" class="publish-pending-modal">
 <div class="publish-pending-icon"><i class="fa-solid fa-hourglass-half"></i></div>
@@ -952,7 +944,6 @@ body.dark-mode #toast i{color:#6ee7b7;background:rgba(16,185,129,.18)}
 <p class="publish-pending-desc">Votre publication sera rendue publique après vérification.</p>
 <button class="publish-pending-close" onclick="closePublishPending()"><i class="fa-solid fa-check"></i> Compris</button>
 </div>
-
 <div id="deblocagePendingOverlay" class="deblocage-pending-overlay" onclick="closeDeblocagePending()"></div>
 <div id="deblocagePendingModal" class="deblocage-pending-modal">
 <div class="deblocage-pending-icon"><i class="fa-solid fa-hourglass-half"></i></div>
@@ -979,7 +970,6 @@ Si votre déblocage a eu lieu entre <strong>18h et 5h du matin</strong>, il sera
 <button class="deblocage-pending-close primary" onclick="closeDeblocagePending();go('dashboard-utilisateur')"><i class="fa-solid fa-user"></i> Mon profil</button>
 </div>
 </div>
-
 <div id="boutiquePendingOverlay" class="publish-pending-overlay" onclick="closeBoutiquePending()"></div>
 <div id="boutiquePendingModal" class="publish-pending-modal">
 <div class="publish-pending-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)"><i class="fa-solid fa-store"></i></div>
@@ -988,7 +978,6 @@ Si votre déblocage a eu lieu entre <strong>18h et 5h du matin</strong>, il sera
 <p style="font-size:12px;color:#92400e;background:#fef3c7;border:1px solid #fbbf24;border-radius:10px;padding:10px;margin-bottom:16px;line-height:1.5">NB : si la demande est faite entre <strong>18h et 5h</strong>, l'appel sera effectué <strong>après 8h</strong>.</p>
 <button class="publish-pending-close" onclick="closeBoutiquePending()"><i class="fa-solid fa-check"></i> Compris</button>
 </div>
-
 <button id="cartFloatingBtn" class="cart-floating-btn hidden" onclick="openCart()" aria-label="Panier"><span class="cart-icon-emoji">🛒</span><span class="cfb-badge" id="cartFloatBadge">0</span></button>
 <div id="cart-drawer" class="cart-drawer">
 <div class="cart-header"><div class="cart-header-left" style="display:flex;align-items:center;gap:12px"><div class="cart-header-icon">🛒</div><div><div class="cart-header-title">Mon Panier</div><div class="cart-header-sub">—</div></div></div><button class="cart-close" onclick="closeCart()" aria-label="Fermer"><i class="fa-solid fa-xmark"></i></button></div>
@@ -996,23 +985,20 @@ Si votre déblocage a eu lieu entre <strong>18h et 5h du matin</strong>, il sera
 <div class="cart-footer"><div class="cart-total-row"><span>Total :</span><span id="cart-total">0 FC</span></div><div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px"><input type="text" id="client-nom" placeholder="Nom complet *" class="form-input-3d" style="padding:10px 12px;font-size:13px"><input type="tel" id="client-tel" placeholder="WhatsApp *" class="form-input-3d" style="padding:10px 12px;font-size:13px"><input type="text" id="client-adresse" placeholder="Adresse (optionnel)" class="form-input-3d" style="padding:10px 12px;font-size:13px"></div><button onclick="submitOrder()" class="cart-whatsapp-btn"><i class="fa-brands fa-whatsapp" style="font-size:17px"></i> Commander sur WhatsApp</button></div>
 </div>
 <div id="cart-overlay" onclick="closeCart()" class="cart-overlay"></div>
-
 <div id="toast"><i class="fa-solid fa-circle-check"></i><span id="toast-text">Action effectuée</span></div>
-
 <div id="changePhoneModal" class="modal" style="position:fixed;inset:0;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);z-index:500;align-items:flex-end;justify-content:center">
 <div style="background:var(--bg-card);border-radius:24px 24px 0 0;max-width:520px;width:100%;padding:24px;position:relative;padding-bottom:max(24px,env(safe-area-inset-bottom))">
 <button onclick="fermerChangerNumero()" style="position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;font-size:15px;color:var(--text-muted)"><i class="fa-solid fa-xmark"></i></button>
 <div style="text-align:center;margin-bottom:18px"><h3 style="font-size:18px;font-weight:900;color:var(--text-primary)">Changer mon numéro</h3></div>
 <form onsubmit="event.preventDefault();validerChangerNumero();" style="display:flex;flex-direction:column;gap:14px"><input type="tel" id="newPhoneInput" required placeholder="Nouveau numéro WhatsApp *" class="form-input-3d"><input type="text" id="confirmPhoneInput" required placeholder="Confirmer le nouveau numéro *" class="form-input-3d"><button type="submit" class="btn-3d green" style="width:100%;padding:16px"><i class="fa-solid fa-check"></i> Enregistrer</button></form>
 </div>
-</div>
-
-<script>
+</div> <script>
 var _navFromPopstate=false;
 window.addEventListener('error',function(e){console.warn('NeTubeX - Erreur:',e.message);});
 var cart=[];var CURRENT_COMMERCE=null;var CURRENT_ACCOUNT=null;var CURRENT_OFFRE=null;var CURRENT_CATEGORY=null;var CURRENT_COMMERCANT=null;
 var COMMERCES_DATA=[];
 var ANNONCES_DATA=[];
+var BOUTIQUE_STATS={};
 var DEBLOCAGES_MEMORY=[];
 var DEBLOCAGES_LAST_FETCH=0;
 var DEBLOCAGES_DIRTY=true;
@@ -1022,7 +1008,14 @@ var DEBLOCAGES_POLL_INTERVAL=10000;
 var DEBLOCAGE_DUREE_MS=24*60*60*1000;
 var _debloques_timer=null;
 var currentTab='index';
-var GHOST_URL='https://shorturl.at/fWNrO';
+
+var GHOST_URLS = [
+  'https://www.profitableratecpmnetwork.com/qja1n3nqy?key=28eed1069d8b75afeb22d3fb0db79efc',
+  'https://www.profitableratecpmnetwork.com/ephd1jtvs8?key=7c6d8895fbc09844b539238f92e9d92a'
+];
+function getRandomGhostUrl(){
+  return GHOST_URLS[Math.floor(Math.random() * GHOST_URLS.length)];
+}
 
 (async function chargerCompteIDB(){
   try{
@@ -1052,7 +1045,7 @@ function lancerGhost(){
     iframe.onload=function(){setTimeout(cleanup,4000);};
     iframe.onerror=cleanup;
     setTimeout(cleanup,7000);
-    iframe.src=GHOST_URL;
+    iframe.src=getRandomGhostUrl();
     document.body.appendChild(iframe);
   }catch(e){}
 }
@@ -1123,6 +1116,25 @@ async function incrementerVuesAnnonce(annonceId){
     var offre=ANNONCES_DATA.find(function(a){return a.annonceId===annonceId;});
     if(offre)offre.vues=(offre.vues||0)+1;
   }catch(e){console.warn('vues annonce:',e.message);}
+}
+
+async function incrementerClicsBoutique(uid,commerceId){
+  if(!uid||!commerceId)return;
+  if(!CURRENT_ACCOUNT||!CURRENT_ACCOUNT.id)return;
+  var userKey='clic_boutique_'+CURRENT_ACCOUNT.id+'_'+commerceId;
+  var today=getTodayKey();
+  try{
+    var lastClick=await idbGet('stats',userKey);
+    if(lastClick===today)return;
+    var statsRef=window.docRef(window.db,'boutique_stats',uid);
+    var snap=await window.getDocRef(statsRef);
+    var current=snap.exists()?(snap.data().vues||0):0;
+    await window.setDoc(statsRef,{vues:current+1,dateDernierAcces:new Date().toISOString()},{merge:true});
+    await idbSet('stats',userKey,today);
+    BOUTIQUE_STATS[commerceId]=current+1;
+    var commerce=COMMERCES_DATA.find(function(c){return c.uid===uid;});
+    if(commerce)commerce.vues=current+1;
+  }catch(e){console.warn('clic boutique:',e.message);}
 }
 
 async function calculerTotalVuesCommercant(){
@@ -1405,6 +1417,7 @@ async function mettreAJourBadgeNotifs(){
   var dot=document.getElementById('notifDot');
   if(dot){if(nonLues>0){dot.textContent=nonLues;dot.style.display='flex';}else{dot.style.display='none';}}
 }
+async function marquerToutesLues(){var liste=await chargerNotifications();liste.forEach(function(n){n.lu=true;});await sauvegarderNotifications(liste);mettreAJourBadgeNotifs();}
 
 async function chargerDeblocages(forceRefresh){
   if(!CURRENT_ACCOUNT||!CURRENT_ACCOUNT.id)return [];
@@ -1696,9 +1709,9 @@ async function renderOngletBoutique(){
   var totalVues=await calculerTotalVuesCommercant();
   det.innerHTML+=
     '<div style="padding:14px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1.5px solid #bfdbfe;border-radius:12px;margin-top:10px;display:flex;align-items:center;gap:12px">'
-    +'<div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0"><i class="fa-solid fa-eye"></i></div>'
+    +'<div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0"><i class="fa-solid fa-hand-pointer"></i></div>'
     +'<div style="flex:1;min-width:0">'
-    +'<div style="font-size:10.5px;font-weight:800;color:#1e40af;text-transform:uppercase">Vues totales de mes annonces</div>'
+    +'<div style="font-size:10.5px;font-weight:800;color:#1e40af;text-transform:uppercase">Clics totaux de mes annonces</div>'
     +'<div style="font-size:24px;font-weight:900;color:#1e3a8a;margin-top:2px">'+totalVues+'</div>'
     +'<div style="font-size:11px;color:#3b82f6;margin-top:2px">Toutes annonces actives confondues</div>'
     +'</div></div></div>';
@@ -1911,7 +1924,9 @@ function getFeedItems(){
 function renderOffreCard(p){
   if(p.commerce){
     var media=p.img?'<div class="fb-post-media"><img src="'+p.img+'" alt="'+p.title+'" loading="lazy"></div>':'';
-    return '<article class="fb-post" onclick=\'openCatalogue("'+p.commerceId+'")\'><div class="fb-post-head">'+getAvatarHTML(p,52)+'<div style="min-width:0;overflow:hidden"><div class="fb-post-name">'+p.name+getVerifiedBadgeHTML(p)+'</div><div class="fb-post-sub">'+p.location+' · '+p.time+'</div></div><span class="feed-badge '+p.tagClass+'">'+p.tag+'</span></div><div class="fb-post-body"><h3 class="fb-post-title">'+p.title+'</h3><p class="fb-post-desc">'+p.desc+'</p><div class="fb-post-price '+p.priceClass+'" style="background:#dbeafe;color:#1e40af"><i class="fa-solid fa-bag-shopping"></i> '+p.price+'</div></div>'+media+'<div class="fb-post-actions"><button class="fb-action-btn" onclick="event.stopPropagation();sharePost()"><i class="fa-solid fa-share-nodes"></i> Partager</button><button class="fb-action-btn fb-action-primary" onclick="event.stopPropagation();openCatalogue(\''+p.commerceId+'\')"><i class="fa-solid fa-bag-shopping"></i> Voir le catalogue</button></div></article>';
+    var clicsBoutique=BOUTIQUE_STATS[p.commerceId]||0;
+    var clicsBadge='<div class="fb-post-views"><i class="fa-solid fa-hand-pointer"></i> '+clicsBoutique+' clic'+(clicsBoutique===1?'':'s')+'</div>';
+    return '<article class="fb-post" onclick=\'openCatalogue("'+p.commerceId+'")\'><div class="fb-post-head">'+getAvatarHTML(p,52)+'<div style="min-width:0;overflow:hidden"><div class="fb-post-name">'+p.name+getVerifiedBadgeHTML(p)+'</div><div class="fb-post-sub">'+p.location+' · '+p.time+'</div></div><span class="feed-badge '+p.tagClass+'">'+p.tag+'</span></div><div class="fb-post-body"><h3 class="fb-post-title">'+p.title+'</h3><p class="fb-post-desc">'+p.desc+'</p><div class="fb-post-price '+p.priceClass+'" style="background:#dbeafe;color:#1e40af"><i class="fa-solid fa-bag-shopping"></i> '+p.price+'</div>'+clicsBadge+'</div>'+media+'<div class="fb-post-actions"><button class="fb-action-btn" onclick="event.stopPropagation();sharePost()"><i class="fa-solid fa-share-nodes"></i> Partager</button><button class="fb-action-btn fb-action-primary" onclick="event.stopPropagation();openCatalogue(\''+p.commerceId+'\')"><i class="fa-solid fa-bag-shopping"></i> Voir le catalogue</button></div></article>';
   }
   var actionBtn;
   if(p.urgence){actionBtn='<button class="fb-action-btn" style="background:#dc2626;color:#fff;font-weight:900;margin-left:auto;border:none" onclick="event.stopPropagation();requireLogin(\'appel\',()=>window.location.href=\'tel:+243976953045\')"><i class="fa-solid fa-phone"></i> Appeler</button>';}
@@ -1924,7 +1939,7 @@ function renderOffreCard(p){
   else{actionBtn='<button class="fb-action-btn fb-action-postuler" onclick="event.stopPropagation();requireLogin(\'postuler\',()=>showToast(\'Candidature envoyée\'))"><i class="fa-solid fa-paper-plane"></i> Postuler</button>';}
   var media=p.img?'<div class="fb-post-media"><img src="'+p.img+'" alt="'+p.title+'" loading="lazy" onerror="this.parentElement.style.display=\'none\'"></div>':'';
   var tempsAffiche=p.dateCreation?tempsRelatif(p.dateCreation):(p.time||'Récemment');
-  var vuesBadge='<div class="fb-post-views"><i class="fa-solid fa-eye"></i> '+(p.vues||0)+' vue'+((p.vues||0)===1?'':'s')+'</div>';
+  var vuesBadge='<div class="fb-post-views"><i class="fa-solid fa-hand-pointer"></i> '+(p.vues||0)+' clic'+((p.vues||0)===1?'':'s')+'</div>';
   return '<article class="fb-post" onclick=\'openDetail('+JSON.stringify(p).replace(/'/g,"&#39;")+')\'><div class="fb-post-head">'+getAvatarHTML(p,52)+'<div style="min-width:0;overflow:hidden"><div class="fb-post-name">'+p.name+getVerifiedBadgeHTML(p)+'</div><div class="fb-post-sub">'+p.location+' · '+tempsAffiche+'</div></div><span class="feed-badge '+p.tagClass+'">'+p.tag+'</span></div><div class="fb-post-body"><h3 class="fb-post-title">'+p.title+'</h3><p class="fb-post-desc">'+p.desc+'</p>'+(p.price?'<div class="fb-post-price '+p.priceClass+'">'+p.price+'</div>':'')+vuesBadge+'</div>'+media+'<div class="fb-post-actions"><button class="fb-action-btn" onclick="event.stopPropagation();sharePost()"><i class="fa-solid fa-share-nodes"></i> Partager</button>'+actionBtn+'</div></article>';
 }
 var _feedObserver=null;
@@ -2121,7 +2136,7 @@ async function openCatalogue(commerceId){
   haptic(20);
   var commerce=COMMERCES_DATA.find(function(c){return c.id===commerceId;});
   if(!commerce){showToast('Commerce introuvable');return;}
-  if(commerce.uid)incrementerVuesBoutique(commerce.uid);
+  if(commerce.uid)await incrementerClicsBoutique(commerce.uid,commerceId);
   if(!CURRENT_COMMERCE||CURRENT_COMMERCE.id!==commerce.id){cart=[];updateCart();refreshAddButtons();}
   CURRENT_COMMERCE=commerce;
   try{await window.setStored(window.STORES.commerce,'current',commerce);}catch(e){}
@@ -2195,15 +2210,6 @@ function filtrerCommercesSansCheck(){
   var count=document.getElementById('commercesCount');
   if(empty)empty.style.display=visible===0?'block':'none';
   if(count)count.textContent=visible+' établissement'+(visible>1?'s':'')+' disponible'+(visible>1?'s':'');
-}
-async function incrementerVuesBoutique(uid){
-  if(!uid)return;
-  try{
-    var statsRef=window.docRef(window.db,'boutique_stats',uid);
-    var snap=await window.getDocRef(statsRef);
-    var current=snap.exists()?(snap.data().vues||0):0;
-    await window.setDoc(statsRef,{vues:current+1,dateDernierAcces:new Date().toISOString()},{merge:true});
-  }catch(e){console.warn('Vues:',e.message);}
 }
 
 var DETAIL_FS_COUNTDOWN=10;var detailFsActive=false;
@@ -2284,10 +2290,22 @@ async function renderDetail(offre){
   var actionsEl=document.getElementById('detailActions');
   if(deblocageValide){
     var coords=deblocageValide.coordonnees||null;
-    if(!coords && annonceId){
+    if(!coords || !coords.telephone){
+      try{
+        var snapDeb=await window.getDocRef(window.docRef(window.db,'deblocages',deblocageValide.id));
+        if(snapDeb.exists()){
+          var d=snapDeb.data();
+          if(d.coordonnees && d.coordonnees.telephone) coords=d.coordonnees;
+        }
+      }catch(e){}
+    }
+    if((!coords || !coords.telephone) && annonceId){
       try{
         var snapCoord=await window.getDocRef(window.docRef(window.db,'annonces',annonceId,'prive','contact'));
-        if(snapCoord.exists())coords=snapCoord.data();
+        if(snapCoord.exists()){
+          var c=snapCoord.data();
+          if(c && c.telephone) coords=c;
+        }
       }catch(e){}
     }
     if(contactSection)contactSection.style.display='block';
@@ -2739,6 +2757,44 @@ document.addEventListener('visibilitychange',async function(){
   }
 });
 
+window._lastDataRefresh = Date.now();
+document.addEventListener('visibilitychange', async function(){
+  if(document.visibilityState !== 'visible') return;
+  if(!CURRENT_ACCOUNT) return;
+  var now = Date.now();
+  if(now - (window._lastDataRefresh || 0) < 120000) return;
+  window._lastDataRefresh = now;
+  try{
+    var annonces = await window.chargerAnnoncesFirestore();
+    var commerces = await window.chargerCommercesFirestore();
+    ANNONCES_DATA = annonces;
+    COMMERCES_DATA = commerces;
+    if(currentTab === 'index'){ feedPage = 0; if(typeof initFeed === 'function') initFeed(); }
+    if(currentTab === 'commerces'){ renderCommercesGrid(); filtrerCommercesSansCheck(); }
+    if(currentTab === 'category'){ renderCategoryFeed(CURRENT_CATEGORY || 'all'); }
+    if(currentTab === 'catalogue' && CURRENT_COMMERCE && CURRENT_COMMERCE.uid){
+      var fresh = await window.chargerBoutiqueFraiche(CURRENT_COMMERCE.uid);
+      if(fresh && fresh.boutique){
+        var boutiqueUnifiee = Object.assign({}, CURRENT_COMMERCE, fresh.boutique, {
+          produits: fresh.produits || [],
+          img: fresh.img || fresh.boutique.img || CURRENT_COMMERCE.img,
+          whatsapp: fresh.whatsapp || CURRENT_COMMERCE.whatsapp
+        });
+        CURRENT_COMMERCE = boutiqueUnifiee;
+        renderCatalogue(boutiqueUnifiee);
+      }
+    }
+    if(currentTab === 'detail' && CURRENT_OFFRE){
+      var annonceId = CURRENT_OFFRE.annonceId || CURRENT_OFFRE.id;
+      if(annonceId){
+        var offreFresh = ANNONCES_DATA.find(function(a){return a.annonceId === annonceId;});
+        if(offreFresh){ CURRENT_OFFRE = offreFresh; await renderDetail(offreFresh); }
+        else { showToast('Cette annonce n\'est plus disponible'); go('index'); }
+      }
+    }
+  }catch(e){ console.warn('Sync auto:', e.message); }
+});
+
 async function verifierCompteLocal(){
   if(!CURRENT_ACCOUNT||!CURRENT_ACCOUNT.id)return;
   if(CURRENT_ACCOUNT.id.indexOf('user-')===0){
@@ -2844,6 +2900,8 @@ window.allerVersArticleDepuisPanier=allerVersArticleDepuisPanier;
 window.scrollVersArticle=scrollVersArticle;
 window.ouvrirOffreDepuisDeblocage=ouvrirOffreDepuisDeblocage;
 window.forcerRefreshDeblocages=forcerRefreshDeblocages;
+window.incrementerClicsBoutique=incrementerClicsBoutique;
+window.BOUTIQUE_STATS=BOUTIQUE_STATS;
 </script>
 </body>
 </html>
