@@ -28,6 +28,18 @@ h1{font-size:24px;font-weight:900;color:#1e40af;margin-bottom:4px}
 .btn-success:hover:not(:disabled){background:#059669}
 .btn-warning{background:#f59e0b;color:#fff}
 .btn-warning:hover:not(:disabled){background:#d97706}
+.progress-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:16px;display:none}
+.progress-box.show{display:block}
+.progress-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.progress-title{font-size:13px;font-weight:800;color:#1e40af;display:flex;align-items:center;gap:8px}
+.progress-stats{font-size:12px;font-weight:800;color:#64748b;font-family:ui-monospace,monospace}
+.progress-bar-wrap{height:14px;background:#e2e8f0;border-radius:99px;overflow:hidden;position:relative}
+.progress-bar{height:100%;background:linear-gradient(90deg,#3b82f6,#1e40af);width:0%;transition:width .3s ease;border-radius:99px}
+.progress-bar.success{background:linear-gradient(90deg,#10b981,#059669)}
+.progress-bar.danger{background:linear-gradient(90deg,#ef4444,#dc2626)}
+.progress-bar.warning{background:linear-gradient(90deg,#f59e0b,#d97706)}
+.progress-percent{font-size:24px;font-weight:900;color:#1e40af;text-align:center;margin-bottom:8px;font-family:ui-monospace,monospace}
+.progress-label{font-size:12px;color:#64748b;text-align:center;font-weight:600}
 .log{background:#0f172a;color:#e2e8f0;border-radius:12px;padding:16px;font-family:ui-monospace,monospace;font-size:12px;max-height:340px;overflow-y:auto;line-height:1.6}
 .log-entry{padding:3px 0}
 .ok{color:#10b981}.err{color:#ef4444}.info{color:#60a5fa}.warn{color:#fbbf24}.title{color:#c084fc;font-weight:800}
@@ -46,6 +58,16 @@ h1{font-size:24px;font-weight:900;color:#1e40af;margin-bottom:4px}
     <div class="stat"><div class="val" id="sKimono">—</div><div class="lbl">Kimono</div></div>
   </div>
 
+  <div class="progress-box" id="progressBox">
+    <div class="progress-header">
+      <div class="progress-title"><i class="fas fa-circle-notch fa-spin" id="progressIcon"></i><span id="progressTitle">Traitement en cours</span></div>
+      <div class="progress-stats"><span id="progressStats">0 / 0</span></div>
+    </div>
+    <div class="progress-percent" id="progressPercent">0%</div>
+    <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="progress-label" id="progressLabel">Démarrage...</div>
+  </div>
+
   <div class="card">
     <h2><i class="fas fa-bolt"></i>Actions</h2>
     <button class="btn btn-success" id="btnPublier"><i class="fas fa-rocket"></i> Publier tout (annonces + boutiques)</button>
@@ -56,7 +78,7 @@ h1{font-size:24px;font-weight:900;color:#1e40af;margin-bottom:4px}
   <div class="card">
     <h2><i class="fas fa-skull-crossbones"></i>Zone dangereuse</h2>
     <div class="warning">
-      Supprime <strong>TOUTES</strong> les annonces, netubers et commerces. Action irréversible.
+      Supprime <strong>TOUTES</strong> les annonces, netubers et commerces. Action irréversible. Utilise le mode batch pour aller vite (450 docs par batch).
     </div>
     <button class="btn btn-danger" id="btnTout"><i class="fas fa-trash-alt"></i> SUPPRIMER TOUT</button>
   </div>
@@ -69,7 +91,7 @@ h1{font-size:24px;font-weight:900;color:#1e40af;margin-bottom:4px}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const app = initializeApp({
   apiKey: "AIzaSyB_GdmPBnWl3w6g99j1cGO7vxDdxmKr4QA",
@@ -87,6 +109,32 @@ const log = (m, t='info') => {
   el.scrollTop = el.scrollHeight;
 };
 
+function showProgress(title, total, color = 'primary') {
+  const box = document.getElementById('progressBox');
+  document.getElementById('progressTitle').textContent = title;
+  document.getElementById('progressStats').textContent = '0 / ' + total;
+  document.getElementById('progressPercent').textContent = '0%';
+  document.getElementById('progressBar').style.width = '0%';
+  document.getElementById('progressBar').className = 'progress-bar ' + (color === 'success' ? 'success' : color === 'danger' ? 'danger' : color === 'warning' ? 'warning' : '');
+  document.getElementById('progressLabel').textContent = 'Démarrage...';
+  document.getElementById('progressIcon').className = 'fas fa-circle-notch fa-spin';
+  box.classList.add('show');
+}
+
+function updateProgress(current, total, label) {
+  const pct = total > 0 ? Math.min(100, Math.round((current / total) * 100)) : 0;
+  document.getElementById('progressStats').textContent = current + ' / ' + total;
+  document.getElementById('progressPercent').textContent = pct + '%';
+  document.getElementById('progressBar').style.width = pct + '%';
+  if (label) document.getElementById('progressLabel').textContent = label;
+}
+
+function hideProgress(delay = 3000) {
+  setTimeout(() => {
+    document.getElementById('progressBox').classList.remove('show');
+  }, delay);
+}
+
 // ============ IMAGES ============
 const K1 = "https://pub-f11c94c08e864e6dba2fb8b0193d91ff.r2.dev/IMG_5332.jpeg";
 const K2 = "https://pub-f11c94c08e864e6dba2fb8b0193d91ff.r2.dev/IMG_5333.jpeg";
@@ -94,7 +142,7 @@ const U = "https://images.unsplash.com/photo-";
 const Q = "?w=800&q=80";
 const AVATAR = K1;
 
-// ============ FONCTIONS UTILITAIRES ============
+// ============ UTILITAIRES ============
 function dateVariee(minHeuresAgo = 2, maxJoursAgo = 30) {
   const maintenant = Date.now();
   const minMs = minHeuresAgo * 3600 * 1000;
@@ -125,13 +173,13 @@ function genererEmailGmail(nom, prenom, phone) {
 // ============ CATÉGORIES ============
 const CAT = {
   parcelle:     { tag:'Parcelle',     cls:'post-tag-land',         imgs:[K1,K2,K1,K2,K1] },
-  location:     { tag:'Location',     cls:'post-tag-property',     imgs:[U+"1560448204-e02f11c3d0e2"+Q,U+"1568605114967-8130f3a36994"+Q,U+"1512917774080-9991f1c4c750"+Q,U+"1580587771525-78b9dba3b914"+Q,U+"1600596542815-ffad4c1539a9"+Q] },
+  location:     { tag:'Location',     cls:'post-tag-property',     imgs:[U+"1560448204-e02f11c3d0e2"+Q,U+"1568605114967-8130f3a36994"+Q,U+"1564013799919-ab600027ffc6"+Q,U+"1580587771525-78b9dba3b914"+Q,U+"1570129477492-45c003edd2be"+Q] },
   hopital:      { tag:'Urgence',      cls:'post-tag-hopital',      imgs:[U+"1519494026892-80bbd2d6fd0d"+Q,U+"1538108149393-fbbd81895907"+Q,U+"1587351021759-3e566b6af7cc"+Q,U+"1516549655169-df83a0774514"+Q,U+"1584982751601-97dcc096659c"+Q] },
   ecole:        { tag:'École',        cls:'post-tag-school',       imgs:[U+"1580582932707-520aed937b7b"+Q,U+"1509062522246-3755977927d7"+Q,U+"1523050854058-8df90110c9f1"+Q,U+"1497633762265-9d179a990aa6"+Q,U+"1546410531-bb8bcb3d7bd6"+Q] },
   entreprise:   { tag:'Entreprise',   cls:'post-tag-entreprise',   imgs:[U+"1497366216548-37526070297c"+Q,U+"1497366811353-6870744d04b2"+Q,U+"1521737711867-e3b97375f902"+Q,U+"1556761175-b413da4baf72"+Q,U+"1542744173-8e7e53415bb0"+Q] },
-  vehicule:     { tag:'Véhicule',     cls:'post-tag-vehicule',     imgs:[U+"1503376780353-7e6692767b70"+Q,U+"1494976388531-d1058494cdd8"+Q,U+"1552519507-da3b142c6e3d"+Q,U+"1544636331-e26879cd4d9b"+Q,U+"1583121274602-3e2820c69888"+Q] },
+  vehicule:     { tag:'Véhicule',     cls:'post-tag-vehicule',     imgs:[U+"1552519507-da3b142c6e3d"+Q,U+"1571068316344-75bc76f77890"+Q,U+"1558981285-6f0c94958bb6"+Q,U+"1502744688674-c619d1586c9e"+Q,U+"1485965120184-e220f721d03e"+Q] },
   electronique: { tag:'Électronique', cls:'post-tag-electronique', imgs:[U+"1517336714731-489689fd1ca8"+Q,U+"1496181133206-80ce9b88a853"+Q,U+"1519389950473-47ba0277781c"+Q,U+"1588872657578-7efd1f1555ed"+Q,U+"1546868871-7041f2a55e12"+Q] },
-  autre:        { tag:'Autre',        cls:'post-tag-autre',        imgs:[U+"1487611451277-ef9e29741a63"+Q,U+"1524758631624-e2822e304c36"+Q,U+"1493857671505-72967e2e2760"+Q,U+"1504384308090-c894fdcc538d"+Q,U+"1497366754035-f200968a6e72"+Q] }
+  autre:        { tag:'Autre',        cls:'post-tag-autre',        imgs:[U+"1610348725531-843dff563e2c"+Q,U+"1519996529931-28324d5a630e"+Q,U+"1571771894821-ce9b6c11b08e"+Q,U+"1610832958506-aa56368176cf"+Q,U+"1502741224143-90386d7f8c82"+Q] }
 };
 
 // ============ ANNONCES ============
@@ -144,11 +192,11 @@ const ANNONCES = {
     { t:"Opportunité foncière - Kimono, Kasumbalesa", d:"Terrain de 9 370 m² à Kimono. Arbres déjà présents pour exploitation. Zone en développement, accès routier facile.", p:"120 000 FC", v:"Kasumbalesa", q:"Kimono" }
   ],
   location: [
-    { t:"Appartement 3 chambres - Gombe", d:"Appartement moderne de 3 chambres au cœur de la Gombe. 2 salles de bain, cuisine équipée, parking sécurisé. Proche des commerces et banques.", p:"350 000 FC/mois", v:"Kinshasa", q:"Gombe" },
-    { t:"Villa 4 chambres avec jardin - Lubumbashi", d:"Villa spacieuse de 4 chambres avec grand jardin à Lubumbashi. Garage 2 voitures, sécurité 24h. Quartier résidentiel calme.", p:"600 000 FC/mois", v:"Lubumbashi", q:"Résidentiel" },
-    { t:"Studio meublé - Lingwala", d:"Studio entièrement meublé à Lingwala. Lit double, TV, climatisation et WiFi inclus. Prêt à habiter immédiatement.", p:"150 000 FC/mois", v:"Kinshasa", q:"Lingwala" },
-    { t:"Maison 2 chambres - Kampemba", d:"Maison de 2 chambres à Kampemba. Cuisine séparée, parking privé. Idéal pour couple ou petite famille.", p:"250 000 FC/mois", v:"Lubumbashi", q:"Kampemba" },
-    { t:"Duplex 5 pièces - Ma Campagne", d:"Duplex haut standing à Ma Campagne. 4 chambres plus bureau, 3 salles de bain, piscine et jardin paysager. Prestations premium.", p:"1 200 000 FC/mois", v:"Kinshasa", q:"Ma Campagne" }
+    { t:"Maison simple 2 chambres - Kalamu", d:"Maison simple de 2 chambres à Kalamu. Cuisine séparée, douche et WC internes. Cour privée. Idéal pour petite famille ou couple. Quartier calme.", p:"120 000 FC/mois", v:"Kinshasa", q:"Kalamu" },
+    { t:"Maison modeste 3 pièces - Masina", d:"Maison modeste de 3 pièces à Masina. Salon, 2 chambres, cuisine intérieure. Eau et électricité disponibles. Proche du marché.", p:"150 000 FC/mois", v:"Kinshasa", q:"Masina" },
+    { t:"Studio simple meublé - Matonge", d:"Studio simple meublé à Matonge. Lit, ventilateur, cuisine basique. Eau courante et électricité. Prêt à habiter. Charges incluses.", p:"85 000 FC/mois", v:"Kinshasa", q:"Matonge" },
+    { t:"Maison 2 chambres avec cour - Kampemba", d:"Maison de 2 chambres à Kampemba avec cour privée. Cuisine séparée, douche interne. Quartier calme et sécurisé. Proche transports.", p:"130 000 FC/mois", v:"Lubumbashi", q:"Kampemba" },
+    { t:"Appartement simple 2 chambres - Ngaliema", d:"Appartement simple de 2 chambres à Ngaliema. Salon, cuisine, douche interne. Immeuble calme. Eau et électricité incluses dans les charges.", p:"180 000 FC/mois", v:"Kinshasa", q:"Ngaliema" }
   ],
   hopital: [
     { t:"Consultation médicale - Gombe", d:"Consultation en médecine générale à la Gombe. Injections, perfusions, petites urgences et certificats médicaux. Service disponible tous les jours.", p:"25 000 FC", v:"Kinshasa", q:"Gombe" },
@@ -172,11 +220,11 @@ const ANNONCES = {
     { t:"Impression flyers - Kinshasa", d:"Service d'imprimerie : flyers A5, affiches A3, cartes de visite et brochures. Devis immédiat pour tout volume.", p:"50 000 FC", v:"Kinshasa", q:"Limete" }
   ],
   vehicule: [
-    { t:"Toyota Corolla 2008 - Occasion", d:"Toyota Corolla 2008 en bon état, moteur essence, boîte automatique, climatisation fonctionnelle. 185 000 km au compteur. Papiers en règle, à vendre à Kinshasa. Légèrement négociable.", p:"4 500 000 FC", v:"Kinshasa", q:"Limete" },
-    { t:"Honda Civic 2010 - Occasion", d:"Honda Civic 2010 essence, boîte manuelle, très économique en carburant. 210 000 km. Entretien régulier effectué. Idéal pour taxis ou usage personnel.", p:"5 200 000 FC", v:"Kinshasa", q:"Masina" },
-    { t:"Nissan Sunny 2006 - Occasion", d:"Nissan Sunny 2006 bien entretenue. Moteur en bon état, carrosserie correcte. Pneus neufs. Papiers à jour. Prix discutable.", p:"3 200 000 FC", v:"Kinshasa", q:"Kalamu" },
-    { t:"Toyota RAV4 2007 - Occasion", d:"Toyota RAV4 2007 4x4 essence. Véhicule robuste, climatisation, intérieur propre. 220 000 km. Idéal pour routes difficiles. Négociable.", p:"6 800 000 FC", v:"Kinshasa", q:"Gombe" },
-    { t:"Mitsubishi Pajero 2005 - Occasion", d:"Mitsubishi Pajero 2005 diesel, 4x4. Moteur puissant, idéal pour trajets interurbains. Entretien à jour. Papiers en règle.", p:"7 500 000 FC", v:"Kinshasa", q:"Ngaliema" }
+    { t:"Moto Sanili 150cc - Occasion", d:"Moto Sanili 150cc d'occasion en bon état. Moteur révisé récemment, freins neufs, papiers en règle. Idéale pour déplacements quotidiens à Kinshasa. Négociable.", p:"1 200 000 FC", v:"Kinshasa", q:"Masina" },
+    { t:"Moto Haojue 125cc - Occasion", d:"Moto Haojue 125cc d'occasion. Très économique en carburant, entretien régulier effectué. Idéale pour coursier ou usage personnel. Papiers à jour.", p:"950 000 FC", v:"Kinshasa", q:"Limete" },
+    { t:"Moto Kinlon 150cc - Occasion", d:"Moto Kinlon 150cc en bon état général. Démarrage facile, consommation réduite. Pneus et batterie en bon état. À voir à Kalamu.", p:"1 100 000 FC", v:"Kinshasa", q:"Kalamu" },
+    { t:"Vélo tout-terrain 26 pouces - Neuf", d:"Vélo tout-terrain 26 pouces neuf, 21 vitesses. Freins à disque, cadre robuste. Idéal pour déplacements urbains ou sport. Livré avec accessoires.", p:"250 000 FC", v:"Kinshasa", q:"Gombe" },
+    { t:"Vélo de ville avec panier - Occasion", d:"Vélo de ville d'occasion avec panier avant et porte-bagages arrière. Freins neufs, pneus gonflés. Parfait pour trajets quotidiens ou livraisons légères.", p:"150 000 FC", v:"Kinshasa", q:"Matonge" }
   ],
   electronique: [
     { t:"Smartphone Samsung - Kinshasa", d:"Samsung Galaxy A15 neuf sous emballage. 128 Go de stockage, 6 Go RAM, triple caméra 50 MP, batterie 5000 mAh.", p:"350 000 FC", v:"Kinshasa", q:"Gombe" },
@@ -186,15 +234,15 @@ const ANNONCES = {
     { t:"Groupe électrogène - Kinshasa", d:"Groupe électrogène 5 KVA silencieux avec faible consommation et démarrage automatique. Livraison disponible.", p:"900 000 FC", v:"Kinshasa", q:"Limete" }
   ],
   autre: [
-    { t:"Mobilier de bureau - Kinshasa", d:"Mobilier de bureau professionnel : chaises ergonomiques, bureaux modernes, armoires de rangement et fauteuils direction. Devis gratuit.", p:"200 000 FC", v:"Kinshasa", q:"Gombe" },
-    { t:"Pagnes & tissus - Lubumbashi", d:"Large choix de pagnes wax, tissus brodés et motifs variés. Vente au mètre ou par pagne. Qualité garantie.", p:"25 000 FC", v:"Lubumbashi", q:"Centre" },
-    { t:"Équipement cuisine - Kinshasa", d:"Ustensiles de cuisine, vaisselle complète, marmites, casseroles et verrerie. Pour particuliers et restaurants.", p:"30 000 FC", v:"Kinshasa", q:"Kalamu" },
-    { t:"Produits cosmétiques - Lubumbashi", d:"Gamme de cosmétiques : maquillage, soins de la peau, onglerie et produits capillaires. Marques variées.", p:"15 000 FC", v:"Lubumbashi", q:"Centre" },
-    { t:"Matériel scolaire - Kinshasa", d:"Fournitures scolaires à petits prix : cahiers, livres, stylos, sacs à dos, règles et compas. Pour la rentrée.", p:"5 000 FC", v:"Kinshasa", q:"Kasa-Vubu" }
+    { t:"Fruits frais du jour - Kinshasa", d:"Vente de fruits frais à Kinshasa : mangues, ananas, papayes, oranges et bananes. Livraison possible dans plusieurs quartiers. Prix au kilo ou au panier.", p:"15 000 FC/kg", v:"Kinshasa", q:"Matonge" },
+    { t:"Avocats frais - Lubumbashi", d:"Avocats frais du Kivu à Lubumbashi. Calibre moyen à gros, qualité premium. Livraison rapide dans la ville. Vente au kilo ou au carton.", p:"12 000 FC/kg", v:"Lubumbashi", q:"Centre" },
+    { t:"Mangues juteuses en gros - Kinshasa", d:"Mangues juteuses de saison à Kinshasa. Vente en gros pour revendeurs et particuliers. Prix dégressif selon quantité. Livraison disponible.", p:"8 000 FC/kg", v:"Kinshasa", q:"Limete" },
+    { t:"Panier de légumes frais - Kinshasa", d:"Panier varié de légumes frais : tomates, oignons, poivrons, carottes et aubergines. Idéal pour familles. Livraison hebdomadaire possible.", p:"25 000 FC/panier", v:"Kinshasa", q:"Gombe" },
+    { t:"Ananas sucrés de Mbandaka - Kinshasa", d:"Ananas sucrés en provenance de Mbandaka. Chair juteuse et parfumée. Vente à la pièce ou en lot. Livraison à Kinshasa.", p:"3 500 FC/pièce", v:"Kinshasa", q:"Kalamu" }
   ]
 };
 
-// ============ PRODUITS CATALOGUES ============
+// ============ PRODUITS ============
 const PRODUITS = [
   { n:"Riz parfumé 25 kg",     p:45000, l:"/ sac",   c:"Alimentation", img:U+"1586201375761-83865001e31c"+Q },
   { n:"Huile végétale 5 L",    p:18000, l:"/ bidon", c:"Alimentation", img:U+"1474979266404-7eaacbcd87c5"+Q },
@@ -221,7 +269,7 @@ const BOUTIQUES_KIN = [
   { nom:"Quincaillerie Bomoko",    type:"Quincaillerie",  quartier:"Kasa-Vubu", tel:"+243810111205", wa:"+243810111205", desc:"Quincaillerie complète à Kasa-Vubu. Outils, peinture, plomberie, électricité et matériaux de construction.", img:U+"1504917595217-d4dc5ebe6122"+Q },
   { nom:"Tech Kin Électronique",   type:"Électronique",   quartier:"Gombe",     tel:"+243810111206", wa:"+243810111206", desc:"Boutique électronique à la Gombe. Smartphones, ordinateurs, accessoires, réparation et installation.", img:U+"1517336714731-489689fd1ca8"+Q },
   { nom:"Boulangerie Ma Campagne", type:"Boulangerie",    quartier:"Ngaliema",  tel:"+243810111207", wa:"+243810111207", desc:"Boulangerie artisanale à Ngaliema. Pains frais, croissants, pâtisseries et viennoiseries. Fournées chaque matin.", img:U+"1509440159596-0249088772ff"+Q },
-  { nom:"Auto Kinshasa Occasions", type:"Concessionnaire",quartier:"Masina",    tel:"+243810111208", wa:"+243810111208", desc:"Vente de véhicules d'occasion à Kinshasa. Toyota, Honda, Nissan, Mitsubishi. Papiers en règle, essai possible.", img:U+"1503376780353-7e6692767b70"+Q }
+  { nom:"Fruits & Légumes Kin",    type:"Vivriers & Fruits", quartier:"Matonge", tel:"+243810111208", wa:"+243810111208", desc:"Boutique de fruits et légumes frais à Matonge. Mangues, ananas, avocats, tomates et produits frais du jour.", img:U+"1610348725531-843dff563e2c"+Q }
 ];
 
 let netubers = [];
@@ -250,8 +298,10 @@ async function charger() {
 // ============ CRÉER BOUTIQUES KINSHASA ============
 async function creerBoutiques() {
   log("Création des boutiques Kinshasa...", "title");
+  showProgress('Création des boutiques', BOUTIQUES_KIN.length, 'warning');
   let nb = 0;
-  for (const b of BOUTIQUES_KIN) {
+  for (let i = 0; i < BOUTIQUES_KIN.length; i++) {
+    const b = BOUTIQUES_KIN[i];
     let proprietaire = netubers.find(n => !n.boutique && n.ville === "Kinshasa");
     if (!proprietaire) proprietaire = netubers.find(n => !n.boutique);
     if (!proprietaire) {
@@ -286,14 +336,16 @@ async function creerBoutiques() {
         dateAjout: dateVariee(2, 25)
       }))
     };
-
     await setDoc(doc(db, 'commerces', commerceId), boutiqueData);
     await setDoc(doc(db, 'netubers', proprietaire.id), { boutique: boutiqueData }, { merge: true });
     proprietaire.boutique = boutiqueData;
     nb++;
     log(`Boutique créée : ${b.nom} (${b.type})`, "ok");
+    updateProgress(i + 1, BOUTIQUES_KIN.length, `Création : ${b.nom}`);
   }
   log(`${nb} boutiques Kinshasa créées`, "ok");
+  updateProgress(BOUTIQUES_KIN.length, BOUTIQUES_KIN.length, 'Terminé');
+  hideProgress(2000);
   await charger();
 }
 
@@ -301,40 +353,37 @@ async function creerBoutiques() {
 async function publierTout() {
   log("Démarrage...", "title");
 
-  // 1) Créer 5 nouveaux netubers avec emails gmail
+  // ÉTAPE 1 : Créer 5 nouveaux netubers
+  showProgress('Étape 1/3 : Création des netubers', NOUVEAUX.length, 'primary');
   log("Création des 5 nouveaux netubers...", "info");
   const nouveauxCrees = [];
-  for (const n of NOUVEAUX) {
+  for (let i = 0; i < NOUVEAUX.length; i++) {
+    const n = NOUVEAUX[i];
     const uid = "NTX-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
     const dateCreation = dateVariee(24, 90);
     const emailGmail = genererEmailGmail(n.nom, n.prenom, n.phone);
     const data = {
-      uid,
-      nom: n.nom,
-      prenom: n.prenom,
+      uid, nom: n.nom, prenom: n.prenom,
       nomComplet: n.prenom + " " + n.nom,
-      sexe: n.sexe,
-      phone: n.phone,
-      emailAuth: emailGmail,
-      code: n.code,
-      ville: n.ville,
-      role: "user",
-      actif: true,
-      boutique: null,
-      avatarUrl: AVATAR,
-      dateCreation: dateCreation,
-      creeParAdmin: true
+      sexe: n.sexe, phone: n.phone,
+      emailAuth: emailGmail, code: n.code,
+      ville: n.ville, role: "user", actif: true,
+      boutique: null, avatarUrl: AVATAR,
+      dateCreation: dateCreation, creeParAdmin: true
     };
     await setDoc(doc(db, 'netubers', uid), data);
     nouveauxCrees.push({ id: uid, ...data });
     log(`Netuber : ${n.prenom} ${n.nom} — ${emailGmail}`, "ok");
+    updateProgress(i + 1, NOUVEAUX.length, `Netuber : ${n.prenom} ${n.nom}`);
   }
 
-  // 2) Créer les boutiques Kinshasa
+  // ÉTAPE 2 : Créer boutiques Kinshasa
+  showProgress('Étape 2/3 : Création des boutiques', BOUTIQUES_KIN.length, 'warning');
   log("Création des 8 boutiques Kinshasa...", "info");
   const tousNetubersTemp = [...netubers, ...nouveauxCrees];
   let nbBoutiques = 0;
-  for (const b of BOUTIQUES_KIN) {
+  for (let i = 0; i < BOUTIQUES_KIN.length; i++) {
+    const b = BOUTIQUES_KIN[i];
     let proprietaire = tousNetubersTemp.find(n => !n.boutique && n.ville === "Kinshasa" && n.creeParAdmin);
     if (!proprietaire) proprietaire = tousNetubersTemp.find(n => !n.boutique && n.ville === "Kinshasa");
     if (!proprietaire) proprietaire = tousNetubersTemp.find(n => !n.boutique);
@@ -347,8 +396,7 @@ async function publierTout() {
     const boutiqueData = {
       uid: proprietaire.id,
       nom: b.nom, nomCommerce: b.nom,
-      type: b.type,
-      ville: "Kinshasa", quartier: b.quartier,
+      type: b.type, ville: "Kinshasa", quartier: b.quartier,
       adresse: "Avenue " + b.quartier + ", Kinshasa",
       horaires: "08h - 20h",
       description: b.desc,
@@ -367,12 +415,15 @@ async function publierTout() {
     proprietaire.boutique = boutiqueData;
     nbBoutiques++;
     log(`Boutique : ${b.nom}`, "ok");
+    updateProgress(i + 1, BOUTIQUES_KIN.length, `Boutique : ${b.nom}`);
   }
   log(`${nbBoutiques} boutiques créées`, "ok");
 
-  // 3) Publier annonces avec dates et vues variées
-  log("Publication des annonces (dates + vues variées)...", "info");
+  // ÉTAPE 3 : Publier annonces
   const tous = [...netubers, ...nouveauxCrees];
+  const totalAnnonces = tous.length * Object.keys(ANNONCES).length * 5;
+  showProgress('Étape 3/3 : Publication des annonces', totalAnnonces, 'success');
+  log(`Publication de ${totalAnnonces} annonces...`, "info");
   let nbAnn = 0;
   for (const user of tous) {
     const isCommerce = user.boutique && user.boutique.statut === 'approuve';
@@ -414,17 +465,23 @@ async function publierTout() {
           email: user.emailAuth || ""
         });
         nbAnn++;
+        if (nbAnn % 5 === 0) {
+          updateProgress(nbAnn, totalAnnonces, `Annonce ${nbAnn} / ${totalAnnonces} — ${nomAffiche}`);
+        }
       }
     }
   }
   log(`${nbAnn} annonces publiées`, "ok");
+  updateProgress(totalAnnonces, totalAnnonces, 'Publication terminée');
   log("Terminé.", "ok");
+  hideProgress(3000);
   await charger();
 }
 
 // ============ NETTOYER ============
 async function nettoyer() {
   log("Recherche de Lynda Chris...", "info");
+  showProgress('Nettoyage', 100, 'danger');
   let supprimes = 0;
 
   for (const n of netubers) {
@@ -437,42 +494,82 @@ async function nettoyer() {
   }
 
   const sa = await getDocs(collection(db, 'annonces'));
+  const totalAuto = [...sa.docs].filter(d => d.id.startsWith('ANN-AUTO-') || d.id.startsWith('ANN-KIMONO-')).length;
+  let fait = 0;
   for (const d of sa.docs) {
     if (d.id.startsWith('ANN-AUTO-') || d.id.startsWith('ANN-KIMONO-')) {
       await deleteDoc(doc(db, 'annonces', d.id));
       supprimes++;
+      fait++;
+      if (fait % 10 === 0) updateProgress(fait, totalAuto, `Suppression ${fait} / ${totalAuto}`);
     }
   }
   log(`${supprimes} éléments supprimés`, "ok");
+  updateProgress(100, 100, 'Terminé');
+  hideProgress(2000);
   await charger();
 }
 
-// ============ SUPPRIMER TOUT ============
+// ============ SUPPRIMER TOUT (BATCH) ============
 async function supprimerTout() {
   if (!confirm("Supprimer TOUTES les annonces, TOUS les netubers et TOUS les commerces ? Action IRRÉVERSIBLE.")) return;
   if (!confirm("Confirmer une seconde fois ?")) return;
 
-  log("Suppression totale en cours...", "title");
-  let total = 0;
+  const totalGlobal = annonces.length + netubers.length + commerces.length;
+  showProgress('Suppression totale', totalGlobal, 'danger');
+  log(`Suppression batch de ${totalGlobal} documents...`, "title");
 
-  for (const a of annonces) {
+  let total = 0;
+  let batch = writeBatch(db);
+  let count = 0;
+
+  // 1) Supprimer les sous-collections "prive" + annonces
+  log(`Suppression des annonces...`, "info");
+  for (let i = 0; i < annonces.length; i++) {
+    const a = annonces[i];
     try {
       const priv = await getDocs(collection(db, 'annonces', a.id, 'prive'));
-      for (const p of priv.docs) await deleteDoc(doc(db, 'annonces', a.id, 'prive', p.id));
-      await deleteDoc(doc(db, 'annonces', a.id));
+      for (const p of priv.docs) {
+        batch.delete(doc(db, 'annonces', a.id, 'prive', p.id));
+        count++;
+        if (count >= 450) { await batch.commit(); batch = writeBatch(db); count = 0; }
+      }
+      batch.delete(doc(db, 'annonces', a.id));
+      count++;
+      if (count >= 450) { await batch.commit(); batch = writeBatch(db); count = 0; }
       total++;
-    } catch(e) {}
+      if (i % 10 === 0) updateProgress(total, totalGlobal, `Annonces : ${total} / ${totalGlobal}`);
+    } catch(e) { log(`Erreur annonce ${a.id}: ${e.message}`, "err"); }
   }
+  if (count > 0) { await batch.commit(); batch = writeBatch(db); count = 0; }
+  log(`${annonces.length} annonces supprimées`, "ok");
 
-  for (const n of netubers) {
-    try { await deleteDoc(doc(db, 'netubers', n.id)); total++; } catch(e) {}
+  // 2) Supprimer les netubers
+  log(`Suppression des netubers...`, "info");
+  for (let i = 0; i < netubers.length; i++) {
+    batch.delete(doc(db, 'netubers', netubers[i].id));
+    count++;
+    if (count >= 450) { await batch.commit(); batch = writeBatch(db); count = 0; }
+    total++;
+    if (i % 5 === 0) updateProgress(total, totalGlobal, `Netubers : ${i + 1} / ${netubers.length}`);
   }
+  if (count > 0) { await batch.commit(); batch = writeBatch(db); count = 0; }
+  log(`${netubers.length} netubers supprimés`, "ok");
 
+  // 3) Supprimer les commerces
+  log(`Suppression des commerces...`, "info");
   for (const c of commerces) {
-    try { await deleteDoc(doc(db, 'commerces', c.id)); total++; } catch(e) {}
+    batch.delete(doc(db, 'commerces', c.id));
+    count++;
+    if (count >= 450) { await batch.commit(); batch = writeBatch(db); count = 0; }
+    total++;
   }
+  if (count > 0) { await batch.commit(); count = 0; }
+  log(`${commerces.length} commerces supprimés`, "ok");
 
-  log(`${total} documents supprimés`, "ok");
+  updateProgress(totalGlobal, totalGlobal, 'Suppression terminée');
+  log(`✅ TERMINÉ : ${total} documents supprimés`, "ok");
+  hideProgress(3000);
   await charger();
 }
 
@@ -480,32 +577,39 @@ async function supprimerTout() {
 document.getElementById('btnPublier').onclick = async () => {
   const b = document.getElementById('btnPublier');
   b.disabled = true;
+  b.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Publication en cours...';
   try { await publierTout(); } catch(e) { log("Erreur : " + e.message, "err"); }
   b.disabled = false;
+  b.innerHTML = '<i class="fas fa-rocket"></i> Publier tout (annonces + boutiques)';
 };
 
 document.getElementById('btnBoutiques').onclick = async () => {
   const b = document.getElementById('btnBoutiques');
   b.disabled = true;
+  b.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Création...';
   try { await creerBoutiques(); } catch(e) { log("Erreur : " + e.message, "err"); }
   b.disabled = false;
+  b.innerHTML = '<i class="fas fa-store"></i> Créer boutiques Kinshasa';
 };
 
 document.getElementById('btnNettoyer').onclick = async () => {
   const b = document.getElementById('btnNettoyer');
   b.disabled = true;
+  b.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Nettoyage...';
   try { await nettoyer(); } catch(e) { log("Erreur : " + e.message, "err"); }
   b.disabled = false;
+  b.innerHTML = '<i class="fas fa-broom"></i> Nettoyer (Lynda + ANN-AUTO)';
 };
 
 document.getElementById('btnTout').onclick = async () => {
   const b = document.getElementById('btnTout');
   b.disabled = true;
+  b.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Suppression...';
   try { await supprimerTout(); } catch(e) { log("Erreur : " + e.message, "err"); }
   b.disabled = false;
+  b.innerHTML = '<i class="fas fa-trash-alt"></i> SUPPRIMER TOUT';
 };
 
-// Chargement auto
 charger().catch(e => log("Erreur chargement : " + e.message, "err"));
 </script>
 </body>
