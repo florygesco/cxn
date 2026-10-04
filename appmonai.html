@@ -167,18 +167,6 @@ body.dark-mode .pagination button{background:linear-gradient(180deg,#14304d,#0f2
 </style>
 </head>
 <body>
-<div id="loginScreen" style="position:fixed;inset:0;background:linear-gradient(135deg,#2e1065 0%,#4c1d95 50%,#2e1065 100%);z-index:50000;display:flex;align-items:center;justify-content:center;padding:20px;flex-direction:column">
-<div style="background:linear-gradient(135deg,#4c1d95,#2e1065);border:1px solid #6d28d9;border-radius:24px;padding:40px 30px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.5);text-align:center">
-<div style="width:72px;height:72px;background:linear-gradient(135deg,#fbbf24,#f59e0b);border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:38px;margin:0 auto 20px;color:#4c1d95"><i class="fa-solid fa-shield-halved"></i></div>
-<h2 style="font-size:24px;color:#fff;font-weight:800;margin-bottom:8px">NeTubeX ADMIN</h2>
-<div style="font-size:13px;color:#c4b5fd;margin-bottom:28px">Entrez vos identifiants administrateur</div>
-<div style="margin-bottom:16px"><input type="email" id="loginEmail" placeholder="Email administrateur" style="width:100%;padding:15px 20px;border-radius:14px;background:#2e1065;border:2px solid #6d28d9;color:#fff;font-size:14px;outline:none;box-sizing:border-box;font-family:inherit"></div>
-<div style="margin-bottom:16px"><input type="password" id="loginPassword" placeholder="Mot de passe" style="width:100%;padding:15px 20px;border-radius:14px;background:#2e1065;border:2px solid #6d28d9;color:#fff;font-size:14px;outline:none;box-sizing:border-box;font-family:inherit"></div>
-<button id="loginSubmitBtn" style="width:100%;padding:16px;border-radius:14px;background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#4c1d95;font-weight:800;border:none;cursor:pointer;font-size:15px;letter-spacing:1px;text-transform:uppercase;box-shadow:0 4px 0 #b45309;font-family:inherit">SE CONNECTER</button>
-<div id="loginError" style="color:#fca5a5;font-size:13px;margin-top:16px;min-height:20px;font-weight:500"></div>
-<div style="font-size:10px;color:#a78bfa;margin-top:20px;font-weight:600">Acces securise - NeTubeX SARL</div>
-</div>
-</div>
 <div class="loader" id="loader"><div class="spinner"></div><div style="color:#6d28d9;font-size:13px;font-weight:600">Chargement...</div></div>
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 <aside class="sidebar" id="sidebar">
@@ -475,6 +463,9 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+const ADMIN_EMAIL = "ngendaflory2@gmail.com";
+const ADMIN_PASSWORD = "Theone12$";
+
 let currentUser = null;
 let boutiques = [];
 let deblocages = [];
@@ -555,36 +546,21 @@ function paginer(list, currentPage){
   return list.slice(start, start + PER_PAGE);
 }
 
-document.getElementById('loginSubmitBtn').onclick = doLogin;
-document.getElementById('loginPassword').addEventListener('keypress', e=>{ if(e.key==='Enter') doLogin(); });
-document.getElementById('loginEmail').addEventListener('keypress', e=>{ if(e.key==='Enter') document.getElementById('loginPassword').focus(); });
-
-async function doLogin(){
-  const email = document.getElementById('loginEmail').value.trim();
-  const pw = document.getElementById('loginPassword').value;
-  const err = document.getElementById('loginError');
-  const btn = document.getElementById('loginSubmitBtn');
-  err.textContent = '';
-  if(!email || !pw){ err.textContent = 'Remplissez tous les champs'; return; }
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> CONNEXION...';
+async function autoLogin(){
   setLoader(true);
-  try{ await signInWithEmailAndPassword(auth, email, pw); }
-  catch(e){
-    let msg = 'Email ou mot de passe incorrect';
-    if(e.code === 'auth/user-not-found') msg = 'Aucun compte avec cet email';
-    if(e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') msg = 'Mot de passe incorrect';
-    if(e.code === 'auth/invalid-email') msg = 'Email invalide';
-    if(e.code === 'auth/too-many-requests') msg = 'Trop de tentatives.';
-    err.textContent = msg;
-    btn.disabled = false;
-    btn.innerHTML = 'SE CONNECTER';
-  }finally{ setLoader(false); }
+  try{
+    await signInWithEmailAndPassword(auth, ADMIN_EMAIL, ADMIN_PASSWORD);
+  }catch(e){
+    console.error("Auto-login échec:", e.code, e.message);
+    toast("Connexion admin échouée : " + e.code, "err");
+  }finally{
+    setLoader(false);
+  }
 }
 
 document.getElementById('logoutBtn').onclick = ()=>{
   confirmDialog('Confirmer la deconnexion', 'Voulez-vous vraiment vous deconnecter ?',
-    async ()=>{ await signOut(auth); }, true);
+    async ()=>{ await signOut(auth); autoLogin(); }, true);
 };
 
 const fabTabs = document.getElementById('fabTabs');
@@ -613,14 +589,13 @@ try{ if(localStorage.getItem('netubex-admin-theme') === 'dark'){ document.body.c
 onAuthStateChanged(auth, async (user)=>{
   if(user){
     currentUser = user;
-    document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('mainContent').style.display = 'block';
     document.getElementById('adminAvatar').textContent = (user.email[0]||'A').toUpperCase();
     await loadAll();
   }else{
     currentUser = null;
-    document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('mainContent').style.display = 'none';
+    autoLogin();
   }
 });
 
