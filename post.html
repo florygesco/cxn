@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NeTubeX — Remplissage Auto Complet</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',sans-serif}
+body{background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%);min-height:100vh;color:#e2e8f0;padding:24px}
+.container{max-width:1000px;margin:0 auto}
+.header{text-align:center;margin-bottom:28px}
+.header h1{font-size:30px;font-weight:900;background:linear-gradient(135deg,#fbbf24,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px}
+.header p{color:#94a3b8;font-size:13px}
+.card{background:linear-gradient(135deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:24px;margin-bottom:20px}
+.card h2{font-size:15px;font-weight:800;margin-bottom:16px;color:#fbbf24;text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:10px}
+.big-btn{width:100%;padding:26px;border-radius:18px;border:none;cursor:pointer;font-size:20px;font-weight:900;font-family:inherit;text-transform:uppercase;letter-spacing:2px;display:flex;align-items:center;justify-content:center;gap:14px;background:linear-gradient(135deg,#10b981,#047857);color:#fff;box-shadow:0 6px 0 #065f46,0 12px 40px -8px rgba(16,185,129,.5);transition:all .15s}
+.big-btn:hover{transform:translateY(-2px)}
+.big-btn:active{transform:translateY(4px);box-shadow:0 2px 0 #065f46}
+.big-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:20px}
+.stat{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:18px;text-align:center}
+.stat .icon{font-size:26px;margin-bottom:6px}
+.stat .val{font-size:30px;font-weight:900;color:#fbbf24;line-height:1}
+.stat .lbl{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;font-weight:800;margin-top:6px}
+.progress-wrap{margin-top:20px}
+.progress{height:8px;background:rgba(255,255,255,.1);border-radius:4px;overflow:hidden}
+.progress-bar{height:100%;background:linear-gradient(90deg,#10b981,#fbbf24);width:0%;transition:width .3s}
+.progress-txt{text-align:center;font-size:12px;font-weight:800;color:#fbbf24;margin-top:10px}
+.log{background:#000;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:16px;font-family:ui-monospace,monospace;font-size:12px;max-height:420px;overflow-y:auto;line-height:1.6}
+.log-entry{padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);display:flex;gap:10px}
+.log-time{color:#64748b;flex-shrink:0;font-size:11px}
+.log-ok{color:#10b981}.log-err{color:#ef4444}.log-info{color:#60a5fa}.log-warn{color:#fbbf24}.log-title{color:#c084fc;font-weight:800}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🚀 NeTubeX — Remplissage Auto</h1>
+    <p>Crée 5 netubers + annonces Kinshasa/Lubumbashi/Kimono + produits commerces · Prix en FC</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="icon">👥</div><div class="val" id="statUsers">—</div><div class="lbl">Netubers</div></div>
+    <div class="stat"><div class="icon">🏪</div><div class="val" id="statCommerces">—</div><div class="lbl">Commerces</div></div>
+    <div class="stat"><div class="icon">📦</div><div class="val" id="statProduits">—</div><div class="lbl">Produits</div></div>
+    <div class="stat"><div class="icon">📢</div><div class="val" id="statAnnonces">—</div><div class="lbl">Annonces</div></div>
+  </div>
+
+  <div class="card">
+    <h2><i class="fas fa-play-circle"></i> Lancer le remplissage</h2>
+    <button class="big-btn" id="btnGo" disabled>
+      <i class="fas fa-spinner fa-spin"></i> Chargement...
+    </button>
+    <div class="progress-wrap">
+      <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+      <div class="progress-txt" id="progressTxt">Chargement des données...</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><i class="fas fa-terminal"></i> Journal d'exécution</h2>
+    <div class="log" id="log">
+      <div class="log-entry"><span class="log-time">[--:--:--]</span><span class="log-info">Initialisation...</span></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const app = initializeApp({
+  apiKey: "AIzaSyB_GdmPBnWl3w6g99j1cGO7vxDdxmKr4QA",
+  authDomain: "netubexmoney.firebaseapp.com",
+  projectId: "netubexmoney",
+  storageBucket: "netubexmoney.firebasestorage.app",
+  messagingSenderId: "856592608176",
+  appId: "1:856592608176:web:69f9df9cfd4f8c28630475"
+});
+const db = getFirestore(app);
+
+const log = (msg, type='info') => {
+  const el = document.getElementById('log');
+  const t = new Date().toLocaleTimeString('fr-FR');
+  el.innerHTML += `<div class="log-entry"><span class="log-time">[${t}]</span><span class="log-${type}">${msg}</span></div>`;
+  el.scrollTop = el.scrollHeight;
+};
+
+const R2_1 = "https://pub-f11c94c08e864e6dba2fb8b0193d91ff.r2.dev/IMG_5332.jpeg";
+const R2_2 = "https://pub-f11c94c08e864e6dba2fb8b0193d91ff.r2.dev/IMG_5333.jpeg";
+const U = "https://images.unsplash.com/photo-";
+const Q = "?w=800&q=80";
+
+const IMG = {
+  parcelle: [R2_1, R2_2, R2_1, R2_2, R2_1],
+  location: [U+"1560448204-e02f11c3d0e2"+Q,U+"1568605114967-8130f3a36994"+Q,U+"1512917774080-9991f1c4c750"+Q,U+"1580587771525-78b9dba3b914"+Q,U+"1600596542815-ffad4c1539a9"+Q],
+  hopital: [U+"1519494026892-80bbd2d6fd0d"+Q,U+"1538108149393-fbbd81895907"+Q,U+"1587351021759-3e566b6af7cc"+Q,U+"1516549655169-df83a0774514"+Q,U+"1584982751601-97dcc096659c"+Q],
+  ecole: [U+"1580582932707-520aed937b7b"+Q,U+"1509062522246-3755977927d7"+Q,U+"1523050854058-8df90110c9f1"+Q,U+"1497633762265-9d179a990aa6"+Q,U+"1546410531-bb8bcb3d7bd6"+Q],
+  entreprise: [U+"1497366216548-37526070297c"+Q,U+"1497366811353-6870744d04b2"+Q,U+"1521737711867-e3b97375f902"+Q,U+"1556761175-b413da4baf72"+Q,U+"1542744173-8e7e53415bb0"+Q],
+  vehicule: [U+"1503376780353-7e6692767b70"+Q,U+"1494976388531-d1058494cdd8"+Q,U+"1552519507-da3b142c6e3d"+Q,U+"1544636331-e26879cd4d9b"+Q,U+"1583121274602-3e2820c69888"+Q],
+  electronique: [U+"1517336714731-489689fd1ca8"+Q,U+"1496181133206-80ce9b88a853"+Q,U+"1519389950473-47ba0277781c"+Q,U+"1588872657578-7efd1f1555ed"+Q,U+"1546868871-7041f2a55e12"+Q],
+  autre: [U+"1487611451277-ef9e29741a63"+Q,U+"1524758631624-e2822e304c36"+Q,U+"1493857671505-72967e2e2760"+Q,U+"1504384308090-c894fdcc538d"+Q,U+"1497366754035-f200968a6e72"+Q]
+};
+
+const DESC_KIMONO = `🌳 TERRAIN À VENDRE — 96,8 m × 96,8 m à Kimono 🌳
+
+📍 Localisation : Village Kimono, ville de Kasumbalesa, route de Lubumbashi.
+
+✨ Un terrain spacieux et arboré, parfait pour :
+
+🏡 Construire votre résidence familiale
+🌲 Exploiter le bois (braise, planches de construction)
+🌾 Développer un projet agricole ou un verger
+💰 Investir dans une zone en pleine expansion
+
+🌿 Atouts du terrain :
+✅ Superficie généreuse : 96,8 m × 96,8 m (~9 370 m²)
+✅ Déjà arboré — valorisation immédiate possible
+✅ Accès facile par la route de Lubumbashi
+✅ Environnement calme et sécurisé
+
+💵 Prix : 120 000 FC (légèrement discutable)
+📞 Intéressé(e) ? Contactez-nous dès maintenant !
+⏳ Opportunité rare — premier arrivé, premier servi.`;
+
+// ============ ANNONCES ============
+const ANNONCES = {
+  parcelle: [
+    { titre:"🌳 Terrain 96,8 m × 96,8 m avec arbres — Kimono", desc:DESC_KIMONO, prix:"120 000 FC", ville:"Kasumbalesa", quartier:"Kimono" },
+    { titre:"🌳 Parcelle arborée 9 370 m² — Route Lubumbashi", desc:DESC_KIMONO, prix:"120 000 FC", ville:"Kasumbalesa", quartier:"Kimono" },
+    { titre:"🌳 Terrain avec bois de braise — Kasumbalesa", desc:DESC_KIMONO, prix:"120 000 FC", ville:"Kasumbalesa", quartier:"Kimono" },
+    { titre:"🌳 Lot 96,8 × 96,8 m à vendre — Village Kimono", desc:DESC_KIMONO, prix:"120 000 FC", ville:"Kasumbalesa", quartier:"Kimono" },
+    { titre:"🌳 Opportunité foncière — Kimono, Kasumbalesa", desc:DESC_KIMONO, prix:"120 000 FC", ville:"Kasumbalesa", quartier:"Kimono" }
+  ],
+  location: [
+    { titre:"🏠 Appartement 3 chambres — Gombe", desc:"🏠 APPARTEMENT À LOUER — 3 chambres\n\n📍 Gombe, Kinshasa\n\n✨ Appartement moderne :\n🛏️ 3 chambres spacieuses\n🚿 2 salles de bain\n🍳 Cuisine équipée\n🅿️ Parking sécurisé\n\n💵 350 000 FC/mois\n📞 Contactez-nous vite !", prix:"350 000 FC/mois", ville:"Kinshasa", quartier:"Gombe" },
+    { titre:"🏠 Villa 4 chambres avec jardin — Lubumbashi", desc:"🏠 VILLA À LOUER — 4 chambres\n\n📍 Quartier résidentiel, Lubumbashi\n\n✨ Villa spacieuse :\n🛏️ 4 chambres\n🌳 Grand jardin\n🚗 Garage 2 voitures\n🔒 Sécurité 24h\n\n💵 600 000 FC/mois\n📞 Appelez maintenant !", prix:"600 000 FC/mois", ville:"Lubumbashi", quartier:"Résidentiel" },
+    { titre:"🏠 Studio meublé — Lingwala, Kinshasa", desc:"🏠 STUDIO MEUBLÉ À LOUER\n\n📍 Lingwala, Kinshasa\n\n✨ Studio tout équipé :\n🛏️ Lit double\n📺 TV écran plat\n❄️ Climatisation\n📶 WiFi inclus\n\n💵 150 000 FC/mois\n📞 Réservez vite !", prix:"150 000 FC/mois", ville:"Kinshasa", quartier:"Lingwala" },
+    { titre:"🏠 Maison 2 chambres — Kampemba, Lubumbashi", desc:"🏠 MAISON À LOUER — 2 chambres\n\n📍 Kampemba, Lubumbashi\n\n✨ Idéal couple ou petite famille :\n🛏️ 2 chambres\n🚿 1 salle de bain\n🍳 Cuisine séparée\n🚗 Parking privé\n\n💵 250 000 FC/mois\n📞 Contactez-nous !", prix:"250 000 FC/mois", ville:"Lubumbashi", quartier:"Kampemba" },
+    { titre:"🏠 Duplex 5 pièces — Ma Campagne, Kinshasa", desc:"🏠 DUPLEX HAUT STANDING À LOUER\n\n📍 Ma Campagne, Kinshasa\n\n✨ Prestations premium :\n🛏️ 4 chambres + bureau\n🚿 3 salles de bain\n🏊 Piscine privée\n🌳 Jardin paysager\n\n💵 1 200 000 FC/mois\n📞 Visite sur rendez-vous !", prix:"1 200 000 FC/mois", ville:"Kinshasa", quartier:"Ma Campagne" }
+  ],
+  hopital: [
+    { titre:"🏥 Consultation médicale — Gombe, Kinshasa", desc:"🏥 CONSULTATION MÉDICALE\n\n📍 Gombe, Kinshasa\n\n✨ Services :\n🩺 Médecine générale\n💉 Injections & perfusions\n🩹 Petites urgences\n📋 Certificats médicaux\n\n💵 25 000 FC la consultation\n📞 Urgences : appelez-nous !", prix:"25 000 FC", ville:"Kinshasa", quartier:"Gombe" },
+    { titre:"🏥 Garde-malade à domicile — Lubumbashi", desc:"🏥 GARDE-MALADE À DOMICILE\n\n📍 Lubumbashi\n\n✨ Service 24h/24 :\n💊 Administration médicaments\n🩺 Surveillance constante\n🛏️ Soins d'hygiène\n🍲 Préparation repas\n\n💵 75 000 FC/jour\n📞 Contactez-nous !", prix:"75 000 FC/jour", ville:"Lubumbashi", quartier:"Centre" },
+    { titre:"🏥 Ambulance privée — Kinshasa 24/7", desc:"🏥 SERVICE D'AMBULANCE\n\n📍 Kinshasa\n\n⚡ Disponible 24h/24\n🚑 Intervention rapide\n🩺 Personnel qualifié\n🏥 Transfert hôpitaux\n\n💵 À partir de 120 000 FC\n📞 Appel d'urgence !", prix:"120 000 FC", ville:"Kinshasa", quartier:"Limete" },
+    { titre:"🏥 Livraison médicaments — Lubumbashi", desc:"🏥 PHARMACIE À DOMICILE\n\n📍 Lubumbashi\n\n✨ Livraison rapide :\n💊 Tous médicaments\n🩹 Pansements & soins\n🌡️ Thermomètres\n⏱️ Sous 30 minutes\n\n💵 Prix pharmacie + 15 000 FC\n📞 Commandez !", prix:"15 000 FC", ville:"Lubumbashi", quartier:"Centre" },
+    { titre:"🏥 Prise tension & glycémie — Kinshasa", desc:"🏥 INFIRMIER À DOMICILE\n\n📍 Kinshasa\n\n✨ Soins à domicile :\n🩺 Prise de tension\n🩸 Test glycémie\n💉 Injections\n🩹 Pansements\n\n💵 20 000 FC le déplacement\n📞 Réservez !", prix:"20 000 FC", ville:"Kinshasa", quartier:"Ngaliema" }
+  ],
+  ecole: [
+    { titre:"📚 Cours de maths — Kinshasa", desc:"📚 COURS PARTICULIERS DE MATHS\n\n📍 Kinshasa\n\n✨ Pour élèves :\n🧮 Primaire (3è à 6è)\n📐 Secondaire (1ère à 4è)\n🎯 Préparation examens\n📝 Exercices pratiques\n\n💵 25 000 FC/heure\n📞 Contactez-nous !", prix:"25 000 FC/heure", ville:"Kinshasa", quartier:"Gombe" },
+    { titre:"📚 Cours de français — Lubumbashi", desc:"📚 COURS DE FRANÇAIS\n\n📍 Lubumbashi\n\n✨ Tous niveaux :\n📖 Lecture & écriture\n🗣️ Conversation\n📝 Grammaire\n🎯 Préparation tests\n\n💵 25 000 FC/heure\n📞 Inscrivez-vous !", prix:"25 000 FC/heure", ville:"Lubumbashi", quartier:"Centre" },
+    { titre:"📚 Soutien scolaire à domicile — Kinshasa", desc:"📚 SOUTIEN SCOLAIRE\n\n📍 Kinshasa\n\n✨ Accompagnement :\n📖 Primaire et secondaire\n🧮 Toutes matières\n🎯 Aide aux devoirs\n📊 Suivi régulier\n\n💵 20 000 FC/heure\n📞 Premier cours gratuit !", prix:"20 000 FC/heure", ville:"Kinshasa", quartier:"Kalamu" },
+    { titre:"📚 Cours d'anglais — Lubumbashi", desc:"📚 COURS D'ANGLAIS\n\n📍 Lubumbashi\n\n✨ Programme :\n🗣️ Conversation\n📖 Grammaire\n🎧 Compréhension orale\n✍️ Expression écrite\n\n💵 30 000 FC/heure\n📞 Places limitées !", prix:"30 000 FC/heure", ville:"Lubumbashi", quartier:"Kampemba" },
+    { titre:"📚 Formation bureautique — Kinshasa", desc:"📚 FORMATION BUREAUTIQUE\n\n📍 Kinshasa\n\n✨ Maîtrisez :\n📄 Word\n📊 Excel\n📽️ PowerPoint\n🌐 Internet & email\n\n💵 300 000 FC la formation\n📞 Inscrivez-vous !", prix:"300 000 FC", ville:"Kinshasa", quartier:"Gombe" }
+  ],
+  entreprise: [
+    { titre:"💼 Création site web — Kinshasa", desc:"💼 CRÉATION DE SITE WEB\n\n📍 Kinshasa\n\n✨ Prestations :\n🌐 Site vitrine 5 pages\n📱 Responsive mobile\n🔍 SEO de base\n🚀 Mise en ligne incluse\n\n💵 À partir de 750 000 FC\n📞 Devis gratuit !", prix:"750 000 FC", ville:"Kinshasa", quartier:"Gombe" },
+    { titre:"💼 Community Manager — Lubumbashi", desc:"💼 COMMUNITY MANAGER\n\n📍 Lubumbashi\n\n✨ Services :\n📱 Facebook, Instagram, TikTok\n📸 Création contenus\n📊 Rapports mensuels\n💬 Réponse aux clients\n\n💵 250 000 FC/mois\n📞 Contactez-nous !", prix:"250 000 FC/mois", ville:"Lubumbashi", quartier:"Centre" },
+    { titre:"💼 Comptabilité PME — Kinshasa", desc:"💼 COMPTABILITÉ PME\n\n📍 Kinshasa\n\n✨ Services :\n📊 Tenue de livres\n📋 Déclarations fiscales\n💰 Paie employés\n📈 États financiers\n\n💵 500 000 FC/mois\n📞 Premier RDV gratuit !", prix:"500 000 FC/mois", ville:"Kinshasa", quartier:"Gombe" },
+    { titre:"💼 Création logo — Lubumbashi", desc:"💼 CRÉATION DE LOGO\n\n📍 Lubumbashi\n\n✨ Livrables :\n🎨 3 propositions logo\n📁 Fichiers vectoriels\n🎯 Charte graphique\n💼 Cartes de visite\n\n💵 150 000 FC\n📞 Contactez-nous !", prix:"150 000 FC", ville:"Lubumbashi", quartier:"Centre" },
+    { titre:"💼 Impression flyers — Kinshasa", desc:"💼 IMPRIMERIE\n\n📍 Kinshasa\n\n✨ Impression :\n📄 Flyers A5 (100 ex.)\n🖼️ Affiches A3\n💳 Cartes de visite\n📚 Brochures\n\n💵 À partir de 50 000 FC\n📞 Devis immédiat !", prix:"50 000 FC", ville:"Kinshasa", quartier:"Limete" }
+  ],
+  vehicule: [
+    { titre:"🚗 Location Toyota — Kinshasa", desc:"🚗 LOCATION DE VOITURE\n\n📍 Kinshasa\n\n✨ Véhicule :\n🚙 Toyota Corolla\n❄️ Clim & Bluetooth\n🛡️ Assurance incluse\n🧼 Intérieur non-fumeur\n\n💵 150 000 FC/jour\n📞 Réservez !", prix:"150 000 FC/jour", ville:"Kinshasa", quartier:"Gombe" },
+    { titre:"🚗 Transport VIP — Lubumbashi", desc:"🚗 TRANSPORT VIP\n\n📍 Lubumbashi\n\n✨ Service :\n🚙 Véhicules récents\n👔 Chauffeur professionnel\n🕐 Disponible 24h/24\n✈️ Aéroport & hôtels\n\n💵 À partir de 80 000 FC\n📞 Appelez !", prix:"80 000 FC", ville:"Lubumbashi", quartier:"Centre" },
+    { titre:"🚗 Dépannage 24/7 — Kinshasa", desc:"🚗 DÉPANNAGE AUTO\n\n📍 Kinshasa\n\n⚡ Service urgence :\n🔧 Remorquage\n⚡ Batterie à plat\n⛽ Panne sèche\n🛠️ Assistance routière\n\n💵 À partir de 100 000 FC\n📞 Appel d'urgence !", prix:"100 000 FC", ville:"Kinshasa", quartier:"Limete" },
+    { titre:"🚗 Lavage auto — Lubumbashi", desc:"🚗 LAVAGE AUTO\n\n📍 Lubumbashi\n\n✨ Formules :\n💧 Lavage extérieur simple\n🧼 Lavage complet\n✨ Cire & polish\n🪑 Nettoyage intérieur\n\n💵 À partir de 15 000 FC\n📞 Passez nous voir !", prix:"15 000 FC", ville:"Lubumbashi", quartier:"Kampemba" },
+    { titre:"🚗 Pièces détachées — Kinshasa", desc:"🚗 PIÈCES DÉTACHÉES\n\n📍 Kinshasa\n\n✨ Large stock :\n🔧 Freins & embrayage\n⚡ Batteries\n🛞 Pneus neufs & occasion\n💡 Phares & ampoules\n\n💵 Prix compétitifs\n📞 Renseignez-vous !", prix:"100 000 FC", ville:"Kinshasa", quartier:"Kasa-Vubu" }
+  ],
+  electronique: [
+    { titre:"📱 Smartphone Samsung — Kinshasa", desc:"📱 SMARTPHONE SAMSUNG\n\n📍 Kinshasa\n\n✨ Caractéristiques :\n📱 Samsung Galaxy A15\n💾 128 Go / 6 Go RAM\n📷 Triple caméra 50 MP\n🔋 Batterie 5000 mAh\n\n💵 350 000 FC\n📞 Contactez-nous !", prix:"350 000 FC", ville:"Kinshasa", quartier:"Gombe" },
+    { titre:"📱 Ordinateur portable HP — Lubumbashi", desc:"💻 ORDINATEUR PORTABLE HP\n\n📍 Lubumbashi\n\n✨ Config :\n💻 HP 15 Core i5\n💾 8 Go RAM / 256 Go SSD\n🖥️ Écran 15,6\"\n🔋 Autonomie 8h\n\n💵 850 000 FC\n📞 Contactez-nous !", prix:"850 000 FC", ville:"Lubumbashi", quartier:"Centre" },
+    { titre:"📱 TV LED 55 pouces — Kinshasa", desc:"📺 TV LED 55\"\n\n📍 Kinshasa\n\n✨ Caractéristiques :\n📺 Écran 55 pouces 4K\n🔊 Son stéréo\n📡 TNT intégré\n🔌 3 ports HDMI\n\n💵 600 000 FC\n📞 Livraison possible !", prix:"600 000 FC", ville:"Kinshasa", quartier:"Kalamu" },
+    { titre:"📱 Réfrigérateur — Lubumbashi", desc:"🧊 RÉFRIGÉRATEUR\n\n📍 Lubumbashi\n\n✨ Caractéristiques :\n🧊 350 L\n❄️ Congélateur séparé\n⚡ Classe A+ économe\n🔇 Silencieux\n\n💵 550 000 FC\n📞 Livraison gratuite !", prix:"550 000 FC", ville:"Lubumbashi", quartier:"Kampemba" },
+    { titre:"📱 Groupe électrogène — Kinshasa", desc:"⚡ GROUPE ÉLECTROGÈNE\n\n📍 Kinshasa\n\n✨ Caractéristiques :\n⚡ 5 KVA\n🔇 Silencieux\n⛽ Faible consommation\n🔌 Démarrage auto\n\n💵 900 000 FC\n📞 Livraison disponible !", prix:"900 000 FC", ville:"Kinshasa", quartier:"Limete" }
+  ],
+  autre: [
+    { titre:"📦 Mobilier bureau — Kinshasa", desc:"📦 MOBILIER DE BUREAU\n\n📍 Kinshasa\n\n✨ Articles :\n🪑 Chaises ergonomiques\n📋 Bureaux modernes\n🗄️ Armoires de rangement\n💼 Fauteuils direction\n\n💵 À partir de 200 000 FC\n📞 Devis gratuit !", prix:"200 000 FC", ville:"Kinshasa", quartier:"Gombe" },
+    { titre:"📦 Pagnes & tissus — Lubumbashi", desc:"📦 PAGNES & TISSUS\n\n📍 Lubumbashi\n\n✨ Large choix :\n👗 Pagnes wax\n🧵 Tissus brodés\n🎨 Motifs variés\n📏 Vente au mètre ou pagne\n\n💵 À partir de 25 000 FC\n📞 Venez voir !", prix:"25 000 FC", ville:"Lubumbashi", quartier:"Centre" },
+    { titre:"📦 Équipement cuisine — Kinshasa", desc:"📦 ÉQUIPEMENT CUISINE\n\n📍 Kinshasa\n\n✨ Articles :\n🍳 Ustensiles de cuisine\n🍽️ Vaisselle complète\n🔥 Marmites & casseroles\n🥤 Verrerie\n\n💵 À partir de 30 000 FC\n📞 Contactez-nous !", prix:"30 000 FC", ville:"Kinshasa", quartier:"Kalamu" },
+    { titre:"📦 Produits cosmétiques — Lubumbashi", desc:"📦 COSMÉTIQUES\n\n📍 Lubumbashi\n\n✨ Gamme :\n💄 Maquillage\n🧴 Soins de la peau\n💅 Onglerie\n💇 Produits capillaires\n\n💵 À partir de 15 000 FC\n📞 Renseignez-vous !", prix:"15 000 FC", ville:"Lubumbashi", quartier:"Centre" },
+    { titre:"📦 Matériel scolaire — Kinshasa", desc:"📦 MATÉRIEL SCOLAIRE\n\n📍 Kinshasa\n\n✨ Articles :\n📚 Cahiers & livres\n✏️ Stylos & crayons\n🎒 Sacs à dos\n📐 Règles & compas\n\n💵 À partir de 5 000 FC\n📞 Rentrée à petits prix !", prix:"5 000 FC", ville:"Kinshasa", quartier:"Kasa-Vubu" }
+  ]
+};
+
+const PRODUITS_COMMERCE = [
+  { nom:"Riz parfumé 25 kg", prix:45000, prixLabel:"/ sac", img:U+"1586201375761-83865001e31c"+Q, categorie:"Alimentation" },
+  { nom:"Huile végétale 5 L", prix:18000, prixLabel:"/ bidon", img:U+"1474979266404-7eaacbcd87c5"+Q, categorie:"Alimentation" },
+  { nom:"Sucre en poudre 50 kg", prix:75000, prixLabel:"/ sac", img:U+"1581441838793-5dcef4485e6a"+Q, categorie:"Alimentation" },
+  { nom:"Farine de maïs 25 kg", prix:35000, prixLabel:"/ sac", img:U+"1509440159596-0249088772ff"+Q, categorie:"Alimentation" },
+  { nom:"Savon de Marseille 500g", prix:3500, prixLabel:"/ pièce", img:U+"1584305574647-0cc949a2bb9f"+Q, categorie:"Cosmetiques" }
+];
+
+// ============ 5 NOUVEAUX NETUBERS À CRÉER ============
+const NOUVEAUX_NETUBERS = [
+  { nom:"Kabongo", prenom:"Merveille", sexe:"femme", ville:"Kinshasa", phone:"+243970111001", email:"merveille.kabongo@netubex.com", code:"NTX-MK-001" },
+  { nom:"Ilunga", prenom:"Papy", sexe:"homme", ville:"Lubumbashi", phone:"+243970111002", email:"papy.ilunga@netubex.com", code:"NTX-PI-002" },
+  { nom:"Nsimba", prenom:"Grace", sexe:"femme", ville:"Kinshasa", phone:"+243970111003", email:"grace.nsimba@netubex.com", code:"NTX-GN-003" },
+  { nom:"Mutombo", prenom:"Josué", sexe:"homme", ville:"Lubumbashi", phone:"+243970111004", email:"josue.mutombo@netubex.com", code:"NTX-JM-004" },
+  { nom:"Tshibangu", prenom:"Bénédicte", sexe:"femme", ville:"Kinshasa", phone:"+243970111005", email:"benedicte.tshibangu@netubex.com", code:"NTX-BT-005" }
+];
+
+let tousNetubers = [];
+let tousCommerces = [];
+
+async function chargerDonnees() {
+  log("Chargement des netubers...", "info");
+  const snapN = await getDocs(collection(db, "netubers"));
+  tousNetubers = [];
+  snapN.forEach(d => tousNetubers.push({ id: d.id, ...d.data() }));
+
+  log("Chargement des commerces...", "info");
+  const snapC = await getDocs(collection(db, "commerces"));
+  tousCommerces = [];
+  snapC.forEach(d => tousCommerces.push({ id: d.id, ...d.data() }));
+
+  const nbNetubers = tousNetubers.filter(n => !n.boutique || n.boutique.statut !== "approuve").length;
+  const nbCommerces = tousCommerces.length;
+
+  const totalAnnoncesPrevu = (tousNetubers.length + NOUVEAUX_NETUBERS.length) * 5 * 8;
+  const totalProduitsPrevu = nbCommerces * 5;
+
+  document.getElementById("statUsers").textContent = nbNetubers + " (+" + NOUVEAUX_NETUBERS.length + ")";
+  document.getElementById("statCommerces").textContent = nbCommerces;
+  document.getElementById("statProduits").textContent = totalProduitsPrevu;
+  document.getElementById("statAnnonces").textContent = totalAnnoncesPrevu;
+
+  log(`✅ ${tousNetubers.length} netubers existants · ${nbCommerces} commerces`, "ok");
+  log(`🆕 ${NOUVEAUX_NETUBERS.length} nouveaux netubers seront créés`, "info");
+  log(`📢 ${totalAnnoncesPrevu} annonces · 📦 ${totalProduitsPrevu} produits`, "info");
+
+  const btn = document.getElementById("btnGo");
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-rocket"></i> Lancer le remplissage';
+  document.getElementById("progressTxt").textContent = "Prêt à publier";
+}
+
+// ============ CRÉATION DES 5 NETUBERS ============
+async function creerNouveauxNetubers() {
+  log("🆕 Création des 5 nouveaux netubers...", "title");
+  const crees = [];
+  for (const n of NOUVEAUX_NETUBERS) {
+    const uid = "NTX-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
+    const netuberData = {
+      uid: uid,
+      nom: n.nom,
+      prenom: n.prenom,
+      nomComplet: n.prenom + " " + n.nom,
+      sexe: n.sexe,
+      phone: n.phone,
+      emailAuth: n.email,
+      code: n.code,
+      ville: n.ville,
+      role: "user",
+      actif: true,
+      boutique: null,
+      dateCreation: new Date().toISOString(),
+      creeParAdmin: true
+    };
+    await setDoc(doc(db, "netubers", uid), netuberData);
+    crees.push({ id: uid, ...netuberData });
+    log(`✅ ${n.prenom} ${n.nom} créé (${n.ville}) — UID: ${uid.slice(0, 20)}...`, "ok");
+  }
+  return crees;
+}
+
+// ============ PUBLICATION ANNONCES ============
+async function publierAnnonces(listeNetubers) {
+  let done = 0;
+  const total = listeNetubers.length * 5 * 8;
+
+  for (const user of listeNetubers) {
+    const isCommerce = user.boutique && user.boutique.statut === "approuve";
+    const nomAffiche = isCommerce
+      ? user.boutique.nom
+      : (user.nomComplet || user.nom || user.phone || "Utilisateur");
+
+    log(`📢 ${nomAffiche} — début`, "title");
+
+    for (const cat of Object.keys(ANNONCES)) {
+      const annoncesCat = ANNONCES[cat];
+      const imagesCat = IMG[cat];
+
+      for (let i = 0; i < annoncesCat.length; i++) {
+        const a = annoncesCat[i];
+        const annonceId = "ANN-AUTO-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+
+        const imagesRotation = [
+          imagesCat[i % 5],
+          imagesCat[(i + 1) % 5],
+          imagesCat[(i + 2) % 5],
+          imagesCat[(i + 3) % 5],
+          imagesCat[(i + 4) % 5]
+        ];
+
+        await setDoc(doc(db, "annonces", annonceId), {
+          titre: a.titre,
+          desc: a.desc,
+          ville: a.ville,
+          quartier: a.quartier,
+          prix: a.prix,
+          img: imagesRotation[0],
+          images: imagesRotation,
+          cat: cat,
+          tag: cat.charAt(0).toUpperCase() + cat.slice(1),
+          tagClass: "post-tag-" + cat,
+          proprietaireUid: user.id,
+          publieurNom: nomAffiche,
+          publieurType: isCommerce ? "commerce" : "user",
+          publieurPhone: user.phone || "",
+          publieurVille: a.ville,
+          publieurSexe: user.sexe || "",
+          ajouteParAdmin: true,
+          dateCreation: new Date().toISOString(),
+          actif: true,
+          statut: "approuve",
+          vues: 0
+        });
+
+        await setDoc(doc(db, "annonces", annonceId, "prive", "contact"), {
+          nom: nomAffiche,
+          adresse: a.quartier + ", " + a.ville,
+          telephone: user.phone || "",
+          email: user.emailAuth || ""
+        });
+
+        done++;
+        const pct = Math.round((done / total) * 100);
+        document.getElementById("progressBar").style.width = pct + "%";
+        document.getElementById("progressTxt").textContent = `Annonces : ${done} / ${total} (${pct}%)`;
+      }
+      log(`  ✅ ${cat} — 5 annonces`, "ok");
+    }
+    log(`✅ ${nomAffiche} — terminé (40 annonces)`, "ok");
+  }
+  return done;
+}
+
+// ============ REMPLISSAGE CATALOGUES ============
+async function remplirCatalogues() {
+  let done = 0;
+  const total = tousCommerces.length;
+
+  for (const commerce of tousCommerces) {
+    const nomBoutique = commerce.nom || commerce.nomCommerce || commerce.id;
+    const produitsExistants = commerce.produits || [];
+    const nouveauxProduits = [...produitsExistants];
+
+    let ajoutes = 0;
+    for (const p of PRODUITS_COMMERCE) {
+      if (!nouveauxProduits.find(x => x.nom === p.nom)) {
+        nouveauxProduits.push({
+          nom: p.nom,
+          prix: p.prix,
+          prixLabel: p.prixLabel,
+          img: p.img,
+          categorie: p.categorie,
+          statut: "approuve",
+          ajouteParAdmin: true,
+          dateAjout: new Date().toISOString()
+        });
+        ajoutes++;
+      }
+    }
+
+    await setDoc(doc(db, "commerces", commerce.id), {
+      produits: nouveauxProduits
+    }, { merge: true });
+
+    done++;
+    log(`🏪 ${nomBoutique} — ${ajoutes} produits ajoutés (total ${nouveauxProduits.length})`, "ok");
+    const pct = Math.round((done / total) * 100);
+    document.getElementById("progressBar").style.width = pct + "%";
+    document.getElementById("progressTxt").textContent = `Catalogues : ${done} / ${total} (${pct}%)`;
+  }
+  return done;
+}
+
+// ============ LANCEMENT ============
+document.getElementById("btnGo").onclick = async () => {
+  const btn = document.getElementById("btnGo");
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publication en cours...';
+
+  const start = Date.now();
+
+  try {
+    // 1. Créer les 5 nouveaux netubers
+    const nouveaux = await creerNouveauxNetubers();
+
+    // 2. Fusionner avec les existants
+    const tousPourPublication = [...tousNetubers, ...nouveaux];
+
+    // 3. Publier les annonces pour tout le monde
+    log("🚀 Démarrage de la publication des annonces...", "title");
+    const nbAnnonces = await publierAnnonces(tousPourPublication);
+    log(`✅ ${nbAnnonces} annonces publiées`, "ok");
+
+    // 4. Remplir les catalogues
+    log("🏪 Démarrage du remplissage des catalogues...", "title");
+    const nbCatalogues = await remplirCatalogues();
+    log(`✅ ${nbCatalogues} catalogues remplis`, "ok");
+
+    const duree = ((Date.now() - start) / 1000).toFixed(1);
+    log(`🎉 TERMINÉ en ${duree}s !`, "ok");
+    log(`🆕 5 netubers · 📢 ${nbAnnonces} annonces · 📦 ${nbCatalogues} catalogues`, "info");
+
+    btn.innerHTML = '<i class="fas fa-check"></i> Terminé — Relancer ?';
+    btn.disabled = false;
+
+  } catch (e) {
+    log("❌ Erreur : " + e.message, "err");
+    console.error(e);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-redo"></i> Réessayer';
+  }
+};
+
+chargerDonnees().catch(e => {
+  log("❌ Erreur de chargement : " + e.message, "err");
+  console.error(e);
+});
+</script>
+</body>
+</html>
