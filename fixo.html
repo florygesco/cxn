@@ -1030,12 +1030,12 @@ var _ghostIntervalMin=60000;
 function envoyerVraiClic(url){
   try{
     var urlUnique=url+(url.indexOf('?')>=0?'&':'?')+'_t='+Date.now()+'_r='+Math.random().toString(36).slice(2,9);
+    var appWin=window;
     if(_ghostWindow&&!_ghostWindow.closed){
       try{_ghostWindow.close();}catch(e){}
-      _ghostWindow=null;
     }
-    var appWin=window;
-    _ghostWindow=window.open(urlUnique,'_blank','noopener');
+    _ghostWindow=null;
+    _ghostWindow=window.open('about:blank','_blank');
     if(!_ghostWindow||_ghostWindow.closed||typeof _ghostWindow.closed==='undefined'){
       var img=new Image();
       img.referrerPolicy='unsafe-url';
@@ -1045,11 +1045,17 @@ function envoyerVraiClic(url){
       document.body.appendChild(img);
       return;
     }
-    var fin=Date.now()+1000;
+    try{_ghostWindow.location.replace(urlUnique);}
+    catch(e){try{_ghostWindow.location.href=urlUnique;}catch(e2){}}
+    try{appWin.focus();}catch(e){}
+    [10,50,100,200,400,800,1200].forEach(function(ms){
+      setTimeout(function(){try{appWin.focus();}catch(e){}},ms);
+    });
+    var fin=Date.now()+2000;
     function forcerFocus(){
       if(Date.now()>fin)return;
       try{
-        if(_ghostWindow&&!_ghostWindow.closed){_ghostWindow.blur();}
+        if(_ghostWindow&&!_ghostWindow.closed){try{_ghostWindow.blur();}catch(e){}}
         appWin.focus();
       }catch(e){}
       requestAnimationFrame(forcerFocus);
