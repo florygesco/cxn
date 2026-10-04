@@ -74,16 +74,68 @@ window.loginByPhoneCode=async function(phone,code){
 };
 window.updatePhone=async function(uid,nouveauPhone){await updateDoc(doc(db,'netubers',uid),{phone:nouveauPhone});return{success:true,phone:nouveauPhone};};
 window.logoutUser=async function(){try{await signOut(auth);}catch(e){}};
-window.creerDeblocage=async function(uid,annonceId,transactionId,montant){const key=uid+'_'+annonceId;await setDoc(doc(db,'deblocages',key),{uid:uid,annonceId:annonceId,statut:'en_attente',montant:montant||1000,transactionId:transactionId||'',dateDemande:new Date().toISOString(),dateValidation:null});return{success:true,key:key};};
 window.mesDeblocages=async function(uid){const q=query(collection(db,'deblocages'),where('uid','==',uid));const snap=await getDocs(q);const list=[];snap.forEach(function(d){list.push({id:d.id,...d.data()});});return list;};
 window.lireCoordonnees=async function(annonceId){try{const snap=await getDoc(doc(db,'annonces',annonceId,'prive','contact'));if(!snap.exists())return null;return snap.data();}catch(e){return null;}};
-window.creerAnnonce=async function(data,coordonnees){
+window.creerAnnonce=async function(data,coordonnees,paiement){
+  if(!paiement || !paiement.transactionId || !paiement.numeroEnvoi){
+    throw new Error('Preuve de paiement obligatoire');
+  }
+  if(String(paiement.transactionId).trim().length < 6){
+    throw new Error('ID Transaction invalide');
+  }
+  if(String(paiement.numeroEnvoi).replace(/[^\d]/g,'').length < 9){
+    throw new Error('Numéro d\'envoi invalide');
+  }
   const annonceId='ANN-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
-  await setDoc(doc(db,'annonces',annonceId),{titre:data.titre||'',desc:data.desc||'',ville:data.ville||'',quartier:data.quartier||'',prix:data.prix||'',img:data.img||'',cat:data.cat||'autre',tag:data.tag||'',tagClass:data.tagClass||'',proprietaireUid:data.proprietaireUid||null,publieurNom:data.publieurNom||'',publieurType:data.publieurType||'user',publieurBoutique:data.publieurBoutique||null,publieurPhone:data.publieurPhone||'',publieurVille:data.publieurVille||'',dateCreation:new Date().toISOString(),actif:true,vues:0});
-  await setDoc(doc(db,'annonces',annonceId,'prive','contact'),{nom:coordonnees.nom||'',adresse:coordonnees.adresse||'',telephone:coordonnees.telephone||'',email:coordonnees.email||''});
+  await setDoc(doc(db,'annonces',annonceId),{
+    titre:data.titre||'',desc:data.desc||'',ville:data.ville||'',
+    quartier:data.quartier||'',prix:data.prix||'',img:data.img||'',
+    cat:data.cat||'autre',tag:data.tag||'',tagClass:data.tagClass||'',
+    proprietaireUid:data.proprietaireUid||null,
+    publieurNom:data.publieurNom||'',publieurType:data.publieurType||'user',
+    publieurBoutique:data.publieurBoutique||null,
+    publieurPhone:data.publieurPhone||'',publieurVille:data.publieurVille||'',
+    dateCreation:new Date().toISOString(),
+    actif:false,
+    statut:'en_attente',
+    vues:0,
+    paiement:{
+      transactionId:paiement.transactionId,
+      numeroEnvoi:paiement.numeroEnvoi,
+      montant:paiement.montant||1000,
+      destinataire:'+243976953045',
+      datePaiement:new Date().toISOString()
+    }
+  });
+  await setDoc(doc(db,'annonces',annonceId,'prive','contact'),{
+    nom:coordonnees.nom||'',adresse:coordonnees.adresse||'',
+    telephone:coordonnees.telephone||'',email:coordonnees.email||''
+  });
   return{annonceId:annonceId};
 };
 window.creerDemandeBoutique=async function(data){const demandeId='DEM-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);await setDoc(doc(db,'demandes_boutiques',demandeId),Object.assign({},data,{statut:'en_attente',dateCreation:new Date().toISOString()}));return{demandeId:demandeId};};
+window.creerDeblocage=async function(uid,annonceId,transactionId,montant,numeroEnvoi){
+  if(!transactionId || String(transactionId).trim().length < 6){
+    throw new Error('ID Transaction invalide');
+  }
+  if(!numeroEnvoi || String(numeroEnvoi).replace(/[^\d]/g,'').length < 9){
+    throw new Error('Numéro d\'envoi invalide');
+  }
+  const key=uid+'_'+annonceId;
+  await setDoc(doc(db,'deblocages',key),{
+    uid:uid,
+    annonceId:annonceId,
+    statut:'en_attente',
+    montant:montant||1000,
+    transactionId:transactionId,
+    numeroEnvoi:numeroEnvoi,
+    destinataire:'+243976953045',
+    dateDemande:new Date().toISOString(),
+    dateValidation:null,
+    coordonnees:null
+  });
+  return{success:true,key:key};
+};
 window.incrementerVuesAnnonceFirestore=async function(annonceId){
   if(!annonceId)return;
   try{
@@ -92,7 +144,7 @@ window.incrementerVuesAnnonceFirestore=async function(annonceId){
     if(!snap.exists())return;
     const current=snap.data().vues||0;
     await setDoc(annonceRef,{vues:current+1},{merge:true});
-  }catch(e){console.warn('vues annonce:',e.message);}
+  }catch(e){}
 };
 window.chargerCommercesFirestore=async function(){
   try{
@@ -122,7 +174,7 @@ window.chargerCommercesFirestore=async function(){
     });
     commerces.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
     return commerces;
-  }catch(e){console.warn('chargerCommerces:',e.message);return [];}
+  }catch(e){return [];}
 };
 window.chargerAnnoncesFirestore=async function(){
   try{
@@ -132,6 +184,7 @@ window.chargerAnnoncesFirestore=async function(){
     snap.forEach(d=>{
       const data=d.data();
       if(data.actif===false)return;
+      if(data.statut!=='approuve')return;
       const nomPublieur=data.publieurNom||data.nom||'Utilisateur NeTubeX';
       const typePublieur=data.publieurType||'user';
       const uid=data.proprietaireUid||null;
@@ -148,7 +201,7 @@ window.chargerAnnoncesFirestore=async function(){
     });
     annonces.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
     return annonces;
-  }catch(e){console.warn('chargerAnnonces:',e.message);return [];}
+  }catch(e){return [];}
 };
 window.chargerBoutiqueFraiche=async function(uid){
   try{
@@ -178,14 +231,14 @@ window.chargerBoutiqueFraiche=async function(uid){
       img:commerceData.img||userData.boutique.img||'',
       whatsapp:commerceData.whatsapp||commerceData.whatsappCommercial||userData.boutique.whatsappCommercial||userData.boutique.whatsapp||''
     };
-  }catch(e){console.warn('chargerBoutiqueFraiche:',e.message);return null;}
+  }catch(e){return null;}
 };
 window.enregistrerVueLive=async function(annonceId, uid){
   if(!annonceId || !uid) return;
   try{
     const liveRef=doc(db,'annonces',annonceId,'live',uid);
     await setDoc(liveRef,{date:new Date().toISOString(),timestamp:Date.now()});
-  }catch(e){console.warn('Live:',e.message);}
+  }catch(e){}
 };
 window.compterVuesLive=async function(annonceId){
   try{
@@ -269,7 +322,7 @@ main{padding-top:132px}
 .btn-3d.red{background:#ef4444;color:#fff;box-shadow:0 4px 0 #dc2626}
 .btn-3d.amber{background:#f59e0b;color:#fff;box-shadow:0 4px 0 #d97706}
 .btn-3d.gray{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;box-shadow:0 4px 0 #cbd5e1}
-.btn-3d:active{transform:translateY(3px);box-shadow:0 1px 0 #1d4ed8}
+.btn-3d:active{transform:translateY(3px)}
 .link-3d{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-radius:30px;font-weight:800;font-size:11.5px;text-decoration:none}
 .link-3d.gray{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0}
 .link-3d.blue{background:#3b82f6;color:#fff}
@@ -352,9 +405,7 @@ body.dark-mode .fb-post-media{background:linear-gradient(135deg,#0f2138,#14304d)
 .fb-action-btn:active{transform:translateY(2px)}
 .fb-action-btn i{font-size:14px}
 .fb-action-btn.fb-action-postuler{background:#f59e0b;color:#fff;font-weight:900;margin-left:auto;border:1.5px solid #d97706;box-shadow:0 3px 0 #b45309}
-.fb-action-btn.fb-action-postuler:active{transform:translateY(3px);box-shadow:0 0 0 #b45309}
 .fb-action-primary{background:#3b82f6;color:#fff;font-weight:900;margin-left:auto;border:none;box-shadow:0 3px 0 #1d4ed8}
-.fb-action-primary:active{transform:translateY(3px);box-shadow:0 0 0 #1d4ed8}
 .fb-post-views{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#dbeafe;color:#1e40af;font-size:10.5px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;margin-top:8px;margin-left:6px}
 body.dark-mode .fb-post-views{background:rgba(59,130,246,.18);color:#93c5fd}
 .fb-post-views i{font-size:11px;opacity:.85}
@@ -365,16 +416,8 @@ body.dark-mode .fb-post-views{background:rgba(59,130,246,.18);color:#93c5fd}
 .verified-badge i,.verified-badge::before{color:#FFFFFF !important;font-size:11px;font-weight:900;line-height:1;opacity:1 !important;text-shadow:none;display:flex;align-items:center;justify-content:center;width:100%;height:100%}
 body.dark-mode .verified-badge{background:#3b82f6 !important;border-color:#1e40af !important}
 body.dark-mode .verified-badge i,body.dark-mode .verified-badge::before{color:#FFFFFF !important}
-.fb-post-name .verified-badge{width:14px;height:14px;min-width:14px;min-height:14px;font-size:11px;margin-left:4px}
-.fb-post-name .verified-badge i,.fb-post-name .verified-badge::before{font-size:11px}
-.fb-post-title .verified-badge{width:13px;height:13px;min-width:13px;min-height:13px;font-size:10px;margin-left:4px;border-width:1.5px !important}
-.fb-post-title .verified-badge i,.fb-post-title .verified-badge::before{font-size:10px}
-.detail-org-name .verified-badge{width:15px;height:15px;min-width:15px;min-height:15px;font-size:11.5px;margin-left:5px}
-.detail-org-name .verified-badge i,.detail-org-name .verified-badge::before{font-size:11.5px}
-.catalogue-verified{width:20px !important;height:20px !important;min-width:20px !important;min-height:20px !important;font-size:15px !important;margin-left:8px !important;background:#1877F2 !important;border:2px solid #0C5FCD !important}
-.catalogue-verified i,.catalogue-verified::before{font-size:15px !important;color:#FFFFFF !important}
 .post-tag-urgence{background:#dc2626;color:#fff;animation:pulseUrgence 1.2s ease-in-out infinite}
-@keyframes pulseUrgence{0%,100%{opacity:1;transform:scale(1);box-shadow:0 0 0 0 rgba(220,38,38,.7)}50%{opacity:.85;transform:scale(1.05);box-shadow:0 0 0 8px rgba(220,38,38,0)}}
+@keyframes pulseUrgence{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.85;transform:scale(1.05)}}
 .post-tag-school{background:#dbeafe;color:#1e40af}
 .post-tag-property{background:#fef3c7;color:#92400e}
 .post-tag-land{background:#d1fae5;color:#065f46}
@@ -384,17 +427,14 @@ body.dark-mode .verified-badge i,body.dark-mode .verified-badge::before{color:#F
 .post-tag-vehicule{background:#dbeafe;color:#1e40af}
 .post-tag-electronique{background:#ede9fe;color:#5b21b6}
 .post-tag-commerce{background:#d1fae5;color:#065f46}
-body.dark-mode .post-tag-school{background:rgba(59,130,246,.2);color:#93c5fd}
+body.dark-mode .post-tag-school,body.dark-mode .post-tag-entreprise,body.dark-mode .post-tag-vehicule{background:rgba(59,130,246,.2);color:#93c5fd}
 body.dark-mode .post-tag-property{background:rgba(245,158,11,.2);color:#fcd34d}
-body.dark-mode .post-tag-land{background:rgba(16,185,129,.2);color:#6ee7b7}
-body.dark-mode .post-tag-entreprise{background:rgba(59,130,246,.2);color:#93c5fd}
+body.dark-mode .post-tag-land,body.dark-mode .post-tag-commerce{background:rgba(16,185,129,.2);color:#6ee7b7}
 body.dark-mode .post-tag-autre{background:rgba(99,102,241,.2);color:#a5b4fc}
 body.dark-mode .post-tag-hopital{background:rgba(239,68,68,.2);color:#fca5a5}
-body.dark-mode .post-tag-vehicule{background:rgba(59,130,246,.2);color:#93c5fd}
 body.dark-mode .post-tag-electronique{background:rgba(139,92,246,.2);color:#c4b5fd}
-body.dark-mode .post-tag-commerce{background:rgba(16,185,129,.2);color:#6ee7b7}
-@keyframes slideInDetail{0%{opacity:0;transform:translateX(30px)}100%{opacity:1;transform:translateX(0)}}
 #page-detail.active{animation:slideInDetail 380ms cubic-bezier(.22,1,.36,1) both}
+@keyframes slideInDetail{0%{opacity:0;transform:translateX(30px)}100%{opacity:1;transform:translateX(0)}}
 .detail-wrapper{width:100%;background:var(--bg-app);padding-bottom:40px}
 .detail-hero{position:relative;width:100%;aspect-ratio:16/10;background:var(--bg-card-alt);overflow:hidden}
 .detail-hero img{width:100%;height:100%;object-fit:cover;display:block}
@@ -440,27 +480,6 @@ body.dark-mode .post-tag-commerce{background:rgba(16,185,129,.2);color:#6ee7b7}
 .detail-fullscreen.active{display:flex;opacity:1}
 .detail-fullscreen img{max-width:100%;max-height:calc(100vh - 150px);object-fit:contain;border-radius:12px;cursor:default}
 .detail-fs-close{position:absolute;top:20px;right:20px;width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);z-index:3}
-.unlock-modal-bottom{display:none;position:fixed;inset:0;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);z-index:100;align-items:flex-end;justify-content:center;padding:0;opacity:0;transition:opacity .5s ease-out}
-.unlock-modal-bottom.active{display:flex;opacity:1}
-.unlock-modal-box{background:var(--bg-card);border-radius:28px 28px 0 0;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;padding:26px 22px max(26px,env(safe-area-inset-bottom));position:relative;transform:translateY(100%)}
-.unlock-modal-bottom.active .unlock-modal-box{animation:unlockSlideUp .65s cubic-bezier(.16,.84,.44,1) forwards}
-@keyframes unlockSlideUp{0%{transform:translateY(100%);opacity:0}60%{opacity:1}100%{transform:translateY(0);opacity:1}}
-.unlock-modal-box.compact{padding:20px 20px max(20px,env(safe-area-inset-bottom))}
-.unlock-close-btn{position:absolute;top:14px;right:14px;width:38px;height:38px;border-radius:12px;background:var(--bg-card-alt);border:1px solid var(--border-primary);color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px}
-.unlock-icon-sm{width:52px;height:52px;border-radius:16px;background:#f59e0b;color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 10px}
-.unlock-title{font-size:16px;font-weight:900;color:var(--text-primary)}
-.unlock-subtitle{font-size:11.5px;color:var(--text-muted);margin-top:3px}
-.unlock-ref{background:linear-gradient(135deg,#0f172a,#1e293b);border-radius:11px;padding:9px 14px;text-align:center;margin-bottom:10px}
-.unlock-ref-lbl{display:block;font-size:9px;color:#67e8f9;font-weight:900;text-transform:uppercase;margin-bottom:2px}
-.unlock-ref-code{font-family:ui-monospace,Menlo,monospace;font-size:14px;font-weight:900;color:#fff;letter-spacing:1px}
-.unlock-payment-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px;border-radius:12px;border:1.5px solid;margin-bottom:12px}
-.unlock-payment-item.airtel{background:rgba(220,38,38,.06);border-color:rgba(220,38,38,.25)}
-.unlock-payment-name{font-size:11.5px;font-weight:900;display:block;color:var(--text-primary);margin-bottom:2px}
-.unlock-payment-num{font-family:ui-monospace,Menlo,monospace;font-size:13.5px;font-weight:900;color:var(--text-primary)}
-.unlock-copy-btn{padding:7px 13px;border-radius:9px;background:var(--bg-card);border:1px solid var(--border-primary);color:var(--text-secondary);font-size:11px;font-weight:800;cursor:pointer;font-family:inherit}
-.unlock-form{display:flex;flex-direction:column;gap:10px;padding-top:14px;border-top:1px solid var(--border-soft)}
-.unlock-input{padding:11px 14px;font-size:13px}
-.unlock-submit{width:100%;padding:13px;font-size:13px;margin-top:4px}
 .publish-pending-overlay{position:fixed;inset:0;background:rgba(15,23,42,.65);backdrop-filter:blur(6px);z-index:700;opacity:0;pointer-events:none;transition:opacity .3s ease}
 .publish-pending-overlay.active{opacity:1;pointer-events:auto}
 .publish-pending-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.85);background:var(--bg-card);border-radius:24px;padding:32px 26px 24px;max-width:400px;width:calc(100% - 32px);text-align:center;border:1px solid var(--border-primary);z-index:710;opacity:0;pointer-events:none;transition:opacity .3s ease,transform .4s cubic-bezier(.34,1.56,.64,1)}
@@ -479,6 +498,10 @@ body.dark-mode .post-tag-commerce{background:rgba(16,185,129,.2);color:#6ee7b7}
 .deblocage-pending-close{flex:1;padding:13px 18px;border-radius:14px;font-weight:900;font-size:13px;border:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:8px}
 .deblocage-pending-close.primary{background:linear-gradient(180deg,#3b82f6,#1d4ed8);color:#fff;box-shadow:0 4px 0 #1e3a8a}
 .deblocage-pending-close.secondary{background:var(--bg-card-soft);color:var(--text-secondary);border:1.5px solid var(--border-primary)}
+.paiement-modal{position:fixed;inset:0;background:rgba(15,23,42,.75);backdrop-filter:blur(6px);z-index:750;display:none;align-items:flex-end;justify-content:center}
+.paiement-modal.active{display:flex}
+.paiement-box{background:var(--bg-card);border-radius:24px 24px 0 0;max-width:520px;width:100%;padding:24px;padding-bottom:max(24px,env(safe-area-inset-bottom));max-height:90vh;overflow-y:auto;position:relative;animation:paiementSlideUp .5s cubic-bezier(.16,.84,.44,1)}
+@keyframes paiementSlideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
 .dash-tabs-scroll{display:flex;gap:6px;margin-bottom:20px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px}
 .dash-tabs-scroll::-webkit-scrollbar{display:none}
 .dash-tab{flex-shrink:0;padding:10px 16px;border-radius:12px;font-size:12.5px;font-weight:800;background:var(--bg-card-soft);color:var(--text-secondary);border:1.5px solid var(--border-primary);cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
@@ -501,8 +524,7 @@ body.dark-mode .post-tag-commerce{background:rgba(16,185,129,.2);color:#6ee7b7}
 .commerce-card-image{position:relative;width:100%;aspect-ratio:16/10;background:var(--bg-card-alt);overflow:hidden;flex-shrink:0}
 .commerce-card-image img{width:100%;height:100%;object-fit:cover;display:block}
 .commerce-card-type-badge{position:absolute;top:12px;left:12px;background:rgba(15,23,42,.85);color:#67e8f9;font-size:10px;font-weight:900;padding:5px 10px;border-radius:8px;text-transform:uppercase;backdrop-filter:blur(6px)}
-.commerce-card-verified{position:absolute;top:12px;right:12px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;font-size:10.5px;font-weight:900;padding:6px 12px;border-radius:999px;box-shadow:0 4px 12px rgba(37,99,235,.55),inset 0 1px 0 rgba(255,255,255,.3);border:1.5px solid rgba(255,255,255,.4);letter-spacing:.4px;text-transform:uppercase;text-shadow:0 1px 2px rgba(0,0,0,.2)}
-body.dark-mode .commerce-card-verified{background:linear-gradient(135deg,#2563eb,#1e40af);box-shadow:0 4px 14px rgba(96,165,250,.65),inset 0 1px 0 rgba(255,255,255,.35);border-color:rgba(191,219,254,.55)}
+.commerce-card-verified{position:absolute;top:12px;right:12px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;font-size:10.5px;font-weight:900;padding:6px 12px;border-radius:999px;box-shadow:0 4px 12px rgba(37,99,235,.55);border:1.5px solid rgba(255,255,255,.4);letter-spacing:.4px;text-transform:uppercase}
 .commerce-card-body{padding:16px;display:flex;flex-direction:column;gap:10px;flex:1}
 .commerce-card-title{font-size:16px;font-weight:900;color:var(--text-primary);line-height:1.3;margin:0}
 .commerce-card-location{font-size:12.5px;color:var(--text-muted);font-weight:600;display:flex;align-items:center;gap:5px}
@@ -532,12 +554,10 @@ body.dark-mode .commerce-card-verified{background:linear-gradient(135deg,#2563eb
 .cart-total-row{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:#eff6ff;border:1px solid rgba(59,130,246,.25);border-radius:11px;margin-bottom:14px}
 .cart-whatsapp-btn{width:100%;padding:14px;border-radius:30px;background:#10b981;color:#fff;font-weight:900;font-size:13.5px;border:none;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px}
 .cart-footer{padding:16px;background:var(--bg-card);border-top:1px solid var(--border-primary);flex-shrink:0}
-#toast{position:fixed;top:90px;left:50%;transform:translateX(-50%) translateY(-120px) scale(.9);background:#0f172a;color:#ffffff;padding:14px 22px;border-radius:999px;font-size:14.5px;font-weight:800;z-index:700;transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .35s ease;opacity:0;pointer-events:none;display:inline-flex;align-items:center;gap:10px;max-width:calc(100vw - 24px);box-shadow:0 12px 32px rgba(15,23,42,.35),0 4px 12px rgba(15,23,42,.25);border:1px solid rgba(255,255,255,.1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
-#toast.show{transform:translateX(-50%) translateY(0) scale(1);opacity:1;animation:toastPop .4s cubic-bezier(.34,1.56,.64,1)}
-@keyframes toastPop{0%{transform:translateX(-50%) translateY(0) scale(.85)}60%{transform:translateX(-50%) translateY(0) scale(1.05)}100%{transform:translateX(-50%) translateY(0) scale(1)}}
+#toast{position:fixed;top:90px;left:50%;transform:translateX(-50%) translateY(-120px) scale(.9);background:#0f172a;color:#ffffff;padding:14px 22px;border-radius:999px;font-size:14.5px;font-weight:800;z-index:700;transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .35s ease;opacity:0;pointer-events:none;display:inline-flex;align-items:center;gap:10px;max-width:calc(100vw - 24px);box-shadow:0 12px 32px rgba(15,23,42,.35);border:1px solid rgba(255,255,255,.1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#toast.show{transform:translateX(-50%) translateY(0) scale(1);opacity:1}
 #toast i{color:#10b981;font-size:18px;flex-shrink:0;width:26px;height:26px;border-radius:50%;background:rgba(16,185,129,.15);display:flex;align-items:center;justify-content:center}
-body.dark-mode #toast{background:#ffffff;color:#0f172a;border-color:rgba(15,23,42,.1);box-shadow:0 12px 32px rgba(0,0,0,.4),0 4px 12px rgba(0,0,0,.3)}
-body.dark-mode #toast i{color:#10b981;background:rgba(16,185,129,.15)}
+body.dark-mode #toast{background:#ffffff;color:#0f172a}
 .publish-label{display:block;font-size:11px;font-weight:800;color:var(--text-secondary);text-transform:uppercase;margin-bottom:8px}
 .custom-select{position:relative;width:100%}
 .custom-select-trigger{width:100%;padding:15px 18px;border-radius:14px;background:var(--bg-card-soft);border:1.5px solid var(--border-primary);cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;color:var(--text-primary);display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left}
@@ -548,12 +568,12 @@ body.dark-mode #toast i{color:#10b981;background:rgba(16,185,129,.15)}
 .custom-select.open .custom-select-arrow{transform:rotate(180deg);color:#3b82f6}
 .custom-select-menu{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--bg-card);border:1px solid var(--border-primary);border-radius:14px;box-shadow:0 16px 40px -12px rgba(15,23,42,.25);padding:6px;opacity:0;pointer-events:none;transform:translateY(-8px) scale(.98);transition:opacity .25s ease,transform .25s;z-index:100;max-height:280px;overflow-y:auto}
 .custom-select.open .custom-select-menu{opacity:1;pointer-events:auto;transform:translateY(0) scale(1)}
-.custom-select-option{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;cursor:pointer;font-size:14px;font-weight:700;color:var(--text-secondary);transition:all .15s ease}
+.custom-select-option{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;cursor:pointer;font-size:14px;font-weight:700;color:var(--text-secondary)}
 .custom-select-option:hover{background:#f1f5f9}
 .custom-select-option.selected{background:linear-gradient(180deg,#eff6ff,#dbeafe);color:#1e40af}
 .cs-emoji{font-size:20px;width:26px;text-align:center;flex-shrink:0}
 .cs-label{flex:1;min-width:0}
-.cs-check{color:#3b82f6;font-size:13px;flex-shrink:0;opacity:0;transition:opacity .2s}
+.cs-check{color:#3b82f6;font-size:13px;flex-shrink:0;opacity:0}
 .custom-select-option.selected .cs-check{opacity:1}
 #publishDropZone{border:2px dashed var(--border-primary);border-radius:16px;padding:26px 20px;text-align:center;cursor:pointer;background:var(--bg-card-soft)}
 .publish-images-preview{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:10px;margin-top:16px}
@@ -562,15 +582,16 @@ body.dark-mode #toast i{color:#10b981;background:rgba(16,185,129,.15)}
 .publish-image-remove{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;background:rgba(239,68,68,.9);color:#fff;border:2px solid #fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900}
 .slide-from-left{animation:slideInFromLeft .45s cubic-bezier(.22,1,.36,1) both}
 @keyframes slideInFromLeft{0%{opacity:0;transform:translateX(-60px)}100%{opacity:1;transform:translateX(0)}}
-.insc-step-dot{transition:background .3s ease}
-@keyframes modalSlideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
 #account-modal{opacity:0;transition:opacity .25s ease}
 #account-modal.active{opacity:1}
 #account-modal>div{animation:modalSlideUp .4s cubic-bezier(.22,.9,.28,1) forwards}
+@keyframes modalSlideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
 #appelOptionsModal{opacity:0;transition:opacity .25s ease}
 #appelOptionsModal.active{opacity:1}
 #appelOptionsModal>div{animation:modalSlideUp .4s cubic-bezier(.22,.9,.28,1) forwards}
 @keyframes spinSearch{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.search-results-overlay{position:fixed;inset:0;background:rgba(15,23,42,.65);backdrop-filter:blur(4px);z-index:800}
+.search-results-panel{position:fixed;inset:0;z-index:810;display:flex;align-items:flex-start;justify-content:center;padding-top:0}
 </style>
 </head>
 <body class="page-index-active">
@@ -654,18 +675,12 @@ body.dark-mode #toast i{color:#10b981;background:rgba(16,185,129,.15)}
 <div class="fb-feed" id="mainFeed"></div>
 <div id="feedSentinel" style="height:1px"></div>
 </div>
-
 <div id="feedFooterCard" class="container-3d" style="padding:16px 16px 40px">
 <div style="text-align:center;padding:24px 16px">
-<div style="font-size:12px;color:#64748b;font-weight:800;letter-spacing:.3px;margin-bottom:6px">
-NeTubeX © <span id="footerYear">2026</span>
-</div>
-<div style="font-size:11.5px;font-weight:700">
-<a href="https://www.netubex.com" target="_blank" rel="noopener" style="color:#2563eb;text-decoration:none">www.netubex.com</a>
+<div style="font-size:12px;color:#64748b;font-weight:800;letter-spacing:.3px;margin-bottom:6px">NeTubeX © <span id="footerYear">2026</span></div>
+<div style="font-size:11.5px;font-weight:700"><a href="https://www.netubex.com" target="_blank" rel="noopener" style="color:#2563eb;text-decoration:none">www.netubex.com</a></div>
 </div>
 </div>
-</div>
-
 </div>
 <div id="page-category" class="page">
 <div class="page-header-3d">
@@ -695,24 +710,15 @@ NeTubeX © <span id="footerYear">2026</span>
 <div style="display:flex;flex-direction:column;gap:12px">
 <div style="display:flex;align-items:flex-start;gap:14px;padding:14px;background:var(--bg-card-soft);border-radius:14px">
 <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0"><i class="fa-solid fa-user"></i></div>
-<div style="flex:1;min-width:0">
-<div style="font-size:10.5px;font-weight:900;color:var(--text-light);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Propriétaire</div>
-<div id="detailContactOwner" style="font-size:14.5px;font-weight:800;color:var(--text-primary);line-height:1.35">—</div>
-</div>
+<div style="flex:1;min-width:0"><div style="font-size:10.5px;font-weight:900;color:var(--text-light);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Propriétaire</div><div id="detailContactOwner" style="font-size:14.5px;font-weight:800;color:var(--text-primary);line-height:1.35">—</div></div>
 </div>
 <div style="display:flex;align-items:flex-start;gap:14px;padding:14px;background:var(--bg-card-soft);border-radius:14px">
 <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0"><i class="fa-solid fa-location-dot"></i></div>
-<div style="flex:1;min-width:0">
-<div style="font-size:10.5px;font-weight:900;color:var(--text-light);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Adresse à domicile</div>
-<div id="detailContactAddr" style="font-size:14.5px;font-weight:800;color:var(--text-primary);line-height:1.35">—</div>
-</div>
+<div style="flex:1;min-width:0"><div style="font-size:10.5px;font-weight:900;color:var(--text-light);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Adresse à domicile</div><div id="detailContactAddr" style="font-size:14.5px;font-weight:800;color:var(--text-primary);line-height:1.35">—</div></div>
 </div>
 <div style="display:flex;align-items:flex-start;gap:14px;padding:14px;background:var(--bg-card-soft);border-radius:14px">
 <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0"><i class="fa-solid fa-phone"></i></div>
-<div style="flex:1;min-width:0">
-<div style="font-size:10.5px;font-weight:900;color:var(--text-light);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Téléphone</div>
-<div id="detailContactPhone" style="font-size:14.5px;font-weight:800;color:var(--text-primary);font-family:ui-monospace,monospace;line-height:1.35">—</div>
-</div>
+<div style="flex:1;min-width:0"><div style="font-size:10.5px;font-weight:900;color:var(--text-light);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Téléphone</div><div id="detailContactPhone" style="font-size:14.5px;font-weight:800;color:var(--text-primary);font-family:ui-monospace,monospace;line-height:1.35">—</div></div>
 </div>
 </div>
 </div>
@@ -727,14 +733,10 @@ NeTubeX © <span id="footerYear">2026</span>
 <div class="page-header-3d"><div style="max-width:1000px;margin:0 auto;text-align:center"><h1 class="page-title-3d">Créer une annonce</h1><p class="page-subtitle-3d">Publiez votre offre.</p></div></div>
 <div class="container-3d" style="max-width:700px;padding:16px">
 <form onsubmit="event.preventDefault();submitPublish();" id="publishForm">
-
 <div class="section-card-3d" style="padding:20px;margin-bottom:16px">
 <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
 <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0"><i class="fa-solid fa-list"></i></div>
-<div>
-<div style="font-size:10.5px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Étape 1</div>
-<div style="font-size:15px;font-weight:900;color:var(--text-primary);margin-top:2px">Type d'offre</div>
-</div>
+<div><div style="font-size:10.5px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Étape 1</div><div style="font-size:15px;font-weight:900;color:var(--text-primary);margin-top:2px">Type d'offre</div></div>
 </div>
 <label class="publish-label">Choisissez une catégorie *</label>
 <div class="custom-select" id="customSelectType">
@@ -746,60 +748,34 @@ NeTubeX © <span id="footerYear">2026</span>
 </div>
 </div>
 </div>
-
 <div class="section-card-3d" style="padding:20px;margin-bottom:16px">
 <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
 <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0"><i class="fa-solid fa-pen-to-square"></i></div>
-<div>
-<div style="font-size:10.5px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Étape 2</div>
-<div style="font-size:15px;font-weight:900;color:var(--text-primary);margin-top:2px">Informations</div>
-</div>
+<div><div style="font-size:10.5px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Étape 2</div><div style="font-size:15px;font-weight:900;color:var(--text-primary);margin-top:2px">Informations</div></div>
 </div>
 <div style="display:flex;flex-direction:column;gap:16px">
-<div>
-<label class="publish-label" id="publishTitreLabel">Titre de l'annonce *</label>
-<input type="text" id="publishTitre" required placeholder="Ex: Appartement 3 chambres à Gombe" class="form-input-3d" maxlength="100">
-<div style="font-size:10.5px;color:var(--text-muted);margin-top:4px;text-align:right"><span id="titreCount">0</span>/100</div>
-</div>
-<div>
-<label class="publish-label">Ville *</label>
+<div><label class="publish-label" id="publishTitreLabel">Titre de l'annonce *</label><input type="text" id="publishTitre" required placeholder="Ex: Appartement 3 chambres à Gombe" class="form-input-3d" maxlength="100"><div style="font-size:10.5px;color:var(--text-muted);margin-top:4px;text-align:right"><span id="titreCount">0</span>/100</div></div>
+<div><label class="publish-label">Ville *</label>
 <select id="publishVille" required class="form-input-3d" onchange="togglePublishVilleLibre()">
 <option value="">— Choisir une ville —</option>
-<option>Kinshasa</option>
-<option>Lubumbashi</option>
-<option>Kasumbalesa</option>
+<option>Kinshasa</option><option>Lubumbashi</option><option>Kasumbalesa</option>
 <option value="autre">Autre ville…</option>
 </select>
 <input type="text" id="publishVilleLibre" placeholder="Précisez la ville *" class="form-input-3d" style="display:none;margin-top:10px">
 </div>
-<div>
-<label class="publish-label" id="publishPrixLabel">Prix / Salaire *</label>
-<input type="text" id="publishPrix" required placeholder="Ex: 450$ / mois ou 50 000 FC" class="form-input-3d" maxlength="40">
-</div>
-<div>
-<label class="publish-label" id="publishAdresseLabel">Adresse à domicile *</label>
-<input type="text" id="publishAdresse" required placeholder="Ex: Av. de la Paix N° 45, Gombe, Kinshasa" class="form-input-3d" maxlength="150">
-<div style="font-size:10.5px;color:var(--text-muted);margin-top:4px">Cette adresse sera visible après déblocage</div>
-</div>
-<div>
-<label class="publish-label" id="publishDescLabel">Description *</label>
-<textarea id="publishDescription" rows="5" required placeholder="Décrivez votre offre en détail : caractéristiques, conditions, contact…" class="form-input-3d" style="resize:none" maxlength="500"></textarea>
-<div style="font-size:10.5px;color:var(--text-muted);margin-top:4px;text-align:right"><span id="descCount">0</span>/500</div>
+<div><label class="publish-label" id="publishPrixLabel">Prix / Salaire *</label><input type="text" id="publishPrix" required placeholder="Ex: 450$ / mois ou 50 000 FC" class="form-input-3d" maxlength="40"></div>
+<div><label class="publish-label" id="publishAdresseLabel">Adresse à domicile *</label><input type="text" id="publishAdresse" required placeholder="Ex: Av. de la Paix N° 45, Gombe, Kinshasa" class="form-input-3d" maxlength="150"></div>
+<div><label class="publish-label" id="publishDescLabel">Description *</label><textarea id="publishDescription" rows="5" required placeholder="Décrivez votre offre en détail…" class="form-input-3d" style="resize:none" maxlength="500"></textarea><div style="font-size:10.5px;color:var(--text-muted);margin-top:4px;text-align:right"><span id="descCount">0</span>/500</div></div>
 </div>
 </div>
-</div>
-
 <div class="section-card-3d" id="publishImagesSection" style="padding:20px;margin-bottom:16px;display:none">
 <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
 <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0"><i class="fa-solid fa-camera"></i></div>
-<div style="flex:1">
-<div style="font-size:10.5px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Étape 3</div>
-<div style="font-size:15px;font-weight:900;color:var(--text-primary);margin-top:2px">Photos</div>
-</div>
+<div style="flex:1"><div style="font-size:10.5px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Étape 3</div><div style="font-size:15px;font-weight:900;color:var(--text-primary);margin-top:2px">Photos</div></div>
 <span id="publishImagesCounter" style="font-size:11px;font-weight:800;color:#3b82f6;background:#eff6ff;padding:5px 10px;border-radius:8px">0 photo</span>
 </div>
 <p id="publishImagesHint" style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.5"></p>
-<div id="publishDropZone" onclick="document.getElementById('publishImagesInput').click()" style="border:2px dashed var(--border-primary);border-radius:16px;padding:30px 20px;text-align:center;cursor:pointer;background:var(--bg-card-soft);transition:all .2s ease">
+<div id="publishDropZone" onclick="document.getElementById('publishImagesInput').click()">
 <div style="width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#eff6ff,#dbeafe);color:#3b82f6;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 12px"><i class="fa-solid fa-cloud-arrow-up"></i></div>
 <div style="font-size:13.5px;font-weight:800;color:var(--text-primary);margin-bottom:4px">Ajouter des photos</div>
 <div style="font-size:11.5px;color:var(--text-muted)">JPG, PNG · Cliquez pour parcourir</div>
@@ -807,33 +783,17 @@ NeTubeX © <span id="footerYear">2026</span>
 </div>
 <div id="publishImagesPreview" class="publish-images-preview"></div>
 </div>
-
 <div class="section-card-3d" style="padding:20px;margin-bottom:16px;background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1.5px solid #fcd34d">
 <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
 <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0"><i class="fa-solid fa-receipt"></i></div>
-<div>
-<div style="font-size:10.5px;font-weight:800;color:#92400e;text-transform:uppercase;letter-spacing:.4px">Récapitulatif</div>
-<div style="font-size:15px;font-weight:900;color:#78350f;margin-top:2px">Frais de publication</div>
-</div>
+<div><div style="font-size:10.5px;font-weight:800;color:#92400e;text-transform:uppercase;letter-spacing:.4px">Récapitulatif</div><div style="font-size:15px;font-weight:900;color:#78350f;margin-top:2px">Frais de publication</div></div>
 </div>
 <div style="padding:16px;background:#fff;border:1.5px solid #fcd34d;border-radius:14px;display:flex;justify-content:space-between;align-items:center;gap:12px">
-<div>
-<div style="font-size:11px;font-weight:800;color:#92400e;text-transform:uppercase;letter-spacing:.3px" id="publishPricingHint">Sélectionnez un type</div>
-<div style="font-size:11.5px;color:#78350f;margin-top:3px">Paiement par Airtel Money</div>
-</div>
+<div><div style="font-size:11px;font-weight:800;color:#92400e;text-transform:uppercase;letter-spacing:.3px" id="publishPricingHint">Sélectionnez un type</div><div style="font-size:11.5px;color:#78350f;margin-top:3px">Paiement par Airtel Money</div></div>
 <div style="font-size:26px;font-weight:900;color:#78350f;line-height:1;white-space:nowrap" id="publishPricingAmount">—</div>
 </div>
-<div style="margin-top:12px;padding:10px 12px;background:rgba(255,255,255,.6);border-radius:10px;font-size:11.5px;color:#92400e;line-height:1.5;display:flex;gap:8px;align-items:flex-start">
-<i class="fa-solid fa-circle-info" style="flex-shrink:0;margin-top:1px"></i>
-<div>Votre publication sera vérifiée puis rendue publique dans les <strong>30 minutes</strong>.</div>
 </div>
-</div>
-
-<button type="submit" class="btn-3d green" style="width:100%;padding:18px;font-size:14px;border-radius:16px" id="publishSubmitBtn">
-<i class="fa-solid fa-paper-plane"></i>
-<span id="publishSubmitText">Publier mon annonce</span>
-</button>
-
+<button type="submit" class="btn-3d green" style="width:100%;padding:18px;font-size:14px;border-radius:16px" id="publishSubmitBtn"><i class="fa-solid fa-paper-plane"></i><span id="publishSubmitText">Publier mon annonce</span></button>
 </form>
 </div>
 </div>
@@ -843,7 +803,7 @@ NeTubeX © <span id="footerYear">2026</span>
 <div style="text-align:center;padding:40px 20px;background:var(--bg-card);border-radius:16px;border:1px dashed var(--border-primary)">
 <div style="font-size:56px;margin-bottom:16px">💡</div>
 <h2 style="font-size:20px;font-weight:900;color:var(--text-primary);margin-bottom:12px">Simple et Direct</h2>
-<p style="font-size:14px;color:var(--text-secondary);line-height:1.7;max-width:600px;margin:0 auto">Publiez vos offres, découvrez les commerces locaux et connectez-vous directement par WhatsApp ou téléphone. NeTubeX RDC met en relation acheteurs et vendeurs en toute confiance.</p>
+<p style="font-size:14px;color:var(--text-secondary);line-height:1.7;max-width:600px;margin:0 auto">Publiez vos offres, découvrez les commerces locaux et connectez-vous directement par WhatsApp ou téléphone.</p>
 </div>
 </div>
 </div>
@@ -872,18 +832,14 @@ NeTubeX © <span id="footerYear">2026</span>
 </div>
 </div>
 <div class="dash-tabs-scroll">
-<button class="dash-tab" data-tab="boutique" onclick="switchDashTab(this,'boutique')" id="dashTabBoutique" style="display:none;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-color:#059669;font-weight:900;box-shadow:0 3px 0 #047857"><i class="fa-solid fa-store"></i> Ma boutique</button>
+<button class="dash-tab" data-tab="boutique" onclick="switchDashTab(this,'boutique')" id="dashTabBoutique" style="display:none;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-color:#059669;font-weight:900"><i class="fa-solid fa-store"></i> Ma boutique</button>
 <button class="dash-tab active" data-tab="compte" onclick="switchDashTab(this,'compte')"><i class="fa-solid fa-user"></i> Mon compte</button>
 </div>
 <div id="dashPanelBoutique" class="dash-panel" style="display:none">
 <div class="section-card-3d" style="padding:20px">
 <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--border-soft)">
-<div style="width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;box-shadow:0 4px 12px rgba(16,185,129,.35)">🏪</div>
-<div style="min-width:0;flex:1">
-<div style="font-size:10.5px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Ma boutique</div>
-<h2 style="font-size:19px;font-weight:900;color:var(--text-primary);margin-top:3px;line-height:1.2" id="dashBoutiqueNom">—</h2>
-<p style="font-size:12.5px;color:var(--text-muted);margin-top:3px" id="dashBoutiqueType">—</p>
-</div>
+<div style="width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">🏪</div>
+<div style="min-width:0;flex:1"><div style="font-size:10.5px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Ma boutique</div><h2 style="font-size:19px;font-weight:900;color:var(--text-primary);margin-top:3px;line-height:1.2" id="dashBoutiqueNom">—</h2><p style="font-size:12.5px;color:var(--text-muted);margin-top:3px" id="dashBoutiqueType">—</p></div>
 </div>
 <div id="dashBoutiqueDetails"></div>
 </div>
@@ -895,10 +851,7 @@ NeTubeX © <span id="footerYear">2026</span>
 </div>
 <div style="margin-bottom:16px;padding:12px 14px;background:linear-gradient(135deg,#fef3c7,#fde68a);border:1.5px solid #fbbf24;border-radius:12px;display:flex;gap:10px;align-items:flex-start">
 <i class="fa-solid fa-circle-info" style="color:#d97706;font-size:14px;flex-shrink:0;margin-top:2px"></i>
-<div style="font-size:12.5px;color:#78350f;line-height:1.55">
-<strong style="display:block;margin-bottom:2px">Modération NeTubeX</strong>
-Certaines de vos annonces peuvent être retirées par l'équipe NeTubeX si elles ne respectent pas nos règles. Contactez le support pour plus d'informations.
-</div>
+<div style="font-size:12.5px;color:#78350f;line-height:1.55"><strong style="display:block;margin-bottom:2px">Modération NeTubeX</strong>Certaines de vos annonces peuvent être retirées par l'équipe NeTubeX si elles ne respectent pas nos règles.</div>
 </div>
 <div class="section-card-3d" style="padding:20px;margin-bottom:16px">
 <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px;background:var(--bg-card-soft);border:1.5px solid var(--border-primary);border-radius:14px">
@@ -1002,7 +955,7 @@ Certaines de vos annonces peuvent être retirées par l'équipe NeTubeX si elles
 <option value="Quincaillerie">🔧 Quincaillerie</option>
 <option value="Électronique">📱 Électronique</option>
 <option value="Concessionnaire">🚗 Concessionnaire (Auto)</option>
-<option value="Vivriers & Fruits">🌾 Vivriers & Fruits (farine, maïs, arachides…)</option>
+<option value="Vivriers & Fruits">🌾 Vivriers & Fruits</option>
 </select>
 <select id="inscVille" required class="form-input-3d" onchange="toggleInscVilleLibre()">
 <option value="">— Choisir une ville —</option>
@@ -1031,33 +984,105 @@ Certaines de vos annonces peuvent être retirées par l'équipe NeTubeX si elles
 <button type="submit" id="inscSubmitBtn" class="btn-3d green" style="flex:2;padding:16px"><i class="fa-solid fa-paper-plane"></i> Envoyer</button>
 </div>
 </div>
-<div style="margin-top:16px;padding:14px 16px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1.5px solid #bfdbfe;border-radius:14px;display:flex;gap:12px;align-items:flex-start">
-<i class="fa-solid fa-circle-info" style="color:#2563eb;font-size:16px;flex-shrink:0;margin-top:2px"></i>
-<div style="font-size:12.5px;color:#1e40af;line-height:1.6">
-<strong style="display:block;margin-bottom:4px;font-size:13px">📞 Vous serez appelé dans moins de 30 minutes.</strong>
-<span style="color:#1e3a8a">NB : si la demande est faite entre <strong>18h et 5h</strong>, l'appel sera effectué <strong>après 8h</strong>.</span>
-</div>
-</div>
 </div>
 </form>
 </div>
 </div>
 </main>
-<div id="unlock-modal" class="unlock-modal-bottom">
-<div class="unlock-modal-box compact">
-<button onclick="closeUnlock()" class="unlock-close-btn" aria-label="Fermer"><i class="fa-solid fa-xmark"></i></button>
-<div style="text-align:center;margin-bottom:14px"><div class="unlock-icon-sm"><i class="fa-solid fa-unlock-keyhole"></i></div><h3 class="unlock-title">Débloquer cette annonce</h3><p class="unlock-subtitle" id="unlockPrixLabel">1 000 FC via Airtel Money</p></div>
-<div class="unlock-ref"><span class="unlock-ref-lbl">Code de référence</span><span class="unlock-ref-code" id="unlockRefCode">ACC-U4-ANN2</span></div>
-<div class="unlock-payment-item airtel"><div><span class="unlock-payment-name">🔴 Airtel Money</span><span class="unlock-payment-num">+243976953045</span></div><button onclick="copyText('+243976953045')" class="unlock-copy-btn">Copier</button></div>
-<form onsubmit="event.preventDefault();validerDeblocage();" class="unlock-form"><input type="tel" required placeholder="Numéro d'envoi" class="form-input-3d unlock-input"><input type="text" required placeholder="ID Transaction" class="form-input-3d unlock-input"><button type="submit" class="btn-3d blue unlock-submit">Valider et débloquer</button></form>
+<div id="paiementModal" style="position:fixed;inset:0;background:rgba(15,23,42,.75);backdrop-filter:blur(6px);z-index:750;display:none;align-items:flex-end;justify-content:center">
+<div style="background:var(--bg-card);border-radius:24px 24px 0 0;max-width:520px;width:100%;padding:24px;padding-bottom:max(24px,env(safe-area-inset-bottom));max-height:90vh;overflow-y:auto">
+<div style="text-align:center;margin-bottom:18px">
+<div style="width:64px;height:64px;border-radius:20px;background:linear-gradient(135deg,#f59e0b,#d97706);display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;margin:0 auto 14px;box-shadow:0 8px 20px rgba(245,158,11,.4)"><i class="fa-solid fa-receipt"></i></div>
+<h3 style="font-size:18px;font-weight:900;color:var(--text-primary)">Preuve de paiement</h3>
+<p style="font-size:12.5px;color:var(--text-muted);margin-top:6px">Montant à envoyer : <strong style="color:#d97706;font-size:15px" id="paiementMontant">1 000 FC</strong></p>
+</div>
+<div style="padding:16px;background:linear-gradient(135deg,#dc2626,#991b1b);border-radius:16px;margin-bottom:16px">
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+<span style="font-size:13px;font-weight:900;color:#fff;letter-spacing:.5px">🔴 AIRTEL MONEY</span>
+<span style="font-size:10px;font-weight:800;color:#fecaca;background:rgba(255,255,255,.15);padding:3px 8px;border-radius:6px">La publication est payante</span>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.25);border-radius:12px">
+<div>
+<div style="font-size:10px;font-weight:800;color:#fecaca;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Numéro à créditer</div>
+<div style="font-family:ui-monospace,monospace;font-size:18px;font-weight:900;color:#fff;letter-spacing:1.5px">+243 976 953 045</div>
+</div>
+<button type="button" onclick="copyText('+243976953045');showToast('Numéro copié')" style="padding:10px 14px;border-radius:10px;background:#fff;color:#dc2626;border:none;cursor:pointer;font-family:inherit;font-weight:900;font-size:11.5px;display:inline-flex;align-items:center;gap:6px;flex-shrink:0"><i class="fa-solid fa-copy"></i> COPIER</button>
 </div>
 </div>
-<div id="searchResultsOverlay" class="search-results-overlay" onclick="closeSearchResults()" style="display:none"></div>
-<div id="searchResultsPanel" class="search-results-panel" style="display:none"></div>
-<div id="detailFullscreen" class="detail-fullscreen" onclick="closeDetailFullscreen()">
-<button class="detail-fs-close" onclick="event.stopPropagation();closeDetailFullscreen()" aria-label="Fermer"><i class="fa-solid fa-xmark"></i></button>
-<img id="detailFsImg" src="" alt="" onclick="event.stopPropagation()">
+<div style="padding:14px 16px;background:linear-gradient(135deg,#fef3c7,#fde68a);border:1.5px solid #fbbf24;border-radius:14px;margin-bottom:16px">
+<div style="font-size:12px;color:#78350f;line-height:1.7">
+<strong style="display:block;margin-bottom:8px;color:#92400e;font-size:13px">📱 Étapes à suivre :</strong>
+<div style="display:flex;gap:8px;margin-bottom:6px"><span style="font-weight:900;color:#d97706;flex-shrink:0">1.</span><span>Envoyez <strong id="paiementMontantInline">1 000 FC</strong> au <strong>+243 976 953 045</strong></span></div>
+<div style="display:flex;gap:8px;margin-bottom:6px"><span style="font-weight:900;color:#d97706;flex-shrink:0">2.</span><span>Notez l'<strong>ID Transaction</strong> reçu par SMS</span></div>
+<div style="display:flex;gap:8px"><span style="font-weight:900;color:#d97706;flex-shrink:0">3.</span><span>Remplissez le formulaire ci-dessous</span></div>
 </div>
+</div>
+<form onsubmit="event.preventDefault();validerPaiementEtPublier();" style="display:flex;flex-direction:column;gap:14px">
+<div>
+<label class="publish-label">ID Transaction Airtel *</label>
+<input type="text" id="publishTxId" required placeholder="Ex: MP240521.1234.A56789" class="form-input-3d" style="font-family:ui-monospace,monospace;font-size:13px">
+</div>
+<div>
+<label class="publish-label">Votre numéro d'envoi *</label>
+<input type="tel" id="publishNumEnvoi" required placeholder="Ex: +243 8XX XXX XXX" class="form-input-3d">
+</div>
+<button type="submit" class="btn-3d green" style="width:100%;padding:16px"><i class="fa-solid fa-paper-plane"></i> Envoyer pour vérification</button>
+</form>
+<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border-soft);text-align:center">
+<div style="font-size:10.5px;color:var(--text-muted);font-weight:700">⚠️ Tout paiement envoyé à un autre numéro ne sera <strong>pas validé</strong></div>
+</div>
+</div>
+</div>
+
+<div id="unlock-modal" style="position:fixed;inset:0;background:rgba(15,23,42,.75);backdrop-filter:blur(6px);z-index:750;display:none;align-items:flex-end;justify-content:center">
+<div style="background:var(--bg-card);border-radius:24px 24px 0 0;max-width:520px;width:100%;padding:24px;padding-bottom:max(24px,env(safe-area-inset-bottom));max-height:90vh;overflow-y:auto">
+<div style="text-align:center;margin-bottom:18px">
+<div style="width:64px;height:64px;border-radius:20px;background:linear-gradient(135deg,#f59e0b,#d97706);display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;margin:0 auto 14px;box-shadow:0 8px 20px rgba(245,158,11,.4)"><i class="fa-solid fa-unlock-keyhole"></i></div>
+<h3 style="font-size:18px;font-weight:900;color:var(--text-primary)">Débloquer les coordonnées</h3>
+<p style="font-size:12.5px;color:var(--text-muted);margin-top:6px">Montant à envoyer : <strong style="color:#d97706;font-size:15px" id="unlockMontant">1 000 FC</strong></p>
+</div>
+<div style="padding:16px;background:linear-gradient(135deg,#dc2626,#991b1b);border-radius:16px;margin-bottom:16px">
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+<span style="font-size:13px;font-weight:900;color:#fff;letter-spacing:.5px">🔴 AIRTEL MONEY</span>
+<span style="font-size:10px;font-weight:800;color:#fecaca;background:rgba(255,255,255,.15);padding:3px 8px;border-radius:6px">Le déblocage est payant</span>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.25);border-radius:12px">
+<div>
+<div style="font-size:10px;font-weight:800;color:#fecaca;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Numéro à créditer</div>
+<div style="font-family:ui-monospace,monospace;font-size:18px;font-weight:900;color:#fff;letter-spacing:1.5px">+243 976 953 045</div>
+</div>
+<button type="button" onclick="copyText('+243976953045');showToast('Numéro copié')" style="padding:10px 14px;border-radius:10px;background:#fff;color:#dc2626;border:none;cursor:pointer;font-family:inherit;font-weight:900;font-size:11.5px;display:inline-flex;align-items:center;gap:6px;flex-shrink:0"><i class="fa-solid fa-copy"></i> COPIER</button>
+</div>
+</div>
+<div style="padding:14px 16px;background:linear-gradient(135deg,#fef3c7,#fde68a);border:1.5px solid #fbbf24;border-radius:14px;margin-bottom:16px">
+<div style="font-size:12px;color:#78350f;line-height:1.7">
+<strong style="display:block;margin-bottom:8px;color:#92400e;font-size:13px">📱 Étapes à suivre :</strong>
+<div style="display:flex;gap:8px;margin-bottom:6px"><span style="font-weight:900;color:#d97706;flex-shrink:0">1.</span><span>Envoyez <strong id="unlockMontantInline">1 000 FC</strong> au <strong>+243 976 953 045</strong></span></div>
+<div style="display:flex;gap:8px;margin-bottom:6px"><span style="font-weight:900;color:#d97706;flex-shrink:0">2.</span><span>Notez l'<strong>ID Transaction</strong> reçu par SMS</span></div>
+<div style="display:flex;gap:8px"><span style="font-weight:900;color:#d97706;flex-shrink:0">3.</span><span>Remplissez le formulaire ci-dessous</span></div>
+</div>
+</div>
+<div style="padding:12px 14px;background:linear-gradient(135deg,#0f172a,#1e293b);border-radius:12px;margin-bottom:16px;text-align:center">
+<span style="display:block;font-size:9px;color:#67e8f9;font-weight:900;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Référence annonce</span>
+<span id="unlockRefCode" style="font-family:ui-monospace,monospace;font-size:15px;font-weight:900;color:#fff;letter-spacing:1.5px">ACC-0000</span>
+</div>
+<form onsubmit="event.preventDefault();validerDeblocage();" id="unlockForm" style="display:flex;flex-direction:column;gap:14px">
+<div>
+<label class="publish-label">ID Transaction Airtel *</label>
+<input type="text" id="unlockTxId" required placeholder="Ex: MP240521.1234.A56789" class="form-input-3d" style="font-family:ui-monospace,monospace;font-size:13px">
+</div>
+<div>
+<label class="publish-label">Votre numéro d'envoi *</label>
+<input type="tel" id="unlockNumEnvoi" required placeholder="Ex: +243 8XX XXX XXX" class="form-input-3d">
+</div>
+<button type="submit" class="btn-3d green" style="width:100%;padding:16px"><i class="fa-solid fa-paper-plane"></i> Envoyer pour vérification</button>
+</form>
+<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border-soft);text-align:center">
+<div style="font-size:10.5px;color:var(--text-muted);font-weight:700">⚠️ Tout paiement envoyé à un autre numéro ne sera <strong>pas validé</strong></div>
+</div>
+</div>
+</div>
+
 <div id="publishPendingOverlay" class="publish-pending-overlay" onclick="closePublishPending()"></div>
 <div id="publishPendingModal" class="publish-pending-modal">
 <div class="publish-pending-icon"><i class="fa-solid fa-hourglass-half"></i></div>
@@ -1106,6 +1131,12 @@ Si votre déblocage a eu lieu entre <strong>18h et 5h du matin</strong>, il sera
 <div class="cart-footer"><div class="cart-total-row"><span>Total :</span><span id="cart-total">0 FC</span></div><div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px"><input type="text" id="client-nom" placeholder="Nom complet *" class="form-input-3d" style="padding:10px 12px;font-size:13px"><input type="tel" id="client-tel" placeholder="WhatsApp *" class="form-input-3d" style="padding:10px 12px;font-size:13px"><input type="text" id="client-adresse" placeholder="Adresse (optionnel)" class="form-input-3d" style="padding:10px 12px;font-size:13px"></div><button onclick="submitOrder()" class="cart-whatsapp-btn"><i class="fa-brands fa-whatsapp" style="font-size:17px"></i> Commander sur WhatsApp</button></div>
 </div>
 <div id="cart-overlay" onclick="closeCart()" class="cart-overlay"></div>
+<div id="detailFullscreen" class="detail-fullscreen" onclick="closeDetailFullscreen()">
+<button class="detail-fs-close" onclick="event.stopPropagation();closeDetailFullscreen()" aria-label="Fermer"><i class="fa-solid fa-xmark"></i></button>
+<img id="detailFsImg" src="" alt="" onclick="event.stopPropagation()">
+</div>
+<div id="searchResultsOverlay" style="display:none" class="search-results-overlay" onclick="closeSearchResults()"></div>
+<div id="searchResultsPanel" style="display:none" class="search-results-panel"></div>
 <div id="toast"><i class="fa-solid fa-circle-check"></i><span id="toast-text">Action effectuée</span></div>
 <div id="changePhoneModal" class="modal" style="position:fixed;inset:0;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);z-index:500;align-items:flex-end;justify-content:center">
 <div style="background:var(--bg-card);border-radius:24px 24px 0 0;max-width:520px;width:100%;padding:24px;position:relative;padding-bottom:max(24px,env(safe-area-inset-bottom))">
@@ -1132,6 +1163,9 @@ var currentTab='index';
 var POLLING_INTERVAL_MS=30000;
 var _pollingTimer=null;
 var _appEstActive=!document.hidden;
+var _paiementValide=false;
+var _deblocageValide=false;
+var _pendingAnnonce=null;
 
 function demarrerPolling(){
   if(_pollingTimer)return;
@@ -1167,21 +1201,11 @@ async function rafraichirDonneesSilencieusement(){
         if(offreFresh){CURRENT_OFFRE=offreFresh;await renderDetail(offreFresh);}
       }
     }
-    window._lastDataRefresh=Date.now();
-  }catch(e){console.warn('Polling:',e.message);}
+  }catch(e){}
 }
 document.addEventListener('visibilitychange',function(){
-  if(document.hidden){
-    _appEstActive=false;
-    arreterPolling();
-    rafraichirDonneesSilencieusement();
-  }else{
-    _appEstActive=true;
-    demarrerPolling();
-    if(currentTab !== 'index'){
-      rafraichirDonneesSilencieusement();
-    }
-  }
+  if(document.hidden){_appEstActive=false;arreterPolling();rafraichirDonneesSilencieusement();}
+  else{_appEstActive=true;demarrerPolling();if(currentTab !== 'index'){rafraichirDonneesSilencieusement();}}
 });
 window.addEventListener('online',function(){if(_appEstActive)rafraichirDonneesSilencieusement();});
 window.addEventListener('offline',function(){arreterPolling();});
@@ -1202,7 +1226,7 @@ window.addEventListener('beforeunload',function(){arreterPolling();});
       await window.setStored(window.STORES.account,'current',CURRENT_ACCOUNT);
     }
     if(CURRENT_ACCOUNT && CURRENT_ACCOUNT.boutique && !CURRENT_COMMERCANT){CURRENT_COMMERCANT=CURRENT_ACCOUNT.boutique;}
-  }catch(e){console.warn('Chargement compte IDB:',e);}
+  }catch(e){}
 })();
 
 function haptic(ms){if(navigator.vibrate)navigator.vibrate(ms||15)}
@@ -1221,48 +1245,28 @@ function tempsRelatif(dateString){
   if(!dateString)return 'Récemment';
   try{
     var date=new Date(dateString);
-    var maintenant=Date.now();
-    var diff=maintenant-date.getTime();
+    var diff=Date.now()-date.getTime();
     if(diff<0)return 'À l\'instant';
-    var secondes=Math.floor(diff/1000);
-    var minutes=Math.floor(secondes/60);
-    var heures=Math.floor(minutes/60);
-    var jours=Math.floor(heures/24);
-    var semaines=Math.floor(jours/7);
-    var mois=Math.floor(jours/30);
-    var annees=Math.floor(jours/365);
-    if(secondes<30)return 'À l\'instant';
-    if(secondes<60)return 'Il y a '+secondes+'s';
-    if(minutes<60)return 'Il y a '+minutes+' min';
-    if(heures<24)return 'Il y a '+heures+'h';
-    if(jours<7)return 'Il y a '+jours+' jour'+(jours>1?'s':'');
-    if(semaines<4)return 'Il y a '+semaines+' semaine'+(semaines>1?'s':'');
-    if(mois<12)return 'Il y a '+mois+' mois';
-    return 'Il y a '+annees+' an'+(annees>1?'s':'');
+    var sec=Math.floor(diff/1000);
+    var min=Math.floor(sec/60);
+    var h=Math.floor(min/60);
+    var j=Math.floor(h/24);
+    if(sec<30)return 'À l\'instant';
+    if(sec<60)return 'Il y a '+sec+'s';
+    if(min<60)return 'Il y a '+min+' min';
+    if(h<24)return 'Il y a '+h+'h';
+    if(j<7)return 'Il y a '+j+' jour'+(j>1?'s':'');
+    return date.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});
   }catch(e){return 'Récemment';}
 }
-function getTodayKey(){
-  var d=new Date();
-  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-}
+function getTodayKey(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 async function dejaVuAujourdhuiLocal(uid,annonceId){
   if(!uid||!annonceId)return false;
-  try{
-    var store=await idbGet('stats','vues_'+uid);
-    if(!store||typeof store!=='object')return false;
-    return store[annonceId]===getTodayKey();
-  }catch(e){return false;}
+  try{var store=await idbGet('stats','vues_'+uid);if(!store||typeof store!=='object')return false;return store[annonceId]===getTodayKey();}catch(e){return false;}
 }
 async function marquerVuAujourdhuiLocal(uid,annonceId){
   if(!uid||!annonceId)return;
-  try{
-    var store=await idbGet('stats','vues_'+uid) || {};
-    var today=getTodayKey();
-    var propre={};
-    Object.keys(store).forEach(function(k){if(store[k]===today)propre[k]=store[k];});
-    propre[annonceId]=today;
-    await idbSet('stats','vues_'+uid,propre);
-  }catch(e){}
+  try{var store=await idbGet('stats','vues_'+uid)||{};var today=getTodayKey();var propre={};Object.keys(store).forEach(function(k){if(store[k]===today)propre[k]=store[k];});propre[annonceId]=today;await idbSet('stats','vues_'+uid,propre);}catch(e){}
 }
 async function incrementerVuesAnnonce(annonceId){
   if(!annonceId)return;
@@ -1275,20 +1279,7 @@ async function incrementerVuesAnnonce(annonceId){
     await marquerVuAujourdhuiLocal(uid,annonceId);
     var offre=ANNONCES_DATA.find(function(a){return a.annonceId===annonceId;});
     if(offre)offre.vues=(offre.vues||0)+1;
-  }catch(e){console.warn('vues annonce:',e.message);}
-}
-async function calculerTotalClicsCommercant(){
-  if(!CURRENT_ACCOUNT||!CURRENT_ACCOUNT.id)return 0;
-  var uid=CURRENT_ACCOUNT.id;
-  try{
-    var snap=await window.getDocs(window.collection(window.db,'annonces'));
-    var total=0;
-    snap.forEach(function(d){
-      var data=d.data();
-      if(data.proprietaireUid===uid && data.actif!==false){total+=(data.vues||0);}
-    });
-    return total;
-  }catch(e){return 0;}
+  }catch(e){}
 }
 async function cacherImage(url){
   if(!url||url.indexOf('data:')===0)return url;
@@ -1298,22 +1289,14 @@ async function cacherImage(url){
     var res=await fetch(url,{mode:'cors',cache:'force-cache'});
     if(!res.ok) return url;
     var blob=await res.blob();
-    var dataUrl=await new Promise(function(resolve,reject){
-      var reader=new FileReader();
-      reader.onload=function(){resolve(reader.result);};
-      reader.onerror=reject;
-      reader.readAsDataURL(blob);
-    });
+    var dataUrl=await new Promise(function(resolve,reject){var reader=new FileReader();reader.onload=function(){resolve(reader.result);};reader.onerror=reject;reader.readAsDataURL(blob);});
     await idbSet('images',url,{dataUrl:dataUrl,dateCache:Date.now()});
     return dataUrl;
   }catch(e){return url;}
 }
 async function obtenirImageCachee(url){
   if(!url||url.indexOf('data:')===0) return url;
-  try{
-    var cached=await idbGet('images',url);
-    if(cached && cached.dataUrl) return cached.dataUrl;
-  }catch(e){}
+  try{var cached=await idbGet('images',url);if(cached && cached.dataUrl) return cached.dataUrl;}catch(e){}
   return null;
 }
 async function prechargerEtCacherImages(){
@@ -1323,9 +1306,7 @@ async function prechargerEtCacherImages(){
     COMMERCES_DATA.slice(0,20).forEach(function(c){if(c.img)urls.push(c.img);});
     var uniques=[];
     urls.forEach(function(u){if(u&&uniques.indexOf(u)===-1)uniques.push(u);});
-    for(var i=0;i<uniques.length;i++){
-      await cacherImage(uniques[i]);
-    }
+    for(var i=0;i<uniques.length;i++){await cacherImage(uniques[i]);}
   }catch(e){}
 }
 async function remplacerParImagesCachees(conteneur){
@@ -1336,12 +1317,8 @@ async function remplacerParImagesCachees(conteneur){
     var url=wrap.getAttribute('data-img-url');
     if(!url)continue;
     var cached=await obtenirImageCachee(url);
-    if(cached){
-      var img=wrap.querySelector('img');
-      if(img && img.src!==cached){ img.src=cached; img.classList.add('chargee'); }
-    }else{
-      cacherImage(url);
-    }
+    if(cached){var img=wrap.querySelector('img');if(img && img.src!==cached){img.src=cached;img.classList.add('chargee');}}
+    else{cacherImage(url);}
   }
 }
 async function nettoyerCacheImages(){
@@ -1356,9 +1333,7 @@ async function nettoyerCacheImages(){
       var cursor=e.target.result;
       if(cursor){
         total++;
-        if(total>300||(cursor.value && cursor.value.dateCache && cursor.value.dateCache<limite)){
-          cursor.delete();
-        }
+        if(total>300||(cursor.value && cursor.value.dateCache && cursor.value.dateCache<limite)){cursor.delete();}
         cursor.continue();
       }
     };
@@ -1371,37 +1346,27 @@ function retryImage(img){
   var base=img.src.split('?')[0];
   img.src=base+'?t='+Date.now()+'_r'+tentatives;
 }
-window.cacherImage=cacherImage;
-window.obtenirImageCachee=obtenirImageCachee;
+window.cacherImage=cacherImage;window.obtenirImageCachee=obtenirImageCachee;
 window.prechargerEtCacherImages=prechargerEtCacherImages;
-window.nettoyerCacheImages=nettoyerCacheImages;
-window.retryImage=retryImage;
+window.nettoyerCacheImages=nettoyerCacheImages;window.retryImage=retryImage;
 
 function getBadgesSpeciaux(offre){
   if(!offre) return '';
-  var estCommerce = offre.isCommerce 
-                 || offre.commerce 
-                 || offre.publieurType === 'commerce' 
-                 || offre.publieurBoutique;
+  var estCommerce = offre.isCommerce || offre.commerce || offre.publieurType === 'commerce' || offre.publieurBoutique;
   if(!estCommerce) return '';
   var vues = offre.vues || 0;
   var badge = '';
-  if(vues >= 500){
-    badge = '<span class="badge-populaire hot">🔥 Très populaire</span>';
-  } else if(vues >= 200){
-    badge = '<span class="badge-populaire hot">🔥 Populaire</span>';
-  } else if(vues >= 50){
-    badge = '<span class="badge-populaire">📈 En vogue</span>';
-  }
+  if(vues >= 500){badge = '<span class="badge-populaire hot">🔥 Très populaire</span>';}
+  else if(vues >= 200){badge = '<span class="badge-populaire hot">🔥 Populaire</span>';}
+  else if(vues >= 50){badge = '<span class="badge-populaire">📈 En vogue</span>';}
   if(!badge) return '';
   return '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;margin-left:6px">' + badge + '</div>';
 }
-
 function trouverDeblocagePourAnnonce(annonceId){
   if(!annonceId)return null;
   if(!DEBLOCAGES_MEMORY||DEBLOCAGES_MEMORY.length===0)return null;
   return DEBLOCAGES_MEMORY.find(function(d){
-    return d.annonceId===annonceId && d.statut==='debloque' && d.dateValidation && (Date.now()-new Date(d.dateValidation).getTime())<DEBLOCAGE_DUREE_MS;
+    return d.annonceId===annonceId && d.statut==='debloque' && d.dateValidation && d.coordonnees && d.coordonnees.telephone && (Date.now()-new Date(d.dateValidation).getTime())<DEBLOCAGE_DUREE_MS;
   })||null;
 }
 function estDeblocageExpire(item){
@@ -1438,14 +1403,9 @@ function detecterChangementStatut(avant,apres){
   return null;
 }
 function isLoggedIn(){return CURRENT_ACCOUNT!==null;}
-
 function getTypeCompteAffiche(){
   if(!CURRENT_ACCOUNT) return 'Netuber';
-  if(CURRENT_ACCOUNT.boutique 
-     && CURRENT_ACCOUNT.boutique.uid === CURRENT_ACCOUNT.id 
-     && CURRENT_ACCOUNT.boutique.statut === 'approuve'){
-    return 'Commerçant';
-  }
+  if(CURRENT_ACCOUNT.boutique && CURRENT_ACCOUNT.boutique.uid === CURRENT_ACCOUNT.id && CURRENT_ACCOUNT.boutique.statut === 'approuve'){return 'Commerçant';}
   return 'Netuber';
 }
 window.getTypeCompteAffiche = getTypeCompteAffiche;
@@ -1455,26 +1415,8 @@ function requireLogin(action,callback){
   showAccountModal('Vous devez créer votre compte pour continuer.',callback);
   return false;
 }
-function showAccountModal(message,afterLogin,mode){
-  var modal=document.getElementById('account-modal');
-  if(!modal){createAccountModal();modal=document.getElementById('account-modal');}
-  window._pendingCallback=afterLogin||null;
-  if(mode==='login'){
-    window._accountModalMsgConnexion=message||'Veuillez vous connecter pour continuer.';
-    window._accountModalMsgInscription='Vous devez créer votre compte pour continuer.';
-    basculerModalAccueil('connexion',null);
-  }else{
-    window._accountModalMsgInscription=message||'Vous devez créer votre compte pour continuer.';
-    window._accountModalMsgConnexion='Veuillez vous connecter pour continuer.';
-    basculerModalAccueil('inscription',null);
-  }
-  var box=modal.firstElementChild;
-  if(box){box.style.animation='none';void box.offsetWidth;box.style.animation='';}
-  modal.style.display='flex';
-  setTimeout(function(){modal.classList.add('active');},10);
-}
 function createAccountModal(){
-  var html='<div id="account-modal" class="modal" style="position:fixed;inset:0;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:500;display:none;align-items:flex-end;justify-content:center">'
+  var html='<div id="account-modal" class="modal" style="position:fixed;inset:0;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);z-index:500;display:none;align-items:flex-end;justify-content:center">'
   +'<div style="background:var(--bg-card);border-radius:24px 24px 0 0;max-width:520px;width:100%;padding:24px;position:relative;padding-bottom:max(24px,env(safe-area-inset-bottom));max-height:90vh;overflow-y:auto">'
   +'<button onclick="closeAccountModal()" style="position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;font-size:15px;color:var(--text-muted);z-index:2"><i class="fa-solid fa-xmark"></i></button>'
   +'<div style="text-align:center;margin-bottom:18px">'
@@ -1503,6 +1445,24 @@ function createAccountModal(){
   +'</div>'
   +'</div></div>';
   document.body.insertAdjacentHTML('beforeend',html);
+}
+function showAccountModal(message,afterLogin,mode){
+  var modal=document.getElementById('account-modal');
+  if(!modal){createAccountModal();modal=document.getElementById('account-modal');}
+  window._pendingCallback=afterLogin||null;
+  if(mode==='login'){
+    window._accountModalMsgConnexion=message||'Veuillez vous connecter pour continuer.';
+    window._accountModalMsgInscription='Vous devez créer votre compte pour continuer.';
+    basculerModalAccueil('connexion',null);
+  }else{
+    window._accountModalMsgInscription=message||'Vous devez créer votre compte pour continuer.';
+    window._accountModalMsgConnexion='Veuillez vous connecter pour continuer.';
+    basculerModalAccueil('inscription',null);
+  }
+  var box=modal.firstElementChild;
+  if(box){box.style.animation='none';void box.offsetWidth;box.style.animation='';}
+  modal.style.display='flex';
+  setTimeout(function(){modal.classList.add('active');},10);
 }
 function basculerModalAccueil(onglet,btn){
   haptic(15);
@@ -1571,7 +1531,6 @@ async function submitAccountModal(){
       +'</div>';
     }
   }catch(err){
-    console.error('Erreur création compte:',err);
     if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-check"></i> Créer mon compte';}
     if(err.code==='auth/email-already-in-use'){showToast('Numéro déjà inscrit');}
     else{showToast('Erreur');}
@@ -1610,7 +1569,6 @@ async function submitAccountLogin(){
       if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-arrow-right-to-bracket"></i> Se connecter';}
     }
   }catch(err){
-    console.error('Erreur login:',err);
     showToast('Erreur');
     if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-arrow-right-to-bracket"></i> Se connecter';}
   }
@@ -1707,7 +1665,7 @@ async function chargerDeblocages(forceRefresh){
       else if(changement.type==='echoue')showToast('❌ Déblocage refusé');
     }
     return list;
-  }catch(e){console.warn('chargerDeblocages:',e);return DEBLOCAGES_MEMORY;}
+  }catch(e){return DEBLOCAGES_MEMORY;}
 }
 function demarrerPollingDeblocages(){
   arreterPollingDeblocages();
@@ -1755,7 +1713,7 @@ async function verifierDeblocageMaintenant(id){
       showToast('❌ Déblocage rejeté');
       await renderDeblocagesEnAttente(true);
     }else{showToast('⏳ En attente');}
-  }catch(e){console.warn(e);showToast('Erreur');}
+  }catch(e){showToast('Erreur');}
 }
 async function rafraichirDetailSiOuvert(){
   if(currentTab!=='detail')return;
@@ -1789,7 +1747,7 @@ async function renderDeblocagesEnAttente(skipLoading){
     if(tempsEcoule>60)tempsTexte='Il y a '+Math.floor(tempsEcoule/60)+' min';
     if(tempsEcoule>3600)tempsTexte='Il y a '+Math.floor(tempsEcoule/3600)+'h';
     html+='<div class="deblocage-item attente" onclick="ouvrirOffreDepuisDeblocage(\''+item.id+'\')" style="cursor:pointer">';
-    html+='<div class="deblocage-thumb">'+(item.image?'<img src="'+item.image+'" alt="" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">':'🏠')+'</div>';
+    html+='<div class="deblocage-thumb">'+(item.image?'<img src="'+item.image+'" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">':'🏠')+'</div>';
     html+='<div style="flex:1;min-width:0">';
     html+='<div class="deblocage-titre">'+(item.titre||'Annonce')+'</div>';
     html+='<div class="deblocage-loc"><i class="fa-solid fa-location-dot"></i> '+(item.localisation||'—')+'</div>';
@@ -1800,7 +1758,6 @@ async function renderDeblocagesEnAttente(skipLoading){
     html+='<div style="font-size:12.5px;font-weight:900;color:#78350f;margin-top:2px">En attente · '+tempsTexte+'</div>';
     html+='<div style="font-size:11px;color:#92400e;margin-top:4px;line-height:1.5">Vérification en 30 min à 1h.<br>Si entre 18h et 5h → traité après 8h le lendemain.</div>';
     html+='</div></div>';
-    html+='<div style="font-size:11px;color:var(--text-muted);margin-top:8px;font-weight:600;">💰 '+(item.montant||1000).toLocaleString('fr-FR')+' FC</div>';
     html+='<button onclick="event.stopPropagation();verifierDeblocageMaintenant(\''+item.id+'\')" style="width:100%;margin-top:10px;padding:9px 14px;border-radius:10px;background:var(--bg-card-soft);color:var(--text-secondary);font-weight:800;font-size:11.5px;border:1.5px solid var(--border-primary);cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:6px;">';
     html+='<i class="fa-solid fa-rotate"></i> Vérifier';
     html+='</button>';
@@ -1825,7 +1782,7 @@ async function renderDeblocagesDebloques(skipLoading){
     var reste=tempsRestantDeblocage12h(item);
     var expireAt=new Date(item.dateValidation).getTime()+DEBLOCAGE_DUREE_MS;
     html+='<div class="deblocage-item debloque" onclick="ouvrirOffreDepuisDeblocage(\''+item.id+'\')" style="cursor:pointer">';
-    html+='<div class="deblocage-thumb">'+(item.image?'<img src="'+item.image+'" alt="" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">':'🔓')+'</div>';
+    html+='<div class="deblocage-thumb">'+(item.image?'<img src="'+item.image+'" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">':'🔓')+'</div>';
     html+='<div style="flex:1;min-width:0">';
     html+='<div class="deblocage-titre">'+(item.titre||'Annonce')+'</div>';
     html+='<div class="deblocage-loc"><i class="fa-solid fa-location-dot"></i> '+(item.localisation||'—')+'</div>';
@@ -1876,31 +1833,21 @@ async function ouvrirOffreDepuisDeblocage(deblocageId){
     if(!snap.exists()){showToast('Introuvable');return;}
     var data=snap.data();
     var offreConstruite={
-      id:annonceId,annonceId:annonceId,
-      title:data.titre||'',
+      id:annonceId,annonceId:annonceId,title:data.titre||'',
       name:data.publieurNom||'Utilisateur NeTubeX',
       initials:(data.publieurNom||'??').substring(0,2).toUpperCase(),
-      avatar:data.avatar||'',
-      location:data.ville||'',
+      avatar:data.avatar||'',location:data.ville||'',
       dateCreation:data.dateCreation||'',
       time:data.dateCreation?new Date(data.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}):'Récemment',
-      price:data.prix||'',
-      priceClass:data.tagClass||'post-tag-autre',
-      desc:data.desc||'',
-      img:data.img||'',
-      cat:data.cat||'autre',
-      tag:data.tag||'',
-      tagClass:data.tagClass||'post-tag-autre',
-      unlock:true,urgence:false,
-      publieurType:data.publieurType||'user',
-      publieurUid:data.proprietaireUid||null,
-      publieurBoutique:data.publieurBoutique||null,
-      publieurPhone:data.publieurPhone||'',
-      isCommerce:data.publieurType==='commerce',
-      vues:data.vues||0
+      price:data.prix||'',priceClass:data.tagClass||'post-tag-autre',
+      desc:data.desc||'',img:data.img||'',cat:data.cat||'autre',
+      tag:data.tag||'',tagClass:data.tagClass||'post-tag-autre',
+      unlock:true,urgence:false,publieurType:data.publieurType||'user',
+      publieurUid:data.proprietaireUid||null,publieurBoutique:data.publieurBoutique||null,
+      publieurPhone:data.publieurPhone||'',isCommerce:data.publieurType==='commerce',vues:data.vues||0
     };
     await openDetail(offreConstruite);
-  }catch(e){console.warn('ouvrirOffreDepuisDeblocage:',e);showToast('Erreur');}
+  }catch(e){showToast('Erreur');}
 }
 function switchDeblocageSubTab(el,tab){
   haptic();
@@ -1930,7 +1877,7 @@ function afficherOngletBoutique(){
 }
 async function renderOngletBoutique(){
   var b=CURRENT_ACCOUNT&&CURRENT_ACCOUNT.boutique;
-  if(!b||(b.uid&&b.uid!==CURRENT_ACCOUNT.id)){showToast('Aucune boutique');var tab=document.getElementById('dashTabBoutique');if(tab)tab.style.display='none';var accountTab=document.querySelector('.dash-tab[data-tab="compte"]');if(accountTab)accountTab.click();return;}
+  if(!b||(b.uid&&b.uid!==CURRENT_ACCOUNT.id)){var tab=document.getElementById('dashTabBoutique');if(tab)tab.style.display='none';var accountTab=document.querySelector('.dash-tab[data-tab="compte"]');if(accountTab)accountTab.click();return;}
   var nomEl=document.getElementById('dashBoutiqueNom');if(nomEl)nomEl.textContent=b.nom||b.nomCommerce||'—';
   var typeEl=document.getElementById('dashBoutiqueType');if(typeEl)typeEl.textContent=(b.type||'Commerce')+' · '+(b.ville||'—')+(b.quartier?' · '+b.quartier:'');
   var det=document.getElementById('dashBoutiqueDetails');
@@ -1942,29 +1889,10 @@ async function renderOngletBoutique(){
     refuse:{label:'Boutique refusée',icon:'fa-circle-xmark',color:'#dc2626',bg:'linear-gradient(135deg,#fef2f2,#fee2e2)',border:'#fca5a5',text:'#991b1b'}
   };
   var sc=statutConfig[statut]||statutConfig.en_attente;
-  var totalClics=await calculerTotalClicsCommercant();
-  var nbProduits=(b.produits&&b.produits.length)?b.produits.length:0;
   var html='';
   html+='<div style="padding:14px 16px;background:'+sc.bg+';border:1.5px solid '+sc.border+';border-radius:14px;display:flex;align-items:center;gap:12px;margin-bottom:16px">';
   html+='<div style="width:40px;height:40px;border-radius:12px;background:'+sc.color+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0"><i class="fa-solid '+sc.icon+'"></i></div>';
-  html+='<div style="flex:1;min-width:0">';
-  html+='<div style="font-size:10.5px;font-weight:800;color:'+sc.text+';text-transform:uppercase;letter-spacing:.4px;opacity:.85">Statut</div>';
-  html+='<div style="font-size:14px;font-weight:900;color:'+sc.text+';margin-top:2px">'+sc.label+'</div>';
-  html+='</div></div>';
-  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">';
-  html+='<div style="padding:16px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1.5px solid #bfdbfe;border-radius:14px">';
-  html+='<div style="width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:10px"><i class="fa-solid fa-hand-pointer"></i></div>';
-  html+='<div style="font-size:10px;font-weight:800;color:#1e40af;text-transform:uppercase;letter-spacing:.4px">Clics totaux</div>';
-  html+='<div style="font-size:24px;font-weight:900;color:#1e3a8a;margin-top:2px;line-height:1">'+totalClics+'</div>';
-  html+='</div>';
-  html+='<div style="padding:16px;background:linear-gradient(135deg,#ecfdf5,#d1fae5);border:1.5px solid #a7f3d0;border-radius:14px">';
-  html+='<div style="width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:10px"><i class="fa-solid fa-box-open"></i></div>';
-  html+='<div style="font-size:10px;font-weight:800;color:#065f46;text-transform:uppercase;letter-spacing:.4px">Produits</div>';
-  html+='<div style="font-size:24px;font-weight:900;color:#064e3b;margin-top:2px;line-height:1">'+nbProduits+'</div>';
-  html+='</div>';
-  html+='</div>';
-  html+='<div style="margin-bottom:16px">';
-  html+='<h3 style="font-size:12px;font-weight:900;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">Coordonnées</h3>';
+  html+='<div style="flex:1;min-width:0"><div style="font-size:10.5px;font-weight:800;color:'+sc.text+';text-transform:uppercase;letter-spacing:.4px;opacity:.85">Statut</div><div style="font-size:14px;font-weight:900;color:'+sc.text+';margin-top:2px">'+sc.label+'</div></div></div>';
   html+='<div style="background:var(--bg-card-soft);border:1px solid var(--border-primary);border-radius:14px;overflow:hidden">';
   var lignes=[
     {icon:'fa-phone',label:'Téléphone',value:b.telephone||b.whatsapp||'—',color:'#3b82f6'},
@@ -1975,37 +1903,10 @@ async function renderOngletBoutique(){
   lignes.forEach(function(l,i){
     html+='<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;'+(i<lignes.length-1?'border-bottom:1px solid var(--border-soft)':'')+'">';
     html+='<div style="width:36px;height:36px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border-primary);color:'+l.color+';display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0"><i class="fa-solid '+l.icon+'"></i></div>';
-    html+='<div style="flex:1;min-width:0">';
-    html+='<div style="font-size:10.5px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px">'+l.label+'</div>';
-    html+='<div style="font-size:13.5px;font-weight:700;color:var(--text-primary);margin-top:2px;word-break:break-word">'+l.value+'</div>';
-    html+='</div></div>';
+    html+='<div style="flex:1;min-width:0"><div style="font-size:10.5px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px">'+l.label+'</div><div style="font-size:13.5px;font-weight:700;color:var(--text-primary);margin-top:2px;word-break:break-word">'+l.value+'</div></div></div>';
   });
-  html+='</div></div>';
-  if(b.description){
-    html+='<div style="margin-bottom:16px">';
-    html+='<h3 style="font-size:12px;font-weight:900;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">Description</h3>';
-    html+='<div style="background:var(--bg-card-soft);border:1px solid var(--border-primary);border-radius:14px;padding:14px 16px;font-size:13px;color:var(--text-secondary);line-height:1.6">'+b.description+'</div>';
-    html+='</div>';
-  }
-  html+='<button onclick="ouvrirMaBoutiqueDepuisDash()" style="width:100%;padding:14px 18px;border-radius:14px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-weight:900;font-size:13px;border:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:9px;box-shadow:0 4px 0 #047857;">';
-  html+='<i class="fa-solid fa-store"></i> Voir ma boutique publique';
-  html+='</button>';
+  html+='</div>';
   det.innerHTML=html;
-}
-async function ouvrirMaBoutiqueDepuisDash(){
-  haptic(20);
-  var b=CURRENT_ACCOUNT&&CURRENT_ACCOUNT.boutique;
-  if(!b){showToast('Aucune boutique');return;}
-  var commerce=COMMERCES_DATA.find(function(c){return c.uid===CURRENT_ACCOUNT.id || (c.nom && (c.nom===b.nom || c.nom===b.nomCommerce));});
-  if(!commerce){
-    try{
-      var liste=await window.chargerCommercesFirestore();
-      COMMERCES_DATA=liste;
-      commerce=COMMERCES_DATA.find(function(c){return c.uid===CURRENT_ACCOUNT.id || (c.nom && (c.nom===b.nom || c.nom===b.nomCommerce));});
-    }catch(e){}
-  }
-  if(!commerce){showToast('Boutique non publiée');return;}
-  openCatalogue(commerce.id);
 }
 function renderProfil(){
   var el=document.getElementById('profilDetails');
@@ -2014,56 +1915,22 @@ function renderProfil(){
   var phoneUtilisateur = CURRENT_ACCOUNT.phone || '—';
   var typeCompte = getTypeCompteAffiche();
   var nomBoutique = '—';
-  if(typeCompte === 'Commerçant'){
-    nomBoutique = CURRENT_ACCOUNT.boutique.nom || CURRENT_ACCOUNT.boutique.nomCommerce || '—';
-  }
+  if(typeCompte === 'Commerçant'){nomBoutique = CURRENT_ACCOUNT.boutique.nom || CURRENT_ACCOUNT.boutique.nomCommerce || '—';}
   var dateInscription = CURRENT_ACCOUNT.dateCreation ? new Date(CURRENT_ACCOUNT.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'}) : '—';
-  var messageSupport = '🎧 *DEMANDE DE CODE D\'ACCÈS NeTubeX RDC*\n\n'
-    +'━━━━━━━━━━━━━━━━━━━━\n'
-    +'👤 *INFORMATIONS DU COMPTE*\n'
-    +'━━━━━━━━━━━━━━━━━━━━\n\n'
-    +'• *Nom complet :* '+nomUtilisateur+'\n'
-    +'• *Numéro WhatsApp :* '+phoneUtilisateur+'\n'
-    +'• *Type de compte :* '+typeCompte+'\n'
-    +'• *Nom de la boutique :* '+nomBoutique+'\n'
-    +'• *Date d\'inscription :* '+dateInscription+'\n\n'
-    +'━━━━━━━━━━━━━━━━━━━━\n'
-    +'📝 *MOTIF*\n'
-    +'━━━━━━━━━━━━━━━━━━━━\n\n'
-    +'J\'ai oublié mon code d\'accès personnel et je souhaite le récupérer.\n\n'
-    +'Merci de vérifier mon identité et de me communiquer mon code.\n\n'
-    +'━━━━━━━━━━━━━━━━━━━━\n'
-    +'✅ _Message envoyé depuis le système NeTubeX RDC_';
+  var messageSupport = '🎧 *DEMANDE DE CODE D\'ACCÈS NeTubeX RDC*\n\n👤 *INFORMATIONS DU COMPTE*\n\n• *Nom complet :* '+nomUtilisateur+'\n• *Numéro WhatsApp :* '+phoneUtilisateur+'\n• *Type de compte :* '+typeCompte+'\n• *Nom de la boutique :* '+nomBoutique+'\n• *Date d\'inscription :* '+dateInscription+'\n\n📝 *MOTIF*\n\nJ\'ai oublié mon code d\'accès personnel et je souhaite le récupérer.\n\nMerci de vérifier mon identité et de me communiquer mon code.\n\n✅ _Message envoyé depuis le système NeTubeX RDC_';
   var whatsappUrl = 'https://wa.me/243857525821?text=' + encodeURIComponent(messageSupport);
   el.innerHTML='<div style="display:flex;flex-direction:column;gap:12px">'
-  +'<div style="padding:12px;background:var(--bg-card-soft);border-radius:10px">'
-  +'<div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Nom</div>'
-  +'<div style="font-size:14px;font-weight:800;color:var(--text-primary);margin-top:3px">'+nomUtilisateur+'</div>'
-  +'</div>'
-  +'<div style="padding:12px;background:var(--bg-card-soft);border-radius:10px">'
-  +'<div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Numéro WhatsApp</div>'
-  +'<div style="font-size:14px;font-weight:800;color:var(--text-primary);margin-top:3px">'+phoneUtilisateur+'</div>'
-  +'</div>'
-  +'<div style="padding:12px;background:var(--bg-card-soft);border-radius:10px">'
-  +'<div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Type de compte</div>'
-  +'<div style="font-size:14px;font-weight:800;color:var(--text-primary);margin-top:3px">'+typeCompte+'</div>'
-  +(nomBoutique !== '—' ? '<div style="font-size:12px;color:var(--text-muted);margin-top:4px">🏪 '+nomBoutique+'</div>' : '')
-  +'</div>'
-  +'<div style="padding:12px;background:var(--bg-card-soft);border-radius:10px">'
-  +'<div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Code d\'accès</div>'
-  +'<div style="font-size:18px;font-weight:900;color:#2563eb;margin-top:3px;font-family:monospace;letter-spacing:4px">••••••</div>'
-  +'</div>'
+  +'<div style="padding:12px;background:var(--bg-card-soft);border-radius:10px"><div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Nom</div><div style="font-size:14px;font-weight:800;color:var(--text-primary);margin-top:3px">'+nomUtilisateur+'</div></div>'
+  +'<div style="padding:12px;background:var(--bg-card-soft);border-radius:10px"><div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Numéro WhatsApp</div><div style="font-size:14px;font-weight:800;color:var(--text-primary);margin-top:3px">'+phoneUtilisateur+'</div></div>'
+  +'<div style="padding:12px;background:var(--bg-card-soft);border-radius:10px"><div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Type de compte</div><div style="font-size:14px;font-weight:800;color:var(--text-primary);margin-top:3px">'+typeCompte+'</div>'+(nomBoutique !== '—' ? '<div style="font-size:12px;color:var(--text-muted);margin-top:4px">🏪 '+nomBoutique+'</div>' : '')+'</div>'
+  +'<div style="padding:12px;background:var(--bg-card-soft);border-radius:10px"><div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Code d\'accès</div><div style="font-size:18px;font-weight:900;color:#2563eb;margin-top:3px;font-family:monospace;letter-spacing:4px">••••••</div></div>'
   +'</div>'
   +'<div style="margin-top:16px;padding:14px 16px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1.5px solid #bfdbfe;border-radius:14px">'
   +'<div style="display:flex;gap:12px;align-items:flex-start">'
   +'<div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0"><i class="fa-solid fa-headset"></i></div>'
-  +'<div style="flex:1;min-width:0">'
-  +'<div style="font-size:13px;font-weight:900;color:#1e3a8a;margin-bottom:4px">Code oublié ?</div>'
-  +'<div style="font-size:12px;color:#1e40af;line-height:1.5;margin-bottom:10px">Contactez notre support WhatsApp pour récupérer votre code d\'accès. Vos informations seront envoyées automatiquement.</div>'
+  +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:900;color:#1e3a8a;margin-bottom:4px">Code oublié ?</div><div style="font-size:12px;color:#1e40af;line-height:1.5;margin-bottom:10px">Contactez notre support WhatsApp pour récupérer votre code d\'accès.</div>'
   +'<a href="'+whatsappUrl+'" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;background:#10b981;color:#fff;font-weight:900;font-size:12.5px;text-decoration:none;font-family:inherit"><i class="fa-brands fa-whatsapp" style="font-size:14px"></i> Contacter le support</a>'
-  +'</div>'
-  +'</div>'
-  +'</div>';
+  +'</div></div></div>';
   var phoneDisplay=document.getElementById('profilPhoneDisplay');
   if(phoneDisplay)phoneDisplay.textContent=CURRENT_ACCOUNT.phone||'—';
 }
@@ -2096,26 +1963,8 @@ function submitSignalement(){
   if(!raison.trim()){showToast('Décrivez la raison');return;}
   var nomUtilisateur = CURRENT_ACCOUNT ? (CURRENT_ACCOUNT.name||CURRENT_ACCOUNT.nomComplet||'Utilisateur') : 'Utilisateur';
   var phoneUtilisateur = CURRENT_ACCOUNT ? (CURRENT_ACCOUNT.phone||'—') : '—';
-  var typeCompte = getTypeCompteAffiche();
   var titreAnnonce = sujet.replace("Signaler l'annonce : ","");
-  var messageWhatsapp = '🚩 *SIGNALEMENT D\'ANNONCE NeTubeX RDC*\n\n'
-    + '━━━━━━━━━━━━━━━━━━━━\n'
-    + '📋 *ANNONCE SIGNALÉE*\n'
-    + '━━━━━━━━━━━━━━━━━━━━\n\n'
-    + '• *Référence :* ' + ref + '\n'
-    + '• *Titre :* ' + titreAnnonce + '\n\n'
-    + '━━━━━━━━━━━━━━━━━━━━\n'
-    + '👤 *SIGNALÉ PAR*\n'
-    + '━━━━━━━━━━━━━━━━━━━━\n\n'
-    + '• *Nom :* ' + nomUtilisateur + '\n'
-    + '• *WhatsApp :* ' + phoneUtilisateur + '\n'
-    + '• *Type de compte :* ' + typeCompte + '\n\n'
-    + '━━━━━━━━━━━━━━━━━━━━\n'
-    + '📝 *MOTIF DU SIGNALEMENT*\n'
-    + '━━━━━━━━━━━━━━━━━━━━\n\n'
-    + raison + '\n\n'
-    + '━━━━━━━━━━━━━━━━━━━━\n'
-    + '✅ _Message envoyé depuis le système NeTubeX RDC_';
+  var messageWhatsapp = '🚩 *SIGNALEMENT D\'ANNONCE NeTubeX RDC*\n\n📋 *ANNONCE SIGNALÉE*\n\n• *Référence :* '+ref+'\n• *Titre :* '+titreAnnonce+'\n\n👤 *SIGNALÉ PAR*\n\n• *Nom :* '+nomUtilisateur+'\n• *WhatsApp :* '+phoneUtilisateur+'\n\n📝 *MOTIF*\n\n'+raison+'\n\n✅ _NeTubeX RDC_';
   var whatsappUrl = 'https://wa.me/243857525821?text=' + encodeURIComponent(messageWhatsapp);
   window.open(whatsappUrl,'_blank');
   ajouterNotification({type:'signale',titre:'🚩 Signalement envoyé',message:'Votre signalement pour "'+ref+'" a bien été transmis.'});
@@ -2126,65 +1975,104 @@ function openUnlock(){
   haptic(20);
   if(!CURRENT_OFFRE) return;
   var annonceId = CURRENT_OFFRE.annonceId || CURRENT_OFFRE.id;
-  var deblocageEnCours = DEBLOCAGES_MEMORY.find(function(d){
+  if(!annonceId){ showToast('Annonce introuvable'); return; }
+  var deblocageExistant = DEBLOCAGES_MEMORY.find(function(d){
     return d.annonceId === annonceId && (d.statut === 'en_attente' || d.statut === 'debloque');
   });
-  if(deblocageEnCours){
-    if(deblocageEnCours.statut === 'en_attente'){showToast('En attente');}
-    else{showToast('Déjà débloqué');}
+  if(deblocageExistant){
+    if(deblocageExistant.statut === 'en_attente'){ showToast('Demande en cours de traitement'); }
+    else { showToast('Déjà débloqué'); }
     return;
   }
   var frais = (CURRENT_OFFRE.cat==='parcelle' || CURRENT_OFFRE.cat==='location') ? 10000 : 1000;
-  var label=document.getElementById('unlockPrixLabel');
-  if(label)label.textContent = frais.toLocaleString('fr-FR')+' FC via Airtel Money';
-  var refEl=document.getElementById('unlockRefCode');
-  if(refEl&&CURRENT_OFFRE){
-    var str=String((CURRENT_OFFRE.title||'')+(CURRENT_OFFRE.name||''));
-    var hash=0;for(var i=0;i<str.length;i++){hash=((hash<<5)-hash)+str.charCodeAt(i);hash|=0;}
-    refEl.textContent='ACC-'+(Math.abs(hash)%9999);
+  var montantEl = document.getElementById('unlockMontant');
+  var montantInline = document.getElementById('unlockMontantInline');
+  if(montantEl) montantEl.textContent = frais.toLocaleString('fr-FR')+' FC';
+  if(montantInline) montantInline.textContent = frais.toLocaleString('fr-FR')+' FC';
+  window._pendingDeblocageMontant = frais;
+  var refEl = document.getElementById('unlockRefCode');
+  if(refEl){
+    var str = String((CURRENT_OFFRE.title||'')+(CURRENT_OFFRE.name||''));
+    var hash = 0;
+    for(var i=0;i<str.length;i++){ hash = ((hash<<5)-hash)+str.charCodeAt(i); hash |= 0; }
+    refEl.textContent = 'ACC-'+(Math.abs(hash)%9999);
   }
-  document.getElementById('unlock-modal').classList.add('active');
+  var numEnvoi = document.getElementById('unlockNumEnvoi');
+  if(numEnvoi && CURRENT_ACCOUNT && CURRENT_ACCOUNT.phone) numEnvoi.value = CURRENT_ACCOUNT.phone;
+  _deblocageValide = false;
+  var modal = document.getElementById('unlock-modal');
+  if(modal){ modal.style.display = 'flex'; }
 }
-function closeUnlock(){var modal=document.getElementById('unlock-modal');if(modal)modal.classList.remove('active');}
+function closeUnlock(){
+  if(!_deblocageValide){ showToast('Veuillez envoyer la preuve de paiement'); return; }
+  var modal = document.getElementById('unlock-modal');
+  if(!modal) return;
+  _deblocageValide = false;
+  modal.style.display = 'none';
+}
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){
+    var modal = document.getElementById('unlock-modal');
+    if(modal && modal.style.display === 'flex' && !_deblocageValide){
+      e.preventDefault();
+      showToast('Complétez la preuve de paiement');
+    }
+    var modal2 = document.getElementById('paiementModal');
+    if(modal2 && modal2.style.display === 'flex' && !_paiementValide){
+      e.preventDefault();
+      showToast('Complétez la preuve de paiement');
+    }
+  }
+});
+window.addEventListener('popstate', function(e){
+  var modal = document.getElementById('unlock-modal');
+  if(modal && modal.style.display === 'flex' && !_deblocageValide){
+    history.pushState(null, '', location.href);
+    showToast('Complétez la preuve de paiement');
+    return;
+  }
+  var modal2 = document.getElementById('paiementModal');
+  if(modal2 && modal2.style.display === 'flex' && !_paiementValide){
+    history.pushState(null, '', location.href);
+    showToast('Complétez la preuve de paiement');
+    return;
+  }
+});
 async function validerDeblocage(){
   haptic(30);
-  if(!CURRENT_OFFRE){showToast('Introuvable');closeUnlock();return;}
-  if(!CURRENT_ACCOUNT){showToast('Connectez-vous');closeUnlock();return;}
-  var annonceId=CURRENT_OFFRE.annonceId||CURRENT_OFFRE.id||('LOCAL-'+Date.now());
-  var tel=document.querySelector('#unlock-modal input[type="tel"]').value.trim();
-  var txId=document.querySelector('#unlock-modal input[type="text"]').value.trim();
-  if(!tel||!txId){showToast('Remplissez tous les champs');return;}
-  var fraisDeblo = (CURRENT_OFFRE.cat==='parcelle' || CURRENT_OFFRE.cat==='location') ? 10000 : 1000;
+  if(!CURRENT_OFFRE){ showToast('Introuvable'); return; }
+  if(!CURRENT_ACCOUNT){ showToast('Connectez-vous'); return; }
+  var annonceId = CURRENT_OFFRE.annonceId || CURRENT_OFFRE.id || ('LOCAL-'+Date.now());
+  var txId = (document.getElementById('unlockTxId')||{}).value?.trim();
+  var numEnvoi = (document.getElementById('unlockNumEnvoi')||{}).value?.trim();
+  if(!txId || txId.length < 6){ showToast('ID Transaction invalide'); return; }
+  if(!numEnvoi || numEnvoi.replace(/[^\d]/g,'').length < 9){ showToast('Numéro d\'envoi invalide'); return; }
+  var frais = window._pendingDeblocageMontant || 1000;
+  var submitBtn = document.querySelector('#unlockForm button[type="submit"]');
+  if(submitBtn){ submitBtn.disabled=true; submitBtn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Envoi…'; }
   try{
-    if(window.creerDeblocage){await window.creerDeblocage(CURRENT_ACCOUNT.id,annonceId,txId,fraisDeblo);}
-    DEBLOCAGES_DIRTY=true;
+    if(window.creerDeblocage){ await window.creerDeblocage(CURRENT_ACCOUNT.id, annonceId, txId, frais, numEnvoi); }
+    _deblocageValide = true;
+    DEBLOCAGES_DIRTY = true;
     closeUnlock();
-    showToast('Demande envoyée');
     document.getElementById('deblocagePendingOverlay').classList.add('active');
     document.getElementById('deblocagePendingModal').classList.add('active');
     await rafraichirTousDeblocages();
-  }catch(err){console.error('Erreur:',err);showToast('Erreur');}
+  }catch(err){ showToast('Erreur : '+(err.message||'inconnue')); }
+  finally{ if(submitBtn){ submitBtn.disabled=false; submitBtn.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer pour vérification'; } }
 }
 function closeDeblocagePending(){document.getElementById('deblocagePendingOverlay').classList.remove('active');document.getElementById('deblocagePendingModal').classList.remove('active');}
 function showBoutiquePending(){document.getElementById('boutiquePendingOverlay').classList.add('active');document.getElementById('boutiquePendingModal').classList.add('active');}
 function closeBoutiquePending(){document.getElementById('boutiquePendingOverlay').classList.remove('active');document.getElementById('boutiquePendingModal').classList.remove('active');var pageInsc=document.getElementById('page-inscription');if(pageInsc&&pageInsc.classList.contains('active')){go('index');}}
 function copyText(t){
-  if(navigator.clipboard&&navigator.clipboard.writeText){
-    navigator.clipboard.writeText(t).then(function(){haptic(20);showToast('Copié');}).catch(function(){});
-  }else{
-    var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();
-    try{document.execCommand('copy');showToast('Copié');}catch(e){}
-    document.body.removeChild(ta);
-  }
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){haptic(20);showToast('Copié');}).catch(function(){});}
+  else{var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');showToast('Copié');}catch(e){}document.body.removeChild(ta);}
 }
 function extraireMots(texte){if(!texte)return[];return texte.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\w\s]/g,' ').trim().split(/\s+/).filter(function(m){return m.length>=3||/^\d+$/.test(m);});}
 function normaliser(texte){if(!texte)return'';return String(texte).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
 var searchEnCours=false;
 function executeSearch(){
-  if(!CURRENT_ACCOUNT){
-    requireLogin('rechercher',function(){executeSearch();});
-    return;
-  }
+  if(!CURRENT_ACCOUNT){requireLogin('rechercher',function(){executeSearch();});return;}
   if(searchEnCours)return;
   var q=(document.getElementById('searchQuery')||{}).value?document.getElementById('searchQuery').value.trim():'';
   var c=(document.getElementById('searchCity')||{}).value?document.getElementById('searchCity').value.trim():'';
@@ -2213,15 +2101,7 @@ function closeSearchResults(){var o=document.getElementById('searchResultsOverla
 function showSearchLoading(){
   var p=document.getElementById('searchResultsPanel');
   if(!p)return;
-  p.innerHTML='<div style="background:var(--bg-card);width:100%;max-width:720px;max-height:calc(100vh - 80px);border-radius:0 0 24px 24px;overflow:hidden;display:flex;flex-direction:column">'
-  +'<div style="padding:18px 22px;background:linear-gradient(135deg,#1e40af,#2563eb);color:#fff">'
-  +'<div style="font-size:16px;font-weight:900"><i class="fa-solid fa-magnifying-glass"></i> Recherche en cours</div>'
-  +'</div>'
-  +'<div style="padding:60px 20px;text-align:center">'
-  +'<div style="width:48px;height:48px;border:4px solid rgba(59,130,246,.2);border-top-color:#3b82f6;border-radius:50%;margin:0 auto 20px;animation:spinSearch .8s linear infinite"></div>'
-  +'<div style="font-size:15px;font-weight:800;color:var(--text-primary);font-family:ui-monospace,Menlo,monospace;min-height:24px"><span id="searchTypewriter"></span><span style="color:#3b82f6;font-weight:900">|</span></div>'
-  +'</div>'
-  +'</div>';
+  p.innerHTML='<div style="background:var(--bg-card);width:100%;max-width:720px;max-height:calc(100vh - 80px);border-radius:0 0 24px 24px;overflow:hidden;display:flex;flex-direction:column"><div style="padding:18px 22px;background:linear-gradient(135deg,#1e40af,#2563eb);color:#fff"><div style="font-size:16px;font-weight:900"><i class="fa-solid fa-magnifying-glass"></i> Recherche en cours</div></div><div style="padding:60px 20px;text-align:center"><div style="width:48px;height:48px;border:4px solid rgba(59,130,246,.2);border-top-color:#3b82f6;border-radius:50%;margin:0 auto 20px;animation:spinSearch .8s linear infinite"></div><div style="font-size:15px;font-weight:800;color:var(--text-primary);font-family:ui-monospace,monospace;min-height:24px"><span id="searchTypewriter"></span><span style="color:#3b82f6;font-weight:900">|</span></div></div></div>';
   demarrerTypewriterRecherche();
 }
 function demarrerTypewriterRecherche(){
@@ -2230,10 +2110,7 @@ function demarrerTypewriterRecherche(){
   var phrases=['Recherche en cours...','Analyse des offres...','Vérification des résultats...','Filtrage par critères...','Préparation de l\'affichage...'];
   var phraseIndex=0,charIndex=0,isDeleting=false;
   var cancelled=false;
-  function checkCancel(){
-    if(!document.getElementById('searchTypewriter')){cancelled=true;return true;}
-    return false;
-  }
+  function checkCancel(){if(!document.getElementById('searchTypewriter')){cancelled=true;return true;}return false;}
   function type(){
     if(cancelled||checkCancel())return;
     var current=phrases[phraseIndex];
@@ -2273,10 +2150,7 @@ function afficherResultats(resultats,query){
   p.innerHTML=html;
 }
 function toggleSearchCard(){
-  if(!CURRENT_ACCOUNT){
-    requireLogin('rechercher',function(){toggleSearchCard();});
-    return;
-  }
+  if(!CURRENT_ACCOUNT){requireLogin('rechercher',function(){toggleSearchCard();});return;}
   haptic(15);
   var wrapper=document.getElementById('searchCardWrapper');
   var trigger=document.getElementById('besoinTrigger');
@@ -2305,11 +2179,8 @@ function getAvatarHTML(offre,size){
 }
 function getVerifiedBadgeHTML(offre){
   if(!offre)return '';
-  var estVerifie=offre.isCommerce || offre.commerce || offre.publieurType==='commerce'
-                || offre.publieurBoutique || offre.cat==='entreprise' || offre.cat==='hopital';
-  if(estVerifie){
-    return ' <span class="verified-badge" title="Compte vérifié" aria-label="Compte vérifié"><i class="fa-solid fa-check" style="color:#ffffff"></i></span>';
-  }
+  var estVerifie=offre.isCommerce || offre.commerce || offre.publieurType==='commerce' || offre.publieurBoutique || offre.cat==='entreprise' || offre.cat==='hopital';
+  if(estVerifie){return ' <span class="verified-badge" title="Compte vérifié"><i class="fa-solid fa-check" style="color:#ffffff"></i></span>';}
   return '';
 }
 function getFeedItems(){
@@ -2333,8 +2204,7 @@ function getFeedItems(){
       price:nbProduits?(nbProduits+' produit'+(nbProduits>1?'s':'')+' disponible'+(nbProduits>1?'s':'')):'Catalogue bientôt disponible',
       priceClass:'post-tag-land',desc:descCommerce,img:imageCommerce,
       tag:(c.emoji||'🏪')+' '+(c.type||'Commerce'),tagClass:'post-tag-commerce',
-      unlock:false,urgence:false,isCommerce:true,
-      vues:c.vues||0
+      unlock:false,urgence:false,isCommerce:true,vues:c.vues||0
     },_seed:(c.id||c.nom||'').length});
   });
   items.sort(function(a,b){return a._seed-b._seed;});
@@ -2359,10 +2229,7 @@ function renderOffreCard(p){
   }
   else if(p.unlock){
     var deblocageValide = p.annonceId && trouverDeblocagePourAnnonce(p.annonceId);
-    var deblocageEnCours = p.annonceId && DEBLOCAGES_MEMORY.find(function(d){
-      return d.annonceId === p.annonceId && d.statut === 'en_attente';
-    });
-    
+    var deblocageEnCours = p.annonceId && DEBLOCAGES_MEMORY.find(function(d){return d.annonceId === p.annonceId && d.statut === 'en_attente';});
     if(deblocageValide){
       actionBtn='<button class="fb-action-btn" style="background:#ecfdf5;color:#059669;font-weight:900;margin-left:auto;border:1.5px solid #a7f3d0" onclick="event.stopPropagation();openDetail('+JSON.stringify(p).replace(/'/g,"&#39;")+')"><i class="fa-solid fa-circle-check"></i> Débloqué</button>';
     }else if(deblocageEnCours){
@@ -2384,10 +2251,7 @@ function renderFeedBatch(page){
   if(!feed)return;
   if(page===0){
     var items=getFeedItems();
-    var hash=items.map(function(it){
-      var d=it.data;
-      return (d.annonceId||d.commerceId||d.title||'')+'_'+(d.vues||0);
-    }).sort().join('|');
+    var hash=items.map(function(it){var d=it.data;return (d.annonceId||d.commerceId||d.title||'')+'_'+(d.vues||0);}).sort().join('|');
     if(_feedInitialise && hash===_dernierFeedHash && feed.children.length>0){return;}
     _dernierFeedHash=hash;
     _feedInitialise=true;
@@ -2420,19 +2284,12 @@ function initFeed(){
 function prechargerImages(limite){
   limite=limite||10;
   try{
-    ANNONCES_DATA.slice(0,limite).forEach(function(a){
-      if(a.img&&a.img.indexOf('data:')!==0){var img=new Image();img.src=a.img;}
-    });
-    COMMERCES_DATA.slice(0,limite).forEach(function(c){
-      if(c.img&&c.img.indexOf('data:')!==0){var img=new Image();img.src=c.img;}
-    });
+    ANNONCES_DATA.slice(0,limite).forEach(function(a){if(a.img&&a.img.indexOf('data:')!==0){var img=new Image();img.src=a.img;}});
+    COMMERCES_DATA.slice(0,limite).forEach(function(c){if(c.img&&c.img.indexOf('data:')!==0){var img=new Image();img.src=c.img;}});
   }catch(e){}
 }
 function sharePost(){
-  if(!CURRENT_ACCOUNT){
-    requireLogin('partager',function(){sharePost();});
-    return;
-  }
+  if(!CURRENT_ACCOUNT){requireLogin('partager',function(){sharePost();});return;}
   haptic(30);
   if(navigator.share){navigator.share({title:'NeTubeX RDC',url:location.href}).catch(function(){});}
   else showToast('Lien copié');
@@ -2441,13 +2298,8 @@ function updateHeaderBtn(page){var btn=document.getElementById('headerBackBtn');
 function headerBackAction(){haptic(15);go('index');}
 function go(page,param){
   var pagesPubliques=['index','commerces','category','comment'];
-  if(pagesPubliques.indexOf(page)===-1 && !CURRENT_ACCOUNT){
-    requireLogin('accéder',function(){go(page,param);});
-    return;
-  }
-  if(currentTab === 'index' && page !== 'index'){
-    rafraichirDonneesSilencieusement();
-  }
+  if(pagesPubliques.indexOf(page)===-1 && !CURRENT_ACCOUNT){requireLogin('accéder',function(){go(page,param);});return;}
+  if(currentTab === 'index' && page !== 'index'){rafraichirDonneesSilencieusement();}
   haptic();
   currentTab=page;
   var isCategoryChange=(page==='category');
@@ -2459,27 +2311,15 @@ function go(page,param){
   if(page==='index')document.body.classList.add('page-index-active');else document.body.classList.remove('page-index-active');
   arreterPolling();
   if(page !== 'index'){ demarrerPolling(); }
-  if(page!=='dashboard-utilisateur'){
-    arreterPollingDeblocages();
-  }
+  if(page!=='dashboard-utilisateur'){ arreterPollingDeblocages(); }
   if(page==='index'){
     feedPage=0;
     var feed=document.getElementById('mainFeed');
-    if(!feed||feed.children.length===0){
-      _dernierFeedHash='';
-      _feedInitialise=false;
-      if(typeof initFeed==='function')initFeed();
-    }else{
+    if(!feed||feed.children.length===0){_dernierFeedHash='';_feedInitialise=false;if(typeof initFeed==='function')initFeed();}
+    else{
       var items=getFeedItems();
-      var nouveauHash=items.map(function(it){
-        var d=it.data;
-        return (d.annonceId||d.commerceId||d.title||'')+'_'+(d.vues||0);
-      }).sort().join('|');
-      if(nouveauHash !== _dernierFeedHash){
-        _dernierFeedHash=nouveauHash;
-        feed.innerHTML='';
-        if(typeof initFeed==='function')initFeed();
-      }
+      var nouveauHash=items.map(function(it){var d=it.data;return (d.annonceId||d.commerceId||d.title||'')+'_'+(d.vues||0);}).sort().join('|');
+      if(nouveauHash !== _dernierFeedHash){_dernierFeedHash=nouveauHash;feed.innerHTML='';if(typeof initFeed==='function')initFeed();}
     }
     document.querySelectorAll('.category-btn').forEach(function(b){b.classList.remove('active');});
     var allBtn=document.querySelector('.category-btn[data-cat="all"]');
@@ -2510,10 +2350,7 @@ function go(page,param){
     var compteTab=document.querySelector('.dash-tab[data-tab="compte"]');
     if(compteTab)compteTab.click();
     renderProfil();
-    if(CURRENT_ACCOUNT){
-      DEBLOCAGES_DIRTY=true;
-      rafraichirTousDeblocages();
-    }
+    if(CURRENT_ACCOUNT){DEBLOCAGES_DIRTY=true;rafraichirTousDeblocages();}
   }
   if(page!=='category'&&page!=='publish'){CURRENT_CATEGORY=null;}
   if(!_navFromPopstate){try{history.pushState({page:page,param:param||null},'',null);}catch(e){}}_navFromPopstate=false;
@@ -2548,10 +2385,7 @@ function renderCategoryFeed(cat){
   remplacerParImagesCachees(feed);
 }
 function filterCategory(el,cat){
-  if(!CURRENT_ACCOUNT){
-    requireLogin('filtres',function(){filterCategory(el,cat);});
-    return;
-  }
+  if(!CURRENT_ACCOUNT){requireLogin('filtres',function(){filterCategory(el,cat);});return;}
   CURRENT_CATEGORY=(cat==='all')?null:cat;haptic();
   document.querySelectorAll('.category-btn').forEach(function(b){b.classList.remove('active');});
   el.classList.add('active');
@@ -2565,7 +2399,7 @@ async function refreshCommerces(){
     COMMERCES_DATA=commercesFirestore;
     renderCommercesGrid();
     filtrerCommercesSansCheck();
-  }catch(e){console.warn(e);}
+  }catch(e){}
 }
 function renderCommercesGrid(){
   var grid=document.getElementById('commercesGrid');
@@ -2603,10 +2437,7 @@ function renderCommercesGrid(){
   grid.innerHTML=html;
 }
 async function openCatalogue(commerceId){
-  if(!CURRENT_ACCOUNT){
-    requireLogin('catalogue',function(){openCatalogue(commerceId);});
-    return;
-  }
+  if(!CURRENT_ACCOUNT){requireLogin('catalogue',function(){openCatalogue(commerceId);});return;}
   haptic(20);
   var commerce=COMMERCES_DATA.find(function(c){return c.id===commerceId;});
   if(!commerce){showToast('Introuvable');return;}
@@ -2621,7 +2452,7 @@ async function openCatalogue(commerceId){
       var itemCommerce=COMMERCES_DATA.find(function(c){return c.id===commerce.id;});
       if(itemCommerce)itemCommerce.vues=commerce.vues;
     }
-  }catch(e){console.warn('clics commerce:',e.message);}
+  }catch(e){}
   if(!CURRENT_COMMERCE||CURRENT_COMMERCE.id!==commerce.id){cart=[];updateCart();refreshAddButtons();}
   CURRENT_COMMERCE=commerce;
   try{await window.setStored(window.STORES.commerce,'current',commerce);}catch(e){}
@@ -2671,10 +2502,7 @@ function renderCatalogue(commerce){
   remplacerParImagesCachees(feed);
 }
 function filtrerCommerces(){
-  if(!CURRENT_ACCOUNT){
-    requireLogin('filtres',function(){filtrerCommerces();});
-    return;
-  }
+  if(!CURRENT_ACCOUNT){requireLogin('filtres',function(){filtrerCommerces();});return;}
   filtrerCommercesSansCheck();
 }
 function filtrerCommercesSansCheck(){
@@ -2704,7 +2532,7 @@ async function incrementerVuesBoutique(uid){
     var snap=await window.getDocRef(statsRef);
     var current=snap.exists()?(snap.data().vues||0):0;
     await window.setDoc(statsRef,{vues:current+1,dateDernierAcces:new Date().toISOString()},{merge:true});
-  }catch(e){console.warn('Vues:',e.message);}
+  }catch(e){}
 }
 var DETAIL_FS_COUNTDOWN=10;var detailFsActive=false;
 function openDetailFullscreen(src){
@@ -2724,18 +2552,11 @@ function closeDetailFullscreen(){
   document.body.style.overflow='';
 }
 async function openDetail(offreData){
-  if(!CURRENT_ACCOUNT){
-    requireLogin('détails',function(){openDetail(offreData);});
-    return;
-  }
+  if(!CURRENT_ACCOUNT){requireLogin('détails',function(){openDetail(offreData);});return;}
   CURRENT_OFFRE=offreData;
   try{window.setStored(window.STORES.offre,'current',offreData);}catch(e){}
-  if(offreData && (offreData.annonceId||offreData.id)){
-    incrementerVuesAnnonce(offreData.annonceId||offreData.id);
-  }
-  if(CURRENT_ACCOUNT && CURRENT_ACCOUNT.id && DEBLOCAGES_MEMORY.length===0){
-    try{await chargerDeblocages(false);}catch(e){}
-  }
+  if(offreData && (offreData.annonceId||offreData.id)){incrementerVuesAnnonce(offreData.annonceId||offreData.id);}
+  if(CURRENT_ACCOUNT && CURRENT_ACCOUNT.id && DEBLOCAGES_MEMORY.length===0){try{await chargerDeblocages(false);}catch(e){}}
   await renderDetail(offreData);
   go('detail');
 }
@@ -2784,69 +2605,29 @@ async function renderDetail(offre){
   var actionsEl=document.getElementById('detailActions');
   if(deblocageValide){
     var coords=deblocageValide.coordonnees||null;
-    if(!coords || !coords.telephone || !coords.adresse){
-      try{
-        var snapDeb=await window.getDocRef(window.docRef(window.db,'deblocages',deblocageValide.id));
-        if(snapDeb.exists()){
-          var d=snapDeb.data();
-          if(d.coordonnees && d.coordonnees.telephone) coords=d.coordonnees;
-        }
-      }catch(e){}
-    }
-    if((!coords || !coords.telephone || !coords.adresse) && annonceId){
-      try{
-        var snapCoord=await window.getDocRef(window.docRef(window.db,'annonces',annonceId,'prive','contact'));
-        if(snapCoord.exists()){
-          var c=snapCoord.data();
-          if(c && c.telephone) coords=c;
-        }
-      }catch(e){}
-    }
     if(contactSection)contactSection.style.display='block';
-    if(contactOwnerEl){
-      contactOwnerEl.textContent=(coords&&coords.nom)||offre.name||'Propriétaire';
-    }
-    if(contactAddrEl){
-      contactAddrEl.textContent=(coords&&coords.adresse)||'—';
-    }
-    if(contactPhoneEl){
-      contactPhoneEl.textContent=(coords&&coords.telephone)||'—';
-    }
+    if(contactOwnerEl)contactOwnerEl.textContent=(coords&&coords.nom)||offre.name||'Propriétaire';
+    if(contactAddrEl)contactAddrEl.textContent=(coords&&coords.adresse)||'—';
+    if(contactPhoneEl)contactPhoneEl.textContent=(coords&&coords.telephone)||'—';
     if(actionsEl){
       var telClean=(coords&&coords.telephone||'').replace(/[^\d]/g,'');
-      actionsEl.innerHTML=
-        '<div style="padding:12px 14px;background:#ecfdf5;border:1.5px solid #a7f3d0;border-radius:12px;margin-bottom:10px;display:flex;align-items:center;gap:10px">'
-        +'<i class="fa-solid fa-circle-check" style="color:#059669;font-size:16px"></i>'
-        +'<div style="flex:1;min-width:0">'
-        +'<div style="font-size:12.5px;font-weight:900;color:#065f46">Coordonnées débloquées</div>'
-        +'<div style="font-size:11px;color:#047857;margin-top:2px">Valable 12h depuis la validation</div>'
-        +'</div></div>'
-        +(telClean
-          ?'<button onclick="ouvrirOptionsAppel(\''+telClean+'\',{title:\''+String(offre.title||'').replace(/'/g,"\\'")+'\',price:\''+String(offre.price||'').replace(/'/g,"\\'")+'\',location:\''+String(offre.location||'').replace(/'/g,"\\'")+'\',desc:\''+String(offre.desc||'').replace(/'/g,"\\'")+'\'})" class="detail-primary-btn green" style="flex:1"><i class="fa-solid fa-address-book"></i> Contacter</button>'
-          :'');
+      actionsEl.innerHTML='<div style="padding:12px 14px;background:#ecfdf5;border:1.5px solid #a7f3d0;border-radius:12px;margin-bottom:10px;display:flex;align-items:center;gap:10px"><i class="fa-solid fa-circle-check" style="color:#059669;font-size:16px"></i><div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:900;color:#065f46">Coordonnées débloquées</div><div style="font-size:11px;color:#047857;margin-top:2px">Valable 12h depuis la validation</div></div></div>'
+        +(telClean?'<button onclick="ouvrirOptionsAppel(\''+telClean+'\',{title:\''+String(offre.title||'').replace(/'/g,"\\'")+'\',price:\''+String(offre.price||'').replace(/'/g,"\\'")+'\',location:\''+String(offre.location||'').replace(/'/g,"\\'")+'\',desc:\''+String(offre.desc||'').replace(/'/g,"\\'")+'\'})" class="detail-primary-btn green" style="flex:1"><i class="fa-solid fa-address-book"></i> Contacter</button>':'');
     }
   }else{
     if(contactSection)contactSection.style.display=offre.unlock?'block':'none';
-    if(contactOwnerEl){contactOwnerEl.classList.add('blur-locked');contactOwnerEl.textContent='Propriétaire Privé Certifié';contactOwnerEl.style.filter='';contactOwnerEl.style.pointerEvents='';contactOwnerEl.style.userSelect='';}
-    if(contactAddrEl){contactAddrEl.classList.add('blur-locked');contactAddrEl.textContent='Av. de la Paix N° 45 B';contactAddrEl.style.filter='';contactAddrEl.style.pointerEvents='';contactAddrEl.style.userSelect='';}
-    if(contactPhoneEl){contactPhoneEl.classList.add('blur-locked');contactPhoneEl.textContent='+243 97 000 00 00';contactPhoneEl.style.filter='';contactPhoneEl.style.pointerEvents='';contactPhoneEl.style.userSelect='';}
+    if(contactOwnerEl){contactOwnerEl.textContent='Propriétaire Privé Certifié';}
+    if(contactAddrEl){contactAddrEl.textContent='Av. de la Paix N° 45 B';}
+    if(contactPhoneEl){contactPhoneEl.textContent='+243 97 000 00 00';}
     if(actionsEl){
       actionsEl.innerHTML='';
       if(offre.unlock){
-        var deblocageEnCours = DEBLOCAGES_MEMORY.find(function(d){
-          return d.annonceId === annonceId && (d.statut === 'en_attente' || d.statut === 'debloque');
-        });
+        var deblocageEnCours = DEBLOCAGES_MEMORY.find(function(d){return d.annonceId === annonceId && (d.statut === 'en_attente' || d.statut === 'debloque');});
         var fraisDeblocage = (offre.cat==='parcelle' || offre.cat==='location') ? 10000 : 1000;
         if(deblocageEnCours && deblocageEnCours.statut === 'en_attente'){
-          actionsEl.innerHTML='<button class="detail-primary-btn gold" disabled><i class="fa-solid fa-hourglass-half"></i> Déblocage en attente de validation</button>'
-            +'<div style="margin-top:10px;padding:12px 14px;background:#fef3c7;border:1.5px solid #fbbf24;border-radius:12px;display:flex;gap:10px;align-items:flex-start">'
-            +'<i class="fa-solid fa-circle-info" style="color:#d97706;font-size:14px;flex-shrink:0;margin-top:2px"></i>'
-            +'<div style="font-size:12px;color:#78350f;line-height:1.5">'
-            +'<strong style="display:block;margin-bottom:2px">Demande envoyée</strong>'
-            +'Votre paiement est en cours de vérification. Vous recevrez une notification dès validation.'
-            +'</div></div>';
+          actionsEl.innerHTML='<button class="detail-primary-btn gold" disabled><i class="fa-solid fa-hourglass-half"></i> Déblocage en attente</button>';
         }else if(deblocageEnCours && deblocageEnCours.statut === 'debloque'){
-          actionsEl.innerHTML='<button class="detail-primary-btn green" onclick="scrollVersCoordonnees()"><i class="fa-solid fa-circle-check"></i> Coordonnées débloquées — Voir</button>';
+          actionsEl.innerHTML='<button class="detail-primary-btn green" onclick="scrollVersCoordonnees()"><i class="fa-solid fa-circle-check"></i> Coordonnées débloquées</button>';
         }else{
           actionsEl.innerHTML='<button class="detail-primary-btn gold" onclick="requireLogin(\'unlock\',()=>openUnlock())"><i class="fa-solid fa-key"></i> Débloquer les coordonnées — '+fraisDeblocage.toLocaleString('fr-FR')+' FC</button>';
         }
@@ -2886,8 +2667,6 @@ function scrollVersCoordonnees(){
     setTimeout(function(){ section.style.boxShadow=''; },1800);
   }
 }
-window.scrollVersCoordonnees=scrollVersCoordonnees;
-
 function ouvrirOptionsAppel(numero, annonceRef){
   haptic(20);
   if(!numero){showToast('Numéro indisponible');return;}
@@ -2906,18 +2685,12 @@ function ouvrirOptionsAppel(numero, annonceRef){
     +'<div style="display:flex;flex-direction:column;gap:12px">'
     +'<a id="btnAppelNormal" href="#" style="display:flex;align-items:center;gap:14px;padding:16px;border-radius:16px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;text-decoration:none;box-shadow:0 4px 0 #1e3a8a">'
     +'<div style="width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0"><i class="fa-solid fa-phone"></i></div>'
-    +'<div style="flex:1;min-width:0">'
-    +'<div style="font-size:14px;font-weight:900">Appel normal</div>'
-    +'<div style="font-size:11.5px;opacity:.85;margin-top:2px">Composer le numéro directement</div>'
-    +'</div>'
+    +'<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:900">Appel normal</div><div style="font-size:11.5px;opacity:.85;margin-top:2px">Composer le numéro directement</div></div>'
     +'<i class="fa-solid fa-arrow-right" style="font-size:14px;opacity:.7"></i>'
     +'</a>'
     +'<a id="btnWhatsapp" href="#" target="_blank" style="display:flex;align-items:center;gap:14px;padding:16px;border-radius:16px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;text-decoration:none;box-shadow:0 4px 0 #047857">'
     +'<div style="width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0"><i class="fa-brands fa-whatsapp"></i></div>'
-    +'<div style="flex:1;min-width:0">'
-    +'<div style="font-size:14px;font-weight:900">WhatsApp</div>'
-    +'<div style="font-size:11.5px;opacity:.85;margin-top:2px">Envoyer un message</div>'
-    +'</div>'
+    +'<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:900">WhatsApp</div><div style="font-size:11.5px;opacity:.85;margin-top:2px">Envoyer un message</div></div>'
     +'<i class="fa-solid fa-arrow-right" style="font-size:14px;opacity:.7"></i>'
     +'</a>'
     +'</div>'
@@ -2930,21 +2703,17 @@ function ouvrirOptionsAppel(numero, annonceRef){
   var btnWa = document.getElementById('btnWhatsapp');
   if(btnTel) btnTel.href = 'tel:+' + numero;
   if(btnWa){
-    var messageWa = 'Bonjour, je vous contacte depuis NeTubeX RDC.\n\n'
-      + '📋 *ANNONCE CONCERNÉE :*\n'
-      + '━━━━━━━━━━━━━━━━━━━━\n\n'
+    var messageWa = 'Bonjour, je vous contacte depuis NeTubeX RDC.\n\n📋 *ANNONCE CONCERNÉE :*\n'
       + (annonceRef.title ? '• *Titre :* ' + annonceRef.title + '\n' : '')
       + (annonceRef.price ? '• *Prix :* ' + annonceRef.price + '\n' : '')
       + (annonceRef.location ? '• *Ville :* ' + annonceRef.location + '\n' : '')
       + (annonceRef.desc ? '\n📝 *Description :*\n' + annonceRef.desc + '\n' : '')
-      + '\n━━━━━━━━━━━━━━━━━━━━\n'
-      + 'Merci de me recontacter.';
+      + '\nMerci de me recontacter.';
     btnWa.href = 'https://wa.me/' + numero + '?text=' + encodeURIComponent(messageWa);
   }
   modal.style.display = 'flex';
   setTimeout(function(){ modal.classList.add('active'); },10);
 }
-
 function fermerOptionsAppel(){
   haptic(15);
   var modal = document.getElementById('appelOptionsModal');
@@ -2952,10 +2721,8 @@ function fermerOptionsAppel(){
   modal.classList.remove('active');
   setTimeout(function(){ modal.style.display = 'none'; },250);
 }
-
 window.ouvrirOptionsAppel = ouvrirOptionsAppel;
 window.fermerOptionsAppel = fermerOptionsAppel;
-
 function updateCart(){
   var floatBadge=document.getElementById('cartFloatBadge');
   var floatBtn=document.getElementById('cartFloatingBtn');
@@ -2977,12 +2744,8 @@ function updateCart(){
     +'<button onclick="changeQty('+idx+',-1)" style="width:28px;height:28px;border-radius:6px;background:var(--bg-card-alt);border:1px solid var(--border-primary);color:var(--text-primary);cursor:pointer;font-weight:900">−</button>'
     +'<span style="font-size:13px;font-weight:900;color:var(--text-primary);min-width:20px;text-align:center">'+i.qty+'</span>'
     +'<button onclick="changeQty('+idx+',1)" style="width:28px;height:28px;border-radius:6px;background:var(--bg-card-alt);border:1px solid var(--border-primary);color:var(--text-primary);cursor:pointer;font-weight:900">+</button>'
-    +'</div>'
-    +'</div>'
-    +'<div style="text-align:right;flex-shrink:0">'
-    +'<div style="font-size:13px;font-weight:900;color:var(--text-primary)">'+(i.price*i.qty).toLocaleString('fr-FR')+' FC</div>'
-    +'<button onclick="removeItem('+idx+')" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#ef4444;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:12px;margin-top:6px">✕</button>'
-    +'</div>'
+    +'</div></div>'
+    +'<div style="text-align:right;flex-shrink:0"><div style="font-size:13px;font-weight:900;color:var(--text-primary)">'+(i.price*i.qty).toLocaleString('fr-FR')+' FC</div><button onclick="removeItem('+idx+')" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#ef4444;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:12px;margin-top:6px">✕</button></div>'
     +'</div>';
   }).join('');
   var tot=cart.reduce(function(s,i){return s+i.price*i.qty;},0);
@@ -3005,10 +2768,7 @@ function scrollVersArticle(nomArticle){
   if(!feed)return;
   var cibles=feed.querySelectorAll('.fb-post');
   var trouve=null;
-  cibles.forEach(function(el){
-    var nom=el.getAttribute('data-nom');
-    if(nom&&nom.indexOf(nomArticle)===0){trouve=el;}
-  });
+  cibles.forEach(function(el){var nom=el.getAttribute('data-nom');if(nom&&nom.indexOf(nomArticle)===0){trouve=el;}});
   if(!trouve){showToast('Article non trouvé');return;}
   trouve.scrollIntoView({behavior:'smooth',block:'center'});
   var ancienFond=trouve.style.background;
@@ -3016,17 +2776,10 @@ function scrollVersArticle(nomArticle){
   trouve.style.transition='background 0.3s ease, box-shadow 0.3s ease';
   trouve.style.background='rgba(59,130,246,.12)';
   trouve.style.boxShadow='0 0 0 3px rgba(59,130,246,.4)';
-  setTimeout(function(){
-    trouve.style.background=ancienFond;
-    trouve.style.boxShadow='';
-    setTimeout(function(){trouve.style.transition=ancienneTransition;},400);
-  },1800);
+  setTimeout(function(){trouve.style.background=ancienFond;trouve.style.boxShadow='';setTimeout(function(){trouve.style.transition=ancienneTransition;},400);},1800);
 }
 function addToCart(name,price,btn){
-  if(!CURRENT_ACCOUNT){
-    requireLogin('panier',function(){addToCart(name,price,btn);});
-    return;
-  }
+  if(!CURRENT_ACCOUNT){requireLogin('panier',function(){addToCart(name,price,btn);});return;}
   haptic(30);
   var e=cart.find(function(i){return i.name===name;});
   if(e)e.qty++;else cart.push({name:name,price:price,qty:1});
@@ -3044,10 +2797,7 @@ function refreshAddButtons(){
 function changeQty(idx,d){cart[idx].qty+=d;if(cart[idx].qty<=0){cart.splice(idx,1);}updateCart();refreshAddButtons();}
 function removeItem(idx){cart.splice(idx,1);updateCart();refreshAddButtons();}
 function openCart(){
-  if(!CURRENT_ACCOUNT){
-    requireLogin('panier',function(){openCart();});
-    return;
-  }
+  if(!CURRENT_ACCOUNT){requireLogin('panier',function(){openCart();});return;}
   document.getElementById('cart-drawer').classList.add('active');
   document.getElementById('cart-overlay').classList.add('active');
   document.body.style.overflow='hidden';
@@ -3066,9 +2816,7 @@ function submitOrder(){
       if(wa)waCommercant=wa.replace(/[^\d]/g,'');
     }
     var msg='🛒 *NOUVELLE COMMANDE NeTubeX RDC*%0A';
-    msg+='━━━━━━━━━━━━━━━━━━━━%0A';
     msg+='🏪 *Commerçant :* '+(CURRENT_COMMERCE?(CURRENT_COMMERCE.nom||CURRENT_COMMERCE.nomCommerce):'—')+'%0A';
-    msg+='━━━━━━━━━━━━━━━━━━━━%0A';
     msg+='%0A📋 *ARTICLES :*%0A%0A';
     cart.forEach(function(i,idx){
       msg+='*'+(idx+1)+'. '+i.name+'*%0A';
@@ -3077,16 +2825,13 @@ function submitOrder(){
       msg+='   • Sous-total : '+(i.price*i.qty).toLocaleString('fr-FR')+' FC%0A%0A';
     });
     var tot=cart.reduce(function(s,i){return s+i.price*i.qty;},0);
-    msg+='━━━━━━━━━━━━━━━━━━━━%0A';
     msg+='💰 *TOTAL : '+tot.toLocaleString('fr-FR')+' FC*%0A';
-    msg+='━━━━━━━━━━━━━━━━━━━━%0A';
     msg+='%0A👤 *CLIENT :*%0A%0A';
     msg+='   • Nom : '+nom+'%0A';
     msg+='   • Téléphone : '+tel+'%0A';
     if(adresse)msg+='   • Adresse : '+adresse+'%0A';
-    msg+='%0A━━━━━━━━━━━━━━━━━━━━%0A';
-    msg+='✅ Merci de confirmer.%0A';
-    msg+='_Envoyé depuis le système NeTubeX RDC_';
+    msg+='%0A✅ Merci de confirmer.%0A';
+    msg+='_Envoyé depuis NeTubeX RDC_';
     var url='https://wa.me/'+waCommercant+'?text='+msg;
     window.open(url,'_blank');
     closeCart();cart=[];updateCart();refreshAddButtons();
@@ -3094,6 +2839,7 @@ function submitOrder(){
   });
 }
 var publishCat=null;var publishImages=[];
+var titreEnCours='',descEnCours='',villeEnCours='',prixEnCours='',adresseEnCours='';
 function toggleCustomSelect(){haptic(10);var select=document.getElementById('customSelectType');if(!select)return;select.classList.toggle('open');}
 function selectCustomOption(value,el){
   haptic(15);
@@ -3107,7 +2853,6 @@ function selectCustomOption(value,el){
   publishCat=value;publishImages=[];updatePublishFormForCategory();
   mettreAJourLabelTitre(value);
 }
-
 function mettreAJourLabelTitre(cat){
   var labelEl = document.getElementById('publishTitreLabel');
   var inputEl = document.getElementById('publishTitre');
@@ -3115,43 +2860,12 @@ function mettreAJourLabelTitre(cat){
   var prixInputEl = document.getElementById('publishPrix');
   var descLabelEl = document.getElementById('publishDescLabel');
   var descInputEl = document.getElementById('publishDescription');
-  
   var configs = {
-    'location': {
-      titreLabel: 'Titre de la maison / appartement *',
-      titrePlaceholder: 'Ex: Appartement 3 chambres à Gombe',
-      prixLabel: 'Loyer mensuel *',
-      prixPlaceholder: 'Ex: 450$ / mois',
-      descLabel: 'Description du logement *',
-      descPlaceholder: 'Décrivez : nombre de pièces, équipements, quartier, conditions…'
-    },
-    'parcelle': {
-      titreLabel: 'Titre de la parcelle *',
-      titrePlaceholder: 'Ex: Parcelle 500m² à Kasumbalesa',
-      prixLabel: 'Prix de la parcelle *',
-      prixPlaceholder: 'Ex: 15 000$',
-      descLabel: 'Description de la parcelle *',
-      descPlaceholder: 'Décrivez : superficie, titre foncier, situation, accès…'
-    },
-    'autre': {
-      titreLabel: 'Titre de l\'offre *',
-      titrePlaceholder: 'Ex: Service de livraison à domicile',
-      prixLabel: 'Prix / Tarif *',
-      prixPlaceholder: 'Ex: 50 000 FC',
-      descLabel: 'Description de l\'offre *',
-      descPlaceholder: 'Décrivez votre offre en détail…'
-    }
+    'location':{titreLabel:'Titre de la maison / appartement *',titrePlaceholder:'Ex: Appartement 3 chambres à Gombe',prixLabel:'Loyer mensuel *',prixPlaceholder:'Ex: 450$ / mois',descLabel:'Description du logement *',descPlaceholder:'Décrivez : nombre de pièces, équipements, quartier, conditions…'},
+    'parcelle':{titreLabel:'Titre de la parcelle *',titrePlaceholder:'Ex: Parcelle 500m² à Kasumbalesa',prixLabel:'Prix de la parcelle *',prixPlaceholder:'Ex: 15 000$',descLabel:'Description de la parcelle *',descPlaceholder:'Décrivez : superficie, titre foncier, situation, accès…'},
+    'autre':{titreLabel:'Titre de l\'offre *',titrePlaceholder:'Ex: Service de livraison à domicile',prixLabel:'Prix / Tarif *',prixPlaceholder:'Ex: 50 000 FC',descLabel:'Description de l\'offre *',descPlaceholder:'Décrivez votre offre en détail…'}
   };
-  
-  var config = configs[cat] || {
-    titreLabel: 'Titre de l\'annonce *',
-    titrePlaceholder: 'Ex: Décrivez votre offre en quelques mots',
-    prixLabel: 'Prix / Salaire *',
-    prixPlaceholder: 'Ex: 450$ / mois ou 50 000 FC',
-    descLabel: 'Description *',
-    descPlaceholder: 'Décrivez votre offre en détail…'
-  };
-  
+  var config = configs[cat] || {titreLabel:'Titre de l\'annonce *',titrePlaceholder:'Ex: Décrivez votre offre en quelques mots',prixLabel:'Prix / Salaire *',prixPlaceholder:'Ex: 450$ / mois ou 50 000 FC',descLabel:'Description *',descPlaceholder:'Décrivez votre offre en détail…'};
   if(labelEl) labelEl.textContent = config.titreLabel;
   if(inputEl) inputEl.placeholder = config.titrePlaceholder;
   if(prixLabelEl) prixLabelEl.textContent = config.prixLabel;
@@ -3159,8 +2873,6 @@ function mettreAJourLabelTitre(cat){
   if(descLabelEl) descLabelEl.textContent = config.descLabel;
   if(descInputEl) descInputEl.placeholder = config.descPlaceholder;
 }
-window.mettreAJourLabelTitre = mettreAJourLabelTitre;
-
 document.addEventListener('click',function(e){
   var select=document.getElementById('customSelectType');
   if(!select)return;
@@ -3176,7 +2888,6 @@ function updatePublishFormForCategory(){
   if(preview)preview.innerHTML='';
   if(counter)counter.textContent='0 photo';
   if(imagesInput)imagesInput.value='';
-  
   if(!publishCat){
     if(imagesSection)imagesSection.style.display='none';
     var pricingAmount=document.getElementById('publishPricingAmount');
@@ -3188,26 +2899,16 @@ function updatePublishFormForCategory(){
     mettreAJourLabelTitre(null);
     return;
   }
-  
   var showImages=false;var hint='';var maxImages=0;var requiredImages=0;
-  if(publishCat==='parcelle'||publishCat==='location'){
-    showImages=true;
-    hint='Photos obligatoires : minimum 3, maximum 5. Ajoutez de belles photos pour attirer plus de clients.';
-    maxImages=5;requiredImages=3;
-  }else if(publishCat==='autre'){
-    showImages=true;
-    hint='Photo facultative : maximum 1.';
-    maxImages=1;requiredImages=0;
-  }
+  if(publishCat==='parcelle'||publishCat==='location'){showImages=true;hint='Photos obligatoires : minimum 3, maximum 5.';maxImages=5;requiredImages=3;}
+  else if(publishCat==='autre'){showImages=true;hint='Photo facultative : maximum 1.';maxImages=1;requiredImages=0;}
   if(imagesSection)imagesSection.style.display=showImages?'block':'none';
   if(imagesHint)imagesHint.textContent=hint;
   if(imagesInput)imagesInput.multiple=maxImages>1;
   window._publishRules={maxImages:maxImages,requiredImages:requiredImages};
-  
   var estImmobilier = (publishCat==='parcelle' || publishCat==='location');
   var montant = estImmobilier ? '10 000 FC' : '1 000 FC';
   var hintText = estImmobilier ? 'Publication Location / Parcelle' : 'Publication Autre';
-  
   var pricingAmount=document.getElementById('publishPricingAmount');
   var pricingHint=document.getElementById('publishPricingHint');
   var publishSubmitText=document.getElementById('publishSubmitText');
@@ -3236,7 +2937,7 @@ function renderPublishImages(){
   publishImages.forEach(function(img,idx){
     var item=document.createElement('div');
     item.className='publish-image-item';
-    item.innerHTML='<img src="'+img.dataUrl+'" alt="" loading="lazy" decoding="async"><button type="button" class="publish-image-remove" onclick="removePublishImage('+idx+')">✕</button>';
+    item.innerHTML='<img src="'+img.dataUrl+'" alt="" loading="lazy"><button type="button" class="publish-image-remove" onclick="removePublishImage('+idx+')">✕</button>';
     preview.appendChild(item);
   });
   if(counter){counter.textContent=publishImages.length+' photo'+(publishImages.length>1?'s':'');}
@@ -3246,45 +2947,58 @@ async function submitPublish(){
   if(!publishCat){showToast('Sélectionnez un type');return;}
   var rules=window._publishRules||{maxImages:0,requiredImages:0};
   if(rules.requiredImages>0&&publishImages.length<rules.requiredImages){showToast('Ajoutez '+rules.requiredImages+' photo'+(rules.requiredImages>1?'s':''));return;}
-  var titre=(document.getElementById('publishTitre')||{}).value;
+  var titre=(document.getElementById('publishTitre')||{}).value?.trim();
   var ville=getVilleValue('publishVille','publishVilleLibre');
-  var prix=(document.getElementById('publishPrix')||{}).value;
-  var adresse=(document.getElementById('publishAdresse')||{}).value?document.getElementById('publishAdresse').value.trim():'';
-  var desc=(document.getElementById('publishDescription')||{}).value;
+  var prix=(document.getElementById('publishPrix')||{}).value?.trim();
+  var adresse=(document.getElementById('publishAdresse')||{}).value?.trim();
+  var desc=(document.getElementById('publishDescription')||{}).value?.trim();
   if(!titre||!ville||!prix||!desc){showToast('Remplissez tous les champs');return;}
   if(!adresse){showToast('Adresse obligatoire');return;}
   if(!CURRENT_ACCOUNT){showToast('Connectez-vous');return;}
+  titreEnCours=titre;descEnCours=desc;villeEnCours=ville;prixEnCours=prix;adresseEnCours=adresse;
+  var estImmobilier = (publishCat==='parcelle' || publishCat==='location');
+  var montant = estImmobilier ? 10000 : 1000;
+  window._pendingMontant = montant;
+  var numEnvoiInput = document.getElementById('publishNumEnvoi');
+  if(numEnvoiInput && CURRENT_ACCOUNT.phone) numEnvoiInput.value = CURRENT_ACCOUNT.phone;
+  var montantEl = document.getElementById('paiementMontant');
+  var montantInline = document.getElementById('paiementMontantInline');
+  if(montantEl) montantEl.textContent = montant.toLocaleString('fr-FR')+' FC';
+  if(montantInline) montantInline.textContent = montant.toLocaleString('fr-FR')+' FC';
+  _paiementValide = false;
+  var modal = document.getElementById('paiementModal');
+  if(modal){ modal.style.display = 'flex'; }
+}
+function closePaiementModal(){
+  if(!_paiementValide){ showToast('Veuillez envoyer la preuve de paiement'); return; }
+  var modal = document.getElementById('paiementModal');
+  if(!modal) return;
+  _paiementValide = false;
+  modal.style.display = 'none';
+}
+async function validerPaiementEtPublier(){
+  var txId = (document.getElementById('publishTxId')||{}).value?.trim();
+  var numEnvoi = (document.getElementById('publishNumEnvoi')||{}).value?.trim();
+  if(!txId || txId.length < 6){ showToast('ID Transaction invalide'); return; }
+  if(!numEnvoi || numEnvoi.replace(/[^\d]/g,'').length < 9){ showToast('Numéro d\'envoi invalide'); return; }
+  var submitBtn = document.querySelector('#paiementModal button[type="submit"]');
+  if(submitBtn){ submitBtn.disabled=true; submitBtn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Envoi…'; }
   try{
-    var publieurNom=CURRENT_ACCOUNT.name||CURRENT_ACCOUNT.nomComplet||'Utilisateur NeTubeX';
-    var publieurType='user';
-    var publieurBoutique=null;
-    if(CURRENT_ACCOUNT.boutique && CURRENT_ACCOUNT.boutique.statut==='approuve'){
-      publieurType='commerce';
-      publieurBoutique=CURRENT_ACCOUNT.boutique.nom;
-      publieurNom=CURRENT_ACCOUNT.boutique.nom;
-    }
-    if(window.creerAnnonce){
-      await window.creerAnnonce({
-        titre:titre,desc:desc,ville:ville,quartier:'',
-        prix:prix,img:publishImages.length>0?publishImages[0].dataUrl:'',
-        cat:publishCat,
-        tag:'',tagClass:'post-tag-'+publishCat,
-        proprietaireUid:CURRENT_ACCOUNT.id,
-        publieurNom:publieurNom,
-        publieurType:publieurType,
-        publieurBoutique:publieurBoutique,
-        publieurPhone:CURRENT_ACCOUNT.phone||'',
-        publieurVille:CURRENT_ACCOUNT.ville||''
-      },{
-        nom:publieurNom,
-        adresse:adresse,
-        telephone:CURRENT_ACCOUNT.phone||'',
-        email:CURRENT_ACCOUNT.emailAuth||''
-      });
-    }
+    var publieurNom = CURRENT_ACCOUNT.name || CURRENT_ACCOUNT.nomComplet || 'Utilisateur NeTubeX';
+    var publieurType = 'user';
+    var publieurBoutique = null;
+    if(CURRENT_ACCOUNT.boutique && CURRENT_ACCOUNT.boutique.statut === 'approuve'){publieurType='commerce';publieurBoutique=CURRENT_ACCOUNT.boutique.nom;publieurNom=CURRENT_ACCOUNT.boutique.nom;}
+    await window.creerAnnonce(
+      {titre:titreEnCours,desc:descEnCours,ville:villeEnCours,quartier:'',prix:prixEnCours,img:publishImages.length>0?publishImages[0].dataUrl:'',cat:publishCat,tag:'',tagClass:'post-tag-'+publishCat,proprietaireUid:CURRENT_ACCOUNT.id,publieurNom:publieurNom,publieurType:publieurType,publieurBoutique:publieurBoutique,publieurPhone:CURRENT_ACCOUNT.phone||'',publieurVille:CURRENT_ACCOUNT.ville||''},
+      {nom:publieurNom,adresse:adresseEnCours,telephone:CURRENT_ACCOUNT.phone||'',email:CURRENT_ACCOUNT.emailAuth||''},
+      {transactionId:txId,numeroEnvoi:numEnvoi,montant:window._pendingMontant||1000,destinataire:'+243976953045'}
+    );
+    _paiementValide = true;
+    closePaiementModal();
     document.getElementById('publishPendingOverlay').classList.add('active');
     document.getElementById('publishPendingModal').classList.add('active');
-  }catch(e){console.error(e);showToast('Erreur');}
+  }catch(e){ showToast('Erreur : '+e.message); }
+  finally{ if(submitBtn){ submitBtn.disabled=false; submitBtn.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer pour vérification'; } }
 }
 function closePublishPending(){
   document.getElementById('publishPendingOverlay').classList.remove('active');
@@ -3349,12 +3063,8 @@ async function submitInscriptionBoutique(){
     if(form)form.reset();
     inscShowStep(1);
     showBoutiquePending();
-  }catch(err){
-    console.error('Erreur envoi:',err);
-    showToast('Erreur');
-  }finally{
-    if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer';}
-  }
+  }catch(err){showToast('Erreur');}
+  finally{if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer';}}
 }
 (function(){
   var phrases=['Le système congolais de mise en relation directe','Publiez, découvrez, commandez.'];
@@ -3391,7 +3101,6 @@ document.addEventListener('dragstart',function(e){if(e.target.tagName==='IMG'){e
 async function verifierCompteLocal(){
   if(!CURRENT_ACCOUNT||!CURRENT_ACCOUNT.id)return;
   if(CURRENT_ACCOUNT.id.indexOf('user-')===0){
-    console.warn('Ancien compte local');
     CURRENT_ACCOUNT=null;CURRENT_COMMERCANT=null;
     try{await window.idbDelete(window.STORES.account,'current');await window.idbDelete(window.STORES.boutique,'current');}catch(e){}
     showToast('Veuillez recréer votre compte');
@@ -3420,7 +3129,7 @@ async function verifierCompteLocal(){
       CURRENT_ACCOUNT=null;CURRENT_COMMERCANT=null;
       try{await window.idbDelete(window.STORES.account,'current');await window.idbDelete(window.STORES.boutique,'current');}catch(e){}
     }
-  }catch(e){console.warn('Vérif compte:',e);}
+  }catch(e){}
 }
 document.addEventListener('DOMContentLoaded',async function(){
   await window.migrerDepuisLocalStorage();
@@ -3432,18 +3141,14 @@ document.addEventListener('DOMContentLoaded',async function(){
     }catch(e){}
   }
   await verifierCompteLocal();
-  
   var elYear = document.getElementById('footerYear');
   if(elYear) elYear.textContent = new Date().getFullYear();
-  
   var _titreInput = document.getElementById('publishTitre');
   var _titreCount = document.getElementById('titreCount');
   if(_titreInput) _titreInput.addEventListener('input', function(){ if(_titreCount) _titreCount.textContent = this.value.length; });
-
   var _descInput = document.getElementById('publishDescription');
   var _descCount = document.getElementById('descCount');
   if(_descInput) _descInput.addEventListener('input', function(){ if(_descCount) _descCount.textContent = this.value.length; });
-  
   try{
     var commerces=await window.chargerCommercesFirestore();
     var annonces=await window.chargerAnnoncesFirestore();
@@ -3458,13 +3163,10 @@ document.addEventListener('DOMContentLoaded',async function(){
     updateCart();
     mettreAJourBadgeNotifs();
     appliquerThemeProfilUI();
-    if(!CURRENT_ACCOUNT){
-      document.querySelectorAll('.category-btn').forEach(function(b){b.style.opacity='0.6';});
-    }
+    if(!CURRENT_ACCOUNT){document.querySelectorAll('.category-btn').forEach(function(b){b.style.opacity='0.6';});}
     afficherOngletBoutique();
     go('index');
   }catch(err){
-    console.error('Erreur:',err);
     document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
     var idx=document.getElementById('page-index');
     if(idx)idx.classList.add('active');
@@ -3504,10 +3206,12 @@ window.renderOngletBoutique=renderOngletBoutique;
 window.allerVersArticleDepuisPanier=allerVersArticleDepuisPanier;
 window.scrollVersArticle=scrollVersArticle;
 window.ouvrirOffreDepuisDeblocage=ouvrirOffreDepuisDeblocage;
-window.ouvrirMaBoutiqueDepuisDash=ouvrirMaBoutiqueDepuisDash;
 window.demarrerPolling=demarrerPolling;window.arreterPolling=arreterPolling;
 window.rafraichirDonneesSilencieusement=rafraichirDonneesSilencieusement;
 window.getBadgesSpeciaux=getBadgesSpeciaux;
+window.closePaiementModal=closePaiementModal;
+window.validerPaiementEtPublier=validerPaiementEtPublier;
+window.scrollVersCoordonnees=scrollVersCoordonnees;
 </script>
 </body>
 </html>
