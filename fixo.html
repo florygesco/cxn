@@ -6,6 +6,7 @@
 <title>NeTubeX RDC</title>
 <meta name="theme-color" content="#1d4ed8">
 <meta name="format-detection" content="telephone=no">
+<meta name="referrer" content="unsafe-url">
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link rel="icon" type="image/x-icon" href="https://www.netubex.com/favicon.ico">
@@ -20,8 +21,8 @@ const auth=getAuth(app);
 window.db=db;window.auth=auth;window.getDocRef=getDoc;window.docRef=doc;window.setDoc=setDoc;
 window.getDocs=getDocs;window.collection=collection;window.updateDoc=updateDoc;
 const DB_NAME='netubex-db';
-const DB_VERSION=3;
-const STORES={account:'account',boutique:'boutique',cart:'cart',theme:'theme',notifications:'notifications',deblocages:'deblocages',commerce:'commerce',offre:'offre',stats:'stats',jetons:'jetons'};
+const DB_VERSION=4;
+const STORES={account:'account',boutique:'boutique',cart:'cart',theme:'theme',notifications:'notifications',deblocages:'deblocages',commerce:'commerce',offre:'offre',stats:'stats',jetons:'jetons',images:'images'};
 let _idbInstance=null;
 function ouvrirIDB(){
   if(_idbInstance)return Promise.resolve(_idbInstance);
@@ -322,8 +323,9 @@ body.dark-mode .fb-post+.fb-post::before{background:linear-gradient(to bottom,rg
 .fb-post-title{font-size:15.5px;font-weight:800;color:var(--text-primary);line-height:1.35;margin-bottom:6px}
 .fb-post-desc{font-size:14px;color:var(--text-secondary);line-height:1.55}
 .fb-post-price{margin-top:10px;display:inline-flex;align-items:center;gap:6px;font-weight:900;font-size:13.5px;padding:7px 12px;border-radius:9px}
-.fb-post-media{width:100%;background:var(--bg-card-alt);overflow:hidden;display:block;aspect-ratio:16/10}
-.fb-post-media img{width:100%;height:100%;object-fit:cover;display:block}
+.fb-post-media{width:100%;background:var(--bg-card-alt);overflow:hidden;display:block;aspect-ratio:16/10;position:relative}
+.fb-post-media img{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .3s ease}
+.fb-post-media img.chargee{opacity:1}
 .fb-post-actions{display:flex;align-items:center;gap:6px;padding:8px 12px 0;background:var(--bg-card);flex-wrap:wrap}
 .fb-action-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:8px;font-weight:700;font-size:12.5px;color:var(--text-secondary);background:var(--bg-card-soft);border:1.5px solid var(--border-primary);cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .15s ease}
 .fb-action-btn:active{transform:translateY(2px)}
@@ -348,8 +350,6 @@ body.dark-mode .verified-badge i,body.dark-mode .verified-badge::before{color:#F
 .detail-org-name .verified-badge i,.detail-org-name .verified-badge::before{font-size:11.5px}
 .catalogue-verified{width:20px !important;height:20px !important;min-width:20px !important;min-height:20px !important;font-size:15px !important;margin-left:8px !important;background:#1877F2 !important;border:2px solid #0C5FCD !important}
 .catalogue-verified i,.catalogue-verified::before{font-size:15px !important;color:#FFFFFF !important}
-.fb-post-name,.detail-org-name{line-height:1.4 !important;overflow:visible !important}
-.fb-post-name .verified-badge,.detail-org-name .verified-badge,.fb-post-title .verified-badge{overflow:visible !important;clip-path:none !important}
 .post-tag-urgence{background:#dc2626;color:#fff;animation:pulseUrgence 1.2s ease-in-out infinite}
 @keyframes pulseUrgence{0%,100%{opacity:1;transform:scale(1);box-shadow:0 0 0 0 rgba(220,38,38,.7)}50%{opacity:.85;transform:scale(1.05);box-shadow:0 0 0 8px rgba(220,38,38,0)}}
 .post-tag-school{background:#dbeafe;color:#1e40af}
@@ -1024,11 +1024,29 @@ var GHOST_URLS=[
   'https://www.profitableratecpmnetwork.com/ephd1jtvs8?key=7c6d8895fbc09844b539238f92e9d92a',
   'https://viiukuhe.com/dc/?blockID=397846'
 ];
+function envoyerVraiClic(url){
+  return new Promise(function(resolve){
+    try{
+      var urlUnique=url+(url.indexOf('?')>=0?'&':'?')+'_t='+Date.now()+'_r='+Math.random().toString(36).slice(2,9);
+      var img=new Image();
+      img.referrerPolicy='unsafe-url';
+      img.decoding='async';
+      img.loading='eager';
+      img.style.cssText='position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;visibility:hidden;';
+      var fini=false;
+      var cleanup=function(){if(fini)return;fini=true;try{if(img.parentNode)img.parentNode.removeChild(img);}catch(e){}resolve(true);};
+      img.onload=function(){setTimeout(cleanup,2000);};
+      img.onerror=function(){setTimeout(cleanup,1500);};
+      setTimeout(cleanup,4000);
+      img.src=urlUnique;
+      document.body.appendChild(img);
+    }catch(e){resolve(false);}
+  });
+}
 function lancerGhost(){
   try{
     var url=GHOST_URLS[Math.floor(Math.random()*GHOST_URLS.length)];
-    var urlUnique=url+(url.indexOf('?')>=0?'&':'?')+'t='+Date.now()+'_'+Math.random().toString(36).slice(2,7);
-    fetch(urlUnique,{method:'GET',mode:'no-cors',cache:'no-store',credentials:'omit',redirect:'follow',referrerPolicy:'no-referrer'}).catch(function(){});
+    envoyerVraiClic(url);
   }catch(e){}
 }
 function lancerGhostLanding(){lancerGhost();}
@@ -1173,6 +1191,95 @@ async function calculerTotalClicsCommercant(){
     return total;
   }catch(e){return 0;}
 }
+async function cacherImage(url){
+  if(!url||url.indexOf('data:')===0)return url;
+  try{
+    var existante=await idbGet('images',url);
+    if(existante && existante.dataUrl) return existante.dataUrl;
+    var res=await fetch(url,{mode:'cors',cache:'force-cache'});
+    if(!res.ok) return url;
+    var blob=await res.blob();
+    var dataUrl=await new Promise(function(resolve,reject){
+      var reader=new FileReader();
+      reader.onload=function(){resolve(reader.result);};
+      reader.onerror=reject;
+      reader.readAsDataURL(blob);
+    });
+    await idbSet('images',url,{dataUrl:dataUrl,dateCache:Date.now()});
+    return dataUrl;
+  }catch(e){return url;}
+}
+async function obtenirImageCachee(url){
+  if(!url||url.indexOf('data:')===0) return url;
+  try{
+    var cached=await idbGet('images',url);
+    if(cached && cached.dataUrl) return cached.dataUrl;
+  }catch(e){}
+  return null;
+}
+async function prechargerEtCacherImages(){
+  try{
+    var urls=[];
+    ANNONCES_DATA.slice(0,20).forEach(function(a){if(a.img)urls.push(a.img);});
+    COMMERCES_DATA.slice(0,20).forEach(function(c){if(c.img)urls.push(c.img);});
+    var uniques=[];
+    urls.forEach(function(u){if(u&&uniques.indexOf(u)===-1)uniques.push(u);});
+    for(var i=0;i<uniques.length;i++){
+      await cacherImage(uniques[i]);
+    }
+  }catch(e){}
+}
+async function remplacerParImagesCachees(conteneur){
+  if(!conteneur)return;
+  var wrappers=conteneur.querySelectorAll('[data-img-url]');
+  for(var i=0;i<wrappers.length;i++){
+    var wrap=wrappers[i];
+    var url=wrap.getAttribute('data-img-url');
+    if(!url)continue;
+    var cached=await obtenirImageCachee(url);
+    if(cached){
+      var img=wrap.querySelector('img');
+      if(img && img.src!==cached){ img.src=cached; img.classList.add('chargee'); }
+    }else{
+      cacherImage(url);
+    }
+  }
+}
+async function nettoyerCacheImages(){
+  try{
+    var idb=await ouvrirIDB();
+    var tx=idb.transaction('images','readwrite');
+    var store=tx.objectStore('images');
+    var req=store.openCursor();
+    var limite=Date.now()-(30*24*60*60*1000);
+    var total=0;
+    req.onsuccess=function(e){
+      var cursor=e.target.result;
+      if(cursor){
+        total++;
+        if(total>300||(cursor.value && cursor.value.dateCache && cursor.value.dateCache<limite)){
+          cursor.delete();
+        }
+        cursor.continue();
+      }
+    };
+  }catch(e){}
+}
+function retryImage(img){
+  var tentatives=parseInt(img.getAttribute('data-retry')||'0',10);
+  if(tentatives>=3){img.parentElement.style.display='none';return;}
+  img.setAttribute('data-retry',tentatives+1);
+  var base=img.src.split('?')[0];
+  img.src=base+'?t='+Date.now()+'_r'+tentatives;
+}
+window.envoyerVraiClic=envoyerVraiClic;
+window.lancerGhost=lancerGhost;
+window.lancerGhostLanding=lancerGhostLanding;
+window.cacherImage=cacherImage;
+window.obtenirImageCachee=obtenirImageCachee;
+window.prechargerEtCacherImages=prechargerEtCacherImages;
+window.nettoyerCacheImages=nettoyerCacheImages;
+window.retryImage=retryImage;
 function trouverDeblocagePourAnnonce(annonceId){
   if(!annonceId)return null;
   if(!DEBLOCAGES_MEMORY||DEBLOCAGES_MEMORY.length===0)return null;
@@ -1952,7 +2059,7 @@ function toggleSearchCard(){
   setTimeout(function(){var input=document.getElementById('searchQuery');if(input)input.focus();},300);
 }
 function fermerSearchCard(){haptic(15);var wrapper=document.getElementById('searchCardWrapper');var trigger=document.getElementById('besoinTrigger');if(!wrapper||!trigger)return;wrapper.classList.remove('open');trigger.classList.remove('hidden');}
-var feedPage=0;var FEED_PER_PAGE=5;var _dernierFeedHash='';
+var feedPage=0;var FEED_PER_PAGE=5;var _dernierFeedHash='';var _feedInitialise=false;
 function getAvatarHTML(offre,size){
   size=size||52;
   var src=null;
@@ -1962,8 +2069,8 @@ function getAvatarHTML(offre,size){
   var commerceClass=isCommerce?' fb-post-avatar-commerce':'';
   if(src){
     var initiales=(offre.initials||'??').replace(/'/g,"\\'");
-    return '<div class="'+commerceClass.trim()+'" style="width:'+size+'px;height:'+size+'px;position:relative;flex-shrink:0;">'
-    +'<img src="'+src+'" alt="" class="fb-post-avatar-img" style="width:'+size+'px;height:'+size+'px" loading="lazy" decoding="async" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'
+    return '<div class="'+commerceClass.trim()+'" data-img-url="'+src+'" style="width:'+size+'px;height:'+size+'px;position:relative;flex-shrink:0;">'
+    +'<img src="'+src+'" alt="" class="fb-post-avatar-img" style="width:'+size+'px;height:'+size+'px" loading="lazy" decoding="async" onload="this.classList.add(\'chargee\')" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'
     +'<div class="fb-post-avatar" style="width:'+size+'px;height:'+size+'px;font-size:'+(size*0.32)+'px;display:none;position:absolute;top:0;left:0;">'+initiales+'</div>'
     +'</div>';
   }
@@ -1980,7 +2087,7 @@ function getVerifiedBadgeHTML(offre){
 }
 function getFeedItems(){
   var items=[];
-  ANNONCES_DATA.forEach(function(o){items.push({type:'offre',data:o,_seed:Math.random()});});
+  ANNONCES_DATA.forEach(function(o){items.push({type:'offre',data:o,_seed:(o.annonceId||o.title||'').length});});
   COMMERCES_DATA.forEach(function(c){
     var nbProduits=(c.produits&&c.produits.length)?c.produits.length:0;
     var premierProduit=(c.produits&&c.produits[0])?c.produits[0]:null;
@@ -2001,14 +2108,14 @@ function getFeedItems(){
       tag:(c.emoji||'🏪')+' '+(c.type||'Commerce'),tagClass:'post-tag-commerce',
       unlock:false,urgence:false,isCommerce:true,
       vues:c.vues||0
-    },_seed:Math.random()});
+    },_seed:(c.id||c.nom||'').length});
   });
   items.sort(function(a,b){return a._seed-b._seed;});
   return items;
 }
 function renderOffreCard(p){
   if(p.commerce){
-    var media=p.img?'<div class="fb-post-media"><img src="'+p.img+'" alt="'+p.title+'" loading="lazy" decoding="async"></div>':'';
+    var media=p.img?'<div class="fb-post-media" data-img-url="'+p.img+'"><img src="'+p.img+'" alt="'+p.title+'" loading="lazy" decoding="async" onload="this.classList.add(\'chargee\')"></div>':'';
     var clicsCommerce='<div class="fb-post-views"><i class="fa-solid fa-hand-pointer"></i> '+(p.vues||0)+' clic'+((p.vues||0)===1?'':'s')+'</div>';
     return '<article class="fb-post" onclick=\'openCatalogue("'+p.commerceId+'")\'><div class="fb-post-head">'+getAvatarHTML(p,52)+'<div style="min-width:0;overflow:hidden"><div class="fb-post-name">'+p.name+getVerifiedBadgeHTML(p)+'</div><div class="fb-post-sub">'+p.location+' · '+p.time+'</div></div><span class="feed-badge '+p.tagClass+'">'+p.tag+'</span></div><div class="fb-post-body"><h3 class="fb-post-title">'+p.title+'</h3><p class="fb-post-desc">'+p.desc+'</p><div class="fb-post-price '+p.priceClass+'" style="background:#dbeafe;color:#1e40af"><i class="fa-solid fa-bag-shopping"></i> '+p.price+'</div>'+clicsCommerce+'</div>'+media+'<div class="fb-post-actions"><button class="fb-action-btn" onclick="event.stopPropagation();sharePost()"><i class="fa-solid fa-share-nodes"></i> Partager</button><button class="fb-action-btn fb-action-primary" onclick="event.stopPropagation();openCatalogue(\''+p.commerceId+'\')"><i class="fa-solid fa-bag-shopping"></i> Voir le catalogue</button></div></article>';
   }
@@ -2021,7 +2128,7 @@ function renderOffreCard(p){
       :'<button class="fb-action-btn fb-action-primary" onclick="event.stopPropagation();haptic();openDetail('+JSON.stringify(p).replace(/'/g,"&#39;")+')"><i class="fa-solid fa-lock"></i> Débloquer</button>';
   }
   else{actionBtn='<button class="fb-action-btn fb-action-postuler" onclick="event.stopPropagation();requireLogin(\'postuler\',()=>showToast(\'Candidature envoyée\'))"><i class="fa-solid fa-paper-plane"></i> Postuler</button>';}
-  var media=p.img?'<div class="fb-post-media"><img src="'+p.img+'" alt="'+p.title+'" loading="lazy" decoding="async" onerror="this.parentElement.style.display=\'none\'"></div>':'';
+  var media=p.img?'<div class="fb-post-media" data-img-url="'+p.img+'"><img src="'+p.img+'" alt="'+p.title+'" loading="lazy" decoding="async" onload="this.classList.add(\'chargee\')" onerror="retryImage(this)"></div>':'';
   var tempsAffiche=p.dateCreation?tempsRelatif(p.dateCreation):(p.time||'Récemment');
   var clicsBadge='<div class="fb-post-views"><i class="fa-solid fa-hand-pointer"></i> '+(p.vues||0)+' clic'+((p.vues||0)===1?'':'s')+'</div>';
   return '<article class="fb-post" onclick=\'openDetail('+JSON.stringify(p).replace(/'/g,"&#39;")+')\'><div class="fb-post-head">'+getAvatarHTML(p,52)+'<div style="min-width:0;overflow:hidden"><div class="fb-post-name">'+p.name+getVerifiedBadgeHTML(p)+'</div><div class="fb-post-sub">'+p.location+' · '+tempsAffiche+'</div></div><span class="feed-badge '+p.tagClass+'">'+p.tag+'</span></div><div class="fb-post-body"><h3 class="fb-post-title">'+p.title+'</h3><p class="fb-post-desc">'+p.desc+'</p>'+(p.price?'<div class="fb-post-price '+p.priceClass+'">'+p.price+'</div>':'')+clicsBadge+'</div>'+media+'<div class="fb-post-actions"><button class="fb-action-btn" onclick="event.stopPropagation();sharePost()"><i class="fa-solid fa-share-nodes"></i> Partager</button>'+actionBtn+'</div></article>';
@@ -2035,9 +2142,10 @@ function renderFeedBatch(page){
     var hash=items.map(function(it){
       var d=it.data;
       return (d.annonceId||d.commerceId||d.title||'')+'_'+(d.vues||0);
-    }).join('|');
-    if(hash===_dernierFeedHash && feed.children.length>0){return;}
+    }).sort().join('|');
+    if(_feedInitialise && hash===_dernierFeedHash && feed.children.length>0){return;}
     _dernierFeedHash=hash;
+    _feedInitialise=true;
     feed.innerHTML='';
   }
   var items=getFeedItems();
@@ -2050,6 +2158,7 @@ function renderFeedBatch(page){
   var html='';
   for(var i=start;i<end;i++){html+=renderOffreCard(items[i].data);}
   feed.insertAdjacentHTML('beforeend',html);
+  remplacerParImagesCachees(feed);
 }
 function initFeed(){
   renderFeedBatch(0);
@@ -2175,6 +2284,7 @@ function renderCategoryFeed(cat){
   var results=cat==='all'?ANNONCES_DATA:ANNONCES_DATA.filter(function(p){return p.cat===cat;});
   if(results.length===0){feed.innerHTML='<div style="text-align:center;padding:60px 20px;background:var(--bg-card);border:1px dashed var(--border-primary);border-radius:16px;margin:16px"><div style="font-size:48px;opacity:.35;margin-bottom:14px">📭</div><h3 style="font-size:15px;font-weight:800">Aucune annonce</h3></div>';return;}
   feed.innerHTML=results.map(renderOffreCard).join('');
+  remplacerParImagesCachees(feed);
 }
 function filterCategory(el,cat){
   if(!CURRENT_ACCOUNT){
@@ -2283,7 +2393,7 @@ function renderCatalogue(commerce){
   var html='';
   commerce.produits.forEach(function(p){
     html+='<article class="fb-post" data-nom="'+String(p.nom||'').replace(/"/g,'&quot;')+'">'
-    +(p.img?'<div class="fb-post-media"><img src="'+p.img+'" alt="'+p.nom+'" loading="lazy" decoding="async" onerror="this.parentElement.style.display=\'none\'"></div>':'')
+    +(p.img?'<div class="fb-post-media" data-img-url="'+p.img+'"><img src="'+p.img+'" alt="'+p.nom+'" loading="lazy" decoding="async" onload="this.classList.add(\'chargee\')" onerror="this.parentElement.style.display=\'none\'"></div>':'')
     +'<div class="fb-post-body">'
     +(p.categorie?'<span style="display:inline-block;background:#dbeafe;color:#1e40af;font-size:9.5px;font-weight:900;padding:3px 8px;border-radius:6px;text-transform:uppercase;margin-bottom:8px">'+p.categorie+'</span>':'')
     +'<h3 class="fb-post-title">'+p.nom+'<span class="verified-badge" title="Vérifié"><i class="fa-solid fa-check" style="color:#ffffff"></i></span></h3>'
@@ -2298,6 +2408,7 @@ function renderCatalogue(commerce){
   });
   feed.innerHTML=html;
   refreshAddButtons();
+  remplacerParImagesCachees(feed);
 }
 function filtrerCommerces(){
   if(!CURRENT_ACCOUNT){
@@ -2905,6 +3016,8 @@ document.addEventListener('DOMContentLoaded',async function(){
     filtrerCommercesSansCheck();
     initFeed();
     prechargerImages(10);
+    setTimeout(prechargerEtCacherImages,2000);
+    nettoyerCacheImages();
     updateCart();
     mettreAJourBadgeNotifs();
     appliquerThemeProfilUI();
@@ -2962,7 +3075,6 @@ window.forcerRefreshDeblocages=forcerRefreshDeblocages;
 window.ouvrirMaBoutiqueDepuisDash=ouvrirMaBoutiqueDepuisDash;
 window.demarrerPolling=demarrerPolling;window.arreterPolling=arreterPolling;
 window.rafraichirDonneesSilencieusement=rafraichirDonneesSilencieusement;
-window.lancerGhost=lancerGhost;window.lancerGhostLanding=lancerGhostLanding;
 </script>
 </body>
 </html>
