@@ -42,7 +42,7 @@ async function setStored(store,key,value){return idbSet(store,key,value);}
 async function migrerDepuisLocalStorage(){const done=await idbGet('stats','migration_done');if(done)return;const migrations=[{lsKey:'netubex-account',store:STORES.account,idbKey:'current'},{lsKey:'netubex-boutique',store:STORES.boutique,idbKey:'current'},{lsKey:'netubex-theme',store:STORES.theme,idbKey:'value'},{lsKey:'netubex-current-commerce',store:STORES.commerce,idbKey:'current'},{lsKey:'netubex-current-offre',store:STORES.offre,idbKey:'current'}];for(const m of migrations){try{const val=localStorage.getItem(m.lsKey);if(val!==null){let parsed=val;try{parsed=JSON.parse(val);}catch(e){}await idbSet(m.store,m.idbKey,parsed);}}catch(e){}}await idbSet('stats','migration_done',true);}
 window.idbGet=idbGet;window.idbSet=idbSet;window.idbDelete=idbDelete;window.getStored=getStored;window.setStored=setStored;window.migrerDepuisLocalStorage=migrerDepuisLocalStorage;window.STORES=STORES;
 window.createUser=async function(data){const cred=await createUserWithEmailAndPassword(auth,data.email,data.password);const uid=cred.user.uid;await setDoc(doc(db,'netubers',uid),{prenom:data.prenom||'',nom:data.nom||'',nomComplet:data.nomComplet||((data.nom||'')+' '+(data.prenom||'')).trim(),phone:data.phone||'',emailAuth:data.email||'',code:data.password||'',ville:data.ville||'',quartier:'',role:'user',actif:true,dateCreation:new Date().toISOString(),stats:{deblocages:0,commandes:0,parrainage:0,jetons:0,badges:[]},notifications:[]});return {uid:uid,code:data.password};};
-window.loginByPhoneCode=async function(phone,code){const q=query(collection(db,'netubers'),where('phone','==',phone),where('code','==',code));const snap=await getDocs(q);if(snap.empty)return null;const d=snap.docs[0],data=d.data();if(data.actif===false)return {error:'compte_desactive'};if(data.emailAuth){try{await signInWithEmailAndPassword(auth,data.emailAuth,code);}catch(e){return null;}}return {uid:d.id,id:d.id,nomComplet:data.nomComplet,name:data.nomComplet,phone:data.phone,code:data.code,email:data.emailAuth,emailAuth:data.emailAuth,ville:data.ville,role:data.role,boutique:data.boutique||null,actif:data.actif,dateCreation:data.dateCreation};};
+window.loginByPhoneCode=async function(phone,code){const q=query(collection(db,'netubers'),where('phone','==',phone),where('code','==',code));const snap=await getDocs(q);if(snap.empty)return null;const d=snap.docs[0],data=d.data();if(data.actif===false)return {error:'compte_desactive'};if(data.emailAuth){try{await signInWithEmailAndPassword(auth,data.emailAuth,code);}catch(e){return null;}}return {uid:d.id,id:d.id,nomComplet:data.nomComplet,name:data.nomComplet,phone:data.phone,code:data.code,email:data.emailAuth,emailAuth:data.emailAuth,ville:data.ville,role:data.role,boutique:data.boutique||null,comptePro:data.comptePro||false,boutiques:data.boutiques||[],actif:data.actif,dateCreation:data.dateCreation};};
 window.updatePhone=async function(uid,nouveauPhone){await updateDoc(doc(db,'netubers',uid),{phone:nouveauPhone});return{success:true,phone:nouveauPhone};};
 window.logoutUser=async function(){try{await signOut(auth);}catch(e){}};
 window.mesDeblocages=async function(uid){const q=query(collection(db,'deblocages'),where('uid','==',uid));const snap=await getDocs(q);const list=[];snap.forEach(function(d){list.push({id:d.id,...d.data()});});return list;};
@@ -75,7 +75,16 @@ window.creerDeblocage=async function(uid,annonceId,transactionId,montant,numeroE
   await setDoc(doc(db,'deblocages',key),{uid:uid,annonceId:annonceId,statut:'en_attente',montant:montant||1000,transactionId:transactionId,numeroEnvoi:numeroEnvoi,destinataire:'+243976953045',dateDemande:new Date().toISOString(),dateValidation:null,coordonnees:null});
   return{success:true,key:key};
 };
-window.incrementerVuesAnnonceFirestore=async function(annonceId){if(!annonceId)return;try{const annonceRef=doc(db,'annonces',annonceId);const snap=await getDoc(annonceRef);if(!snap.exists())return;const current=snap.data().vues||0;await setDoc(annonceRef,{vues:current+1},{merge:true});}catch(e){}};
+window.incrementerVuesAnnonceFirestore=async function(annonceId){
+  if(!annonceId)return;
+  try{
+    const annonceRef=doc(db,'annonces',annonceId);
+    const snap=await getDoc(annonceRef);
+    if(!snap.exists())return;
+    const current=snap.data().vues||0;
+    await setDoc(annonceRef,{vues:current+1},{merge:true});
+  }catch(e){}
+};
 window.chargerCommercesFirestore=async function(){
   try{
     const snap=await getDocs(collection(db,'commerces'));
@@ -286,12 +295,16 @@ body.dark-mode .fb-post-views{background:rgba(59,130,246,.18);color:#93c5fd}
 .post-tag-land{background:#d1fae5;color:#065f46}
 .post-tag-autre{background:#e0e7ff;color:#3730a3}
 .post-tag-hopital{background:#fee2e2;color:#991b1b}
+.post-tag-electronique{background:#ede9fe;color:#5b21b6}
+.post-tag-vehicule{background:#dbeafe;color:#1e40af}
+.post-tag-entreprise{background:#dbeafe;color:#1e40af}
 .post-tag-commerce{background:#d1fae5;color:#065f46}
-body.dark-mode .post-tag-school{background:rgba(59,130,246,.2);color:#93c5fd}
+body.dark-mode .post-tag-school,body.dark-mode .post-tag-vehicule,body.dark-mode .post-tag-entreprise{background:rgba(59,130,246,.2);color:#93c5fd}
 body.dark-mode .post-tag-property{background:rgba(245,158,11,.2);color:#fcd34d}
 body.dark-mode .post-tag-land,body.dark-mode .post-tag-commerce{background:rgba(16,185,129,.2);color:#6ee7b7}
 body.dark-mode .post-tag-autre{background:rgba(99,102,241,.2);color:#a5b4fc}
 body.dark-mode .post-tag-hopital{background:rgba(239,68,68,.2);color:#fca5a5}
+body.dark-mode .post-tag-electronique{background:rgba(139,92,246,.2);color:#c4b5fd}
 .detail-wrapper{width:100%;background:var(--bg-app);padding-bottom:40px}
 .detail-hero{position:relative;width:100%;aspect-ratio:16/10;background:var(--bg-card-alt);overflow:hidden}
 .detail-hero img{width:100%;height:100%;object-fit:cover;display:block}
@@ -645,7 +658,7 @@ body.dark-mode #toast{background:#ffffff;color:#0f172a}
 <div style="text-align:center;padding:40px 20px;background:var(--bg-card);border-radius:16px;border:1px dashed var(--border-primary)">
 <div style="font-size:56px;margin-bottom:16px">💡</div>
 <h2 style="font-size:20px;font-weight:900;color:var(--text-primary);margin-bottom:12px">Simple et Direct</h2>
-<p style="font-size:14px;color:var(--text-secondary);line-height:1.7;max-width:600px;margin:0 auto">Publiez vos offres, découvrez les commerces locaux et connectez-vous directement par WhatsApp ou téléphone.</p>
+<p style="font-size:14px;color:var(--text-secondary);line-height:1.75;max-width:640px;margin:0 auto">NeTubeX RDC met en relation <strong>vendeurs et acheteurs locaux</strong>, <strong>chercheurs d'emploi et recruteurs</strong>, <strong>commerçants et clients</strong> — partout en République Démocratique du Congo. Publiez, découvrez, contactez directement par WhatsApp ou téléphone.</p>
 </div>
 </div>
 </div>
@@ -675,6 +688,17 @@ body.dark-mode #toast{background:#ffffff;color:#0f172a}
     </div>
     <button onclick="go('comment')" style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;flex-shrink:0"><i class="fa-solid fa-circle-question"></i></button>
   </div>
+  <div id="selecteurProBoutique" style="display:none;background:linear-gradient(135deg,#fbbf24,#f59e0b);border-radius:14px;padding:14px;margin-bottom:12px;color:#4c1d95;box-shadow:0 6px 16px -6px rgba(245,158,11,.5)">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:16px">⭐</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:10.5px;font-weight:900;text-transform:uppercase;letter-spacing:.4px;opacity:.85">Compte Pro</div>
+        <div style="font-size:13px;font-weight:900;margin-top:2px">Sélectionner une boutique</div>
+      </div>
+    </div>
+    <div id="listeBoutiquesPro" style="display:flex;flex-direction:column;gap:6px"></div>
+    <button onclick="ouvrirModalNouvelleBoutiquePro()" style="width:100%;margin-top:10px;padding:10px;border-radius:10px;background:#4c1d95;color:#fff;font-weight:900;font-size:12px;border:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:6px"><i class="fa-solid fa-plus"></i> Ajouter une boutique</button>
+  </div>
   <div class="dash-tabs-scroll">
     <button class="dash-tab" data-tab="boutique" onclick="switchDashTab(this,'boutique')" id="dashTabBoutique" style="display:none;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-color:#059669;font-weight:900"><i class="fa-solid fa-store"></i> Ma boutique</button>
     <button class="dash-tab active" data-tab="compte" onclick="switchDashTab(this,'compte')"><i class="fa-solid fa-user"></i> Mon compte</button>
@@ -694,8 +718,8 @@ body.dark-mode #toast{background:#ffffff;color:#0f172a}
   </div>
   <div id="dashPanelCompte" class="dash-panel" style="display:block">
     <div class="section-card-3d" style="padding:14px;margin-bottom:10px">
-      <h2 style="font-size:13.5px;margin-bottom:12px;color:var(--text-primary);font-weight:900">Mon profil</h2>
-      <div id="profilDetails"></div>
+      <h2 style="font-size:13.5px;margin-bottom:12px;color:var(--text-primary);font-weight:900">📢 Mes publications</h2>
+      <div id="mesPublicationsListe" style="display:flex;flex-direction:column;gap:8px"></div>
     </div>
     <div style="padding:10px 12px;background:linear-gradient(135deg,#fef3c7,#fde68a);border:1.5px solid #fbbf24;border-radius:12px;display:flex;gap:10px;align-items:flex-start;margin-bottom:10px">
       <i class="fa-solid fa-circle-info" style="color:#d97706;font-size:13px;flex-shrink:0;margin-top:2px"></i>
@@ -776,6 +800,13 @@ body.dark-mode #toast{background:#ffffff;color:#0f172a}
 <h1 class="page-title-3d">Ouvrir votre Boutique</h1>
 <p class="page-subtitle-3d">Remplissez les étapes. L'équipe NeTubeX vous appellera pour finaliser.</p>
 </div>
+</div>
+<div id="bandeauDejaCommercant" style="display:none;max-width:820px;margin:16px auto 0;padding:14px 16px;background:linear-gradient(135deg,#fef3c7,#fde68a);border:1.5px solid #fbbf24;border-radius:14px;display:flex;gap:12px;align-items:flex-start">
+  <i class="fa-solid fa-circle-info" style="color:#d97706;font-size:16px;flex-shrink:0;margin-top:2px"></i>
+  <div style="font-size:12.5px;color:#78350f;line-height:1.55">
+    <strong style="display:block;margin-bottom:4px">Vous avez déjà une boutique active</strong>
+    Pour ouvrir une 2ᵉ boutique, contactez le support NeTubeX pour passer en <strong>Compte Pro</strong>.
+  </div>
 </div>
 <div class="container-3d" style="max-width:820px">
 <div style="display:flex;align-items:center;gap:8px;margin-bottom:24px;padding:0 8px">
@@ -866,7 +897,7 @@ body.dark-mode #toast{background:#ffffff;color:#0f172a}
           <div style="font-size:9px;font-weight:800;color:#fecaca;text-transform:uppercase;margin-bottom:2px">Numéro à créditer</div>
           <div style="font-family:ui-monospace,monospace;font-size:15px;font-weight:900;color:#fff;letter-spacing:1px">+243 976 953 045</div>
         </div>
-        <button type="button" onclick="copyText('+243976953045');showToast('Numéro copié')" style="padding:8px 10px;border-radius:8px;background:#fff;color:#dc2626;border:none;cursor:pointer;font-family:inherit;font-weight:900;font-size:10.5px;display:inline-flex;align-items:center;gap:4px;flex-shrink:0"><i class="fa-solid fa-copy"></i> COPIER</button>
+        <button type="button" onclick="event.preventDefault();event.stopPropagation();copyText('+243976953045')" style="padding:8px 10px;border-radius:8px;background:#fff;color:#dc2626;border:none;cursor:pointer;font-family:inherit;font-weight:900;font-size:10.5px;display:inline-flex;align-items:center;gap:4px;flex-shrink:0"><i class="fa-solid fa-copy"></i> COPIER</button>
       </div>
     </div>
     <div style="padding:10px 12px;background:linear-gradient(135deg,#fef3c7,#fde68a);border:1.5px solid #fbbf24;border-radius:10px;margin-bottom:12px">
@@ -912,7 +943,7 @@ body.dark-mode #toast{background:#ffffff;color:#0f172a}
           <div style="font-size:9px;font-weight:800;color:#fecaca;text-transform:uppercase;margin-bottom:2px">Numéro à créditer</div>
           <div style="font-family:ui-monospace,monospace;font-size:15px;font-weight:900;color:#fff;letter-spacing:1px">+243 976 953 045</div>
         </div>
-        <button type="button" onclick="copyText('+243976953045');showToast('Numéro copié')" style="padding:8px 10px;border-radius:8px;background:#fff;color:#dc2626;border:none;cursor:pointer;font-family:inherit;font-weight:900;font-size:10.5px;display:inline-flex;align-items:center;gap:4px;flex-shrink:0"><i class="fa-solid fa-copy"></i> COPIER</button>
+        <button type="button" onclick="event.preventDefault();event.stopPropagation();copyText('+243976953045')" style="padding:8px 10px;border-radius:8px;background:#fff;color:#dc2626;border:none;cursor:pointer;font-family:inherit;font-weight:900;font-size:10.5px;display:inline-flex;align-items:center;gap:4px;flex-shrink:0"><i class="fa-solid fa-copy"></i> COPIER</button>
       </div>
     </div>
     <div style="padding:10px 12px;background:linear-gradient(135deg,#fef3c7,#fde68a);border:1.5px solid #fbbf24;border-radius:10px;margin-bottom:12px">
@@ -1021,6 +1052,7 @@ var _pollingTimer=null;
 var _appEstActive=!document.hidden;
 var _paiementValide=false;
 var _deblocageValide=false;
+var titreEnCours='',descEnCours='',villeEnCours='',prixEnCours='',adresseEnCours='';
 
 function demarrerPolling(){if(_pollingTimer)return;if(!_appEstActive)return;if(currentTab === 'index') return;_pollingTimer=setInterval(rafraichirDonneesSilencieusement,POLLING_INTERVAL_MS);}
 function arreterPolling(){if(_pollingTimer){clearInterval(_pollingTimer);_pollingTimer=null;}}
@@ -1092,16 +1124,48 @@ function tempsRelatif(dateString){
   }catch(e){return 'Récemment';}
 }
 function getTodayKey(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-async function dejaVuAujourdhuiLocal(uid,annonceId){if(!uid||!annonceId)return false;try{var store=await idbGet('stats','vues_'+uid);if(!store||typeof store!=='object')return false;return store[annonceId]===getTodayKey();}catch(e){return false;}}
-async function marquerVuAujourdhuiLocal(uid,annonceId){if(!uid||!annonceId)return;try{var store=await idbGet('stats','vues_'+uid)||{};var today=getTodayKey();var propre={};Object.keys(store).forEach(function(k){if(store[k]===today)propre[k]=store[k];});propre[annonceId]=today;await idbSet('stats','vues_'+uid,propre);}catch(e){}}
+
 async function incrementerVuesAnnonce(annonceId){
-  if(!annonceId)return;
-  if(!CURRENT_ACCOUNT||!CURRENT_ACCOUNT.id)return;
-  var uid=CURRENT_ACCOUNT.id;
-  var dejaVu=await dejaVuAujourdhuiLocal(uid,annonceId);
-  if(dejaVu)return;
-  try{await window.incrementerVuesAnnonceFirestore(annonceId);await marquerVuAujourdhuiLocal(uid,annonceId);var offre=ANNONCES_DATA.find(function(a){return a.annonceId===annonceId;});if(offre)offre.vues=(offre.vues||0)+1;}catch(e){}
+  if(!annonceId) return;
+  if(!CURRENT_ACCOUNT || !CURRENT_ACCOUNT.id) return;
+  var uid = CURRENT_ACCOUNT.id;
+  var today = getTodayKey();
+  var key = 'vues_annonces_' + uid;
+  try{
+    var store = await idbGet('stats', key) || {};
+    if(store[annonceId] === today) return;
+    var propre = {};
+    Object.keys(store).forEach(function(k){ if(store[k] === today) propre[k] = store[k]; });
+    propre[annonceId] = today;
+    await idbSet('stats', key, propre);
+    await window.incrementerVuesAnnonceFirestore(annonceId);
+    var offre = ANNONCES_DATA.find(function(a){ return a.annonceId === annonceId; });
+    if(offre) offre.vues = (offre.vues || 0) + 1;
+  }catch(e){ console.warn('[Clics annonce]', e.message); }
 }
+
+async function incrementerVuesBoutique(uid, commerceId){
+  if(!uid || !commerceId) return;
+  if(!CURRENT_ACCOUNT || !CURRENT_ACCOUNT.id) return;
+  var userId = CURRENT_ACCOUNT.id;
+  var key = 'vues_boutiques_' + userId;
+  var today = getTodayKey();
+  try{
+    var store = await idbGet('stats', key) || {};
+    if(store[commerceId] === today) return;
+    var propre = {};
+    Object.keys(store).forEach(function(k){ if(store[k] === today) propre[k] = store[k]; });
+    propre[commerceId] = today;
+    await idbSet('stats', key, propre);
+    var commRef = window.docRef(window.db, 'commerces', commerceId);
+    var snap = await window.getDocRef(commRef);
+    if(snap.exists()){
+      var current = snap.data().vues || 0;
+      await window.setDoc(commRef, { vues: current + 1 }, { merge: true });
+    }
+  }catch(e){ console.warn('[Clics boutique]', e.message); }
+}
+
 async function cacherImage(url){if(!url||url.indexOf('data:')===0)return url;try{var existante=await idbGet('images',url);if(existante && existante.dataUrl) return existante.dataUrl;var res=await fetch(url,{mode:'cors',cache:'force-cache'});if(!res.ok) return url;var blob=await res.blob();var dataUrl=await new Promise(function(resolve,reject){var reader=new FileReader();reader.onload=function(){resolve(reader.result);};reader.onerror=reject;reader.readAsDataURL(blob);});await idbSet('images',url,{dataUrl:dataUrl,dateCache:Date.now()});return dataUrl;}catch(e){return url;}}
 async function obtenirImageCachee(url){if(!url||url.indexOf('data:')===0) return url;try{var cached=await idbGet('images',url);if(cached && cached.dataUrl) return cached.dataUrl;}catch(e){}return null;}
 async function prechargerEtCacherImages(){try{var urls=[];ANNONCES_DATA.slice(0,20).forEach(function(a){if(a.img)urls.push(a.img);});COMMERCES_DATA.slice(0,20).forEach(function(c){if(c.img)urls.push(c.img);});var uniques=[];urls.forEach(function(u){if(u&&uniques.indexOf(u)===-1)uniques.push(u);});for(var i=0;i<uniques.length;i++){await cacherImage(uniques[i]);}}catch(e){}}
@@ -1144,6 +1208,31 @@ function detecterChangementStatut(avant,apres){if(!avant||avant.length===0)retur
 function isLoggedIn(){return CURRENT_ACCOUNT!==null;}
 function getTypeCompteAffiche(){if(!CURRENT_ACCOUNT) return 'Netuber';if(CURRENT_ACCOUNT.boutique && CURRENT_ACCOUNT.boutique.uid === CURRENT_ACCOUNT.id && CURRENT_ACCOUNT.boutique.statut === 'approuve'){return 'Commerçant';}return 'Netuber';}
 window.getTypeCompteAffiche = getTypeCompteAffiche;
+
+function copyText(t){
+  if(!t) return;
+  haptic(20);
+  if(navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext){
+    navigator.clipboard.writeText(t).then(function(){showToast('✅ Numéro copié');}).catch(function(){fallbackCopy(t);});
+  } else { fallbackCopy(t); }
+}
+function fallbackCopy(t){
+  try{
+    var ta = document.createElement('textarea');
+    ta.value = t;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    ta.style.top = '0';
+    ta.setAttribute('readonly', '');
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, t.length);
+    var ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    if(ok){ showToast('✅ Numéro copié'); }
+    else { showToast('Impossible de copier'); }
+  }catch(e){ showToast('Erreur copie'); }
+}
 
 function requireLogin(action,callback){if(isLoggedIn()){if(callback)callback();return true;}showAccountModal('Vous devez créer votre compte pour continuer.',callback);return false;}
 function createAccountModal(){
@@ -1238,7 +1327,7 @@ async function submitAccountModal(){
       +'<h3 style="font-size:18px;font-weight:900;color:var(--text-primary);margin-bottom:6px">Compte créé !</h3>'
       +'<p style="font-size:12.5px;color:var(--text-muted);margin-bottom:18px">Conservez ce code d\'accès :</p>'
       +'<div style="font-family:ui-monospace,monospace;font-size:36px;font-weight:900;color:#1e3a8a;letter-spacing:8px;padding:18px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:14px;border:2px dashed #3b82f6;margin-bottom:18px">'+code+'</div>'
-      +'<button onclick="copyText(\''+code+'\');showToast(\'Copié\')" class="btn-3d gray" style="width:100%;padding:14px;margin-bottom:10px;justify-content:center"><i class="fa-solid fa-copy"></i> Copier</button>'
+      +'<button onclick="copyText(\''+code+'\')" class="btn-3d gray" style="width:100%;padding:14px;margin-bottom:10px;justify-content:center"><i class="fa-solid fa-copy"></i> Copier</button>'
       +'<button onclick="closeAccountModal();var cb=window._pendingCallback;window._pendingCallback=null;if(cb)cb();" class="btn-3d green" style="width:100%;padding:14px;justify-content:center"><i class="fa-solid fa-check"></i> J\'ai noté mon code</button>'
       +'</div>';
     }
@@ -1315,7 +1404,7 @@ async function validerChangerNumero(){
     await window.setStored(window.STORES.account,'current',CURRENT_ACCOUNT);
     var phoneEl=document.getElementById('profilPhone');var phoneDisplay=document.getElementById('profilPhoneDisplay');
     if(phoneEl)phoneEl.textContent=newPhone;if(phoneDisplay)phoneDisplay.textContent=newPhone;
-    fermerChangerNumero();renderProfil();showToast('Numéro modifié');
+    fermerChangerNumero();showToast('Numéro modifié');
   }catch(err){showToast('Erreur');}
 }
 async function chargerNotifications(){try{var uid=getUserId();return await window.getStored(window.STORES.notifications,uid,[]);}catch(e){return[];}}
@@ -1421,9 +1510,9 @@ async function renderDeblocagesDebloques(skipLoading){
     html+='<div style="flex:1;min-width:0">';
     html+='<div class="deblocage-titre">'+(item.titre||'Annonce')+'</div>';
     html+='<div class="deblocage-loc"><i class="fa-solid fa-location-dot"></i> '+(item.localisation||'—')+'</div>';
-    html+='<div style="display:flex;align-items:center;gap:8px;padding:9px 11px;background:linear-gradient(135deg,#fef3c7,#fde68a);border:1px solid #fbbf24;border-radius:10px;margin-top:8px">';
-    html+='<i class="fa-solid fa-hourglass-half" style="color:#d97706;font-size:13px"></i>';
-    html+='<div style="flex:1;min-width:0"><div style="font-size:9.5px;font-weight:800;color:#92400e;text-transform:uppercase">Expire dans</div><div class="chrono-deblocage" data-expire="'+expireAt+'" style="font-size:13px;font-weight:900;color:#78350f;font-family:ui-monospace,monospace;margin-top:2px">'+formatCompteARebours(reste)+'</div></div></div>';
+    html+='<div style="display:flex;align-items:center;gap:8px;padding:9px 11px;background:linear-gradient(135deg,#d1fae5,#a7f3d0);border:1.5px solid #10b981;border-radius:10px;margin-top:8px">';
+    html+='<i class="fa-solid fa-hourglass-half" style="color:#059669;font-size:13px"></i>';
+    html+='<div style="flex:1;min-width:0"><div style="font-size:9.5px;font-weight:800;color:#065f46;text-transform:uppercase">Expire dans</div><div class="chrono-deblocage" data-expire="'+expireAt+'" style="font-size:13px;font-weight:900;color:#064e3b;font-family:ui-monospace,monospace;margin-top:2px">'+formatCompteARebours(reste)+'</div></div></div>';
     html+='<button onclick="event.stopPropagation();ouvrirOffreDepuisDeblocage(\''+item.id+'\')" style="width:100%;margin-top:8px;padding:10px 12px;border-radius:10px;background:linear-gradient(180deg,#3b82f6,#1d4ed8);color:#fff;font-weight:900;font-size:12px;border:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 3px 0 #1e3a8a"><i class="fa-solid fa-address-book"></i> Voir les coordonnées</button>';
     html+='</div></div>';
   });
@@ -1502,35 +1591,147 @@ async function renderOngletBoutique(){
   html+='</div>';
   det.innerHTML=html;
 }
-function renderProfil(){
-  var el=document.getElementById('profilDetails');
-  if(!el||!CURRENT_ACCOUNT)return;
-  var nomUtilisateur = CURRENT_ACCOUNT.name || CURRENT_ACCOUNT.nomComplet || '—';
-  var phoneUtilisateur = CURRENT_ACCOUNT.phone || '—';
-  var typeCompte = getTypeCompteAffiche();
-  var nomBoutique = '—';
-  if(typeCompte === 'Commerçant'){nomBoutique = CURRENT_ACCOUNT.boutique.nom || CURRENT_ACCOUNT.boutique.nomCommerce || '—';}
-  var dateInscription = CURRENT_ACCOUNT.dateCreation ? new Date(CURRENT_ACCOUNT.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'}) : '—';
-  var messageSupport = '🎧 *DEMANDE DE CODE D\'ACCÈS NeTubeX RDC*\n\n👤 *INFORMATIONS DU COMPTE*\n\n• *Nom complet :* '+nomUtilisateur+'\n• *Numéro WhatsApp :* '+phoneUtilisateur+'\n• *Type de compte :* '+typeCompte+'\n• *Nom de la boutique :* '+nomBoutique+'\n• *Date d\'inscription :* '+dateInscription+'\n\n📝 *MOTIF*\n\nJ\'ai oublié mon code d\'accès personnel et je souhaite le récupérer.\n\nMerci de me communiquer mon code.\n\n✅ _NeTubeX RDC_';
-  var whatsappUrl = 'https://wa.me/243857525821?text=' + encodeURIComponent(messageSupport);
-  el.innerHTML='<div style="display:flex;flex-direction:column;gap:8px">'
-    +'<div style="padding:12px 14px;background:var(--bg-card-soft);border-radius:12px"><div style="font-size:10px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Nom complet</div><div style="font-size:13.5px;font-weight:800;color:var(--text-primary);margin-top:4px;word-break:break-word">'+esc(nomUtilisateur)+'</div></div>'
-    +'<div style="padding:12px 14px;background:var(--bg-card-soft);border-radius:12px"><div style="font-size:10px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Numéro WhatsApp</div><div style="font-size:13.5px;font-weight:800;color:var(--text-primary);margin-top:4px;font-family:ui-monospace,monospace">'+esc(phoneUtilisateur)+'</div></div>'
-    +'<div style="padding:12px 14px;background:var(--bg-card-soft);border-radius:12px"><div style="font-size:10px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Type de compte</div><div style="font-size:13.5px;font-weight:800;color:var(--text-primary);margin-top:4px">'+esc(typeCompte)+'</div>'+(nomBoutique !== '—' ? '<div style="font-size:11.5px;color:var(--text-muted);margin-top:4px">🏪 '+esc(nomBoutique)+'</div>' : '')+'</div>'
-    +'<div style="padding:12px 14px;background:var(--bg-card-soft);border-radius:12px"><div style="font-size:10px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Code d\'accès</div><div style="font-size:16px;font-weight:900;color:#2563eb;margin-top:4px;font-family:ui-monospace,monospace;letter-spacing:3px">••••••</div></div>'
-  +'</div>'
-  +'<div style="margin-top:14px;padding:12px 14px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1.5px solid #bfdbfe;border-radius:12px">'
-    +'<div style="display:flex;gap:10px;align-items:flex-start">'
-      +'<div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0"><i class="fa-solid fa-headset"></i></div>'
-      +'<div style="flex:1;min-width:0">'
-        +'<div style="font-size:12.5px;font-weight:900;color:#1e3a8a;margin-bottom:3px">Code oublié ?</div>'
-        +'<div style="font-size:11.5px;color:#1e40af;line-height:1.5;margin-bottom:10px">Contactez le support WhatsApp.</div>'
-        +'<a href="'+whatsappUrl+'" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:10px;background:#10b981;color:#fff;font-weight:900;font-size:11.5px;text-decoration:none;font-family:inherit"><i class="fa-brands fa-whatsapp" style="font-size:13px"></i> Contacter le support</a>'
-      +'</div>'
-    +'</div>'
-  +'</div>';
-  var phoneDisplay=document.getElementById('profilPhoneDisplay');
-  if(phoneDisplay)phoneDisplay.textContent=CURRENT_ACCOUNT.phone||'—';
+function renderSelecteurPro(){
+  var wrapper = document.getElementById('selecteurProBoutique');
+  var liste = document.getElementById('listeBoutiquesPro');
+  if(!wrapper || !liste || !CURRENT_ACCOUNT) return;
+  if(!CURRENT_ACCOUNT.comptePro){ wrapper.style.display = 'none'; return; }
+  var boutiques = CURRENT_ACCOUNT.boutiques || [];
+  if(boutiques.length === 0 && CURRENT_ACCOUNT.boutique && CURRENT_ACCOUNT.boutique.statut === 'approuve'){ boutiques = [CURRENT_ACCOUNT.boutique]; }
+  if(boutiques.length === 0){ wrapper.style.display = 'none'; return; }
+  wrapper.style.display = 'block';
+  var activeUid = CURRENT_ACCOUNT.boutiqueActiveUid || (boutiques[0] && boutiques[0].uid);
+  liste.innerHTML = boutiques.map(function(b){
+    var isActive = b.uid === activeUid;
+    return '<button onclick="changerBoutiqueActive(\'' + esc(b.uid) + '\')" style="width:100%;padding:10px 12px;border-radius:10px;text-align:left;border:none;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:10px;background:' + (isActive ? 'rgba(255,255,255,.95)' : 'rgba(255,255,255,.5)') + ';color:#4c1d95;font-weight:' + (isActive ? '900' : '700') + ';font-size:12.5px">'
+      + '<span style="width:24px;height:24px;border-radius:6px;background:' + (isActive ? '#10b981' : 'rgba(76,29,149,.2)') + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">' + (isActive ? '✓' : '🏪') + '</span>'
+      + '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(b.nom || b.nomCommerce || 'Boutique') + '</span>'
+      + (b.statut === 'en_attente' ? '<span style="font-size:9px;font-weight:900;padding:2px 6px;border-radius:5px;background:#fef3c7;color:#92400e">⏳</span>' : '')
+      + (b.statut === 'refuse' ? '<span style="font-size:9px;font-weight:900;padding:2px 6px;border-radius:5px;background:#fee2e2;color:#991b1b">✕</span>' : '')
+    + '</button>';
+  }).join('');
+}
+function changerBoutiqueActive(uid){
+  haptic(20);
+  if(!CURRENT_ACCOUNT || !CURRENT_ACCOUNT.boutiques) return;
+  var boutique = CURRENT_ACCOUNT.boutiques.find(function(b){ return b.uid === uid; });
+  if(!boutique){ showToast('Boutique introuvable'); return; }
+  CURRENT_ACCOUNT.boutiqueActiveUid = uid;
+  CURRENT_ACCOUNT.boutique = boutique;
+  CURRENT_COMMERCANT = boutique;
+  try{ window.setStored(window.STORES.account, 'current', CURRENT_ACCOUNT); }catch(e){}
+  try{ window.setStored(window.STORES.boutique, 'current', boutique); }catch(e){}
+  showToast('Boutique active : ' + (boutique.nom || 'Boutique'));
+  renderSelecteurPro();
+  renderOngletBoutique();
+}
+function ouvrirModalNouvelleBoutiquePro(){
+  haptic(20);
+  if(!CURRENT_ACCOUNT){ showToast('Connectez-vous'); return; }
+  if(!CURRENT_ACCOUNT.comptePro){ showToast('Réservé aux comptes Pro'); return; }
+  var d = document.createElement('div');
+  d.className = 'modal show';
+  d.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);z-index:500;display:flex;align-items:flex-end;justify-content:center';
+  d.innerHTML = '<div style="background:var(--bg-card);border-radius:24px 24px 0 0;max-width:520px;width:100%;padding:24px;padding-bottom:max(24px,env(safe-area-inset-bottom));max-height:90vh;overflow-y:auto">'
+    + '<div style="text-align:center;margin-bottom:18px">'
+    + '<div style="width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#fbbf24,#f59e0b);display:flex;align-items:center;justify-content:center;font-size:24px;color:#4c1d95;margin:0 auto 12px"><i class="fa-solid fa-store"></i></div>'
+    + '<h3 style="font-size:17px;font-weight:900;color:var(--text-primary)">Nouvelle boutique</h3>'
+    + '<p style="font-size:11.5px;color:var(--text-muted);margin-top:4px">Ajouter une boutique à votre compte Pro</p>'
+    + '</div>'
+    + '<form onsubmit="event.preventDefault();soumettreNouvelleBoutiquePro(this);" style="display:flex;flex-direction:column;gap:14px">'
+    + '<input type="text" name="nom" required placeholder="Nom commercial *" class="form-input-3d">'
+    + '<select name="type" required class="form-input-3d">'
+      + '<option value="">— Type de commerce —</option>'
+      + '<option value="Supermarché">🛒 Supermarché</option>'
+      + '<option value="Restaurant">🍽️ Restaurant</option>'
+      + '<option value="Hôtel">🏨 Hôtel</option>'
+      + '<option value="Pharmacie">💊 Pharmacie</option>'
+      + '<option value="Mode, Vêtements & Beauté">👗 Mode</option>'
+      + '<option value="Cosmétiques">💇 Cosmétiques</option>'
+      + '<option value="Salon de Coiffure">✂️ Salon</option>'
+      + '<option value="Services">🛠️ Services</option>'
+      + '<option value="Électronique">📱 Électronique</option>'
+      + '<option value="Vivriers & Fruits">🌾 Vivriers</option>'
+      + '<option value="Autres">📦 Autres</option>'
+    + '</select>'
+    + '<select name="ville" required class="form-input-3d">'
+      + '<option value="">— Ville —</option>'
+      + '<option value="Kinshasa">Kinshasa</option>'
+      + '<option value="Lubumbashi">Lubumbashi</option>'
+      + '<option value="Kasumbalesa">Kasumbalesa</option>'
+    + '</select>'
+    + '<input type="text" name="quartier" required placeholder="Commune / Quartier *" class="form-input-3d">'
+    + '<input type="tel" name="telephone" required placeholder="Téléphone *" class="form-input-3d">'
+    + '<input type="tel" name="whatsapp" required placeholder="WhatsApp commercial *" class="form-input-3d">'
+    + '<div class="form-actions" style="display:flex;gap:10px">'
+      + '<button type="button" class="btn-3d gray" style="flex:1;padding:14px" onclick="this.closest(\'.modal\').remove()">ANNULER</button>'
+      + '<button type="submit" class="btn-3d green" style="flex:2;padding:14px"><i class="fa-solid fa-check"></i> CRÉER</button>'
+    + '</div>'
+    + '</form>'
+  + '</div>';
+  document.body.appendChild(d);
+  d.onclick = function(e){ if(e.target === d) d.remove(); };
+}
+async function soumettreNouvelleBoutiquePro(form){
+  var data = {
+    nom: form.querySelector('[name="nom"]').value.trim(),
+    type: form.querySelector('[name="type"]').value,
+    ville: form.querySelector('[name="ville"]').value,
+    quartier: form.querySelector('[name="quartier"]').value.trim(),
+    telephone: form.querySelector('[name="telephone"]').value.trim(),
+    whatsapp: form.querySelector('[name="whatsapp"]').value.trim()
+  };
+  if(!data.nom || !data.type || !data.ville || !data.quartier || !data.telephone || !data.whatsapp){ showToast('Remplissez tous les champs'); return; }
+  var submitBtn = form.querySelector('[type="submit"]');
+  if(submitBtn){ submitBtn.disabled = true; submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Envoi…'; }
+  try{
+    var boutiqueUid = 'DEM-' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
+    var nouvelleBoutique = {
+      uid: CURRENT_ACCOUNT.id,
+      boutiqueUid: boutiqueUid,
+      nom: data.nom, nomCommerce: data.nom, type: data.type,
+      ville: data.ville, quartier: data.quartier,
+      telephone: data.telephone, whatsappCommercial: data.whatsapp,
+      adresse: '', horaires: '08h - 20h',
+      description: 'Découvrez notre catalogue.',
+      img: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80',
+      emoji: '🏪', statut: 'en_attente',
+      dateCreation: new Date().toISOString(),
+      creeParPro: true
+    };
+    if(window.creerDemandeBoutique){ await window.creerDemandeBoutique(Object.assign({}, data, { uid: CURRENT_ACCOUNT.id, pro: true })); }
+    CURRENT_ACCOUNT.boutiques = CURRENT_ACCOUNT.boutiques || [];
+    CURRENT_ACCOUNT.boutiques.push(nouvelleBoutique);
+    try{ await window.setStored(window.STORES.account, 'current', CURRENT_ACCOUNT); }catch(e){}
+    showToast('Demande envoyée');
+    form.closest('.modal').remove();
+    renderSelecteurPro();
+  }catch(e){ showToast('Erreur: ' + e.message); }
+  finally{ if(submitBtn){ submitBtn.disabled = false; submitBtn.innerHTML = 'CRÉER'; } }
+}
+async function renderMesPublications(){
+  var container = document.getElementById('mesPublicationsListe');
+  if(!container || !CURRENT_ACCOUNT) return;
+  container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">Chargement…</div>';
+  try{
+    var q = query(collection(db,'annonces'), where('proprietaireUid','==',CURRENT_ACCOUNT.id));
+    var snap = await getDocs(q);
+    var mesAnnonces = [];
+    snap.forEach(function(d){ mesAnnonces.push({id:d.id, ...d.data()}); });
+    mesAnnonces.sort(function(a,b){ return (b.dateCreation||'').localeCompare(a.dateCreation||''); });
+    if(mesAnnonces.length === 0){ container.innerHTML = '<div style="text-align:center;padding:24px 12px;color:var(--text-muted);font-size:12px">Aucune publication pour le moment.</div>'; return; }
+    container.innerHTML = mesAnnonces.map(function(a){
+      var statutBadge = '';
+      if(a.statut === 'en_attente') statutBadge = '<span style="font-size:9px;font-weight:900;padding:3px 8px;border-radius:6px;background:#fef3c7;color:#92400e;text-transform:uppercase">⏳ En attente</span>';
+      else if(a.statut === 'approuve') statutBadge = '<span style="font-size:9px;font-weight:900;padding:3px 8px;border-radius:6px;background:#d1fae5;color:#065f46;text-transform:uppercase">✅ Publié</span>';
+      else if(a.statut === 'refuse') statutBadge = '<span style="font-size:9px;font-weight:900;padding:3px 8px;border-radius:6px;background:#fee2e2;color:#991b1b;text-transform:uppercase">❌ Refusé</span>';
+      var date = a.dateCreation ? new Date(a.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}) : '';
+      return '<div style="padding:12px;background:var(--bg-card-soft);border:1px solid var(--border-primary);border-radius:12px;display:flex;gap:10px;align-items:center">'
+        + (a.img ? '<img src="'+esc(a.img)+'" style="width:48px;height:48px;object-fit:cover;border-radius:10px;flex-shrink:0">' : '<div style="width:48px;height:48px;background:var(--bg-card);border:1px solid var(--border-primary);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">📄</div>')
+        + '<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:800;color:var(--text-primary);line-height:1.3;word-break:break-word">'+esc(a.titre||'Sans titre')+'</div><div style="font-size:11px;color:var(--text-muted);margin-top:3px">'+esc(a.ville||'')+' · '+date+'</div><div style="margin-top:6px">'+statutBadge+'</div></div>'
+      + '</div>';
+    }).join('');
+  }catch(e){ container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">Erreur de chargement</div>'; }
 }
 function signalerOffre(){
   requireLogin('signaler',function(){
@@ -1591,10 +1792,8 @@ function annulerDeblocage(){
   if(!modal) return;
   modal.style.display = 'none';
   _deblocageValide = false;
-  var tx = document.getElementById('unlockTxId');
-  var num = document.getElementById('unlockNumEnvoi');
-  if(tx) tx.value = '';
-  if(num) num.value = '';
+  var tx = document.getElementById('unlockTxId');var num = document.getElementById('unlockNumEnvoi');
+  if(tx) tx.value = ''; if(num) num.value = '';
   showToast('Déblocage annulé');
 }
 async function validerDeblocage(){
@@ -1625,19 +1824,13 @@ function annulerPaiementPublication(){
   if(!modal) return;
   modal.style.display = 'none';
   _paiementValide = false;
-  var tx = document.getElementById('publishTxId');
-  var num = document.getElementById('publishNumEnvoi');
-  if(tx) tx.value = '';
-  if(num) num.value = '';
+  var tx = document.getElementById('publishTxId');var num = document.getElementById('publishNumEnvoi');
+  if(tx) tx.value = ''; if(num) num.value = '';
   showToast('Publication annulée');
 }
 function closeDeblocagePending(){document.getElementById('deblocagePendingOverlay').classList.remove('active');document.getElementById('deblocagePendingModal').classList.remove('active');}
 function showBoutiquePending(){document.getElementById('boutiquePendingOverlay').classList.add('active');document.getElementById('boutiquePendingModal').classList.add('active');}
 function closeBoutiquePending(){document.getElementById('boutiquePendingOverlay').classList.remove('active');document.getElementById('boutiquePendingModal').classList.remove('active');var pageInsc=document.getElementById('page-inscription');if(pageInsc&&pageInsc.classList.contains('active')){go('index');}}
-function copyText(t){
-  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){haptic(20);showToast('Copié');}).catch(function(){});}
-  else{var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');showToast('Copié');}catch(e){}document.body.removeChild(ta);}
-}
 function extraireMots(texte){if(!texte)return[];return texte.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\w\s]/g,' ').trim().split(/\s+/).filter(function(m){return m.length>=3||/^\d+$/.test(m);});}
 function normaliser(texte){if(!texte)return'';return String(texte).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
 var searchEnCours=false;
@@ -1668,8 +1861,7 @@ function showSearchLoading(){
 function demarrerTypewriterRecherche(){
   var el=document.getElementById('searchTypewriter');if(!el)return;
   var phrases=['Recherche en cours...','Analyse des offres...','Vérification des résultats...','Filtrage par critères...','Préparation de l\'affichage...'];
-  var phraseIndex=0,charIndex=0,isDeleting=false;
-  var cancelled=false;
+  var phraseIndex=0,charIndex=0,isDeleting=false;var cancelled=false;
   function checkCancel(){if(!document.getElementById('searchTypewriter')){cancelled=true;return true;}return false;}
   function type(){
     if(cancelled||checkCancel())return;
@@ -1692,7 +1884,7 @@ function afficherResultats(resultats,query){
   html+='<div style="flex:1;overflow-y:auto;padding:16px">';
   resultats.forEach(function(o){
     html+='<div style="background:var(--bg-card);border:1.5px solid var(--border-primary);border-radius:16px;padding:14px;margin-bottom:10px;cursor:pointer" onclick="closeSearchResults();openDetail('+JSON.stringify(o).replace(/"/g,'&quot;')+')">';
-    html+='<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">'+getAvatarHTML(o,52)+'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:800;color:var(--text-primary);display:flex;align-items:center;gap:5px">'+o.name+getVerifiedBadgeHTML(o)+'</div><div style="font-size:11.5px;color:var(--text-muted);margin-top:2px"><i class="fa-solid fa-location-dot" style="color:#ef4444"></i> '+o.location+'</div></div><span class="feed-badge '+o.tagClass+'">'+o.tag+'</span></div>';
+    html+='<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">'+getAvatarHTML(o,52)+'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:800;color:var(--text-primary);display:flex;align-items:center;gap:5px">'+o.name+getVerifiedBadgeHTML(o)+'</div><div style="font-size:11.5px;color:var(--text-muted);margin-top:2px"><i class="fa-solid fa-location-dot" style="color:#ef4444"></i> '+o.location+'</div></div><span class="feed-badge '+(o.tagClass||'post-tag-autre')+'">'+(o.tag||'AUTRE')+'</span></div>';
     html+='<div style="font-size:14.5px;font-weight:800;color:var(--text-primary);margin-bottom:6px">'+o.title+'</div>';
     html+='<div style="font-size:12.5px;color:var(--text-secondary);line-height:1.5;margin-bottom:8px">'+o.desc+'</div>';
     if(o.price)html+='<span class="feed-badge '+o.priceClass+'" style="font-size:12px">'+o.price+'</span>';
@@ -1749,7 +1941,7 @@ function renderOffreCard(p){
     var media=p.img?'<div class="fb-post-media" data-img-url="'+p.img+'"><img src="'+p.img+'" alt="'+p.title+'" loading="lazy" onload="this.classList.add(\'chargee\')"></div>':'';
     var clicsCommerce='<div class="fb-post-views"><i class="fa-solid fa-hand-pointer"></i> '+(p.vues||0)+' clic'+((p.vues||0)===1?'':'s')+'</div>';
     var badgesCommerce=getBadgesSpeciaux(p);
-    return '<article class="fb-post" onclick=\'openCatalogue("'+p.commerceId+'")\'><div class="fb-post-head">'+getAvatarHTML(p,52)+'<div style="min-width:0;overflow:hidden"><div class="fb-post-name">'+p.name+getVerifiedBadgeHTML(p)+'</div><div class="fb-post-sub">'+p.location+' · '+p.time+'</div></div><span class="feed-badge '+p.tagClass+'">'+p.tag+'</span></div><div class="fb-post-body"><h3 class="fb-post-title">'+p.title+'</h3><p class="fb-post-desc">'+p.desc+'</p><div class="fb-post-price '+p.priceClass+'" style="background:#dbeafe;color:#1e40af"><i class="fa-solid fa-bag-shopping"></i> '+p.price+'</div>'+clicsCommerce+badgesCommerce+'</div>'+media+'<div class="fb-post-actions"><button class="fb-action-btn" onclick="event.stopPropagation();sharePost()"><i class="fa-solid fa-share-nodes"></i> Partager</button><button class="fb-action-btn fb-action-primary" onclick="event.stopPropagation();openCatalogue(\''+p.commerceId+'\')"><i class="fa-solid fa-bag-shopping"></i> Voir catalogue</button></div></article>';
+    return '<article class="fb-post" onclick=\'openCatalogue("'+p.commerceId+'")\'><div class="fb-post-head">'+getAvatarHTML(p,52)+'<div style="min-width:0;overflow:hidden"><div class="fb-post-name">'+p.name+getVerifiedBadgeHTML(p)+'</div><div class="fb-post-sub">'+p.location+' · '+p.time+'</div></div><span class="feed-badge '+(p.tagClass||'post-tag-commerce')+'">'+(p.tag||'🏪 Commerce')+'</span></div><div class="fb-post-body"><h3 class="fb-post-title">'+p.title+'</h3><p class="fb-post-desc">'+p.desc+'</p><div class="fb-post-price '+p.priceClass+'" style="background:#dbeafe;color:#1e40af"><i class="fa-solid fa-bag-shopping"></i> '+p.price+'</div>'+clicsCommerce+badgesCommerce+'</div>'+media+'<div class="fb-post-actions"><button class="fb-action-btn" onclick="event.stopPropagation();sharePost()"><i class="fa-solid fa-share-nodes"></i> Partager</button><button class="fb-action-btn fb-action-primary" onclick="event.stopPropagation();openCatalogue(\''+p.commerceId+'\')"><i class="fa-solid fa-bag-shopping"></i> Voir catalogue</button></div></article>';
   }
   var actionBtn;
   if(p.urgence){
@@ -1777,7 +1969,7 @@ function renderOffreCard(p){
   var tempsAffiche=p.dateCreation?tempsRelatif(p.dateCreation):(p.time||'Récemment');
   var clicsBadge='<div class="fb-post-views"><i class="fa-solid fa-hand-pointer"></i> '+(p.vues||0)+' clic'+((p.vues||0)===1?'':'s')+'</div>';
   var badgesSpeciaux=getBadgesSpeciaux(p);
-  return '<article class="fb-post" data-annonce-id="'+(p.annonceId||p.id||'')+'" onclick=\'openDetail('+JSON.stringify(p).replace(/'/g,"&#39;")+')\'><div class="fb-post-head">'+getAvatarHTML(p,52)+'<div style="min-width:0;overflow:hidden"><div class="fb-post-name">'+p.name+getVerifiedBadgeHTML(p)+'</div><div class="fb-post-sub">'+p.location+' · '+tempsAffiche+'</div></div><span class="feed-badge '+p.tagClass+'">'+p.tag+'</span></div><div class="fb-post-body"><h3 class="fb-post-title">'+p.title+'</h3><p class="fb-post-desc">'+p.desc+'</p>'+(p.price?'<div class="fb-post-price '+p.priceClass+'">'+p.price+'</div>':'')+clicsBadge+badgesSpeciaux+'</div>'+media+'<div class="fb-post-actions"><button class="fb-action-btn" onclick="event.stopPropagation();sharePost()"><i class="fa-solid fa-share-nodes"></i> Partager</button>'+actionBtn+'</div></article>';
+  return '<article class="fb-post" data-annonce-id="'+(p.annonceId||p.id||'')+'" onclick=\'openDetail('+JSON.stringify(p).replace(/'/g,"&#39;")+')\'><div class="fb-post-head">'+getAvatarHTML(p,52)+'<div style="min-width:0;overflow:hidden"><div class="fb-post-name">'+p.name+getVerifiedBadgeHTML(p)+'</div><div class="fb-post-sub">'+p.location+' · '+tempsAffiche+'</div></div><span class="feed-badge '+(p.tagClass||'post-tag-autre')+'">'+(p.tag||'AUTRE')+'</span></div><div class="fb-post-body"><h3 class="fb-post-title">'+p.title+'</h3><p class="fb-post-desc">'+p.desc+'</p>'+(p.price?'<div class="fb-post-price '+p.priceClass+'">'+p.price+'</div>':'')+clicsBadge+badgesSpeciaux+'</div>'+media+'<div class="fb-post-actions"><button class="fb-action-btn" onclick="event.stopPropagation();sharePost()"><i class="fa-solid fa-share-nodes"></i> Partager</button>'+actionBtn+'</div></article>';
 }
 var _feedObserver=null;
 function renderFeedBatch(page){
@@ -1855,8 +2047,16 @@ function go(page,param){
     appliquerThemeProfilUI();
     afficherOngletBoutique();
     var compteTab=document.querySelector('.dash-tab[data-tab="compte"]');if(compteTab)compteTab.click();
-    renderProfil();
+    var phoneDisplay=document.getElementById('profilPhoneDisplay');if(phoneDisplay)phoneDisplay.textContent=CURRENT_ACCOUNT.phone||'—';
+    renderSelecteurPro();
+    renderMesPublications();
     if(CURRENT_ACCOUNT){DEBLOCAGES_DIRTY=true;rafraichirTousDeblocages();}
+  }
+  if(page==='inscription'){
+    var bandeau=document.getElementById('bandeauDejaCommercant');
+    if(bandeau){
+      bandeau.style.display=(CURRENT_ACCOUNT && CURRENT_ACCOUNT.boutique && CURRENT_ACCOUNT.boutique.statut === 'approuve' && !CURRENT_ACCOUNT.comptePro) ? 'flex' : 'none';
+    }
   }
   if(page!=='category'&&page!=='publish'){CURRENT_CATEGORY=null;}
   if(!_navFromPopstate){try{history.pushState({page:page,param:param||null},'',null);}catch(e){}}_navFromPopstate=false;
@@ -1908,12 +2108,7 @@ async function openCatalogue(commerceId){
   haptic(20);
   var commerce=COMMERCES_DATA.find(function(c){return c.id===commerceId;});
   if(!commerce){showToast('Introuvable');return;}
-  if(commerce.uid)incrementerVuesBoutique(commerce.uid);
-  try{
-    var statRef=window.docRef(window.db,'commerces',commerce.id);
-    var statSnap=await window.getDocRef(statRef);
-    if(statSnap.exists()){var currentVues=statSnap.data().vues||0;await window.setDoc(statRef,{vues:currentVues+1},{merge:true});commerce.vues=(commerce.vues||0)+1;var itemCommerce=COMMERCES_DATA.find(function(c){return c.id===commerce.id;});if(itemCommerce)itemCommerce.vues=commerce.vues;}
-  }catch(e){}
+  if(commerce.uid) incrementerVuesBoutique(commerce.uid, commerce.id);
   if(!CURRENT_COMMERCE||CURRENT_COMMERCE.id!==commerce.id){cart=[];updateCart();refreshAddButtons();}
   CURRENT_COMMERCE=commerce;
   try{await window.setStored(window.STORES.commerce,'current',commerce);}catch(e){}
@@ -1968,7 +2163,6 @@ function filtrerCommercesSansCheck(){
   if(empty)empty.style.display=visible===0?'block':'none';
   if(count)count.textContent=visible+' établissement'+(visible>1?'s':'')+' disponible'+(visible>1?'s':'');
 }
-async function incrementerVuesBoutique(uid){if(!uid)return;try{var statsRef=window.docRef(window.db,'boutique_stats',uid);var snap=await window.getDocRef(statsRef);var current=snap.exists()?(snap.data().vues||0):0;await window.setDoc(statsRef,{vues:current+1,dateDernierAcces:new Date().toISOString()},{merge:true});}catch(e){}}
 var DETAIL_FS_COUNTDOWN=10;var detailFsActive=false;
 function openDetailFullscreen(src){if(!src||detailFsActive)return;detailFsActive=true;haptic(20);var overlay=document.getElementById('detailFullscreen');var img=document.getElementById('detailFsImg');if(!overlay||!img)return;img.src=src;overlay.classList.add('active');document.body.style.overflow='hidden';setTimeout(function(){closeDetailFullscreen();},DETAIL_FS_COUNTDOWN*1000);}
 function closeDetailFullscreen(){if(!detailFsActive)return;detailFsActive=false;haptic(15);var overlay=document.getElementById('detailFullscreen');if(overlay)overlay.classList.remove('active');document.body.style.overflow='';}
@@ -1986,7 +2180,7 @@ async function renderDetail(offre){
   var heroImg=document.getElementById('detailHeroImg');
   if(heroImg){if(offre.img){heroImg.src=offre.img;heroImg.style.display='block';}else heroImg.style.display='none';}
   var heroBadge=document.getElementById('detailHeroBadge');
-  if(heroBadge){heroBadge.textContent=offre.tag||'—';heroBadge.className='feed-badge '+(offre.tagClass||'');}
+  if(heroBadge){heroBadge.textContent=offre.tag||'—';heroBadge.className='feed-badge '+(offre.tagClass||'post-tag-autre');}
   var cityEl=document.getElementById('detailCity');if(cityEl)cityEl.textContent=offre.location||'—';
   var dateEl=document.getElementById('detailDate');
   if(dateEl){var t=offre.dateCreation?tempsRelatif(offre.dateCreation):(offre.time||'Récemment');dateEl.textContent=t;}
@@ -2011,11 +2205,45 @@ async function renderDetail(offre){
   var contactAddrEl=document.getElementById('detailContactAddr');
   var contactPhoneEl=document.getElementById('detailContactPhone');
   var actionsEl=document.getElementById('detailActions');
+  
+  var oldCache = document.getElementById('coordonneesCacheesCard');
+  if(oldCache) oldCache.remove();
+  
   if(!deblocageValide){
     if(contactSection) contactSection.style.display = 'none';
     if(contactOwnerEl) contactOwnerEl.textContent = '';
     if(contactAddrEl) contactAddrEl.textContent = '';
     if(contactPhoneEl) contactPhoneEl.textContent = '';
+    
+    if(offre.unlock){
+      var cacheCard = document.createElement('div');
+      cacheCard.id = 'coordonneesCacheesCard';
+      cacheCard.className = 'detail-section';
+      cacheCard.innerHTML = 
+        '<h3 class="detail-section-title"><i class="fa-solid fa-lock"></i> Coordonnées du publieur</h3>'
+        + '<div style="display:flex;flex-direction:column;gap:12px;position:relative">'
+          + '<div style="display:flex;align-items:flex-start;gap:14px;padding:14px;background:var(--bg-card-soft);border-radius:14px;filter:blur(7px);user-select:none;pointer-events:none">'
+            + '<div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0"><i class="fa-solid fa-user"></i></div>'
+            + '<div style="flex:1;min-width:0"><div style="font-size:10.5px;font-weight:900;color:var(--text-light);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Propriétaire</div><div style="font-size:14.5px;font-weight:800;color:var(--text-primary);line-height:1.35">Jean Kabila Mukendi</div></div>'
+          + '</div>'
+          + '<div style="display:flex;align-items:flex-start;gap:14px;padding:14px;background:var(--bg-card-soft);border-radius:14px;filter:blur(7px);user-select:none;pointer-events:none">'
+            + '<div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0"><i class="fa-solid fa-location-dot"></i></div>'
+            + '<div style="flex:1;min-width:0"><div style="font-size:10.5px;font-weight:900;color:var(--text-light);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Adresse</div><div style="font-size:14.5px;font-weight:800;color:var(--text-primary);line-height:1.35">Av. de la Paix N° 45, Gombe, Kinshasa</div></div>'
+          + '</div>'
+          + '<div style="display:flex;align-items:flex-start;gap:14px;padding:14px;background:var(--bg-card-soft);border-radius:14px;filter:blur(7px);user-select:none;pointer-events:none">'
+            + '<div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0"><i class="fa-solid fa-phone"></i></div>'
+            + '<div style="flex:1;min-width:0"><div style="font-size:10.5px;font-weight:900;color:var(--text-light);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Téléphone</div><div style="font-size:14.5px;font-weight:800;color:var(--text-primary);font-family:ui-monospace,monospace;line-height:1.35">+243 97 000 00 00</div></div>'
+          + '</div>'
+          + '<div style="position:absolute;inset:0;background:linear-gradient(135deg,rgba(15,23,42,.72),rgba(15,23,42,.55));backdrop-filter:blur(2px);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;z-index:2;padding:20px">'
+            + '<div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#d97706);display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;box-shadow:0 8px 20px rgba(245,158,11,.5)"><i class="fa-solid fa-lock"></i></div>'
+            + '<div style="font-size:14px;font-weight:900;color:#fff;text-align:center">Coordonnées verrouillées</div>'
+            + '<div style="font-size:11.5px;color:rgba(255,255,255,.85);text-align:center;line-height:1.5">Débloquez pour voir le contact direct</div>'
+          + '</div>'
+        + '</div>';
+      var orgSectionInsert = document.getElementById('detailOrganisationSection');
+      if(orgSectionInsert && orgSectionInsert.parentNode){ orgSectionInsert.parentNode.insertBefore(cacheCard, orgSectionInsert.nextSibling); }
+    }
+    
     if(actionsEl){
       actionsEl.innerHTML = '';
       if(offre.unlock){
@@ -2041,10 +2269,7 @@ async function renderDetail(offre){
       var telClean = ((coords && coords.telephone) || '').replace(/[^\d]/g,'');
       actionsEl.innerHTML = '<div style="padding:12px 14px;background:#ecfdf5;border:1.5px solid #a7f3d0;border-radius:12px;margin-bottom:10px;display:flex;align-items:center;gap:10px">'
         + '<i class="fa-solid fa-circle-check" style="color:#059669;font-size:16px"></i>'
-        + '<div style="flex:1;min-width:0">'
-        + '<div style="font-size:12.5px;font-weight:900;color:#065f46">Coordonnées débloquées</div>'
-        + '<div style="font-size:11px;color:#047857;margin-top:2px">Valable 12h</div>'
-        + '</div></div>'
+        + '<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:900;color:#065f46">Coordonnées débloquées</div><div style="font-size:11px;color:#047857;margin-top:2px">Valable 12h</div></div></div>'
         + (telClean ? '<button onclick="ouvrirOptionsAppel(\''+telClean+'\',{title:\''+String(offre.title||'').replace(/'/g,"\\'")+'\',price:\''+String(offre.price||'').replace(/'/g,"\\'")+'\',location:\''+String(offre.location||'').replace(/'/g,"\\'")+'\',desc:\''+String(offre.desc||'').replace(/'/g,"\\'")+'\'})" class="detail-primary-btn green" style="flex:1"><i class="fa-solid fa-address-book"></i> Contacter</button>' : '');
     }
   }
@@ -2197,7 +2422,6 @@ function submitOrder(){
   });
 }
 var publishCat=null;var publishImages=[];
-var titreEnCours='',descEnCours='',villeEnCours='',prixEnCours='',adresseEnCours='';
 function toggleCustomSelect(){haptic(10);var select=document.getElementById('customSelectType');if(!select)return;select.classList.toggle('open');}
 function selectCustomOption(value,el){
   haptic(15);
@@ -2343,6 +2567,11 @@ function inscPrevStep(current){haptic(20);inscShowStep(current-1);}
 function toggleInscVilleLibre(){var sel=document.getElementById('inscVille');var inp=document.getElementById('inscVilleLibre');if(!sel||!inp)return;if(sel.value==='autre'){inp.style.display='block';inp.required=true;}else{inp.style.display='none';inp.required=false;inp.value='';}}
 async function submitInscriptionBoutique(){
   haptic(20);
+  if(CURRENT_ACCOUNT.boutique && CURRENT_ACCOUNT.boutique.statut === 'approuve' && !CURRENT_ACCOUNT.comptePro){
+    showToast('Contactez le support NeTubeX pour passer en Compte Pro');
+    setTimeout(function(){ go('dashboard-utilisateur'); }, 1800);
+    return;
+  }
   var nom=(document.getElementById('inscNom')||{}).value?document.getElementById('inscNom').value.trim():'';
   var tel=(document.getElementById('inscTelephone')||{}).value?document.getElementById('inscTelephone').value.trim():'';
   var waCom=(document.getElementById('inscWhatsappCommercial')||{}).value?document.getElementById('inscWhatsappCommercial').value.trim():'';
@@ -2388,6 +2617,8 @@ async function verifierCompteLocal(){
         CURRENT_ACCOUNT.nomComplet=data.nomComplet||CURRENT_ACCOUNT.nomComplet;
         CURRENT_ACCOUNT.name=CURRENT_ACCOUNT.nomComplet;
         CURRENT_ACCOUNT.dateCreation=data.dateCreation||CURRENT_ACCOUNT.dateCreation;
+        CURRENT_ACCOUNT.comptePro=data.comptePro||false;
+        CURRENT_ACCOUNT.boutiques=data.boutiques||[];
         if(!data.boutique){CURRENT_ACCOUNT.boutique=null;CURRENT_COMMERCANT=null;try{await window.idbDelete(window.STORES.boutique,'current');}catch(e){}}
         else{CURRENT_COMMERCANT=data.boutique;try{await window.setStored(window.STORES.boutique,'current',data.boutique);}catch(e){}}
         try{await window.setStored(window.STORES.account,'current',CURRENT_ACCOUNT);}catch(e){}
@@ -2421,7 +2652,7 @@ window.filterCategory=filterCategory;window.toggleSearchCard=toggleSearchCard;
 window.fermerSearchCard=fermerSearchCard;window.executeSearch=executeSearch;
 window.openAccountOrProfile=openAccountOrProfile;window.doLogout=doLogout;
 window.ouvrirConnexion=ouvrirConnexion;
-window.closeUnlock=function(){annulerDeblocage();};window.validerDeblocage=validerDeblocage;
+window.closeUnlock=annulerDeblocage;window.validerDeblocage=validerDeblocage;
 window.switchDashTab=switchDashTab;
 window.switchDeblocageSubTab=switchDeblocageSubTab;window.closeCart=closeCart;
 window.openCart=openCart;window.changeQty=changeQty;window.removeItem=removeItem;
@@ -2454,6 +2685,11 @@ window.rafraichirDonneesSilencieusement=rafraichirDonneesSilencieusement;
 window.getBadgesSpeciaux=getBadgesSpeciaux;
 window.annulerPaiementPublication=annulerPaiementPublication;
 window.annulerDeblocage=annulerDeblocage;
+window.changerBoutiqueActive=changerBoutiqueActive;
+window.ouvrirModalNouvelleBoutiquePro=ouvrirModalNouvelleBoutiquePro;
+window.soumettreNouvelleBoutiquePro=soumettreNouvelleBoutiquePro;
+window.renderMesPublications=renderMesPublications;
+window.renderSelecteurPro=renderSelecteurPro;
 </script>
 </body>
 </html>
