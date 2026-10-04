@@ -41,18 +41,56 @@ async function getStored(store,key,fallback=null){const val=await idbGet(store,k
 async function setStored(store,key,value){return idbSet(store,key,value);}
 async function migrerDepuisLocalStorage(){const done=await idbGet('stats','migration_done');if(done)return;const migrations=[{lsKey:'netubex-account',store:STORES.account,idbKey:'current'},{lsKey:'netubex-boutique',store:STORES.boutique,idbKey:'current'},{lsKey:'netubex-theme',store:STORES.theme,idbKey:'value'},{lsKey:'netubex-current-commerce',store:STORES.commerce,idbKey:'current'},{lsKey:'netubex-current-offre',store:STORES.offre,idbKey:'current'}];for(const m of migrations){try{const val=localStorage.getItem(m.lsKey);if(val!==null){let parsed=val;try{parsed=JSON.parse(val);}catch(e){}await idbSet(m.store,m.idbKey,parsed);}}catch(e){}}await idbSet('stats','migration_done',true);}
 window.idbGet=idbGet;window.idbSet=idbSet;window.idbDelete=idbDelete;window.getStored=getStored;window.setStored=setStored;window.migrerDepuisLocalStorage=migrerDepuisLocalStorage;window.STORES=STORES;
-window.createUser=async function(data){const cred=await createUserWithEmailAndPassword(auth,data.email,data.password);const uid=cred.user.uid;await setDoc(doc(db,'netubers',uid),{prenom:data.prenom||'',nom:data.nom||'',nomComplet:data.nomComplet||((data.nom||'')+' '+(data.prenom||'')).trim(),phone:data.phone||'',emailAuth:data.email||'',code:data.password||'',ville:data.ville||'',quartier:'',role:'user',actif:true,dateCreation:new Date().toISOString(),stats:{deblocages:0,commandes:0,parrainage:0,jetons:0,badges:[]},notifications:[]});return {uid:uid,code:data.password};};
-window.loginByPhoneCode=async function(phone,code){const q=query(collection(db,'netubers'),where('phone','==',phone),where('code','==',code));const snap=await getDocs(q);if(snap.empty)return null;const d=snap.docs[0],data=d.data();if(data.actif===false)return {error:'compte_desactive'};if(data.emailAuth){try{await signInWithEmailAndPassword(auth,data.emailAuth,code);}catch(e){return null;}}return {uid:d.id,id:d.id,nomComplet:data.nomComplet,name:data.nomComplet,phone:data.phone,code:data.code,email:data.emailAuth,emailAuth:data.emailAuth,ville:data.ville,role:data.role,boutique:data.boutique||null,comptePro:data.comptePro||false,boutiques:data.boutiques||[],actif:data.actif,dateCreation:data.dateCreation};};
+window.createUser=async function(data){
+  const cred=await createUserWithEmailAndPassword(auth,data.email,data.password);
+  const uid=cred.user.uid;
+  const codeParrainage = 'NTX-' + uid.slice(0,6).toUpperCase();
+  await setDoc(doc(db,'netubers',uid),{
+    prenom:data.prenom||'',nom:data.nom||'',
+    nomComplet:data.nomComplet||((data.nom||'')+' '+(data.prenom||'')).trim(),
+    sexe:data.sexe||'',
+    phone:data.phone||'',emailAuth:data.email||'',code:data.password||'',
+    ville:data.ville||'',quartier:'',role:'user',actif:true,
+    dateCreation:new Date().toISOString(),
+    stats:{deblocages:0,commandes:0,parrainage:0,jetons:0,badges:[]},
+    notifications:[],
+    parrainage:{code:codeParrainage,count:0,palier:0,joursRestants:0,dateDernierePub:null},
+    parrainId: data.parrainId || null
+  });
+  if(data.parrainId){
+    try{
+      const parrainRef=doc(db,'netubers',data.parrainId);
+      const parrainSnap=await getDoc(parrainRef);
+      if(parrainSnap.exists()){
+        const pd=parrainSnap.data();
+        const pPar=pd.parrainage||{code:'',count:0,palier:0,joursRestants:0,dateDernierePub:null};
+        pPar.count=(pPar.count||0)+1;
+        pPar.palier=pPar.palier||0;
+        const nouveauPalier=Math.floor(pPar.count/25);
+        if(nouveauPalier>pPar.palier){
+          const gagnes=nouveauPalier-pPar.palier;
+          pPar.palier=nouveauPalier;
+          pPar.joursRestants=(pPar.joursRestants||0)+(3*gagnes);
+        }
+        await setDoc(parrainRef,{parrainage:pPar},{merge:true});
+      }
+    }catch(e){}
+  }
+  return {uid:uid,code:data.password,codeParrainage:codeParrainage};
+};
+window.loginByPhoneCode=async function(phone,code){const q=query(collection(db,'netubers'),where('phone','==',phone),where('code','==',code));const snap=await getDocs(q);if(snap.empty)return null;const d=snap.docs[0],data=d.data();if(data.actif===false)return {error:'compte_desactive'};if(data.emailAuth){try{await signInWithEmailAndPassword(auth,data.emailAuth,code);}catch(e){return null;}}return {uid:d.id,id:d.id,nomComplet:data.nomComplet,name:data.nomComplet,sexe:data.sexe||'',phone:data.phone,code:data.code,email:data.emailAuth,emailAuth:data.emailAuth,ville:data.ville,role:data.role,boutique:data.boutique||null,comptePro:data.comptePro||false,boutiques:data.boutiques||[],parrainage:data.parrainage||null,parrainId:data.parrainId||null,actif:data.actif,dateCreation:data.dateCreation};};
 window.updatePhone=async function(uid,nouveauPhone){await updateDoc(doc(db,'netubers',uid),{phone:nouveauPhone});return{success:true,phone:nouveauPhone};};
 window.logoutUser=async function(){try{await signOut(auth);}catch(e){}};
 window.mesDeblocages=async function(uid){const q=query(collection(db,'deblocages'),where('uid','==',uid));const snap=await getDocs(q);const list=[];snap.forEach(function(d){list.push({id:d.id,...d.data()});});return list;};
 window.lireCoordonnees=async function(annonceId){try{const snap=await getDoc(doc(db,'annonces',annonceId,'prive','contact'));if(!snap.exists())return null;return snap.data();}catch(e){return null;}};
 window.creerAnnonce=async function(data,coordonnees,paiement){
-  if(!paiement || !paiement.transactionId || !paiement.numeroEnvoi){throw new Error('Preuve de paiement obligatoire');}
-  if(String(paiement.transactionId).trim().length < 6){throw new Error('ID Transaction invalide');}
-  if(String(paiement.numeroEnvoi).replace(/[^\d]/g,'').length < 9){throw new Error('Numéro d\'envoi invalide');}
+  if(!paiement || (!paiement.gratuit && (!paiement.transactionId || !paiement.numeroEnvoi))){throw new Error('Preuve de paiement obligatoire');}
+  if(!paiement.gratuit){
+    if(String(paiement.transactionId).trim().length < 6){throw new Error('ID Transaction invalide');}
+    if(String(paiement.numeroEnvoi).replace(/[^\d]/g,'').length < 9){throw new Error('Numéro d\'envoi invalide');}
+  }
   const annonceId='ANN-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
-  await setDoc(doc(db,'annonces',annonceId),{
+  const annonceData = {
     titre:data.titre||'',desc:data.desc||'',ville:data.ville||'',
     quartier:data.quartier||'',prix:data.prix||'',img:data.img||'',
     cat:data.cat||'autre',tag:data.tag||'',tagClass:data.tagClass||'',
@@ -60,10 +98,17 @@ window.creerAnnonce=async function(data,coordonnees,paiement){
     publieurNom:data.publieurNom||'',publieurType:data.publieurType||'user',
     publieurBoutique:data.publieurBoutique||null,
     publieurPhone:data.publieurPhone||'',publieurVille:data.publieurVille||'',
+    publieurParrainage:data.publieurParrainage||null,
+    publieurSexe:data.publieurSexe||'',
     dateCreation:new Date().toISOString(),
-    actif:false,statut:'en_attente',vues:0,
-    paiement:{transactionId:paiement.transactionId,numeroEnvoi:paiement.numeroEnvoi,montant:paiement.montant||1000,destinataire:'+243976953045',datePaiement:new Date().toISOString()}
-  });
+    actif:false,statut:'en_attente',vues:0
+  };
+  if(paiement.gratuit){
+    annonceData.paiement = {gratuit:true, montant:0};
+  } else {
+    annonceData.paiement = {transactionId:paiement.transactionId,numeroEnvoi:paiement.numeroEnvoi,montant:paiement.montant||1000,destinataire:'+243976953045',datePaiement:new Date().toISOString()};
+  }
+  await setDoc(doc(db,'annonces',annonceId),annonceData);
   await setDoc(doc(db,'annonces',annonceId,'prive','contact'),{nom:coordonnees.nom||'',adresse:coordonnees.adresse||'',telephone:coordonnees.telephone||'',email:coordonnees.email||''});
   return{annonceId:annonceId};
 };
@@ -116,11 +161,11 @@ window.chargerAnnoncesFirestore=async function(){
       const typePublieur=data.publieurType||'user';
       const uid=data.proprietaireUid||null;
       if(uid&&data.img&&!photosParUid[uid]){photosParUid[uid]=data.img;}
-      annonces.push({id:d.id,annonceId:d.id,title:data.titre||'',name:nomPublieur,initials:nomPublieur.substring(0,2).toUpperCase(),avatar:data.avatar||'',location:data.ville||'',dateCreation:data.dateCreation||'',time:data.dateCreation?new Date(data.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}):'Récemment',price:data.prix||'',priceClass:data.tagClass||'post-tag-autre',desc:data.desc||'',img:data.img||'',cat:data.cat||'autre',tag:data.tag||'',tagClass:data.tagClass||'post-tag-autre',unlock:true,urgence:false,publieurType:typePublieur,publieurUid:uid,publieurBoutique:data.publieurBoutique||null,publieurPhone:data.publieurPhone||'',isCommerce:typePublieur==='commerce',vues:data.vues||0,_uid:uid});
+      annonces.push({id:d.id,annonceId:d.id,title:data.titre||'',name:nomPublieur,initials:nomPublieur.substring(0,2).toUpperCase(),avatar:data.avatar||'',location:data.ville||'',dateCreation:data.dateCreation||'',time:data.dateCreation?new Date(data.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}):'Récemment',price:data.prix||'',priceClass:data.tagClass||'post-tag-autre',desc:data.desc||'',img:data.img||'',cat:data.cat||'autre',tag:data.tag||'',tagClass:data.tagClass||'post-tag-autre',unlock:true,urgence:false,publieurType:typePublieur,publieurUid:uid,publieurBoutique:data.publieurBoutique||null,publieurPhone:data.publieurPhone||'',isCommerce:typePublieur==='commerce',vues:data.vues||0,publieurParrainage:data.publieurParrainage||null,publieurSexe:data.publieurSexe||'',_uid:uid});
     });
     const usersSnap=await getDocs(collection(db,'netubers'));
     const userInfos={};
-    usersSnap.forEach(d=>{const data=d.data();userInfos[d.id]={avatarUrl:data.avatarUrl||data.photoURL||data.photo||''};});
+    usersSnap.forEach(d=>{const data=d.data();userInfos[d.id]={avatarUrl:data.avatarUrl||data.photoURL||data.photo||'',sexe:data.sexe||''};});
     annonces.forEach(a=>{
       if(userInfos[a._uid]&&userInfos[a._uid].avatarUrl){a.avatar=userInfos[a._uid].avatarUrl;}
       else if(photosParUid[a._uid]){a.avatar=photosParUid[a._uid];}
@@ -153,7 +198,6 @@ window.compterVuesLive=async function(annonceId){try{const now=Date.now();const 
 html{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}
 html,body{overscroll-behavior-y:none!important;overscroll-behavior-x:none!important;touch-action:pan-y!important;-webkit-overflow-scrolling:touch!important}
 ::-webkit-scrollbar{width:0!important;height:0!important;display:none!important;background:transparent!important}
-::-webkit-scrollbar-thumb{background:transparent!important;display:none!important}
 html,body{scrollbar-width:none!important;-ms-overflow-style:none!important}
 input,select,textarea{font-size:16px!important}
 @media(min-width:768px){input,select,textarea{font-size:14px!important}}
@@ -215,6 +259,7 @@ main{padding-top:132px}
 .btn-3d.red{background:#ef4444;color:#fff;box-shadow:0 4px 0 #dc2626}
 .btn-3d.amber{background:#f59e0b;color:#fff;box-shadow:0 4px 0 #d97706}
 .btn-3d.gray{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;box-shadow:0 4px 0 #cbd5e1}
+body.dark-mode .btn-3d.gray{background:linear-gradient(180deg,#14304d,#0f2138);color:#a8bfd6;border-color:rgba(100,150,200,.25);box-shadow:0 4px 0 #0a1628}
 .section-card-3d{background:var(--bg-card);border:1px solid var(--border-primary);border-radius:16px}
 .form-input-3d{width:100%;padding:13px 16px;border:2px solid var(--border-input);border-radius:12px;font-size:14px;background:#f8fafc;color:var(--text-primary);outline:none;font-family:inherit}
 .form-input-3d:focus{border-color:#3b82f6;background:#fff;box-shadow:0 0 0 3px rgba(59,130,246,.12)}
@@ -270,7 +315,7 @@ body.dark-mode .fb-post+.fb-post::before{background:linear-gradient(to bottom,rg
 .fb-post-head{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:16px 16px 10px}
 .fb-post-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#1d4ed8 0%,#3b82f6 100%);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;flex-shrink:0;border:3px solid #2563eb !important}
 .fb-post-avatar-img{width:52px;height:52px;border-radius:50%;object-fit:cover;flex-shrink:0;border:3px solid #2563eb !important;display:block}
-.fb-post-name{font-weight:800;font-size:14px;color:var(--text-primary);display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
+.fb-post-name{font-weight:800;font-size:14px;color:var(--text-primary);display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;flex-wrap:wrap}
 .fb-post-sub{font-size:12px;color:var(--text-muted);margin-top:3px}
 .fb-post-body{padding:0 16px 12px}
 .fb-post-title{font-size:15.5px;font-weight:800;color:var(--text-primary);line-height:1.35;margin-bottom:6px}
@@ -305,6 +350,11 @@ body.dark-mode .post-tag-land,body.dark-mode .post-tag-commerce{background:rgba(
 body.dark-mode .post-tag-autre{background:rgba(99,102,241,.2);color:#a5b4fc}
 body.dark-mode .post-tag-hopital{background:rgba(239,68,68,.2);color:#fca5a5}
 body.dark-mode .post-tag-electronique{background:rgba(139,92,246,.2);color:#c4b5fd}
+/* BADGES PARRAINAGE */
+.badge-pilier{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:900;padding:2px 6px;border-radius:5px;background:linear-gradient(135deg,#34d399,#059669);color:#065f46;text-transform:uppercase;letter-spacing:.3px}
+.badge-pionnier{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:900;padding:2px 6px;border-radius:5px;background:linear-gradient(135deg,#60a5fa,#2563eb);color:#1e3a8a;text-transform:uppercase;letter-spacing:.3px}
+.badge-visionnaire{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:900;padding:2px 6px;border-radius:5px;background:linear-gradient(135deg,#a78bfa,#7c3aed);color:#fff;text-transform:uppercase;letter-spacing:.3px}
+.badge-legende{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:900;padding:2px 6px;border-radius:5px;background:linear-gradient(135deg,#fbbf24,#d97706);color:#78350f;text-transform:uppercase;letter-spacing:.3px}
 .detail-wrapper{width:100%;background:var(--bg-app);padding-bottom:40px}
 .detail-hero{position:relative;width:100%;aspect-ratio:16/10;background:var(--bg-card-alt);overflow:hidden}
 .detail-hero img{width:100%;height:100%;object-fit:cover;display:block}
@@ -408,11 +458,23 @@ body.dark-mode .post-tag-electronique{background:rgba(139,92,246,.2);color:#c4b5
 .cart-header-sub{font-size:11.5px;color:rgba(255,255,255,.8);margin-top:2px}
 .cart-close{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer}
 .cart-body{flex:1;overflow-y:auto;padding:16px;background:var(--bg-card-soft)}
+body.dark-mode .cart-body{background:var(--bg-app)}
 .cart-empty{text-align:center;padding:60px 20px}
 .cart-empty-icon{font-size:56px;opacity:.35;margin-bottom:14px}
 .cart-total-row{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:#eff6ff;border:1px solid rgba(59,130,246,.25);border-radius:11px;margin-bottom:14px}
+body.dark-mode .cart-total-row{background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.3)}
+body.dark-mode .cart-total-row span{color:#93c5fd !important}
 .cart-whatsapp-btn{width:100%;padding:14px;border-radius:30px;background:#10b981;color:#fff;font-weight:900;font-size:13.5px;border:none;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px}
 .cart-footer{padding:16px;background:var(--bg-card);border-top:1px solid var(--border-primary);flex-shrink:0}
+body.dark-mode .cart-footer{background:var(--bg-card);border-top-color:var(--border-primary)}
+/* ✅ CORRECTION MODE SOMBRE — PANIER */
+body.dark-mode .cart-drawer{background:var(--bg-card)}
+body.dark-mode .cart-header{background:linear-gradient(135deg,#0d2544,#1e40af)}
+body.dark-mode .cart-body{background:var(--bg-card-soft)}
+body.dark-mode #cart-empty h3{color:var(--text-primary) !important}
+body.dark-mode #cart-empty p{color:var(--text-muted) !important}
+body.dark-mode #cart-total{color:#93c5fd !important}
+body.dark-mode .cart-footer input{background:var(--bg-input) !important;border-color:var(--border-input) !important;color:var(--text-primary) !important}
 #toast{position:fixed;top:90px;left:50%;transform:translateX(-50%) translateY(-120px) scale(.9);background:#0f172a;color:#ffffff;padding:14px 22px;border-radius:999px;font-size:14.5px;font-weight:800;z-index:700;transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .35s ease;opacity:0;pointer-events:none;display:inline-flex;align-items:center;gap:10px;max-width:calc(100vw - 24px);box-shadow:0 12px 32px rgba(15,23,42,.35);border:1px solid rgba(255,255,255,.1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #toast.show{transform:translateX(-50%) translateY(0) scale(1);opacity:1}
 #toast i{color:#10b981;font-size:18px;flex-shrink:0;width:26px;height:26px;border-radius:50%;background:rgba(16,185,129,.15);display:flex;align-items:center;justify-content:center}
@@ -429,6 +491,7 @@ body.dark-mode #toast{background:#ffffff;color:#0f172a}
 .custom-select.open .custom-select-menu{opacity:1;pointer-events:auto;transform:translateY(0) scale(1)}
 .custom-select-option{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;cursor:pointer;font-size:14px;font-weight:700;color:var(--text-secondary)}
 .custom-select-option.selected{background:linear-gradient(180deg,#eff6ff,#dbeafe);color:#1e40af}
+body.dark-mode .custom-select-option.selected{background:linear-gradient(180deg,#14304d,#0f2138);color:#93c5fd}
 .cs-emoji{font-size:20px;width:26px;text-align:center;flex-shrink:0}
 .cs-label{flex:1;min-width:0}
 .cs-check{color:#3b82f6;font-size:13px;flex-shrink:0;opacity:0}
@@ -447,6 +510,10 @@ body.dark-mode #toast{background:#ffffff;color:#0f172a}
 @keyframes spinSearch{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
 .search-results-overlay{position:fixed;inset:0;background:rgba(15,23,42,.65);backdrop-filter:blur(4px);z-index:800}
 .search-results-panel{position:fixed;inset:0;z-index:810;display:flex;align-items:flex-start;justify-content:center;padding-top:0}
+/* PARRAINAGE BARRE */
+.parrain-progress{height:10px;background:#e2e8f0;border-radius:99px;overflow:hidden;position:relative}
+body.dark-mode .parrain-progress{background:#1e293b}
+.parrain-progress-fill{height:100%;border-radius:99px;transition:width .6s ease}
 </style>
 </head>
 <body class="page-index-active">
@@ -688,6 +755,7 @@ body.dark-mode #toast{background:#ffffff;color:#0f172a}
     </div>
     <button onclick="go('comment')" style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;flex-shrink:0"><i class="fa-solid fa-circle-question"></i></button>
   </div>
+  
   <div id="selecteurProBoutique" style="display:none;background:linear-gradient(135deg,#fbbf24,#f59e0b);border-radius:14px;padding:14px;margin-bottom:12px;color:#4c1d95;box-shadow:0 6px 16px -6px rgba(245,158,11,.5)">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
       <div style="width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:16px">⭐</div>
@@ -699,6 +767,7 @@ body.dark-mode #toast{background:#ffffff;color:#0f172a}
     <div id="listeBoutiquesPro" style="display:flex;flex-direction:column;gap:6px"></div>
     <button onclick="ouvrirModalNouvelleBoutiquePro()" style="width:100%;margin-top:10px;padding:10px;border-radius:10px;background:#4c1d95;color:#fff;font-weight:900;font-size:12px;border:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:6px"><i class="fa-solid fa-plus"></i> Ajouter une boutique</button>
   </div>
+  
   <div class="dash-tabs-scroll">
     <button class="dash-tab" data-tab="boutique" onclick="switchDashTab(this,'boutique')" id="dashTabBoutique" style="display:none;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-color:#059669;font-weight:900"><i class="fa-solid fa-store"></i> Ma boutique</button>
     <button class="dash-tab active" data-tab="compte" onclick="switchDashTab(this,'compte')"><i class="fa-solid fa-user"></i> Mon compte</button>
@@ -717,10 +786,53 @@ body.dark-mode #toast{background:#ffffff;color:#0f172a}
     </div>
   </div>
   <div id="dashPanelCompte" class="dash-panel" style="display:block">
+    
     <div class="section-card-3d" style="padding:14px;margin-bottom:10px">
       <h2 style="font-size:13.5px;margin-bottom:12px;color:var(--text-primary);font-weight:900">📢 Mes publications</h2>
       <div id="mesPublicationsListe" style="display:flex;flex-direction:column;gap:8px"></div>
     </div>
+    
+    <div class="section-card-3d" style="padding:14px;margin-bottom:10px">
+      <div style="margin-bottom:12px">
+        <h2 style="font-size:13.5px;color:var(--text-primary);font-weight:900;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          🎁 Parrainage
+          <span id="parrainBadge" style="display:none;font-size:9.5px;font-weight:900;padding:3px 8px;border-radius:6px;background:linear-gradient(135deg,#34d399,#059669);color:#065f46;text-transform:uppercase;letter-spacing:.3px">🛡️ Pilier</span>
+        </h2>
+        <p id="parrainTitre" style="font-size:11px;color:var(--text-muted);margin-top:3px">Invitez 25 amis → 3 jours gratuits</p>
+      </div>
+      
+      <div style="padding:12px;background:var(--bg-card-soft);border:1px solid var(--border-primary);border-radius:12px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-size:11.5px;font-weight:800;color:var(--text-primary)">Filleuls au palier actuel</div>
+          <div style="font-size:13px;font-weight:900;color:#f59e0b"><span id="parrainCount">0 / 25</span></div>
+        </div>
+        <div class="parrain-progress">
+          <div id="parrainProgressBar" class="parrain-progress-fill" style="width:0%;background:linear-gradient(90deg,#10b981,#059669)"></div>
+        </div>
+        <div id="parrainMessage" style="font-size:11px;color:var(--text-muted);margin-top:8px;text-align:center;font-weight:700">Plus que 25 filleuls pour débloquer +3 jours</div>
+        <div id="parrainTotal" style="display:none;font-size:10.5px;color:var(--text-muted);margin-top:6px;text-align:center;font-weight:700">0 filleuls au total</div>
+      </div>
+      
+      <div id="parrainRecompense" style="display:none;padding:12px;background:linear-gradient(135deg,#fef3c7,#fde68a);border:1.5px solid #fbbf24;border-radius:12px;margin-bottom:10px;text-align:center">
+        <div style="font-size:24px;margin-bottom:4px">🎉</div>
+        <div style="font-size:12.5px;font-weight:900;color:#78350f">Récompense active</div>
+        <div style="font-size:11px;color:#92400e;margin-top:3px"><span id="parrainJoursRestants">0</span> jour(s) de publication gratuite</div>
+        <div style="font-size:10px;color:#78350f;margin-top:5px;font-weight:700;opacity:.8">1 publication gratuite par jour — type "Autre"</div>
+      </div>
+      
+      <div style="padding:12px;background:linear-gradient(135deg,#0f172a,#1e293b);border-radius:12px;margin-bottom:10px;text-align:center">
+        <div style="font-size:9.5px;color:#67e8f9;font-weight:900;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Votre code parrain</div>
+        <div id="parrainCode" style="font-family:ui-monospace,monospace;font-size:18px;font-weight:900;color:#fff;letter-spacing:2px;margin-bottom:10px">NTX-000000</div>
+        <button onclick="copierCodeParrain()" style="width:100%;padding:10px;border-radius:10px;background:linear-gradient(180deg,#3b82f6,#1d4ed8);color:#fff;font-weight:900;font-size:12px;border:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 3px 0 #1e3a8a"><i class="fa-solid fa-copy"></i> Copier le code</button>
+      </div>
+      
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button onclick="partagerWhatsAppParrainage()" style="padding:12px;border-radius:10px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-weight:900;font-size:11.5px;border:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 3px 0 #047857"><i class="fa-brands fa-whatsapp" style="font-size:14px"></i> WhatsApp</button>
+        <button onclick="partagerTikTokParrainage()" style="padding:12px;border-radius:10px;background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;font-weight:900;font-size:11.5px;border:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 3px 0 #000"><i class="fa-brands fa-tiktok" style="font-size:14px"></i> TikTok</button>
+      </div>
+      <button onclick="partagerLienParrainage()" style="width:100%;margin-top:8px;padding:11px;border-radius:10px;background:transparent;color:var(--text-secondary);border:1.5px solid var(--border-primary);cursor:pointer;font-family:inherit;font-weight:800;font-size:11.5px;display:inline-flex;align-items:center;justify-content:center;gap:6px"><i class="fa-solid fa-link"></i> Copier le lien</button>
+    </div>
+    
     <div style="padding:10px 12px;background:linear-gradient(135deg,#fef3c7,#fde68a);border:1.5px solid #fbbf24;border-radius:12px;display:flex;gap:10px;align-items:flex-start;margin-bottom:10px">
       <i class="fa-solid fa-circle-info" style="color:#d97706;font-size:13px;flex-shrink:0;margin-top:2px"></i>
       <div style="font-size:11.5px;color:#78350f;line-height:1.5"><strong style="display:block;margin-bottom:2px">Modération NeTubeX</strong>Certaines de vos annonces peuvent être retirées si elles ne respectent pas nos règles.</div>
@@ -1014,8 +1126,8 @@ body.dark-mode #toast{background:#ffffff;color:#0f172a}
 <button id="cartFloatingBtn" class="cart-floating-btn hidden" onclick="openCart()" aria-label="Panier"><span class="cart-icon-emoji">🛒</span><span class="cfb-badge" id="cartFloatBadge">0</span></button>
 <div id="cart-drawer" class="cart-drawer">
 <div class="cart-header"><div class="cart-header-left" style="display:flex;align-items:center;gap:12px"><div class="cart-header-icon">🛒</div><div><div class="cart-header-title">Mon Panier</div><div class="cart-header-sub">—</div></div></div><button class="cart-close" onclick="closeCart()" aria-label="Fermer"><i class="fa-solid fa-xmark"></i></button></div>
-<div class="cart-body"><div class="cart-empty" id="cart-empty"><div class="cart-empty-icon">🛒</div><h3>Panier vide</h3><p>Ajoutez des articles depuis le catalogue.</p></div><div class="cart-items" id="cart-items"></div></div>
-<div class="cart-footer"><div class="cart-total-row"><span>Total :</span><span id="cart-total">0 FC</span></div><div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px"><input type="text" id="client-nom" placeholder="Nom complet *" class="form-input-3d" style="padding:10px 12px;font-size:13px"><input type="tel" id="client-tel" placeholder="WhatsApp *" class="form-input-3d" style="padding:10px 12px;font-size:13px"><input type="text" id="client-adresse" placeholder="Adresse (optionnel)" class="form-input-3d" style="padding:10px 12px;font-size:13px"></div><button onclick="submitOrder()" class="cart-whatsapp-btn"><i class="fa-brands fa-whatsapp" style="font-size:17px"></i> Commander sur WhatsApp</button></div>
+<div class="cart-body"><div class="cart-empty" id="cart-empty"><div class="cart-empty-icon">🛒</div><h3 style="color:var(--text-primary)">Panier vide</h3><p style="color:var(--text-muted)">Ajoutez des articles depuis le catalogue.</p></div><div class="cart-items" id="cart-items"></div></div>
+<div class="cart-footer"><div class="cart-total-row"><span style="color:var(--text-primary)">Total :</span><span id="cart-total" style="color:var(--text-primary)">0 FC</span></div><div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px"><input type="text" id="client-nom" placeholder="Nom complet *" class="form-input-3d" style="padding:10px 12px;font-size:13px"><input type="tel" id="client-tel" placeholder="WhatsApp *" class="form-input-3d" style="padding:10px 12px;font-size:13px"><input type="text" id="client-adresse" placeholder="Adresse (optionnel)" class="form-input-3d" style="padding:10px 12px;font-size:13px"></div><button onclick="submitOrder()" class="cart-whatsapp-btn"><i class="fa-brands fa-whatsapp" style="font-size:17px"></i> Commander sur WhatsApp</button></div>
 </div>
 <div id="cart-overlay" onclick="closeCart()" class="cart-overlay"></div>
 <div id="detailFullscreen" class="detail-fullscreen" onclick="closeDetailFullscreen()">
@@ -1141,7 +1253,7 @@ async function incrementerVuesAnnonce(annonceId){
     await window.incrementerVuesAnnonceFirestore(annonceId);
     var offre = ANNONCES_DATA.find(function(a){ return a.annonceId === annonceId; });
     if(offre) offre.vues = (offre.vues || 0) + 1;
-  }catch(e){ console.warn('[Clics annonce]', e.message); }
+  }catch(e){}
 }
 
 async function incrementerVuesBoutique(uid, commerceId){
@@ -1163,7 +1275,7 @@ async function incrementerVuesBoutique(uid, commerceId){
       var current = snap.data().vues || 0;
       await window.setDoc(commRef, { vues: current + 1 }, { merge: true });
     }
-  }catch(e){ console.warn('[Clics boutique]', e.message); }
+  }catch(e){}
 }
 
 async function cacherImage(url){if(!url||url.indexOf('data:')===0)return url;try{var existante=await idbGet('images',url);if(existante && existante.dataUrl) return existante.dataUrl;var res=await fetch(url,{mode:'cors',cache:'force-cache'});if(!res.ok) return url;var blob=await res.blob();var dataUrl=await new Promise(function(resolve,reject){var reader=new FileReader();reader.onload=function(){resolve(reader.result);};reader.onerror=reject;reader.readAsDataURL(blob);});await idbSet('images',url,{dataUrl:dataUrl,dateCache:Date.now()});return dataUrl;}catch(e){return url;}}
@@ -1186,6 +1298,29 @@ function getBadgesSpeciaux(offre){
   if(!badge) return '';
   return '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;margin-left:6px">' + badge + '</div>';
 }
+
+function getBadgeParrainage(palier){
+  if(palier >= 10) return { nom: 'Légende', emoji: '👑', couleur: 'linear-gradient(135deg,#fbbf24,#d97706)', texte: '#78350f' };
+  if(palier >= 6) return { nom: 'Visionnaire', emoji: '💎', couleur: 'linear-gradient(135deg,#a78bfa,#7c3aed)', texte: '#fff' };
+  if(palier >= 3) return { nom: 'Pionnier', emoji: '⭐', couleur: 'linear-gradient(135deg,#60a5fa,#2563eb)', texte: '#fff' };
+  if(palier >= 1) return { nom: 'Pilier', emoji: '🛡️', couleur: 'linear-gradient(135deg,#34d399,#059669)', texte: '#065f46' };
+  return null;
+}
+
+function getBadgeSexe(sexe){
+  if(sexe === 'homme') return { label: 'H' };
+  if(sexe === 'femme') return { label: 'F' };
+  return null;
+}
+
+function getBadgeNomHTML(offre){
+  if(!offre || !offre.publieurParrainage) return '';
+  var palier = offre.publieurParrainage.palier || 0;
+  var badge = getBadgeParrainage(palier);
+  if(!badge) return '';
+  return ' <span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:900;padding:2px 6px;border-radius:5px;background:'+badge.couleur+';color:'+badge.texte+';text-transform:uppercase;letter-spacing:.3px">'+badge.emoji+' '+badge.nom+'</span>';
+}
+
 function trouverDeblocagePourAnnonce(annonceId){
   if(!annonceId) return null;
   if(!DEBLOCAGES_MEMORY || DEBLOCAGES_MEMORY.length === 0) return null;
@@ -1213,7 +1348,7 @@ function copyText(t){
   if(!t) return;
   haptic(20);
   if(navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext){
-    navigator.clipboard.writeText(t).then(function(){showToast('✅ Numéro copié');}).catch(function(){fallbackCopy(t);});
+    navigator.clipboard.writeText(t).then(function(){showToast('✅ Copié');}).catch(function(){fallbackCopy(t);});
   } else { fallbackCopy(t); }
 }
 function fallbackCopy(t){
@@ -1229,7 +1364,7 @@ function fallbackCopy(t){
     ta.setSelectionRange(0, t.length);
     var ok = document.execCommand('copy');
     document.body.removeChild(ta);
-    if(ok){ showToast('✅ Numéro copié'); }
+    if(ok){ showToast('✅ Copié'); }
     else { showToast('Impossible de copier'); }
   }catch(e){ showToast('Erreur copie'); }
 }
@@ -1252,7 +1387,13 @@ function createAccountModal(){
   +'<form onsubmit="event.preventDefault();submitAccountModal();" style="display:flex;flex-direction:column;gap:14px">'
   +'<input type="text" id="accNom" required placeholder="Nom *" class="form-input-3d">'
   +'<input type="text" id="accPrenom" required placeholder="Prénom *" class="form-input-3d">'
+  +'<div style="display:flex;gap:6px;background:var(--bg-card-soft);padding:5px;border-radius:12px">'
+  +'<button type="button" id="sexeHomme" onclick="choisirSexe(\'homme\')" style="flex:1;padding:11px;border-radius:8px;font-size:12.5px;font-weight:800;border:none;cursor:pointer;font-family:inherit;background:transparent;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.4px">Homme</button>'
+  +'<button type="button" id="sexeFemme" onclick="choisirSexe(\'femme\')" style="flex:1;padding:11px;border-radius:8px;font-size:12.5px;font-weight:800;border:none;cursor:pointer;font-family:inherit;background:transparent;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.4px">Femme</button>'
+  +'</div>'
+  +'<input type="hidden" id="accSexe" value="">'
   +'<input type="tel" id="accPhone" required placeholder="Numéro WhatsApp *" class="form-input-3d">'
+  +'<input type="text" id="accParrain" placeholder="Code parrain (optionnel)" class="form-input-3d" style="text-transform:uppercase">'
   +'<button type="submit" class="btn-3d blue" style="width:100%;padding:16px"><i class="fa-solid fa-check"></i> Créer mon compte</button>'
   +'</form>'
   +'</div>'
@@ -1265,6 +1406,19 @@ function createAccountModal(){
   +'</div>'
   +'</div></div>';
   document.body.insertAdjacentHTML('beforeend',html);
+}
+function choisirSexe(sexe){
+  var hidden = document.getElementById('accSexe');
+  var btnH = document.getElementById('sexeHomme');
+  var btnF = document.getElementById('sexeFemme');
+  if(hidden) hidden.value = sexe;
+  if(sexe === 'homme'){
+    if(btnH){ btnH.style.background = 'linear-gradient(135deg,#3b82f6,#1d4ed8)'; btnH.style.color = '#fff'; }
+    if(btnF){ btnF.style.background = 'transparent'; btnF.style.color = 'var(--text-secondary)'; }
+  } else if(sexe === 'femme'){
+    if(btnF){ btnF.style.background = 'linear-gradient(135deg,#3b82f6,#1d4ed8)'; btnF.style.color = '#fff'; }
+    if(btnH){ btnH.style.background = 'transparent'; btnH.style.color = 'var(--text-secondary)'; }
+  }
 }
 function showAccountModal(message,afterLogin,mode){
   var modal=document.getElementById('account-modal');
@@ -1306,16 +1460,27 @@ function getUserId(){return CURRENT_ACCOUNT?CURRENT_ACCOUNT.id:'guest';}
 async function submitAccountModal(){
   var nom=(document.getElementById('accNom')||{}).value?document.getElementById('accNom').value.trim():'';
   var prenom=(document.getElementById('accPrenom')||{}).value?document.getElementById('accPrenom').value.trim():'';
+  var sexe=(document.getElementById('accSexe')||{}).value||'';
   var phone=(document.getElementById('accPhone')||{}).value?document.getElementById('accPhone').value.trim():'';
+  var codeParrain=(document.getElementById('accParrain')||{}).value?document.getElementById('accParrain').value.trim().toUpperCase():'';
   if(!nom||!prenom||!phone){showToast('Remplissez tous les champs');return;}
+  if(!sexe){showToast('Choisissez votre sexe');return;}
   CURRENT_COMMERCANT=null;
   try{await window.idbDelete(window.STORES.boutique,'current');await window.idbDelete(window.STORES.commerce,'current');await window.idbDelete(window.STORES.offre,'current');}catch(e){}
   var code=generateCode6();var nomComplet=nom+' '+prenom;var emailFactice=phone.replace(/[^\d]/g,'')+'@netubex.local';
+  var parrainId = null;
+  if(codeParrain){
+    try{
+      var qParrain = query(collection(db,'netubers'), where('parrainage.code','==',codeParrain));
+      var snapParrain = await getDocs(qParrain);
+      if(!snapParrain.empty){ parrainId = snapParrain.docs[0].id; }
+    }catch(e){}
+  }
   var btn=document.querySelector('#account-modal button[type="submit"]');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Création…';}
   try{
-    var result=await window.createUser({nom:nom,prenom:prenom,nomComplet:nomComplet,phone:phone,email:emailFactice,password:code,ville:''});
-    CURRENT_ACCOUNT={id:result.uid,nom:nom,prenom:prenom,nomComplet:nomComplet,name:nomComplet,phone:phone,code:code,emailAuth:emailFactice,dateCreation:new Date().toISOString(),boutique:null};
+    var result=await window.createUser({nom:nom,prenom:prenom,nomComplet:nomComplet,sexe:sexe,phone:phone,email:emailFactice,password:code,ville:'',parrainId:parrainId});
+    CURRENT_ACCOUNT={id:result.uid,nom:nom,prenom:prenom,nomComplet:nomComplet,name:nomComplet,sexe:sexe,phone:phone,code:code,emailAuth:emailFactice,dateCreation:new Date().toISOString(),boutique:null,parrainage:{code:result.codeParrainage,count:0,palier:0,joursRestants:0,dateDernierePub:null}};
     try{await window.setStored(window.STORES.account,'current',CURRENT_ACCOUNT);}catch(e){}
     document.querySelectorAll('.category-btn').forEach(function(b){b.style.opacity='1';});
     haptic(40);
@@ -1544,7 +1709,7 @@ async function ouvrirOffreDepuisDeblocage(deblocageId){
     var snap=await window.getDocRef(window.docRef(window.db,'annonces',annonceId));
     if(!snap.exists()){showToast('Introuvable');return;}
     var data=snap.data();
-    var offreConstruite={id:annonceId,annonceId:annonceId,title:data.titre||'',name:data.publieurNom||'Utilisateur NeTubeX',initials:(data.publieurNom||'??').substring(0,2).toUpperCase(),avatar:data.avatar||'',location:data.ville||'',dateCreation:data.dateCreation||'',time:data.dateCreation?new Date(data.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}):'Récemment',price:data.prix||'',priceClass:data.tagClass||'post-tag-autre',desc:data.desc||'',img:data.img||'',cat:data.cat||'autre',tag:data.tag||'',tagClass:data.tagClass||'post-tag-autre',unlock:true,urgence:false,publieurType:data.publieurType||'user',publieurUid:data.proprietaireUid||null,publieurBoutique:data.publieurBoutique||null,publieurPhone:data.publieurPhone||'',isCommerce:data.publieurType==='commerce',vues:data.vues||0};
+    var offreConstruite={id:annonceId,annonceId:annonceId,title:data.titre||'',name:data.publieurNom||'Utilisateur NeTubeX',initials:(data.publieurNom||'??').substring(0,2).toUpperCase(),avatar:data.avatar||'',location:data.ville||'',dateCreation:data.dateCreation||'',time:data.dateCreation?new Date(data.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}):'Récemment',price:data.prix||'',priceClass:data.tagClass||'post-tag-autre',desc:data.desc||'',img:data.img||'',cat:data.cat||'autre',tag:data.tag||'',tagClass:data.tagClass||'post-tag-autre',unlock:true,urgence:false,publieurType:data.publieurType||'user',publieurUid:data.proprietaireUid||null,publieurBoutique:data.publieurBoutique||null,publieurPhone:data.publieurPhone||'',isCommerce:data.publieurType==='commerce',vues:data.vues||0,publieurParrainage:data.publieurParrainage||null,publieurSexe:data.publieurSexe||''};
     await openDetail(offreConstruite);
   }catch(e){showToast('Erreur');}
 }
@@ -1709,17 +1874,29 @@ async function soumettreNouvelleBoutiquePro(form){
   }catch(e){ showToast('Erreur: ' + e.message); }
   finally{ if(submitBtn){ submitBtn.disabled = false; submitBtn.innerHTML = 'CRÉER'; } }
 }
+
 async function renderMesPublications(){
   var container = document.getElementById('mesPublicationsListe');
-  if(!container || !CURRENT_ACCOUNT) return;
+  if(!container) return;
+  if(!CURRENT_ACCOUNT || !CURRENT_ACCOUNT.id){
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">Connectez-vous pour voir vos publications.</div>';
+    return;
+  }
   container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">Chargement…</div>';
   try{
-    var q = query(collection(db,'annonces'), where('proprietaireUid','==',CURRENT_ACCOUNT.id));
-    var snap = await getDocs(q);
+    var snap = await getDocs(collection(db,'annonces'));
     var mesAnnonces = [];
-    snap.forEach(function(d){ mesAnnonces.push({id:d.id, ...d.data()}); });
+    snap.forEach(function(d){
+      var data = d.data();
+      if(data.proprietaireUid === CURRENT_ACCOUNT.id){
+        mesAnnonces.push({ id: d.id, ...data });
+      }
+    });
     mesAnnonces.sort(function(a,b){ return (b.dateCreation||'').localeCompare(a.dateCreation||''); });
-    if(mesAnnonces.length === 0){ container.innerHTML = '<div style="text-align:center;padding:24px 12px;color:var(--text-muted);font-size:12px">Aucune publication pour le moment.</div>'; return; }
+    if(mesAnnonces.length === 0){
+      container.innerHTML = '<div style="text-align:center;padding:24px 12px;color:var(--text-muted);font-size:12px">Aucune publication pour le moment.</div>';
+      return;
+    }
     container.innerHTML = mesAnnonces.map(function(a){
       var statutBadge = '';
       if(a.statut === 'en_attente') statutBadge = '<span style="font-size:9px;font-weight:900;padding:3px 8px;border-radius:6px;background:#fef3c7;color:#92400e;text-transform:uppercase">⏳ En attente</span>';
@@ -1727,11 +1904,121 @@ async function renderMesPublications(){
       else if(a.statut === 'refuse') statutBadge = '<span style="font-size:9px;font-weight:900;padding:3px 8px;border-radius:6px;background:#fee2e2;color:#991b1b;text-transform:uppercase">❌ Refusé</span>';
       var date = a.dateCreation ? new Date(a.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}) : '';
       return '<div style="padding:12px;background:var(--bg-card-soft);border:1px solid var(--border-primary);border-radius:12px;display:flex;gap:10px;align-items:center">'
-        + (a.img ? '<img src="'+esc(a.img)+'" style="width:48px;height:48px;object-fit:cover;border-radius:10px;flex-shrink:0">' : '<div style="width:48px;height:48px;background:var(--bg-card);border:1px solid var(--border-primary);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">📄</div>')
-        + '<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:800;color:var(--text-primary);line-height:1.3;word-break:break-word">'+esc(a.titre||'Sans titre')+'</div><div style="font-size:11px;color:var(--text-muted);margin-top:3px">'+esc(a.ville||'')+' · '+date+'</div><div style="margin-top:6px">'+statutBadge+'</div></div>'
+        + (a.img ? '<img src="'+esc(a.img)+'" style="width:48px;height:48px;object-fit:cover;border-radius:10px;flex-shrink:0" onerror="this.style.display=\'none\'">' : '<div style="width:48px;height:48px;background:var(--bg-card);border:1px solid var(--border-primary);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">📄</div>')
+        + '<div style="flex:1;min-width:0">'
+          + '<div style="font-size:12.5px;font-weight:800;color:var(--text-primary);line-height:1.3;word-break:break-word">'+esc(a.titre||'Sans titre')+'</div>'
+          + '<div style="font-size:11px;color:var(--text-muted);margin-top:3px">'+esc(a.ville||'')+' · '+date+'</div>'
+          + '<div style="margin-top:6px">'+statutBadge+'</div>'
+        + '</div>'
       + '</div>';
     }).join('');
-  }catch(e){ container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">Erreur de chargement</div>'; }
+  }catch(e){
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:#dc2626;font-size:12px">Erreur : ' + (e.message || 'inconnue') + '</div>';
+  }
+}
+
+function renderParrainage(){
+  if(!CURRENT_ACCOUNT) return;
+  var par = CURRENT_ACCOUNT.parrainage || { code:'', count:0, palier:0, joursRestants:0 };
+  var total = par.count || 0;
+  var palier = par.palier || 0;
+  var dansPalier = total - (palier * 25);
+  var restants = 25 - dansPalier;
+  var pourcentage = Math.min(100, (dansPalier / 25) * 100);
+  
+  var codeEl = document.getElementById('parrainCode');
+  if(codeEl) codeEl.textContent = par.code || '—';
+  
+  var badgeEl = document.getElementById('parrainBadge');
+  var badge = getBadgeParrainage(palier);
+  if(badgeEl){
+    if(badge){
+      badgeEl.style.display = 'inline-flex';
+      badgeEl.textContent = badge.emoji + ' ' + badge.nom;
+      badgeEl.style.background = badge.couleur;
+      badgeEl.style.color = badge.texte;
+    } else {
+      badgeEl.style.display = 'none';
+    }
+  }
+  
+  var countEl = document.getElementById('parrainCount');
+  if(countEl) countEl.textContent = dansPalier + ' / 25';
+  
+  var totalEl = document.getElementById('parrainTotal');
+  if(totalEl){
+    if(total > 0){
+      totalEl.style.display = 'block';
+      totalEl.textContent = total + ' filleul' + (total > 1 ? 's' : '') + ' au total';
+    } else {
+      totalEl.style.display = 'none';
+    }
+  }
+  
+  var barEl = document.getElementById('parrainProgressBar');
+  if(barEl){
+    barEl.style.width = pourcentage + '%';
+    if(palier >= 3){ barEl.style.background = 'linear-gradient(90deg,#8b5cf6,#6d28d9)'; }
+    else if(palier >= 2){ barEl.style.background = 'linear-gradient(90deg,#3b82f6,#1d4ed8)'; }
+    else if(palier >= 1){ barEl.style.background = 'linear-gradient(90deg,#f59e0b,#d97706)'; }
+    else { barEl.style.background = 'linear-gradient(90deg,#10b981,#059669)'; }
+  }
+  
+  var msgEl = document.getElementById('parrainMessage');
+  if(msgEl){
+    if(restants > 0){
+      msgEl.textContent = 'Plus que ' + restants + ' filleul' + (restants > 1 ? 's' : '') + ' pour +3 jours';
+    } else {
+      msgEl.textContent = '🎉 Palier atteint !';
+    }
+  }
+  
+  var recompEl = document.getElementById('parrainRecompense');
+  if(recompEl){
+    if(par.joursRestants > 0){
+      recompEl.style.display = 'block';
+      var joursEl = document.getElementById('parrainJoursRestants');
+      if(joursEl) joursEl.textContent = par.joursRestants;
+    } else {
+      recompEl.style.display = 'none';
+    }
+  }
+}
+
+function genererLienParrainage(){
+  if(!CURRENT_ACCOUNT || !CURRENT_ACCOUNT.parrainage) return '';
+  return 'https://www.netubex.com?ref=' + CURRENT_ACCOUNT.parrainage.code;
+}
+function copierCodeParrain(){
+  if(!CURRENT_ACCOUNT || !CURRENT_ACCOUNT.parrainage) return;
+  copyText(CURRENT_ACCOUNT.parrainage.code);
+}
+function partagerLienParrainage(){
+  if(!CURRENT_ACCOUNT || !CURRENT_ACCOUNT.parrainage) return;
+  copyText(genererLienParrainage());
+}
+function partagerWhatsAppParrainage(){
+  if(!CURRENT_ACCOUNT || !CURRENT_ACCOUNT.parrainage) return;
+  var code = CURRENT_ACCOUNT.parrainage.code;
+  var lien = genererLienParrainage();
+  var msg = '🎁 *Rejoins NeTubeX RDC !*\n\n'
+    + 'Le système congolais de mise en relation directe :\n'
+    + '• Vendeurs ↔ Acheteurs\n'
+    + '• Chercheurs d\'emploi ↔ Recruteurs\n'
+    + '• Commerçants ↔ Clients\n\n'
+    + '👉 Inscris-toi gratuitement sur :\n'
+    + lien + '\n\n'
+    + '🎯 Code parrain : *' + code + '*\n'
+    + '📢 25 filleuls = 3 jours de publication gratuite\n\n'
+    + '_Publiez, découvrez, commandez en RDC._';
+  var url = 'https://wa.me/?text=' + encodeURIComponent(msg);
+  window.open(url, '_blank');
+}
+function partagerTikTokParrainage(){
+  if(!CURRENT_ACCOUNT || !CURRENT_ACCOUNT.parrainage) return;
+  var lien = genererLienParrainage();
+  copyText(lien);
+  setTimeout(function(){ window.open('https://www.tiktok.com/', '_blank'); }, 1200);
 }
 function signalerOffre(){
   requireLogin('signaler',function(){
@@ -1796,6 +2083,13 @@ function annulerDeblocage(){
   if(tx) tx.value = ''; if(num) num.value = '';
   showToast('Déblocage annulé');
 }
+function fermerDeblocageModalSilencieux(){
+  var modal = document.getElementById('unlock-modal');
+  if(modal) modal.style.display = 'none';
+  _deblocageValide = false;
+  var tx = document.getElementById('unlockTxId');var num = document.getElementById('unlockNumEnvoi');
+  if(tx) tx.value = ''; if(num) num.value = '';
+}
 async function validerDeblocage(){
   haptic(30);
   if(!CURRENT_OFFRE){ showToast('Introuvable'); return; }
@@ -1812,7 +2106,7 @@ async function validerDeblocage(){
     if(window.creerDeblocage){ await window.creerDeblocage(CURRENT_ACCOUNT.id, annonceId, txId, frais, numEnvoi); }
     _deblocageValide = true;
     DEBLOCAGES_DIRTY = true;
-    annulerDeblocage();
+    fermerDeblocageModalSilencieux();
     document.getElementById('deblocagePendingOverlay').classList.add('active');
     document.getElementById('deblocagePendingModal').classList.add('active');
     await rafraichirTousDeblocages();
@@ -1827,6 +2121,13 @@ function annulerPaiementPublication(){
   var tx = document.getElementById('publishTxId');var num = document.getElementById('publishNumEnvoi');
   if(tx) tx.value = ''; if(num) num.value = '';
   showToast('Publication annulée');
+}
+function fermerPaiementModalSilencieux(){
+  var modal = document.getElementById('paiementModal');
+  if(modal) modal.style.display = 'none';
+  _paiementValide = false;
+  var tx = document.getElementById('publishTxId');var num = document.getElementById('publishNumEnvoi');
+  if(tx) tx.value = ''; if(num) num.value = '';
 }
 function closeDeblocagePending(){document.getElementById('deblocagePendingOverlay').classList.remove('active');document.getElementById('deblocagePendingModal').classList.remove('active');}
 function showBoutiquePending(){document.getElementById('boutiquePendingOverlay').classList.add('active');document.getElementById('boutiquePendingModal').classList.add('active');}
@@ -1884,7 +2185,7 @@ function afficherResultats(resultats,query){
   html+='<div style="flex:1;overflow-y:auto;padding:16px">';
   resultats.forEach(function(o){
     html+='<div style="background:var(--bg-card);border:1.5px solid var(--border-primary);border-radius:16px;padding:14px;margin-bottom:10px;cursor:pointer" onclick="closeSearchResults();openDetail('+JSON.stringify(o).replace(/"/g,'&quot;')+')">';
-    html+='<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">'+getAvatarHTML(o,52)+'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:800;color:var(--text-primary);display:flex;align-items:center;gap:5px">'+o.name+getVerifiedBadgeHTML(o)+'</div><div style="font-size:11.5px;color:var(--text-muted);margin-top:2px"><i class="fa-solid fa-location-dot" style="color:#ef4444"></i> '+o.location+'</div></div><span class="feed-badge '+(o.tagClass||'post-tag-autre')+'">'+(o.tag||'AUTRE')+'</span></div>';
+    html+='<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">'+getAvatarHTML(o,52)+'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:800;color:var(--text-primary);display:flex;align-items:center;gap:5px;flex-wrap:wrap">'+o.name+getVerifiedBadgeHTML(o)+getBadgeNomHTML(o)+'</div><div style="font-size:11.5px;color:var(--text-muted);margin-top:2px"><i class="fa-solid fa-location-dot" style="color:#ef4444"></i> '+o.location+'</div></div><span class="feed-badge '+(o.tagClass||'post-tag-autre')+'">'+(o.tag||'AUTRE')+'</span></div>';
     html+='<div style="font-size:14.5px;font-weight:800;color:var(--text-primary);margin-bottom:6px">'+o.title+'</div>';
     html+='<div style="font-size:12.5px;color:var(--text-secondary);line-height:1.5;margin-bottom:8px">'+o.desc+'</div>';
     if(o.price)html+='<span class="feed-badge '+o.priceClass+'" style="font-size:12px">'+o.price+'</span>';
@@ -1969,7 +2270,7 @@ function renderOffreCard(p){
   var tempsAffiche=p.dateCreation?tempsRelatif(p.dateCreation):(p.time||'Récemment');
   var clicsBadge='<div class="fb-post-views"><i class="fa-solid fa-hand-pointer"></i> '+(p.vues||0)+' clic'+((p.vues||0)===1?'':'s')+'</div>';
   var badgesSpeciaux=getBadgesSpeciaux(p);
-  return '<article class="fb-post" data-annonce-id="'+(p.annonceId||p.id||'')+'" onclick=\'openDetail('+JSON.stringify(p).replace(/'/g,"&#39;")+')\'><div class="fb-post-head">'+getAvatarHTML(p,52)+'<div style="min-width:0;overflow:hidden"><div class="fb-post-name">'+p.name+getVerifiedBadgeHTML(p)+'</div><div class="fb-post-sub">'+p.location+' · '+tempsAffiche+'</div></div><span class="feed-badge '+(p.tagClass||'post-tag-autre')+'">'+(p.tag||'AUTRE')+'</span></div><div class="fb-post-body"><h3 class="fb-post-title">'+p.title+'</h3><p class="fb-post-desc">'+p.desc+'</p>'+(p.price?'<div class="fb-post-price '+p.priceClass+'">'+p.price+'</div>':'')+clicsBadge+badgesSpeciaux+'</div>'+media+'<div class="fb-post-actions"><button class="fb-action-btn" onclick="event.stopPropagation();sharePost()"><i class="fa-solid fa-share-nodes"></i> Partager</button>'+actionBtn+'</div></article>';
+  return '<article class="fb-post" data-annonce-id="'+(p.annonceId||p.id||'')+'" onclick=\'openDetail('+JSON.stringify(p).replace(/'/g,"&#39;")+')\'><div class="fb-post-head">'+getAvatarHTML(p,52)+'<div style="min-width:0;overflow:hidden"><div class="fb-post-name">'+p.name+getVerifiedBadgeHTML(p)+getBadgeNomHTML(p)+'</div><div class="fb-post-sub">'+p.location+' · '+tempsAffiche+'</div></div><span class="feed-badge '+(p.tagClass||'post-tag-autre')+'">'+(p.tag||'AUTRE')+'</span></div><div class="fb-post-body"><h3 class="fb-post-title">'+p.title+'</h3><p class="fb-post-desc">'+p.desc+'</p>'+(p.price?'<div class="fb-post-price '+p.priceClass+'">'+p.price+'</div>':'')+clicsBadge+badgesSpeciaux+'</div>'+media+'<div class="fb-post-actions"><button class="fb-action-btn" onclick="event.stopPropagation();sharePost()"><i class="fa-solid fa-share-nodes"></i> Partager</button>'+actionBtn+'</div></article>';
 }
 var _feedObserver=null;
 function renderFeedBatch(page){
@@ -2050,6 +2351,7 @@ function go(page,param){
     var phoneDisplay=document.getElementById('profilPhoneDisplay');if(phoneDisplay)phoneDisplay.textContent=CURRENT_ACCOUNT.phone||'—';
     renderSelecteurPro();
     renderMesPublications();
+    renderParrainage();
     if(CURRENT_ACCOUNT){DEBLOCAGES_DIRTY=true;rafraichirTousDeblocages();}
   }
   if(page==='inscription'){
@@ -2193,7 +2495,7 @@ async function renderDetail(offre){
     orgSection.style.display='block';
     var orgName=document.getElementById('detailOrgName');var orgLoc=document.getElementById('detailOrgLocation');var orgAvatar=document.getElementById('detailOrgAvatar');
     var isComm=!!(offre && (offre.isCommerce || offre.commerce || offre.publieurType==='commerce' || offre.publieurBoutique));
-    if(orgName)orgName.innerHTML=(offre.name||'Utilisateur NeTubeX')+getVerifiedBadgeHTML(offre);
+    if(orgName)orgName.innerHTML=(offre.name||'Utilisateur NeTubeX')+getVerifiedBadgeHTML(offre)+getBadgeNomHTML(offre);
     if(orgLoc)orgLoc.textContent=offre.location||'';
     if(orgAvatar){orgAvatar.classList.toggle('fb-post-avatar-commerce',isComm);if(offre.avatar){orgAvatar.innerHTML='<img src="'+offre.avatar+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:16px">';}else if(offre.img){orgAvatar.innerHTML='<img src="'+offre.img+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:16px">';}else{orgAvatar.textContent='👤';}}
   }
@@ -2517,6 +2819,58 @@ async function submitPublish(){
   if(!adresse){showToast('Adresse obligatoire');return;}
   if(!CURRENT_ACCOUNT){showToast('Connectez-vous');return;}
   titreEnCours=titre;descEnCours=desc;villeEnCours=ville;prixEnCours=prix;adresseEnCours=adresse;
+  
+  // 🎁 Vérifie si jours gratuits
+  var par = CURRENT_ACCOUNT.parrainage || {};
+  var utiliseGratuit = false;
+  var aujourdhui = getTodayKey();
+  if(publishCat === 'autre' && par.joursRestants > 0 && par.dateDernierePub !== aujourdhui){
+    utiliseGratuit = true;
+  }
+  
+  if(utiliseGratuit){
+    setLoader(true);
+    try{
+      var publieurNom = CURRENT_ACCOUNT.name || CURRENT_ACCOUNT.nomComplet || 'Utilisateur NeTubeX';
+      var publieurType = 'user';
+      var publieurBoutique = null;
+      if(CURRENT_ACCOUNT.boutique && CURRENT_ACCOUNT.boutique.statut === 'approuve'){
+        publieurType = 'commerce';
+        publieurBoutique = CURRENT_ACCOUNT.boutique.nom;
+        publieurNom = CURRENT_ACCOUNT.boutique.nom;
+      }
+      var annonceId = 'ANN-' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
+      await setDoc(doc(db,'annonces',annonceId),{
+        titre:titre, desc:desc, ville:ville, quartier:'',
+        prix:prix, img:publishImages.length>0?publishImages[0].dataUrl:'',
+        cat:publishCat, tag:'', tagClass:'post-tag-'+publishCat,
+        proprietaireUid:CURRENT_ACCOUNT.id,
+        publieurNom:publieurNom, publieurType:publieurType,
+        publieurBoutique:publieurBoutique,
+        publieurPhone:CURRENT_ACCOUNT.phone||'',
+        publieurVille:CURRENT_ACCOUNT.ville||'',
+        publieurParrainage: CURRENT_ACCOUNT.parrainage || null,
+        publieurSexe: CURRENT_ACCOUNT.sexe || '',
+        dateCreation:new Date().toISOString(),
+        actif:false, statut:'en_attente', vues:0,
+        paiement:{gratuit:true, montant:0}
+      });
+      await setDoc(doc(db,'annonces',annonceId,'prive','contact'),{
+        nom:publieurNom, adresse:adresse, telephone:CURRENT_ACCOUNT.phone||'', email:CURRENT_ACCOUNT.emailAuth||''
+      });
+      par.joursRestants = Math.max(0, (par.joursRestants || 0) - 1);
+      par.dateDernierePub = aujourdhui;
+      CURRENT_ACCOUNT.parrainage = par;
+      await window.setStored(window.STORES.account,'current',CURRENT_ACCOUNT);
+      try{ await setDoc(doc(db,'netubers',CURRENT_ACCOUNT.id),{ parrainage: par },{ merge: true }); }catch(e){}
+      showToast('✅ Publication gratuite utilisée');
+      document.getElementById('publishPendingOverlay').classList.add('active');
+      document.getElementById('publishPendingModal').classList.add('active');
+      return;
+    }catch(e){ showToast('Erreur : ' + e.message); }
+    finally{ setLoader(false); return; }
+  }
+  
   var estImmobilier = (publishCat==='parcelle' || publishCat==='location');
   var montant = estImmobilier ? 10000 : 1000;
   window._pendingMontant = montant;
@@ -2541,12 +2895,12 @@ async function validerPaiementEtPublier(){
     var publieurType = 'user';var publieurBoutique = null;
     if(CURRENT_ACCOUNT.boutique && CURRENT_ACCOUNT.boutique.statut === 'approuve'){publieurType='commerce';publieurBoutique=CURRENT_ACCOUNT.boutique.nom;publieurNom=CURRENT_ACCOUNT.boutique.nom;}
     await window.creerAnnonce(
-      {titre:titreEnCours,desc:descEnCours,ville:villeEnCours,quartier:'',prix:prixEnCours,img:publishImages.length>0?publishImages[0].dataUrl:'',cat:publishCat,tag:'',tagClass:'post-tag-'+publishCat,proprietaireUid:CURRENT_ACCOUNT.id,publieurNom:publieurNom,publieurType:publieurType,publieurBoutique:publieurBoutique,publieurPhone:CURRENT_ACCOUNT.phone||'',publieurVille:CURRENT_ACCOUNT.ville||''},
+      {titre:titreEnCours,desc:descEnCours,ville:villeEnCours,quartier:'',prix:prixEnCours,img:publishImages.length>0?publishImages[0].dataUrl:'',cat:publishCat,tag:'',tagClass:'post-tag-'+publishCat,proprietaireUid:CURRENT_ACCOUNT.id,publieurNom:publieurNom,publieurType:publieurType,publieurBoutique:publieurBoutique,publieurPhone:CURRENT_ACCOUNT.phone||'',publieurVille:CURRENT_ACCOUNT.ville||'',publieurParrainage:CURRENT_ACCOUNT.parrainage||null,publieurSexe:CURRENT_ACCOUNT.sexe||''},
       {nom:publieurNom,adresse:adresseEnCours,telephone:CURRENT_ACCOUNT.phone||'',email:CURRENT_ACCOUNT.emailAuth||''},
       {transactionId:txId,numeroEnvoi:numEnvoi,montant:window._pendingMontant||1000,destinataire:'+243976953045'}
     );
     _paiementValide = true;
-    annulerPaiementPublication();
+    fermerPaiementModalSilencieux();
     document.getElementById('publishPendingOverlay').classList.add('active');
     document.getElementById('publishPendingModal').classList.add('active');
   }catch(e){ showToast('Erreur : '+e.message); }
@@ -2616,9 +2970,11 @@ async function verifierCompteLocal(){
         CURRENT_ACCOUNT.phone=data.phone||CURRENT_ACCOUNT.phone;
         CURRENT_ACCOUNT.nomComplet=data.nomComplet||CURRENT_ACCOUNT.nomComplet;
         CURRENT_ACCOUNT.name=CURRENT_ACCOUNT.nomComplet;
+        CURRENT_ACCOUNT.sexe=data.sexe||CURRENT_ACCOUNT.sexe||'';
         CURRENT_ACCOUNT.dateCreation=data.dateCreation||CURRENT_ACCOUNT.dateCreation;
         CURRENT_ACCOUNT.comptePro=data.comptePro||false;
         CURRENT_ACCOUNT.boutiques=data.boutiques||[];
+        CURRENT_ACCOUNT.parrainage=data.parrainage||CURRENT_ACCOUNT.parrainage||null;
         if(!data.boutique){CURRENT_ACCOUNT.boutique=null;CURRENT_COMMERCANT=null;try{await window.idbDelete(window.STORES.boutique,'current');}catch(e){}}
         else{CURRENT_COMMERCANT=data.boutique;try{await window.setStored(window.STORES.boutique,'current',data.boutique);}catch(e){}}
         try{await window.setStored(window.STORES.account,'current',CURRENT_ACCOUNT);}catch(e){}
@@ -2690,6 +3046,15 @@ window.ouvrirModalNouvelleBoutiquePro=ouvrirModalNouvelleBoutiquePro;
 window.soumettreNouvelleBoutiquePro=soumettreNouvelleBoutiquePro;
 window.renderMesPublications=renderMesPublications;
 window.renderSelecteurPro=renderSelecteurPro;
+window.renderParrainage=renderParrainage;
+window.copierCodeParrain=copierCodeParrain;
+window.partagerLienParrainage=partagerLienParrainage;
+window.partagerWhatsAppParrainage=partagerWhatsAppParrainage;
+window.partagerTikTokParrainage=partagerTikTokParrainage;
+window.choisirSexe=choisirSexe;
+window.getBadgeParrainage=getBadgeParrainage;
+window.fermerPaiementModalSilencieux=fermerPaiementModalSilencieux;
+window.fermerDeblocageModalSilencieux=fermerDeblocageModalSilencieux;
 </script>
 </body>
 </html>
