@@ -741,39 +741,53 @@ async function loadAll(){
   await Promise.all([loadBoutiques(), loadDeblocages(), loadPublications(), loadNetubers(), loadActives(), loadAnnonces()]);
   renderKPIs();
   renderRecentActivity();
-  initRealtime();
-  initGlobalFreeze();
+  initConfigApp();
   setLoader(false);
 }
 
-/* ============ TEMPS RÉEL ============ */
-let _realtimeUnsubscribe = null;
+/* ============ CONFIG APP (fusion realtime + global) ============ */
+let _configUnsubscribe = null;
 let _realtimeActive = false;
 let _realtimeTimer = null;
 let _realtimeDateActivation = null;
 let _realtimeDuree = 0;
+let _globalFrozen = false;
 
-function initRealtime() {
-  if (_realtimeUnsubscribe) _realtimeUnsubscribe();
-  _realtimeUnsubscribe = onSnapshot(doc(db, 'config', 'realtime'), function(snap) {
-    const data = snap.exists() ? snap.data() : { enabled: false };
-    _realtimeActive = data.enabled === true;
-    _realtimeDateActivation = data.dateActivation || null;
-    _realtimeDuree = data.dureeMinute || 0;
+function initConfigApp() {
+  if (_configUnsubscribe) _configUnsubscribe();
+  _configUnsubscribe = onSnapshot(doc(db, 'config', 'app'), function(snap) {
+    const data = snap.exists() ? snap.data() : {};
+    
+    // Boost
+    const boost = data.boost || { enabled: false };
+    _realtimeActive = boost.enabled === true;
+    _realtimeDateActivation = boost.dateActivation || null;
+    _realtimeDuree = boost.dureeMinute || 0;
+    
+    // Freeze
+    const freeze = data.freeze || { frozen: false };
+    _globalFrozen = freeze.frozen === true;
+    
     updateRealtimeUI();
+    updateFreezeUI();
+    updateKpiBadges();
+    
     if (_realtimeActive && _realtimeDateActivation && _realtimeDuree) {
       const expireAt = new Date(_realtimeDateActivation).getTime() + (_realtimeDuree * 60000);
       if (Date.now() >= expireAt) desactiverRealtimeSilencieux();
     }
+    
     if (_realtimeTimer) { clearInterval(_realtimeTimer); _realtimeTimer = null; }
     if (_realtimeActive) {
       _realtimeTimer = setInterval(updateRealtimeElapsed, 1000);
       updateRealtimeElapsed();
     }
   }, function(err) {
-    console.warn('Erreur onSnapshot config/realtime:', err);
+    console.warn('Erreur onSnapshot config/app:', err);
     _realtimeActive = false;
+    _globalFrozen = false;
     updateRealtimeUI();
+    updateFreezeUI();
   });
 }
 
@@ -813,7 +827,7 @@ function updateRealtimeUI() {
       subLabel.textContent = txt;
       subLabel.style.color = '#047857';
     }
-    if (badge) { badge.className = 'badge ok'; badge.textContent = 'ACTIF'; }
+    if (badge) { badge.className = 'badge ok'; badge.textContent = _globalFrozen ? 'GELÉ' : 'ACTIF'; }
     if (btnActiver) { btnActiver.disabled = true; btnActiver.style.opacity = '.5'; btnActiver.style.cursor = 'not-allowed'; }
     if (btnDesactiver) { btnDesactiver.disabled = false; btnDesactiver.style.opacity = '1'; btnDesactiver.style.cursor = 'pointer'; }
     if (navBadge) navBadge.style.display = 'inline-block';
@@ -823,8 +837,8 @@ function updateRealtimeUI() {
     big.style.border = '2px solid #cbd5e1';
     if (iconBig) iconBig.textContent = '⚫';
     if (labelBig) { labelBig.textContent = 'Boost désactivé'; labelBig.style.color = '#475569'; }
-    if (subLabel) { subLabel.textContent = 'Fonctionnement normal (30s)'; subLabel.style.color = '#64748b'; }
-    if (badge) { badge.className = 'badge gray'; badge.textContent = 'DÉSACTIVÉ'; }
+    if (subLabel) { subLabel.textContent = 'Fonctionnement normal (60s)'; subLabel.style.color = '#64748b'; }
+    if (badge) { badge.className = 'badge gray'; badge.textContent = _globalFrozen ? 'GELÉ' : 'DÉSACTIVÉ'; }
     if (btnActiver) { btnActiver.disabled = false; btnActiver.style.opacity = '1'; btnActiver.style.cursor = 'pointer'; }
     if (btnDesactiver) { btnDesactiver.disabled = true; btnDesactiver.style.opacity = '.5'; btnDesactiver.style.cursor = 'not-allowed'; }
     if (navBadge) navBadge.style.display = 'none';
@@ -841,11 +855,18 @@ async function activerRealtime() {
     async () => {
       setLoader(true);
       try {
-        await setDoc(doc(db, 'config', 'realtime'), {
-          enabled: true,
-          dateActivation: new Date().toISOString(),
-          dureeMinute: duree,
-          activePar: currentUser ? currentUser.email : 'admin'
+        const ref = doc(db, 'config', 'app');
+        const snap = await getDoc(ref);
+        const existing = snap.exists() ? snap.data() : {};
+        await setDoc(ref, {
+          ...existing,
+          boost: {
+            enabled: true,
+            dateActivation: new Date().toISOString(),
+            dureeMinute: duree,
+            activePar: currentUser ? currentUser.email : 'admin'
+          },
+          updatedAt: new Date().toISOString()
         }, { merge: true });
         toast('🔥 Boost ACTIVÉ pour ' + duree + ' min');
       } catch(e) { toast('Erreur: ' + e.message, 'err'); }
@@ -854,13 +875,20 @@ async function activerRealtime() {
 }
 
 async function desactiverRealtime() {
-  confirmDialog('Désactiver le boost ?', 'Retour au rafraîchissement normal (30s).',
+  confirmDialog('Désactiver le boost ?', 'Retour au rafraîchissement normal (60s).',
     async () => {
       setLoader(true);
       try {
-        await setDoc(doc(db, 'config', 'realtime'), {
-          enabled: false,
-          dateDesactivation: new Date().toISOString()
+        const ref = doc(db, 'config', 'app');
+        const snap = await getDoc(ref);
+        const existing = snap.exists() ? snap.data() : {};
+        await setDoc(ref, {
+          ...existing,
+          boost: {
+            enabled: false,
+            dateDesactivation: new Date().toISOString()
+          },
+          updatedAt: new Date().toISOString()
         }, { merge: true });
         toast('⚫ Boost DÉSACTIVÉ', 'warn');
       } catch(e) { toast('Erreur: ' + e.message, 'err'); }
@@ -870,10 +898,17 @@ async function desactiverRealtime() {
 
 async function desactiverRealtimeSilencieux() {
   try {
-    await setDoc(doc(db, 'config', 'realtime'), {
-      enabled: false,
-      dateDesactivation: new Date().toISOString(),
-      expireAuto: true
+    const ref = doc(db, 'config', 'app');
+    const snap = await getDoc(ref);
+    const existing = snap.exists() ? snap.data() : {};
+    await setDoc(ref, {
+      ...existing,
+      boost: {
+        enabled: false,
+        dateDesactivation: new Date().toISOString(),
+        expireAuto: true
+      },
+      updatedAt: new Date().toISOString()
     }, { merge: true });
     toast('⏱️ Boost expiré', 'warn');
   } catch(e) {}
@@ -883,24 +918,6 @@ const btnActiverRt = document.getElementById('btnActiverRealtime');
 const btnDesactiverRt = document.getElementById('btnDesactiverRealtime');
 if (btnActiverRt) btnActiverRt.onclick = activerRealtime;
 if (btnDesactiverRt) btnDesactiverRt.onclick = desactiverRealtime;
-
-/* ============ GEL GLOBAL ============ */
-let _globalFreezeUnsubscribe = null;
-let _globalFrozen = false;
-
-function initGlobalFreeze() {
-  if (_globalFreezeUnsubscribe) _globalFreezeUnsubscribe();
-  _globalFreezeUnsubscribe = onSnapshot(doc(db, 'config', 'global'), function(snap) {
-    const data = snap.exists() ? snap.data() : { frozen: false };
-    _globalFrozen = data.frozen === true;
-    updateFreezeUI();
-    updateFreezeKpiBadge();
-  }, function(err) {
-    console.warn('Erreur onSnapshot config/global:', err);
-    _globalFrozen = false;
-    updateFreezeUI();
-  });
-}
 
 function updateFreezeUI() {
   const box = document.getElementById('globalFreezeState');
@@ -945,10 +962,17 @@ async function toggleGlobalFreeze() {
     async () => {
       setLoader(true);
       try {
-        await setDoc(doc(db, 'config', 'global'), {
-          frozen: !_globalFrozen,
-          dateChangement: new Date().toISOString(),
-          par: currentUser ? currentUser.email : 'admin'
+        const ref = doc(db, 'config', 'app');
+        const snap = await getDoc(ref);
+        const existing = snap.exists() ? snap.data() : {};
+        await setDoc(ref, {
+          ...existing,
+          freeze: {
+            frozen: !_globalFrozen,
+            dateChangement: new Date().toISOString(),
+            par: currentUser ? currentUser.email : 'admin'
+          },
+          updatedAt: new Date().toISOString()
         }, { merge: true });
         toast(_globalFrozen ? '🧊 Application GELÉE' : '🔥 Application DÉGELÉE', _globalFrozen ? 'warn' : 'ok');
       } catch(e) {
@@ -964,16 +988,34 @@ async function toggleGlobalFreeze() {
 const btnFreeze = document.getElementById('btnToggleFreeze');
 if (btnFreeze) btnFreeze.onclick = toggleGlobalFreeze;
 
-function updateFreezeKpiBadge() {
+function updateKpiBadges() {
   const grid = document.getElementById('kpiGrid');
   if (!grid) return;
-  const old = document.getElementById('freezeKpiBadge');
-  if (old) old.remove();
-  const badge = document.createElement('div');
-  badge.id = 'freezeKpiBadge';
-  badge.style.cssText = 'position:relative;border-radius:18px;padding:24px 22px;overflow:hidden;background:' + (_globalFrozen ? 'linear-gradient(135deg,#3b82f6 0%,#1e40af 100%)' : 'linear-gradient(135deg,#10b981 0%,#047857 100%)') + ';box-shadow:0 4px 0 rgba(0,0,0,.08),0 12px 28px -10px rgba(15,23,42,.2);cursor:pointer';
-  badge.onclick = () => switchTab('tabRealtime');
-  badge.innerHTML = `
+  
+  const oldF = document.getElementById('freezeKpiBadge');
+  if (oldF) oldF.remove();
+  const oldB = document.getElementById('boostKpiBadge');
+  if (oldB) oldB.remove();
+  
+  const boostBadge = document.createElement('div');
+  boostBadge.id = 'boostKpiBadge';
+  boostBadge.style.cssText = 'position:relative;border-radius:18px;padding:24px 22px;overflow:hidden;background:' + (_realtimeActive ? 'linear-gradient(135deg,#10b981 0%,#059669 100%)' : 'linear-gradient(135deg,#64748b 0%,#334155 100%)') + ';box-shadow:0 4px 0 rgba(0,0,0,.08),0 12px 28px -10px rgba(15,23,42,.2);cursor:pointer';
+  boostBadge.onclick = () => switchTab('tabRealtime');
+  boostBadge.innerHTML = `
+    <div style="width:56px;height:56px;border-radius:16px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;margin-bottom:14px">
+      <i class="fas fa-bolt"></i>
+    </div>
+    <div style="font-size:22px;font-weight:900;color:#fff;line-height:1;letter-spacing:-.5px;margin-bottom:6px">${_realtimeActive ? 'ACTIF' : 'OFF'}</div>
+    <div style="font-size:12px;font-weight:800;color:rgba(255,255,255,.95);text-transform:uppercase;letter-spacing:1px">Boost</div>
+    <div style="font-size:11px;color:rgba(255,255,255,.75);margin-top:8px;font-weight:600">${_realtimeActive ? 'Rafraîchissement rapide' : 'Cliquer pour booster'}</div>
+  `;
+  grid.appendChild(boostBadge);
+  
+  const freezeBadge = document.createElement('div');
+  freezeBadge.id = 'freezeKpiBadge';
+  freezeBadge.style.cssText = 'position:relative;border-radius:18px;padding:24px 22px;overflow:hidden;background:' + (_globalFrozen ? 'linear-gradient(135deg,#3b82f6 0%,#1e40af 100%)' : 'linear-gradient(135deg,#f59e0b 0%,#b45309 100%)') + ';box-shadow:0 4px 0 rgba(0,0,0,.08),0 12px 28px -10px rgba(15,23,42,.2);cursor:pointer';
+  freezeBadge.onclick = () => switchTab('tabRealtime');
+  freezeBadge.innerHTML = `
     <div style="width:56px;height:56px;border-radius:16px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;margin-bottom:14px">
       <i class="fas fa-${_globalFrozen ? 'snowflake' : 'fire'}"></i>
     </div>
@@ -981,7 +1023,7 @@ function updateFreezeKpiBadge() {
     <div style="font-size:12px;font-weight:800;color:rgba(255,255,255,.95);text-transform:uppercase;letter-spacing:1px">État app</div>
     <div style="font-size:11px;color:rgba(255,255,255,.75);margin-top:8px;font-weight:600">${_globalFrozen ? 'Cache local actif' : 'Rafraîchissements OK'}</div>
   `;
-  grid.appendChild(badge);
+  grid.appendChild(freezeBadge);
 }
 
 function renderKPIs(){
@@ -1011,7 +1053,7 @@ function renderKPIs(){
   `).join('');
   document.getElementById('statUsers').textContent = totalUsers;
   document.getElementById('statBoutiques').textContent = boutiquesActives.length;
-  updateFreezeKpiBadge();
+  updateKpiBadges();
 }
 
 function renderRecentActivity(){
