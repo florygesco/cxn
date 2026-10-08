@@ -11,35 +11,70 @@
 <script>
 (function(){
   'use strict';
-  const PICRD_UPLOAD_URL = 'https://picrd.com/api/upload';
+  const IMGBB_API_KEY = '3c7603b68d243e8bbd5fe29e8e54c8ee';
+  const IMGBB_UPLOAD_URL = 'https://api.imgbb.com/1/upload';
   const MAX_SIZE = 10 * 1024 * 1024;
   const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 
-  async function uploadToPicrd(file, options) {
+  async function uploadToImgbb(file, options) {
     options = options || {};
     if (!file) throw new Error('Aucun fichier fourni');
     if (file.size > MAX_SIZE) throw new Error('Image trop volumineuse (max 10 Mo). Votre fichier : ' + (file.size/1024/1024).toFixed(2) + ' Mo');
     if (!ALLOWED_TYPES.includes(file.type)) throw new Error('Format non supporté (' + file.type + '). Utilisez PNG, JPEG, WebP ou GIF');
+    if (!IMGBB_API_KEY || IMGBB_API_KEY === 'COLLEZ_VOTRE_CLE_ICI') {
+      throw new Error('Clé API ImgBB manquante.');
+    }
+
+    const base64 = await new Promise(function(resolve, reject) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const dataUrl = e.target.result;
+        const commaIndex = dataUrl.indexOf(',');
+        if (commaIndex === -1) return reject(new Error('Lecture du fichier échouée'));
+        resolve(dataUrl.substring(commaIndex + 1));
+      };
+      reader.onerror = function() { reject(new Error('Lecture du fichier échouée')); };
+      reader.readAsDataURL(file);
+    });
+
     const fd = new FormData();
-    fd.append('file', file);
-    fd.append('visibility', options.visibility || 'unlisted');
-    if (options.ttl_seconds) fd.append('ttl_seconds', String(options.ttl_seconds));
-    if (options.album_id) fd.append('album_id', options.album_id);
+    fd.append('image', base64);
+    if (file.name) fd.append('name', file.name.replace(/[^\w\-.]/g, '_').slice(0, 32));
+
+    const url = IMGBB_UPLOAD_URL + '?key=' + encodeURIComponent(IMGBB_API_KEY);
+
     let res;
     try {
-      res = await fetch(PICRD_UPLOAD_URL, { method: 'POST', body: fd });
+      res = await fetch(url, { method: 'POST', body: fd });
     } catch (networkError) {
       throw new Error('Erreur réseau : ' + networkError.message + ' — Vérifiez votre connexion');
     }
+
     const responseText = await res.text();
+
     if (!res.ok) {
-      if (res.status === 429) throw new Error('Limite atteinte (60/heure). Réessayez plus tard.');
-      if (res.status === 400) throw new Error('Fichier refusé par picrd. Réponse : ' + responseText.substring(0, 200));
-      if (res.status === 0) throw new Error('CORS bloqué ou réseau coupé. Réessayez en WiFi.');
+      if (res.status === 429) throw new Error('Limite ImgBB atteinte. Réessayez plus tard.');
+      if (res.status === 400) throw new Error('Image refusée par ImgBB : ' + responseText.substring(0, 200));
       throw new Error('Erreur HTTP ' + res.status + ' : ' + responseText.substring(0, 200));
     }
-    try { return JSON.parse(responseText); }
-    catch (e) { throw new Error('Réponse invalide de picrd : ' + responseText.substring(0, 200)); }
+
+    let json;
+    try { json = JSON.parse(responseText); }
+    catch (e) { throw new Error('Réponse invalide d\'ImgBB : ' + responseText.substring(0, 200)); }
+
+    if (!json.success || !json.data) {
+      throw new Error('ImgBB a refusé : ' + (json.error && json.error.message ? json.error.message : 'inconnu'));
+    }
+
+    return {
+      image_url: json.data.display_url || json.data.url,
+      page_url: json.data.url_viewer,
+      delete_url: json.data.delete_url,
+      image_id: json.data.id,
+      width: json.data.width,
+      height: json.data.height,
+      size: json.data.size
+    };
   }
 
   async function compresser(file, maxWidth, quality) {
@@ -71,7 +106,7 @@
 
   async function compressAndUpload(file, maxWidth, quality) {
     const compressed = await compresser(file, maxWidth, quality);
-    return uploadToPicrd(compressed, { visibility: 'public' });
+    return uploadToImgbb(compressed, {});
   }
 
   async function uploadBase64(base64String, options) {
@@ -81,15 +116,15 @@
     }
     const res = await fetch(base64String);
     const blob = await res.blob();
-    return uploadToPicrd(blob, options || {});
+    return uploadToImgbb(blob, options || {});
   }
 
   async function uploadWithFallback(file, options) {
     try {
-      const result = await uploadToPicrd(file, Object.assign({ visibility: 'public' }, options || {}));
-      return { url: result.image_url, mode: 'picrd', delete_url: result.delete_url, image_id: result.image_id, page_url: result.page_url };
+      const result = await uploadToImgbb(file, options || {});
+      return { url: result.image_url, mode: 'imgbb', delete_url: result.delete_url, image_id: result.image_id, page_url: result.page_url };
     } catch (err) {
-      console.warn('[picrd] fallback base64:', err.message);
+      console.warn('[imgbb] fallback base64:', err.message);
       const dataUrl = await new Promise(function(resolve) {
         const reader = new FileReader();
         reader.onload = function(e) { resolve(e.target.result); };
@@ -100,13 +135,14 @@
   }
 
   window.picrd = {
-    upload: uploadToPicrd,
+    upload: uploadToImgbb,
     uploadBase64: uploadBase64,
     compressAndUpload: compressAndUpload,
     uploadWithFallback: uploadWithFallback,
     compress: compresser
   };
-  console.log('✅ picrd-uploader inline chargé');
+
+  console.log('✅ imgbb-uploader inline chargé');
 })();
 </script>
 <style>
@@ -2941,9 +2977,9 @@ function ouvrirModalCreateBoutique(){
       const now = new Date().toISOString();
       const commerceId = 'COM-' + Date.now();
       const boutiqueData = { uid, nom, nomCommerce: nom, type, ville, quartier, adresse: '', horaires, description: desc || 'Découvrez notre catalogue.', telephone: tel, whatsapp, whatsappCommercial: whatsapp, img: imgFinal, emoji: '🏪', statut: 'approuve', dateCreation: now, dateApprobation: now };
-      const batch = writeBatch(db);
-      batch.set(doc(db,'commerces', commerceId), { ...boutiqueData, produits: [], creeParDirection: true });
-      batch.update(doc(db,'netubers', uid), { boutique: boutiqueData });
+      const batch = writelabelBatch(db);
+      batch.set(doc(db,'com>Tmerces', commerceId), { ...boutitreiqueData, produits de: [], creeParDirection: true });
+      l'article batch.update(doc(db,'netubers', uid), { boutique: boutiqueData });
       const demandeId = 'DEM-' + Date.now();
       batch.set(doc(db,'demandes_boutiques', demandeId), { ...boutiqueData, statut: 'approuve', creeParDirection: true });
       await batch.commit();
@@ -2967,7 +3003,7 @@ function ouvrirModalCreatePublication(){
     <div class="field"><label>Commerce *</label>
       <select id="pubCommerceSelect"><option value="">— Choisir un commerce —</option>${options}</select>
     </div>
-    <div class="field"><label>Titre de l'article *</label><input type="text" id="pubTitre" placeholder="Ex: Riz Parfumé 25kg"></div>
+    <div class="field">< *</label><input type="text" id="pubTitre" placeholder="Ex: Riz Parfumé 25kg"></div>
     <div class="grid-2">
       <div class="field"><label>Prix (FC) *</label><input type="number" id="pubPrix" placeholder="75000" min="0" step="1"></div>
       <div class="field"><label>Unité</label>
