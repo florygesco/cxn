@@ -29,8 +29,31 @@ async function idbGet(store,key){try{const idb=await ouvrirIDB();return new Prom
 async function idbDelete(store,key){try{const idb=await ouvrirIDB();return new Promise((resolve,reject)=>{const tx=idb.transaction(store,'readwrite');const req=tx.objectStore(store).delete(key);req.onsuccess=()=>resolve(true);req.onerror=()=>reject(req.error);});}catch(e){return false;}}
 async function getStored(store,key,fallback=null){const val=await idbGet(store,key);return val!==undefined&&val!==null?val:fallback;}
 async function setStored(store,key,value){return idbSet(store,key,value);}
+
+/* ═══════════════════════════════════════════════════════════════
+   PATCH 4 : Cache versionné avec TTL (date d'expiration)
+   ═══════════════════════════════════════════════════════════════ */
+async function setCachedList(store,key,data){
+  return idbSet(store,key,{data:data,ts:Date.now(),v:1});
+}
+async function getCachedList(store,key,maxAgeMs){
+  maxAgeMs=maxAgeMs||7*24*60*60*1000; // 7 jours par défaut
+  var v=await idbGet(store,key);
+  if(!v)return null;
+  // Support ancien format (array direct) + nouveau format {data,ts,v}
+  if(Array.isArray(v))return v;
+  if(!v.data)return null;
+  if(v.ts&&(Date.now()-v.ts)>maxAgeMs){
+    console.warn('[NeTubeX Cache] Expiré:',store,key);
+    return null;
+  }
+  return v.data;
+}
+
 async function migrerDepuisLocalStorage(){const done=await idbGet('stats','migration_done');if(done)return;const migrations=[{lsKey:'netubex-account',store:STORES.account,idbKey:'current'},{lsKey:'netubex-boutique',store:STORES.boutique,idbKey:'current'},{lsKey:'netubex-theme',store:STORES.theme,idbKey:'value'},{lsKey:'netubex-current-commerce',store:STORES.commerce,idbKey:'current'},{lsKey:'netubex-current-offre',store:STORES.offre,idbKey:'current'}];for(const m of migrations){try{const val=localStorage.getItem(m.lsKey);if(val!==null){let parsed=val;try{parsed=JSON.parse(val);}catch(e){}await idbSet(m.store,m.idbKey,parsed);}}catch(e){}}await idbSet('stats','migration_done',true);}
-window.idbGet=idbGet;window.idbSet=idbSet;window.idbDelete=idbDelete;window.getStored=getStored;window.setStored=setStored;window.migrerDepuisLocalStorage=migrerDepuisLocalStorage;window.STORES=STORES;
+window.idbGet=idbGet;window.idbSet=idbSet;window.idbDelete=idbDelete;window.getStored=getStored;window.setStored=setStored;
+window.setCachedList=setCachedList;window.getCachedList=getCachedList;
+window.migrerDepuisLocalStorage=migrerDepuisLocalStorage;window.STORES=STORES;
 window.createUser=async function(data){const cred=await createUserWithEmailAndPassword(auth,data.email,data.password);const uid=cred.user.uid;const codeParrainage='NTX-'+uid.slice(0,6).toUpperCase();await setDoc(doc(db,'netubers',uid),{prenom:data.prenom||'',nom:data.nom||'',nomComplet:data.nomComplet||((data.nom||'')+' '+(data.prenom||'')).trim(),sexe:data.sexe||'',dateNaissance:data.dateNaissance||'',phone:data.phone||'',emailAuth:data.email||'',code:data.password||'',ville:data.ville||'',quartier:'',role:'user',actif:true,dateCreation:new Date().toISOString(),stats:{deblocages:0,commandes:0,parrainage:0,jetons:0,badges:[]},notifications:[],parrainage:{code:codeParrainage,count:0,palier:0,joursRestants:0,dateDernierePub:null},parrainId:data.parrainId||null});if(data.parrainId){try{const parrainRef=doc(db,'netubers',data.parrainId);const parrainSnap=await getDoc(parrainRef);if(parrainSnap.exists()){const pd=parrainSnap.data();const pPar=pd.parrainage||{code:'',count:0,palier:0,joursRestants:0,dateDernierePub:null};pPar.count=(pPar.count||0)+1;pPar.palier=pPar.palier||0;const nouveauPalier=Math.floor(pPar.count/25);if(nouveauPalier>pPar.palier){const gagnes=nouveauPalier-pPar.palier;pPar.palier=nouveauPalier;pPar.joursRestants=(pPar.joursRestants||0)+(3*gagnes);}await setDoc(parrainRef,{parrainage:pPar},{merge:true});}}catch(e){}}return{uid:uid,code:data.password,codeParrainage:codeParrainage};};
 window.loginByPhoneCode=async function(phone,code){const q=query(collection(db,'netubers'),where('phone','==',phone),where('code','==',code));const snap=await getDocs(q);if(snap.empty)return null;const d=snap.docs[0],data=d.data();if(data.actif===false)return{error:'compte_desactive'};if(data.emailAuth){try{await signInWithEmailAndPassword(auth,data.emailAuth,code);}catch(e){return null;}}return{uid:d.id,id:d.id,nomComplet:data.nomComplet,name:data.nomComplet,sexe:data.sexe||'',dateNaissance:data.dateNaissance||'',phone:data.phone,code:data.code,email:data.emailAuth,emailAuth:data.emailAuth,ville:data.ville,role:data.role,boutique:data.boutique||null,comptePro:data.comptePro||false,boutiques:data.boutiques||[],parrainage:data.parrainage||null,parrainId:data.parrainId||null,actif:data.actif,dateCreation:data.dateCreation};};
 window.updatePhone=async function(uid,nouveauPhone){await updateDoc(doc(db,'netubers',uid),{phone:nouveauPhone});return{success:true,phone:nouveauPhone};};
@@ -43,41 +66,8 @@ window.creerDeblocage=async function(uid,annonceId,transactionId,montant,numeroE
 window.incrementerVuesAnnonceFirestore=async function(annonceId){if(!annonceId)return false;try{await updateDoc(doc(db,'annonces',annonceId),{vues:increment(1)});return true;}catch(e){try{const snap=await getDoc(doc(db,'annonces',annonceId));if(snap.exists()){const current=snap.data().vues||0;await setDoc(doc(db,'annonces',annonceId),{vues:current+1},{merge:true});return true;}}catch(e2){}}return false;};
 window.incrementerVuesCommerceFirestore=async function(commerceId){if(!commerceId)return false;try{await updateDoc(doc(db,'commerces',commerceId),{vues:increment(1)});return true;}catch(e){try{const snap=await getDoc(doc(db,'commerces',commerceId));if(snap.exists()){const current=snap.data().vues||0;await setDoc(doc(db,'commerces',commerceId),{vues:current+1},{merge:true});return true;}}catch(e2){}}return false;};
 window.supprimerAnnonceFirestore=async function(annonceId){if(!annonceId)throw new Error('ID manquant');await deleteDoc(doc(db,'annonces',annonceId));try{await deleteDoc(doc(db,'annonces',annonceId,'prive','contact'));}catch(e){}return true;};
-window.chargerCommercesFirestore=async function(){try{const snap=await getDocs(collection(db,'commerces'));const commerces=[];snap.forEach(d=>{const data=d.data();if(data.statut==='approuve'){const tousProduits=Array.isArray(data.produits)?data.produits:[];const produitsApprouves=tousProduits.filter(function(p){if(!p.statut)return true;return p.statut==='approuve';});let avatarUrl=data.img||'';if(!avatarUrl&&produitsApprouves.length>0&&produitsApprouves[0].img){avatarUrl=produitsApprouves[0].img;}commerces.push({id:d.id,uid:data.uid||null,demandeId:data.demandeId||null,nom:data.nom||data.nomCommerce||'',nomCommerce:data.nomCommerce||data.nom||'',type:data.type||'Autres',ville:data.ville||'',quartier:data.quartier||'',adresse:data.adresse||'',horaires:data.horaires||'08h - 20h',description:data.description||'Découvrez notre catalogue.',telephone:data.telephone||'',whatsapp:data.whatsapp||data.whatsappCommercial||data.telephone||'',whatsappCommercial:data.whatsappCommercial||data.whatsapp||data.telephone||'',img:data.img||avatarUrl,avatar:avatarUrl,emoji:data.emoji||'🏪',produits:produitsApprouves,dateCreation:data.dateCreation||'',vues:data.vues||0});}});commerces.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));try{await window.setStored('commerce','cached_list',commerces);}catch(e){}return commerces;}catch(e){try{const cached=await window.getStored('commerce','cached_list',null);if(cached&&cached.length)return cached;}catch(e2){}return[];}};
-window.chargerAnnoncesFirestore=async function(){
-  try{
-    const snap=await getDocs(collection(db,'annonces'));
-    const annonces=[];
-    const photosParUid={};
-    snap.forEach(d=>{
-      const data=d.data();
-      if(data.actif===false)return;
-      if(data.statut!=='approuve')return;
-      const nomPublieur=data.publieurNom||data.nom||'Utilisateur NeTubeX';
-      const typePublieur=data.publieurType||'user';
-      const uid=data.proprietaireUid||null;
-      if(uid&&data.img&&!photosParUid[uid]){photosParUid[uid]=data.img;}
-      annonces.push({id:d.id,annonceId:d.id,title:data.titre||'',name:nomPublieur,initials:nomPublieur.substring(0,2).toUpperCase(),avatar:data.avatar||'',location:data.ville||'',dateCreation:data.dateCreation||'',time:data.dateCreation?new Date(data.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}):'Récemment',price:data.prix||'',priceClass:data.tagClass||'post-tag-autre',desc:data.desc||'',img:data.img||'',images:Array.isArray(data.images)?data.images:[],cat:data.cat||'autre',tag:data.tag||'',tagClass:data.tagClass||'post-tag-autre',unlock:true,urgence:false,publieurType:typePublieur,publieurUid:uid,publieurBoutique:data.publieurBoutique||null,publieurPhone:data.publieurPhone||'',isCommerce:typePublieur==='commerce',vues:data.vues||0,publieurParrainage:data.publieurParrainage||null,publieurSexe:data.publieurSexe||'',_uid:uid});
-    });
-    const usersSnap=await getDocs(collection(db,'netubers'));
-    const userInfos={};
-    usersSnap.forEach(d=>{const data=d.data();userInfos[d.id]={avatarUrl:data.avatarUrl||data.photoURL||data.photo||'',sexe:data.sexe||''};});
-    annonces.forEach(a=>{
-      if(userInfos[a._uid]&&userInfos[a._uid].avatarUrl){a.avatar=userInfos[a._uid].avatarUrl;}
-      else if(photosParUid[a._uid]){a.avatar=photosParUid[a._uid];}
-      delete a._uid;
-    });
-    annonces.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
-    try{await window.setStored('offre','cached_list',annonces);}catch(e){}
-    return annonces;
-  }catch(e){
-    try{
-      const cached=await window.getStored('offre','cached_list',null);
-      if(cached&&cached.length)return cached;
-    }catch(e2){}
-    return[];
-  }
-};
+window.chargerCommercesFirestore=async function(){try{const snap=await getDocs(collection(db,'commerces'));const commerces=[];snap.forEach(d=>{const data=d.data();if(data.statut==='approuve'){const tousProduits=Array.isArray(data.produits)?data.produits:[];const produitsApprouves=tousProduits.filter(function(p){if(!p.statut)return true;return p.statut==='approuve';});let avatarUrl=data.img||'';if(!avatarUrl&&produitsApprouves.length>0&&produitsApprouves[0].img){avatarUrl=produitsApprouves[0].img;}commerces.push({id:d.id,uid:data.uid||null,demandeId:data.demandeId||null,nom:data.nom||data.nomCommerce||'',nomCommerce:data.nomCommerce||data.nom||'',type:data.type||'Autres',ville:data.ville||'',quartier:data.quartier||'',adresse:data.adresse||'',horaires:data.horaires||'08h - 20h',description:data.description||'Découvrez notre catalogue.',telephone:data.telephone||'',whatsapp:data.whatsapp||data.whatsappCommercial||data.telephone||'',whatsappCommercial:data.whatsappCommercial||data.whatsapp||data.telephone||'',img:data.img||avatarUrl,avatar:avatarUrl,emoji:data.emoji||'🏪',produits:produitsApprouves,dateCreation:data.dateCreation||'',vues:data.vues||0});}});commerces.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));return commerces;}catch(e){return[];}};
+window.chargerAnnoncesFirestore=async function(){try{const snap=await getDocs(collection(db,'annonces'));const annonces=[];const photosParUid={};snap.forEach(d=>{const data=d.data();if(data.actif===false)return;if(data.statut!=='approuve')return;const nomPublieur=data.publieurNom||data.nom||'Utilisateur NeTubeX';const typePublieur=data.publieurType||'user';const uid=data.proprietaireUid||null;if(uid&&data.img&&!photosParUid[uid]){photosParUid[uid]=data.img;}annonces.push({id:d.id,annonceId:d.id,title:data.titre||'',name:nomPublieur,initials:nomPublieur.substring(0,2).toUpperCase(),avatar:data.avatar||'',location:data.ville||'',dateCreation:data.dateCreation||'',time:data.dateCreation?new Date(data.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}):'Récemment',price:data.prix||'',priceClass:data.tagClass||'post-tag-autre',desc:data.desc||'',img:data.img||'',images:Array.isArray(data.images)?data.images:[],cat:data.cat||'autre',tag:data.tag||'',tagClass:data.tagClass||'post-tag-autre',unlock:true,urgence:false,publieurType:typePublieur,publieurUid:uid,publieurBoutique:data.publieurBoutique||null,publieurPhone:data.publieurPhone||'',isCommerce:typePublieur==='commerce',vues:data.vues||0,publieurParrainage:data.publieurParrainage||null,publieurSexe:data.publieurSexe||'',_uid:uid});});const usersSnap=await getDocs(collection(db,'netubers'));const userInfos={};usersSnap.forEach(d=>{const data=d.data();userInfos[d.id]={avatarUrl:data.avatarUrl||data.photoURL||data.photo||'',sexe:data.sexe||''};});annonces.forEach(a=>{if(userInfos[a._uid]&&userInfos[a._uid].avatarUrl){a.avatar=userInfos[a._uid].avatarUrl;}else if(photosParUid[a._uid]){a.avatar=photosParUid[a._uid];}delete a._uid;});annonces.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));return annonces;}catch(e){return[];}};
 </script>
 <style>
 html{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;background:#f1f5f9;-webkit-tap-highlight-color:transparent;overflow-x:hidden;overflow-y:auto;height:auto}
@@ -700,6 +690,14 @@ body.dark-mode #toast{background:#ffffff;color:#0f172a}
 .parrain-progress-fill{height:100%;border-radius:99px;transition:width .6s ease}
 .feed-progress-container{position:fixed;top:0;left:0;right:0;height:3px;background:transparent;z-index:9999;pointer-events:none;overflow:hidden}
 .feed-progress-bar{height:100%;width:0%;background:linear-gradient(90deg,#3b82f6 0%,#06b6d4 50%,#10b981 100%);border-radius:0 3px 3px 0;position:relative;will-change:width}
+
+/* ═══════════════════════════════════════════════════════════════
+   PATCH 5 : Bandeau offline
+   ═══════════════════════════════════════════════════════════════ */
+#offlineBanner{position:fixed;top:calc(60px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:45;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;padding:7px 16px;border-radius:20px;font-size:11.5px;font-weight:900;box-shadow:0 4px 14px rgba(245,158,11,.5);align-items:center;gap:7px;letter-spacing:.2px;animation:offlinePulse 2s ease-in-out infinite}
+@keyframes offlinePulse{0%,100%{box-shadow:0 4px 14px rgba(245,158,11,.5)}50%{box-shadow:0 4px 20px rgba(245,158,11,.8)}}
+#offlineBanner i{font-size:12px}
+
 .unlock-btn-premium{position:relative;overflow:hidden;background:linear-gradient(135deg,#f59e0b 0%,#d97706 50%,#b45309 100%)!important;color:#fff!important;font-weight:900!important;box-shadow:0 6px 20px -4px rgba(245,158,11,.6),0 4px 0 #92400e,inset 0 1px 0 rgba(255,255,255,.25)!important;transition:all .18s ease;isolation:isolate}
 .unlock-btn-premium::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.4) 50%,transparent 100%);transform:translateX(-100%);animation:unlockShine 2.4s ease-in-out infinite;z-index:1;pointer-events:none}
 @keyframes unlockShine{0%{transform:translateX(-100%)}60%,100%{transform:translateX(100%)}}
@@ -860,6 +858,14 @@ body.dark-mode .commerces-feature-desc{color:#a8bfd6}
 </head>
 <body class="page-index-active">
 <div id="feedProgressContainer" class="feed-progress-container" style="display:none"><div id="feedProgressBar" class="feed-progress-bar"></div></div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PATCH 5 : Bandeau offline
+     ═══════════════════════════════════════════════════════════════ -->
+<div id="offlineBanner" style="display:none">
+  <i class="fa-solid fa-wifi"></i> Mode hors-ligne · données en cache
+</div>
+
 <header class="fb-header">
 <div class="fb-header-top">
 <div class="fb-header-left">
@@ -1533,7 +1539,7 @@ var MAX_PUBLISH_IMAGES=3;var MAX_IMAGE_SIZE_MB=5;
 
 var SEARCH_INDEX={
   'appartement':{cat:'immobilier',kw:['appartement','appart','studio','chambre','logement','location','louer','immo','immobilier','duplex','villa','maison','meublé','meuble','résidence']},
-  'boutique':{cat:'commerce',kw:['boutique','magasin','shop','commerce','commerçant','vendeur','vente','catalogue','supermarche','supermarché','alimentation','epicerie','épicerie']},
+  'boutique':{cat:'commerce',kw:['boutique','magasin','shop','commerce','commerce','commerçant','vendeur','vente','catalogue','supermarche','supermarché','alimentation','epicerie','épicerie']},
   'emploi':{cat:'jobs',kw:['emploi','job','travail','recrutement','recrute','poste','offre','cv','candidat','candidature','embauche','salaire','stage','cdi','cdd']},
   'restaurant':{cat:'commerce',kw:['restaurant','resto','cuisine','traiteur','repas','manger','food','plat','buffet','café','cafe','bar']},
   'hotel':{cat:'commerce',kw:['hotel','hôtel','hebergement','hébergement','chambre','nuit','sejour','séjour','resort','auberge']},
@@ -1549,49 +1555,9 @@ var SEARCH_INDEX={
   'santé':{cat:'autre',kw:['hopital','hôpital','clinique','urgence','medecin','médecin','infirmier','sante','santé']}
 };
 function normaliser(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();}
-function rechercherMotCle(q){
-  var n=normaliser(q);
-  if(!n)return null;
-  for(var key in SEARCH_INDEX){
-    var entry=SEARCH_INDEX[key];
-    var found=entry.kw.some(function(k){return n.indexOf(normaliser(k))!==-1;});
-    if(found)return entry;
-  }
-  return null;
-}
-function rechercherSuggestions(){
-  var inp=document.getElementById('searchQuery');
-  var sugg=document.getElementById('searchSuggestions');
-  if(!inp||!sugg)return;
-  var q=inp.value||'';
-  var n=normaliser(q);
-  if(!n){sugg.innerHTML='';return;}
-  var results=[];
-  Object.keys(SEARCH_INDEX).forEach(function(key){
-    var entry=SEARCH_INDEX[key];
-    entry.kw.forEach(function(k){
-      if(normaliser(k).indexOf(n)!==-1||n.indexOf(normaliser(k))!==-1){
-        if(!results.find(function(r){return r.word===k;})){
-          results.push({word:k,cat:entry.cat,key:key});
-        }
-      }
-    });
-  });
-  results=results.slice(0,6);
-  if(results.length===0){sugg.innerHTML='';return;}
-  sugg.innerHTML=results.map(function(r){
-    var emoji={immobilier:'🏠',jobs:'💼',commerce:'🛒',autre:'🛠️'}[r.cat]||'🔎';
-    return '<button type="button" class="search-pro-suggestion" onclick="appliquerSuggestion(\''+r.word.replace(/'/g,"\\'")+'\',\''+r.cat+'\')"><span class="emoji">'+emoji+'</span>'+r.word+'</button>';
-  }).join('');
-}
-function appliquerSuggestion(word,cat){
-  haptic(10);
-  var inp=document.getElementById('searchQuery');
-  if(inp)inp.value=word;
-  var sugg=document.getElementById('searchSuggestions');
-  if(sugg)sugg.innerHTML='';
-  executeSearch();
-}
+function rechercherMotCle(q){var n=normaliser(q);if(!n)return null;for(var key in SEARCH_INDEX){var entry=SEARCH_INDEX[key];var found=entry.kw.some(function(k){return n.indexOf(normaliser(k))!==-1;});if(found)return entry;}return null;}
+function rechercherSuggestions(){var inp=document.getElementById('searchQuery');var sugg=document.getElementById('searchSuggestions');if(!inp||!sugg)return;var q=inp.value||'';var n=normaliser(q);if(!n){sugg.innerHTML='';return;}var results=[];Object.keys(SEARCH_INDEX).forEach(function(key){var entry=SEARCH_INDEX[key];entry.kw.forEach(function(k){if(normaliser(k).indexOf(n)!==-1||n.indexOf(normaliser(k))!==-1){if(!results.find(function(r){return r.word===k;})){results.push({word:k,cat:entry.cat,key:key});}}});});results=results.slice(0,6);if(results.length===0){sugg.innerHTML='';return;}sugg.innerHTML=results.map(function(r){var emoji={immobilier:'🏠',jobs:'💼',commerce:'🛒',autre:'🛠️'}[r.cat]||'🔎';return '<button type="button" class="search-pro-suggestion" onclick="appliquerSuggestion(\''+r.word.replace(/'/g,"\\'")+'\',\''+r.cat+'\')"><span class="emoji">'+emoji+'</span>'+r.word+'</button>';}).join('');}
+function appliquerSuggestion(word,cat){haptic(10);var inp=document.getElementById('searchQuery');if(inp)inp.value=word;var sugg=document.getElementById('searchSuggestions');if(sugg)sugg.innerHTML='';executeSearch();}
 
 window._formStartTime=0;
 function demarrerTimerFormulaire(){window._formStartTime=Date.now();}
@@ -1665,9 +1631,35 @@ async function verifierGlobalFreeze(){
 }
 function demarrerPolling(){if(_pollingTimer)return;if(!_appEstActive)return;if(_globalFrozen)return;var interval=_boostActif?POLLING_BOOST_MS:POLLING_INTERVAL_MS;_pollingTimer=setInterval(rafraichirDonneesSilencieusement,interval);}
 function arreterPolling(){if(_pollingTimer){clearInterval(_pollingTimer);_pollingTimer=null;}}
+
+/* ═══════════════════════════════════════════════════════════════
+   PATCH 3 : Polling résilient — n'écrase jamais par du vide
+   ═══════════════════════════════════════════════════════════════ */
 async function rafraichirDonneesSilencieusement(){
   if(!navigator.onLine)return;if(_globalFrozen)return;if(currentTab==='catalogue')return;if(currentTab==='index'&&!_boostActif)return;
-  try{var annonces=await window.chargerAnnoncesFirestore();var commerces=await window.chargerCommercesFirestore();var nouvelles=annonces.length>ANNONCES_DATA.length;ANNONCES_DATA=annonces;COMMERCES_DATA=commerces;try{await window.setStored('commerce','cached_list',commerces);await window.setStored('offre','cached_list',annonces);}catch(e){}if(currentTab==='category'){renderCategoryFeed(CURRENT_CATEGORY||'jobs');}if(currentTab==='commerces'){renderCommercesGrid();}if(currentTab==='index'&&nouvelles){_feedInitialise=false;_dernierFeedHash='';_nextFeedOrder=null;var feed=document.getElementById('mainFeed');if(feed){feed.innerHTML='';initFeed();}}if(currentTab==='detail'&&CURRENT_OFFRE){var aId=CURRENT_OFFRE.annonceId||CURRENT_OFFRE.id;if(aId){var fresh=ANNONCES_DATA.find(function(a){return a.annonceId===aId;});if(fresh){CURRENT_OFFRE=fresh;await renderDetail(fresh);}}}}catch(e){}
+  try{
+    var annonces=await window.chargerAnnoncesFirestore();
+    var commerces=await window.chargerCommercesFirestore();
+
+    // Anti-écrasement : ne remplace que si résultats non vides
+    if(annonces&&annonces.length>0){
+      var nouvelles=annonces.length>ANNONCES_DATA.length;
+      ANNONCES_DATA=annonces;
+      try{await window.setCachedList('offre','cached_list',annonces);}catch(e){}
+      if(currentTab==='index'&&nouvelles){_feedInitialise=false;_dernierFeedHash='';_nextFeedOrder=null;var feed=document.getElementById('mainFeed');if(feed){feed.innerHTML='';initFeed();}}
+    }
+    if(commerces&&commerces.length>0){
+      COMMERCES_DATA=commerces;
+      try{await window.setCachedList('commerce','cached_list',commerces);}catch(e){}
+    }
+
+    if(currentTab==='category'){renderCategoryFeed(CURRENT_CATEGORY||'jobs');}
+    if(currentTab==='commerces'){renderCommercesGrid();}
+    if(currentTab==='detail'&&CURRENT_OFFRE){
+      var aId=CURRENT_OFFRE.annonceId||CURRENT_OFFRE.id;
+      if(aId){var fresh=ANNONCES_DATA.find(function(a){return a.annonceId===aId;});if(fresh){CURRENT_OFFRE=fresh;await renderDetail(fresh);}}
+    }
+  }catch(e){}
 }
 async function rafraichirCatalogueSilencieusement(){
   if(!navigator.onLine)return;if(_globalFrozen)return;if(!CURRENT_COMMERCE)return;if(currentTab!=='catalogue')return;
@@ -1677,24 +1669,43 @@ document.addEventListener('visibilitychange',function(){
   if(document.hidden){_appEstActive=false;arreterPolling();rafraichirDonneesSilencieusement();}
   else{_appEstActive=true;verifierGlobalFreeze().then(function(){});if(!_globalFrozen){demarrerPolling();if(currentTab==='catalogue'){rafraichirCatalogueSilencieusement();}else if(currentTab!=='index'){rafraichirDonneesSilencieusement();}}}
 });
-window.addEventListener('online',function(){if(_appEstActive){verifierGlobalFreeze().then(function(){});}});
-window.addEventListener('offline',function(){arreterPolling();});
+
+/* ═══════════════════════════════════════════════════════════════
+   PATCH 5 + 6 : Bandeau offline + bascule automatique sur cache
+   ═══════════════════════════════════════════════════════════════ */
+function updateOfflineBanner(){
+  var b=document.getElementById('offlineBanner');
+  if(!b)return;
+  b.style.display=navigator.onLine?'none':'inline-flex';
+}
+window.addEventListener('online',async function(){
+  updateOfflineBanner();
+  if(_appEstActive){
+    try{await verifierGlobalFreeze();}catch(e){}
+    await rafraichirDonneesSilencieusement();
+  }
+});
+window.addEventListener('offline',async function(){
+  arreterPolling();
+  updateOfflineBanner();
+  // Recharger depuis le cache pour garantir l'affichage
+  try{
+    var cc=await window.getCachedList('commerce','cached_list');
+    var ca=await window.getCachedList('offre','cached_list');
+    if(cc&&cc.length){COMMERCES_DATA=cc;renderCommercesGrid();}
+    if(ca&&ca.length){
+      ANNONCES_DATA=ca;
+      _nextFeedOrder=null;_feedInitialise=false;_dernierFeedHash='';
+      if(currentTab==='index'){var f=document.getElementById('mainFeed');if(f){f.innerHTML='';initFeed();}}
+      if(currentTab==='category')renderCategoryFeed(CURRENT_CATEGORY||'jobs');
+    }
+  }catch(e){}
+});
 window.addEventListener('pagehide',function(){arreterPolling();});
 (async function chargerCompteIDB(){try{await window.migrerDepuisLocalStorage();CURRENT_ACCOUNT=await window.getStored(window.STORES.account,'current',null);CURRENT_COMMERCANT=await window.getStored(window.STORES.boutique,'current',null);if(CURRENT_COMMERCANT&&CURRENT_ACCOUNT&&CURRENT_COMMERCANT.uid&&CURRENT_COMMERCANT.uid!==CURRENT_ACCOUNT.id){CURRENT_COMMERCANT=null;await window.idbDelete(window.STORES.boutique,'current');}}catch(e){}})();
 function haptic(ms){if(navigator.vibrate)navigator.vibrate(ms||15);}
 var toastTimer=null;
-function showToast(msg){
-  if(!msg)return;
-  var msgLower=String(msg).toLowerCase();
-  var bloquer=['hors connexion','hors ligne','connexion rétablie','mode hors ligne','chargement','connecté','déconnecté'];
-  for(var i=0;i<bloquer.length;i++){
-    if(msgLower.indexOf(bloquer[i])!==-1)return;
-  }
-  var t=document.getElementById('toast');var txt=document.getElementById('toast-text');
-  if(!t||!txt)return;
-  if(msg.length>45){msg=msg.substring(0,42)+'...';}
-  txt.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.classList.remove('show');},3500);
-}
+function showToast(msg){var t=document.getElementById('toast');var txt=document.getElementById('toast-text');if(!t||!txt)return;if(msg&&msg.length>45){msg=msg.substring(0,42)+'...';}txt.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.classList.remove('show');},3500);}
 function esc(s){if(!s)return'';return String(s).replace(/[&<>"']/g,function(m){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];});}
 function tempsRelatif(ds){if(!ds)return'Récemment';try{var d=new Date(ds);var diff=Date.now()-d.getTime();if(diff<0)return'À l\'instant';var s=Math.floor(diff/1000),m=Math.floor(s/60),h=Math.floor(m/60),j=Math.floor(h/24);if(s<30)return'À l\'instant';if(s<60)return'Il y a '+s+'s';if(m<60)return'Il y a '+m+' min';if(h<24)return'Il y a '+h+'h';if(j<7)return'Il y a '+j+' jour'+(j>1?'s':'');return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});}catch(e){return'Récemment';}}
 function getTodayKey(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
@@ -1795,7 +1806,7 @@ function openAccountOrProfile(){haptic(20);if(CURRENT_ACCOUNT){go('dashboard-uti
 function ouvrirConnexion(){haptic(20);if(CURRENT_ACCOUNT){go('dashboard-utilisateur');return;}showAccountModal('Veuillez vous connecter pour continuer.',function(){go('dashboard-utilisateur');},'login');}
 function doLogout(){haptic(20);var m=document.getElementById('logoutConfirmModal');if(!m)return;m.style.display='flex';}
 function fermerConfirmLogout(){var m=document.getElementById('logoutConfirmModal');if(m)m.style.display='none';}
-async function confirmerLogout(){fermerConfirmLogout();if(window.logoutUser)try{await window.logoutUser();}catch(e){}arreterPolling();arreterPollingDeblocages();if(_debloques_timer){clearInterval(_debloques_timer);_debloques_timer=null;}CURRENT_ACCOUNT=null;CURRENT_COMMERCANT=null;CURRENT_COMMERCE=null;cart=[];DEBLOCAGES_MEMORY=[];DEBLOCAGES_DIRTY=true;DEBLOCAGES_LAST_FETCH=0;try{await window.idbDelete(window.STORES.account,'current');await window.idbDelete(window.STORES.boutique,'current');await window.idbDelete(window.STORES.commerce,'current');await window.idbDelete(window.STORES.offre,'current');}catch(e){}document.querySelectorAll('.category-btn').forEach(function(b){b.style.opacity='0.6';});go('index');}
+async function confirmerLogout(){fermerConfirmLogout();if(window.logoutUser)try{await window.logoutUser();}catch(e){}arreterPolling();arreterPollingDeblocages();if(_debloques_timer){clearInterval(_debloques_timer);_debloques_timer=null;}CURRENT_ACCOUNT=null;CURRENT_COMMERCANT=null;CURRENT_COMMERCE=null;cart=[];DEBLOCAGES_MEMORY=[];DEBLOCAGES_DIRTY=true;DEBLOCAGES_LAST_FETCH=0;try{await window.idbDelete(window.STORES.account,'current');await window.idbDelete(window.STORES.boutique,'current');await window.idbDelete(window.STORES.commerce,'current');await window.idbDelete(window.STORES.offre,'current');}catch(e){}document.querySelectorAll('.category-btn').forEach(function(b){b.style.opacity='0.6';});showToast('Déconnecté');go('index');}
 function appliquerThemeProfilUI(){var iD=document.body.classList.contains('dark-mode');var l=document.getElementById('themeLabelProfil');var i=document.getElementById('themeIconProfil');var k=document.getElementById('themeToggleKnob');var ki=document.getElementById('themeKnobIcon');var b=document.getElementById('themeToggleBtn');var iw=document.getElementById('themeIconWrap');if(l)l.textContent=iD?'Mode sombre':'Mode clair';if(i)i.className=iD?'fa-solid fa-sun':'fa-solid fa-moon';if(ki)ki.className=iD?'fa-solid fa-moon':'fa-solid fa-sun';if(k)k.style.transform=iD?'translateX(24px)':'translateX(0)';if(b)b.style.background=iD?'linear-gradient(135deg,#22d3ee,#2563eb)':'#cbd5e1';if(iw)iw.style.background=iD?'linear-gradient(135deg,#0e7490,#0891b2)':'linear-gradient(135deg,#1e40af,#3b82f6)';}
 function toggleThemeProfil(){haptic(20);var iD=document.body.classList.contains('dark-mode');if(iD){document.body.classList.remove('dark-mode');document.documentElement.classList.remove('dark-mode');try{localStorage.setItem('ntx_theme','light');}catch(e){}}else{document.body.classList.add('dark-mode');document.documentElement.classList.add('dark-mode');try{localStorage.setItem('ntx_theme','dark');}catch(e){}}appliquerThemeProfilUI();}
 (function chargerTheme(){try{var t=localStorage.getItem('ntx_theme');if(t==='dark'){document.documentElement.classList.add('dark-mode');document.body.classList.add('dark-mode');}else{document.documentElement.classList.remove('dark-mode');document.body.classList.remove('dark-mode');}appliquerThemeProfilUI();}catch(e){}})();
@@ -1880,7 +1891,7 @@ function go(page,param){
     feedPage=0;
     var feed=document.getElementById('mainFeed');
     if(_globalFrozen){if(feed&&feed.children.length===0){feed.innerHTML='<div style="text-align:center;padding:60px 20px;background:var(--bg-card);border:1px dashed var(--border-primary);border-radius:16px;margin:16px"><div style="font-size:48px;opacity:.35;margin-bottom:14px">📭</div><h3 style="font-size:15px;font-weight:800;margin-bottom:6px">Aucun contenu</h3></div>';}document.querySelectorAll('.category-btn').forEach(function(b){b.classList.remove('active');});var jbF=document.querySelector('.category-btn[data-cat="jobs"]');if(jbF)jbF.classList.add('active');return;}
-    if(_boostActif&&previousPage&&previousPage!=='index'){window.chargerAnnoncesFirestore().then(function(an){ANNONCES_DATA=an;_nextFeedOrder=_construireFeedItems();_feedInitialise=false;_dernierFeedHash='';feed.innerHTML='';initFeed();}).catch(function(){if(feed&&feed.children.length===0)initFeed();});}
+    if(_boostActif&&previousPage&&previousPage!=='index'){window.chargerAnnoncesFirestore().then(function(an){if(an&&an.length>0)ANNONCES_DATA=an;_nextFeedOrder=_construireFeedItems();_feedInitialise=false;_dernierFeedHash='';feed.innerHTML='';initFeed();}).catch(function(){if(feed&&feed.children.length===0)initFeed();});}
     else if(_nextFeedOrder&&feed&&feed.children.length>0){feed.innerHTML='';if(typeof initFeed==='function')initFeed();_nextFeedOrder=_construireFeedItems();}
     else if(feed&&feed.children.length===0){if(typeof initFeed==='function')initFeed();}
     document.querySelectorAll('.category-btn').forEach(function(b){b.classList.remove('active');});
@@ -1925,7 +1936,7 @@ function renderCategoryFeed(cat){
 }
 function filterImmobilierSubtab(el,sub){_immobilierSubcat=sub;document.querySelectorAll('#immobilierSubtabs .subtab-btn').forEach(function(b){b.classList.remove('active');});el.classList.add('active');renderCategoryFeed('immobilier');}
 function filterCategory(el,cat){if(!CURRENT_ACCOUNT){requireLogin('filtres',function(){filterCategory(el,cat);});return;}CURRENT_CATEGORY=cat;haptic();document.querySelectorAll('.category-btn').forEach(function(b){b.classList.remove('active');});el.classList.add('active');if(cat==='commerces'){go('commerces');return;}go('category',cat);}
-async function refreshCommerces(){try{var c=await window.chargerCommercesFirestore();COMMERCES_DATA=c;renderCommercesGrid();var el=document.getElementById('commercesCount');if(el)el.textContent=c.length+' établissement'+(c.length>1?'s':'')+' disponible'+(c.length>1?'s':'');}catch(e){}}
+async function refreshCommerces(){try{var c=await window.chargerCommercesFirestore();if(c&&c.length>0){COMMERCES_DATA=c;try{await window.setCachedList('commerce','cached_list',c);}catch(e){}}renderCommercesGrid();var el=document.getElementById('commercesCount');if(el)el.textContent=COMMERCES_DATA.length+' établissement'+(COMMERCES_DATA.length>1?'s':'')+' disponible'+(COMMERCES_DATA.length>1?'s':'');}catch(e){}}
 function renderCommercesGrid(){var g=document.getElementById('commercesGrid');if(!g)return;if(!COMMERCES_DATA||COMMERCES_DATA.length===0){g.innerHTML='<div style="text-align:center;padding:60px 20px;background:var(--bg-card);border:1px dashed var(--border-primary);border-radius:16px;grid-column:1/-1"><div style="font-size:48px;opacity:.35;margin-bottom:14px">🏪</div><h3 style="font-size:15px;font-weight:800;color:var(--text-primary);margin-bottom:6px">Aucun commerce disponible</h3></div>';return;}var html='';COMMERCES_DATA.forEach(function(c){if(!c||!c.type)return;var isS=(c.type==='Services'||c.type==='services');var fb='https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80';var img=c.img||c.avatar||fb;html+='<article class="commerce-card"><div class="commerce-card-image"><img src="'+img+'" alt="" loading="lazy" onerror="this.src=\''+fb+'\'"><span class="commerce-card-type-badge">'+c.type+'</span><span class="commerce-card-verified"><i class="fa-solid fa-circle-check" style="font-size:10px"></i> Vérifié</span></div><div class="commerce-card-body"><h3 class="commerce-card-title">'+c.nom+'</h3><div class="commerce-card-location"><i class="fa-solid fa-location-dot"></i> '+(c.ville||'RDC')+(c.quartier?' · '+c.quartier:'')+'</div><p class="commerce-card-desc">'+c.description+'</p></div><div class="commerce-card-footer"><span class="commerce-card-hours"><i class="fa-regular fa-clock"></i> '+(c.horaires||'Ouvert')+'</span><div style="display:flex;gap:6px">'+(isS?'<a href="tel:'+((c.whatsapp||c.whatsappCommercial||c.telephone||'').replace(/[^\d+]/g,''))+'" class="commerce-card-btn" style="background:#10b981;text-decoration:none" onclick="event.stopPropagation()"><i class="fa-solid fa-phone"></i> Appeler</a>':'<button onclick="event.stopPropagation();openCatalogue(\''+c.id+'\')" class="commerce-card-btn catalogue-btn-premium">Catalogue <i class="fa-solid fa-arrow-right"></i></button>')+'</div></div></article>';});g.innerHTML=html;}
 async function openCatalogue(id){if(!CURRENT_ACCOUNT){requireLogin('catalogue',function(){openCatalogue(id);});return;}haptic(20);var c=COMMERCES_DATA.find(function(x){return x.id===id;});if(!c){showToast('Introuvable');return;}incrementerVuesBoutique(c.uid,c.id);if(!CURRENT_COMMERCE||CURRENT_COMMERCE.id!==c.id){cart=[];updateCart();refreshAddButtons();}CURRENT_COMMERCE=c;renderCatalogue(c);go('catalogue');}
 function renderCatalogue(c){if(!c){showToast('Introuvable');go('commerces');return;}var h=document.getElementById('catalogueHeader');var isS=(c.type==='Services'||c.type==='services');CATALOGUE_PRODUITS=Array.isArray(c.produits)?c.produits.slice():[];var av=c.img?'<img src="'+c.img+'" alt="">':(c.emoji||'🏪');var ch='';if(c.ville||c.quartier){ch+='<span class="catalogue-meta-chip"><i class="fa-solid fa-location-dot"></i> '+esc((c.ville||'')+(c.quartier?' · '+c.quartier:''))+'</span>';}if(c.horaires){ch+='<span class="catalogue-meta-chip"><i class="fa-regular fa-clock"></i> '+esc(c.horaires)+'</span>';}var nb=CATALOGUE_PRODUITS.length;var tv=c.vues||0;var wn=(c.whatsapp||c.whatsappCommercial||c.telephone||'').replace(/[^\d]/g,'');if(h){h.innerHTML='<div class="catalogue-hero-content"><div class="catalogue-avatar">'+av+'</div><h1 class="catalogue-name">'+esc(c.nom||c.nomCommerce||'Boutique')+'<span class="verified-badge" style="transform:scale(1.3);margin-left:6px"><i class="fa-solid fa-check" style="color:#ffffff"></i></span></h1>'+(ch?'<div class="catalogue-meta">'+ch+'</div>':'')+'<div class="catalogue-stats"><div class="catalogue-stat"><div class="catalogue-stat-value">'+nb+'</div><div class="catalogue-stat-label">Produits</div></div><div class="catalogue-stat"><div class="catalogue-stat-value">'+tv+'</div><div class="catalogue-stat-label">Clics</div></div></div></div>';}var cs=document.getElementById('cartHeaderSub');if(cs)cs.textContent=c.nom||c.nomCommerce;renderCatalogueGrid(isS,wn);}
@@ -2403,6 +2414,10 @@ window.addEventListener('scroll',updateHeaderOnScroll,{passive:true});
 document.addEventListener('contextmenu',function(e){if(e.target.tagName==='IMG'){e.preventDefault();return false;}});
 document.addEventListener('dragstart',function(e){if(e.target.tagName==='IMG'){e.preventDefault();return false;}});
 async function verifierCompteLocal(){if(!CURRENT_ACCOUNT||!CURRENT_ACCOUNT.id)return;try{var s=await window.getDocRef(window.docRef(window.db,'netubers',CURRENT_ACCOUNT.id));if(s.exists()){var d=s.data();if(d.actif===false){showToast('Compte désactivé');CURRENT_ACCOUNT=null;CURRENT_COMMERCANT=null;}else{CURRENT_ACCOUNT.boutique=d.boutique||null;CURRENT_ACCOUNT.code=d.code||CURRENT_ACCOUNT.code;CURRENT_ACCOUNT.phone=d.phone||CURRENT_ACCOUNT.phone;CURRENT_ACCOUNT.nomComplet=d.nomComplet||CURRENT_ACCOUNT.nomComplet;CURRENT_ACCOUNT.name=CURRENT_ACCOUNT.nomComplet;CURRENT_ACCOUNT.sexe=d.sexe||CURRENT_ACCOUNT.sexe||'';CURRENT_ACCOUNT.parrainage=d.parrainage||CURRENT_ACCOUNT.parrainage;}}}catch(e){}}
+
+/* ═══════════════════════════════════════════════════════════════
+   PATCH 2 : Résilience au démarrage (le vrai fix)
+   ═══════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded',async function(){
   var ey=document.getElementById('footerYear');if(ey)ey.textContent=new Date().getFullYear();
   demarrerBarreProgression();
@@ -2412,19 +2427,36 @@ document.addEventListener('DOMContentLoaded',async function(){
     if(!CURRENT_ACCOUNT){try{CURRENT_ACCOUNT=await window.getStored(window.STORES.account,'current',null);CURRENT_COMMERCANT=await window.getStored(window.STORES.boutique,'current',null);}catch(e){}}
     await verifierCompteLocal();
     await verifierGlobalFreeze();
-    var estHorsLigne=!navigator.onLine;
-    var cachedC=await window.getStored('commerce','cached_list',null)||[];
-    var cachedA=await window.getStored('offre','cached_list',null)||[];
-    if(estHorsLigne||_globalFrozen){COMMERCES_DATA=cachedC;ANNONCES_DATA=cachedA;}
-    else{
+
+    // 1) Charger TOUJOURS le cache en premier (affichage instantané + mode hors-ligne)
+    var cachedC=await window.getCachedList('commerce','cached_list');
+    var cachedA=await window.getCachedList('offre','cached_list');
+
+    // 2) Pré-afficher le cache immédiatement si disponible
+    if(cachedC&&cachedC.length){COMMERCES_DATA=cachedC;}
+    if(cachedA&&cachedA.length){ANNONCES_DATA=cachedA;}
+
+    // 3) Tenter Firestore, mais SANS JAMAIS écraser par du vide
+    try{
       var co=await window.chargerCommercesFirestore();
       var an=await window.chargerAnnoncesFirestore();
-      COMMERCES_DATA=(co&&co.length)?co:cachedC;
-      ANNONCES_DATA=(an&&an.length)?an:cachedA;
+
+      if(co&&co.length>0){COMMERCES_DATA=co;try{await window.setCachedList('commerce','cached_list',co);}catch(e){}}
+      else if(!COMMERCES_DATA||COMMERCES_DATA.length===0){COMMERCES_DATA=co||[];}
+
+      if(an&&an.length>0){ANNONCES_DATA=an;try{await window.setCachedList('offre','cached_list',an);}catch(e){}}
+      else if(!ANNONCES_DATA||ANNONCES_DATA.length===0){ANNONCES_DATA=an||[];}
+
+    }catch(netErr){
+      console.warn('[NeTubeX] Firestore indisponible — mode cache:',netErr.message);
+      if(!COMMERCES_DATA)COMMERCES_DATA=[];
+      if(!ANNONCES_DATA)ANNONCES_DATA=[];
     }
+
     masquerSpinnerFeed();
     renderCommercesGrid();
-    var elC=document.getElementById('commercesCount');if(elC)elC.textContent=COMMERCES_DATA.length+' établissement'+(COMMERCES_DATA.length>1?'s':'')+' disponible'+(COMMERCES_DATA.length>1?'s':'');
+    var elC=document.getElementById('commercesCount');
+    if(elC)elC.textContent=COMMERCES_DATA.length+' établissement'+(COMMERCES_DATA.length>1?'s':'')+' disponible'+(COMMERCES_DATA.length>1?'s':'');
     _feedInitialise=false;_dernierFeedHash='';initFeed();
     terminerBarreProgression();
     prechargerImages(10);
@@ -2434,22 +2466,32 @@ document.addEventListener('DOMContentLoaded',async function(){
     appliquerThemeProfilUI();
     if(!CURRENT_ACCOUNT){document.querySelectorAll('.category-btn').forEach(function(b){b.style.opacity='0.6';});}
     go('index');
-    setTimeout(function(){
-      var prenom='';
-      if(CURRENT_ACCOUNT){prenom=(CURRENT_ACCOUNT.prenom||'').trim()||(CURRENT_ACCOUNT.name||CURRENT_ACCOUNT.nomComplet||'').split(' ')[0];}
-      if(prenom){showToast('👋 Bienvenue '+prenom+' !');}
-      else{showToast('👋 Bienvenue sur NeTubeX RDC');}
-    },800);
+    updateOfflineBanner();
+    setTimeout(function(){var prenom='';if(CURRENT_ACCOUNT){prenom=(CURRENT_ACCOUNT.prenom||'').trim()||(CURRENT_ACCOUNT.name||CURRENT_ACCOUNT.nomComplet||'').split(' ')[0];}if(prenom){showToast('👋 Bienvenue '+prenom+' !');}else{showToast('👋 Bienvenue sur NeTubeX RDC');}},800);
     setInterval(verifierGlobalFreeze,60000);
-    if(!_globalFrozen&&!estHorsLigne)demarrerPolling();
+    if(!_globalFrozen)demarrerPolling();
     publishGoStep(1);
-  }catch(err){masquerSpinnerFeed();terminerBarreProgression();document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});var ix=document.getElementById('page-index');if(ix)ix.classList.add('active');}
+  }catch(err){
+    console.error('[NeTubeX] Erreur démarrage:',err);
+    masquerSpinnerFeed();terminerBarreProgression();
+    // En cas d'erreur critique, essayer quand même d'afficher depuis le cache
+    try{
+      var cA=await window.getCachedList('offre','cached_list');
+      var cC=await window.getCachedList('commerce','cached_list');
+      if(cA&&cA.length)ANNONCES_DATA=cA;
+      if(cC&&cC.length)COMMERCES_DATA=cC;
+      _feedInitialise=false;_dernierFeedHash='';initFeed();
+      renderCommercesGrid();
+    }catch(e2){}
+    document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+    var ix=document.getElementById('page-index');if(ix)ix.classList.add('active');
+  }
 });
 (function(){var PO=['index','category','detail','commerces','catalogue','comment','dashboard-utilisateur'];var lr=0;
 document.addEventListener('contextmenu',function(e){var tg=(e.target.tagName||'').toLowerCase();if(tg==='input'||tg==='textarea'||e.target.isContentEditable){return;}e.preventDefault();e.stopPropagation();var n=Date.now();if(n-lr<400)return;lr=n;haptic(15);if(currentTab==='detail'&&CURRENT_OFFRE){var t=(CURRENT_OFFRE.publieurPhone||'').replace(/[^\d]/g,'');if(t){var ar={title:CURRENT_OFFRE.title||'',price:CURRENT_OFFRE.price||'',location:CURRENT_OFFRE.location||''};ouvrirOptionsAppel(t,ar);}else{ns();}return;}ns();},{capture:true});
 function ns(){var i=PO.indexOf(currentTab);if(i===-1)i=0;var ni=(i+1)%PO.length;for(var x=0;x<PO.length;x++){var c=PO[ni];if(c==='dashboard-utilisateur'&&!CURRENT_ACCOUNT){ni=(ni+1)%PO.length;continue;}if(c==='detail'&&!CURRENT_OFFRE){ni=(ni+1)%PO.length;continue;}if(c==='catalogue'&&!CURRENT_COMMERCE){ni=(ni+1)%PO.length;continue;}try{go(c);var l={'index':'Accueil','category':'Catégories','detail':'Détail','commerces':'Commerces','catalogue':'Catalogue','comment':'Aide','dashboard-utilisateur':'Mon profil'};showToast('→ '+(l[c]||c));}catch(err){}return;}}})();
 (function(){function dg(e){var k=(e.key||'').toLowerCase();if(e.key==='F12')return true;if(e.ctrlKey&&e.shiftKey){if(k==='i'||k==='j'||k==='c'||k==='k')return true;if(k==='s')return true;}if(e.ctrlKey&&!e.shiftKey&&!e.altKey){if(k==='u')return true;if(k==='s')return true;if(k==='p')return true;}if(e.metaKey&&e.altKey){if(k==='i'||k==='j'||k==='c'||k==='u')return true;}return false;}document.addEventListener('keydown',function(e){if(dg(e)){e.preventDefault();e.stopPropagation();return false;}},{capture:true});document.addEventListener('drop',function(e){e.preventDefault();},false);document.addEventListener('dragover',function(e){e.preventDefault();},false);})();
-window.go=go;window.openDetail=openDetail;window.openCatalogue=openCatalogue;window.filterCategory=filterCategory;window.toggleSearchCard=toggleSearchCard;window.fermerSearchCard=fermerSearchCard;window.executeSearch=executeSearch;window.closeSearchResults=closeSearchResults;window.openAccountOrProfile=openAccountOrProfile;window.doLogout=doLogout;window.ouvrirConnexion=ouvrirConnexion;window.validerDeblocage=validerDeblocage;window.switchDashTab=switchDashTab;window.switchDeblocageSubTab=switchDeblocageSubTab;window.closeCart=closeCart;window.openCart=openCart;window.changeQty=changeQty;window.removeItem=removeItem;window.submitOrder=submitOrder;window.addToCart=addToCart;window.copyText=copyText;window.toggleCustomSelect=toggleCustomSelect;window.selectCustomOption=selectCustomOption;window.handlePublishImages=handlePublishImages;window.removePublishImage=removePublishImage;window.submitPublish=submitPublish;window.closePublishPending=closePublishPending;window.inscNextStep=inscNextStep;window.inscPrevStep=inscPrevStep;window.submitInscriptionBoutique=submitInscriptionBoutique;window.toggleInscVilleLibre=toggleInscVilleLibre;window.togglePublishVilleLibre=togglePublishVilleLibre;window.ouvrirChangerNumero=ouvrirChangerNumero;window.fermerChangerNumero=fermerChangerNumero;window.validerChangerNumero=validerChangerNumero;window.toggleThemeProfil=toggleThemeProfil;window.closeAccountModal=closeAccountModal;window.basculerModalAccueil=basculerModalAccueil;window.submitAccountModal=submitAccountModal;window.submitAccountLogin=submitAccountLogin;window.showAccountModal=showAccountModal;window.signalerOffre=signalerOffre;window.submitSignalement=submitSignalement;window.openDetailFullscreen=openDetailFullscreen;window.closeDetailFullscreen=closeDetailFullscreen;window.closeBoutiquePending=closeBoutiquePending;window.closeDeblocagePending=closeDeblocagePending;window.headerBackAction=headerBackAction;window.requireLogin=requireLogin;window.initFeed=initFeed;window.sharePostFromFeed=sharePostFromFeed;window.sharePost=sharePost;window.ouvrirOptionsAppel=ouvrirOptionsAppel;window.fermerOptionsAppel=fermerOptionsAppel;window.genererEtAfficherCodeCommande=genererEtAfficherCodeCommande;window.closeProductPopup=closeProductPopup;window.openProductPopup=openProductPopup;window.confirmAddToCartFromPopup=confirmAddToCartFromPopup;window.selectOrderType=selectOrderType;window.cartGoToPage=cartGoToPage;window.toggleDesc=toggleDesc;window.filtrerCatalogueProduits=filtrerCatalogueProduits;window.trierCatalogue=trierCatalogue;window.choisirSexe=choisirSexe;window.renderMesPublications=renderMesPublications;window.annulerDeblocage=annulerDeblocage;window.annulerPaiementPublication=annulerPaiementPublication;window.filterImmobilierSubtab=filterImmobilierSubtab;window.postulerOffre=postulerOffre;window.ouvrirWhatsApp=ouvrirWhatsApp;window.openMyCatalogue=openMyCatalogue;window.shareBoutique=shareBoutique;window.fermerConfirmLogout=fermerConfirmLogout;window.confirmerLogout=confirmerLogout;window.publishGoStep=publishGoStep;window.demarrerTimerFormulaire=demarrerTimerFormulaire;window.verifierHoneypot=verifierHoneypot;window.initDetailCarousel=initDetailCarousel;window.detailCarouselGoto=detailCarouselGoto;window.detailCarouselGo=detailCarouselGo;window.ouvrirImageCarrousel=ouvrirImageCarrousel;window.supprimerMaPublication=supprimerMaPublication;window.fermerSuppression=fermerSuppression;window.confirmerSuppression=confirmerSuppression;window.rechercherSuggestions=rechercherSuggestions;window.appliquerSuggestion=appliquerSuggestion;
+window.go=go;window.openDetail=openDetail;window.openCatalogue=openCatalogue;window.filterCategory=filterCategory;window.toggleSearchCard=toggleSearchCard;window.fermerSearchCard=fermerSearchCard;window.executeSearch=executeSearch;window.closeSearchResults=closeSearchResults;window.openAccountOrProfile=openAccountOrProfile;window.doLogout=doLogout;window.ouvrirConnexion=ouvrirConnexion;window.validerDeblocage=validerDeblocage;window.switchDashTab=switchDashTab;window.switchDeblocageSubTab=switchDeblocageSubTab;window.closeCart=closeCart;window.openCart=openCart;window.changeQty=changeQty;window.removeItem=removeItem;window.submitOrder=submitOrder;window.addToCart=addToCart;window.copyText=copyText;window.toggleCustomSelect=toggleCustomSelect;window.selectCustomOption=selectCustomOption;window.handlePublishImages=handlePublishImages;window.removePublishImage=removePublishImage;window.submitPublish=submitPublish;window.closePublishPending=closePublishPending;window.inscNextStep=inscNextStep;window.inscPrevStep=inscPrevStep;window.submitInscriptionBoutique=submitInscriptionBoutique;window.toggleInscVilleLibre=toggleInscVilleLibre;window.togglePublishVilleLibre=togglePublishVilleLibre;window.ouvrirChangerNumero=ouvrirChangerNumero;window.fermerChangerNumero=fermerChangerNumero;window.validerChangerNumero=validerChangerNumero;window.toggleThemeProfil=toggleThemeProfil;window.closeAccountModal=closeAccountModal;window.basculerModalAccueil=basculerModalAccueil;window.submitAccountModal=submitAccountModal;window.submitAccountLogin=submitAccountLogin;window.showAccountModal=showAccountModal;window.signalerOffre=signalerOffre;window.submitSignalement=submitSignalement;window.openDetailFullscreen=openDetailFullscreen;window.closeDetailFullscreen=closeDetailFullscreen;window.closeBoutiquePending=closeBoutiquePending;window.closeDeblocagePending=closeDeblocagePending;window.headerBackAction=headerBackAction;window.requireLogin=requireLogin;window.initFeed=initFeed;window.sharePostFromFeed=sharePostFromFeed;window.sharePost=sharePost;window.ouvrirOptionsAppel=ouvrirOptionsAppel;window.fermerOptionsAppel=fermerOptionsAppel;window.genererEtAfficherCodeCommande=genererEtAfficherCodeCommande;window.closeProductPopup=closeProductPopup;window.openProductPopup=openProductPopup;window.confirmAddToCartFromPopup=confirmAddToCartFromPopup;window.selectOrderType=selectOrderType;window.cartGoToPage=cartGoToPage;window.toggleDesc=toggleDesc;window.filtrerCatalogueProduits=filtrerCatalogueProduits;window.trierCatalogue=trierCatalogue;window.choisirSexe=choisirSexe;window.renderMesPublications=renderMesPublications;window.annulerDeblocage=annulerDeblocage;window.annulerPaiementPublication=annulerPaiementPublication;window.filterImmobilierSubtab=filterImmobilierSubtab;window.postulerOffre=postulerOffre;window.ouvrirWhatsApp=ouvrirWhatsApp;window.openMyCatalogue=openMyCatalogue;window.shareBoutique=shareBoutique;window.fermerConfirmLogout=fermerConfirmLogout;window.confirmerLogout=confirmerLogout;window.publishGoStep=publishGoStep;window.demarrerTimerFormulaire=demarrerTimerFormulaire;window.verifierHoneypot=verifierHoneypot;window.initDetailCarousel=initDetailCarousel;window.detailCarouselGoto=detailCarouselGoto;window.detailCarouselGo=detailCarouselGo;window.ouvrirImageCarrousel=ouvrirImageCarrousel;window.supprimerMaPublication=supprimerMaPublication;window.fermerSuppression=fermerSuppression;window.confirmerSuppression=confirmerSuppression;window.rechercherSuggestions=rechercherSuggestions;window.appliquerSuggestion=appliquerSuggestion;window.updateOfflineBanner=updateOfflineBanner;
 </script>
 </body>
 </html>
