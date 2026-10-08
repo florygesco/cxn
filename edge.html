@@ -1,289 +1,148 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<title>NeTubeX POC — Scroll sous batterie</title>
-
-<!-- ═══ MÊMES META QUE TON INDEX ═══ -->
-<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,user-scalable=yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#d4e4f7">
-
-<style>
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-
-/* ═══ COMME TON INDEX : body SANS padding-top ═══ */
-html,body{min-height:100vh;background:#c5d8ec}
-body{
-  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
-  background:#c5d8ec;
-  color:#1a2b3e;
-  font-weight:500;
-  line-height:1.7;
-  overflow-x:hidden;   /* ← le contenu commence à y=0 */
-}
-
-/* ═══ TON BG-FIXED COUVRE TOUT, Y COMPRIS SOUS LA BATTERIE ═══ */
-.bg-fixed{position:fixed;top:0;left:0;right:0;bottom:0;z-index:-2}
-.bg-fixed-inner{
-  width:100%;height:100%;
-  background:linear-gradient(135deg,#d4e4f7 0%,#b8cfe6 40%,#a0bcd9 100%);
-}
-.bg-overlay{
-  position:fixed;top:0;left:0;right:0;bottom:0;z-index:-1;
-  background:radial-gradient(circle at 20% 30%,rgba(37,99,235,0.06),transparent 70%);
-}
-
-/* ═══ TA NAVBAR EXACTE ═══ */
-.navbar{
-  position:fixed;
-  top:max(20px,env(safe-area-inset-top,20px));   /* ← ton code exact */
-  left:50%;
-  transform:translateX(-50%);
-  width:auto;
-  min-width:280px;
-  max-width:95%;
-  background:rgba(255,255,255,0.92);
-  backdrop-filter:blur(20px);
-  -webkit-backdrop-filter:blur(20px);
-  border:1px solid rgba(37,99,235,0.12);
-  border-radius:60px;
-  padding:10px 20px;
-  z-index:1000;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:16px;
-  box-shadow:0 8px 32px rgba(0,0,0,0.06);
-  transition:all 0.4s cubic-bezier(0.4,0,0.2,1);
-}
-.navbar.scrolled{
-  top:max(10px,env(safe-area-inset-top,10px));
-  padding:8px 16px;
-  background:rgba(255,255,255,0.96);
-  border-color:rgba(37,99,235,0.18);
-}
-.logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
-.logo-text{
-  font-size:1.5rem;font-weight:800;
-  background:linear-gradient(135deg,#1a4a7a,#2563eb);
-  -webkit-background-clip:text;background-clip:text;
-  color:transparent;white-space:nowrap;
-}
-.btn-nav-primary{
-  background:linear-gradient(145deg,#2563eb,#1d4ed8);
-  border:none;color:#FFF;
-  padding:10px 22px;border-radius:40px;
-  font-weight:600;font-size:.9rem;
-  box-shadow:0 12px 28px rgba(37,99,235,0.35);
-  cursor:pointer;
-}
-
-/* ═══ TON CONTAINER EXACT ═══ */
-.container{
-  max-width:1400px;
-  margin:0 auto;
-  padding:calc(100px + env(safe-area-inset-top,0px)) 24px 60px 24px;
-}
-
-/* ═══ HERO ═══ */
-.hero{
-  background:rgba(255,255,255,0.6);
-  backdrop-filter:blur(12px);
-  border-radius:48px;
-  padding:80px 40px;
-  text-align:center;
-  margin-bottom:80px;
-  border:1px solid rgba(37,99,235,0.08);
-  box-shadow:0 25px 50px -12px rgba(0,0,0,0.06);
-  position:relative;
-  overflow:hidden;
-}
-.hero h1{
-  font-size:4rem;font-weight:900;
-  margin-bottom:20px;letter-spacing:-.02em;
-  background:linear-gradient(145deg,#1a4a7a,#2563eb,#1a4a7a);
-  -webkit-background-clip:text;background-clip:text;
-  color:transparent;display:inline-block;
-}
-.hero p{
-  font-size:1.3rem;line-height:1.8;
-  max-width:800px;margin:0 auto;
-  color:#1a2b3e;
-}
-.hero p strong{color:#2563eb;font-weight:700}
-
-/* ═══ SECTIONS DE TEST ═══ */
-section{margin-bottom:100px}
-.test-card{
-  background:rgba(255,255,255,0.6);
-  backdrop-filter:blur(12px);
-  border-radius:32px;
-  padding:60px 40px;
-  border:1px solid rgba(37,99,235,0.08);
-  box-shadow:0 25px 50px -12px rgba(0,0,0,0.06);
-  text-align:center;
-}
-.test-card .icon{
-  width:80px;height:80px;border-radius:50%;
-  background:linear-gradient(145deg,#2563eb,#1d4ed8);
-  display:flex;align-items:center;justify-content:center;
-  margin:0 auto 24px;
-  box-shadow:0 14px 34px rgba(37,99,235,0.35);
-  font-size:2.4rem;color:#fff;
-}
-.test-card h2{
-  font-size:2.2rem;font-weight:800;
-  background:linear-gradient(135deg,#1a4a7a,#2563eb);
-  -webkit-background-clip:text;background-clip:text;
-  color:transparent;
-  margin-bottom:16px;letter-spacing:-.02em;
-}
-.test-card p{
-  color:#1a2b3e;line-height:1.8;
-  font-size:1.05rem;max-width:600px;margin:0 auto;
-}
-
-/* ═══ INDICATEUR SOUS LA SAFE-AREA ═══ */
-.indicator{
-  position:fixed;
-  right:20px;
-  top:calc(env(safe-area-inset-top,20px) + 80px);
-  z-index:999;
-  background:rgba(255,255,255,0.92);
-  backdrop-filter:blur(20px);
-  -webkit-backdrop-filter:blur(20px);
-  border:1px solid rgba(37,99,235,0.15);
-  border-radius:40px;
-  padding:8px 16px;
-  font-size:.85rem;
-  font-weight:800;
-  color:#2563eb;
-  font-variant-numeric:tabular-nums;
-  box-shadow:0 8px 24px rgba(37,99,235,0.15);
-  opacity:0;
-  transform:translateY(-10px);
-  transition:all .35s cubic-bezier(.4,0,.2,1);
-}
-.indicator.visible{opacity:1;transform:translateY(0)}
-.indicator.full{
-  background:linear-gradient(145deg,#10b981,#059669);
-  color:#fff;border-color:transparent;
-  box-shadow:0 12px 32px rgba(16,185,129,0.45);
-}
-
-footer{
-  text-align:center;
-  padding:60px 24px;
-  padding-bottom:calc(env(safe-area-inset-bottom,0px) + 40px);
-  color:#4a5a6a;font-size:.85rem;
-}
-</style>
+  <meta charset="UTF-8">
+  <title>App POC — Même mécanisme que l'index</title>
+  <meta name="application-name" content="POC">
+  
+  <link rel="shortcut icon" type="image/x-icon" href="favicon.ico?v=2">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=2">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2">
+  <link rel="manifest" href="manifest.json">
+  
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,user-scalable=yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#d4e4f7">
+  <meta name="msapplication-navbutton-color" content="#d4e4f7">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html,body{min-height:100vh;background:#c5d8ec}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#c5d8ec;color:#1a2b3e;font-weight:500;line-height:1.7;overflow-x:hidden}
+    .bg-fixed{position:fixed;top:0;left:0;right:0;bottom:0;z-index:-2}
+    .bg-fixed-inner{width:100%;height:100%;background:linear-gradient(135deg,#d4e4f7 0%,#b8cfe6 40%,#a0bcd9 100%)}
+    .bg-overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:-1;background:radial-gradient(circle at 20% 30%,rgba(37,99,235,0.06),transparent 70%)}
+    .navbar{position:fixed;top:max(20px,env(safe-area-inset-top,20px));left:50%;transform:translateX(-50%);width:auto;min-width:280px;max-width:95%;background:rgba(255,255,255,0.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(37,99,235,0.12);border-radius:60px;padding:10px 20px;z-index:1000;display:flex;justify-content:space-between;align-items:center;gap:16px;box-shadow:0 8px 32px rgba(0,0,0,0.06);transition:all 0.4s cubic-bezier(0.4,0,0.2,1)}
+    .navbar.scrolled{top:max(10px,env(safe-area-inset-top,10px));padding:8px 16px;background:rgba(255,255,255,0.96);border-color:rgba(37,99,235,0.18)}
+    .logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
+    .logo-img{width:48px;height:48px;border-radius:50%;object-fit:cover;border:1px solid rgba(37,99,235,0.15)}
+    .logo-text{font-size:1.5rem;font-weight:800;background:linear-gradient(135deg,#1a4a7a,#2563eb);-webkit-background-clip:text;background-clip:text;color:transparent;white-space:nowrap}
+    .nav-buttons{display:flex;gap:10px;flex-shrink:0}
+    .btn-nav{background:transparent;border:1px solid rgba(37,99,235,0.15);padding:8px 18px;border-radius:40px;color:#1a2b3e;font-weight:600;cursor:pointer;transition:all 0.3s;font-size:.9rem;white-space:nowrap;display:flex;align-items:center;gap:8px}
+    .btn-nav-primary{background:linear-gradient(145deg,#2563eb,#1d4ed8);border:none;color:#FFF;box-shadow:0 12px 28px rgba(37,99,235,0.35)}
+    .btn-nav i{font-size:.95rem}
+    .menu-toggle{display:none;background:rgba(37,99,235,0.08);border:1px solid rgba(37,99,235,0.12);padding:8px 16px;border-radius:40px;color:#1a2b3e;font-weight:600;cursor:pointer;flex-shrink:0;font-size:.9rem}
+    .container{max-width:1400px;margin:0 auto;padding:calc(100px + env(safe-area-inset-top,0px)) 24px 60px 24px}
+    .hero{background:rgba(255,255,255,0.6);backdrop-filter:blur(12px);border-radius:48px;padding:80px 40px;text-align:center;margin-bottom:80px;border:1px solid rgba(37,99,235,0.08);box-shadow:0 25px 50px -12px rgba(0,0,0,0.06);position:relative;overflow:hidden}
+    .hero h1{font-size:4rem;font-weight:900;margin-bottom:20px;letter-spacing:-.02em;background:linear-gradient(145deg,#1a4a7a,#2563eb,#1a4a7a);-webkit-background-clip:text;background-clip:text;color:transparent;display:inline-block}
+    .hero h1 .highlight{background:linear-gradient(145deg,#d97706,#f59e0b,#d97706);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .hero p{font-size:1.4rem;line-height:1.8;max-width:850px;margin:0 auto;font-weight:500;position:relative;z-index:1;color:#1a2b3e}
+    .hero p strong{color:#2563eb;font-weight:700}
+    section{margin-bottom:100px}
+    .section-title{font-size:2.6rem;font-weight:800;background:linear-gradient(135deg,#1a4a7a,#2563eb);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:20px;letter-spacing:-.02em;text-align:center}
+    .section-text{color:#1a2b3e;font-weight:400;line-height:1.8;margin-bottom:24px;font-size:1.1rem;text-align:center;max-width:800px;margin-left:auto;margin-right:auto}
+    .section-text strong{color:#2563eb;font-weight:700}
+    .test-card{background:rgba(255,255,255,0.6);backdrop-filter:blur(12px);border-radius:32px;padding:60px 40px;text-align:center;border:1px solid rgba(37,99,235,0.08);box-shadow:0 25px 50px -12px rgba(0,0,0,0.06);margin-bottom:40px}
+    .test-card .icon{width:80px;height:80px;border-radius:50%;background:linear-gradient(145deg,#2563eb,#1d4ed8);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;box-shadow:0 14px 34px rgba(37,99,235,0.35);font-size:2.4rem;color:#fff}
+    .test-card h2{font-size:2rem;font-weight:800;background:linear-gradient(135deg,#1a4a7a,#2563eb);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:16px}
+    .test-card p{color:#1a2b3e;line-height:1.8;font-size:1.05rem}
+    footer{background:#b8cfe6;border-top:1px solid rgba(37,99,235,0.08);margin-top:80px;padding:60px 32px 32px 32px;padding-bottom:calc(32px + env(safe-area-inset-bottom,0px))}
+    .footer-copyright{text-align:center;font-size:.85rem;color:#4a5a6a}
+    @media(max-width:768px){
+      .navbar{padding:8px 14px;gap:8px;min-width:auto;width:95%}
+      .logo-img{width:40px;height:40px}
+      .logo-text{font-size:1.15rem}
+      .nav-buttons{display:none}
+      .menu-toggle{display:block;font-size:.85rem;padding:6px 14px}
+      .container{padding:calc(85px + env(safe-area-inset-top,0px)) 16px 40px 16px}
+      .hero{padding:40px 20px}
+      .hero h1{font-size:2.5rem}
+      .hero p{font-size:1.1rem}
+      .section-title{font-size:1.8rem}
+    }
+  </style>
 </head>
 <body>
 
-<!-- TON bg-fixed exact -->
 <div class="bg-fixed"><div class="bg-fixed-inner"></div></div>
 <div class="bg-overlay"></div>
 
-<!-- TA navbar exacte -->
 <div class="navbar" id="navbar">
   <div class="logo">
+    <img src="favicon.ico" alt="POC" class="logo-img" loading="lazy">
     <span class="logo-text">POC</span>
   </div>
-  <button class="btn-nav-primary">Batterie</button>
+  <div class="nav-buttons">
+    <button class="btn-nav btn-nav-primary"><i class="fas fa-sign-in-alt"></i> Espace</button>
+  </div>
+  <button class="menu-toggle"><i class="fas fa-bars"></i> Menu</button>
 </div>
 
-<!-- Indicateur -->
-<div class="indicator" id="indicator">0%</div>
-
-<!-- TON container exact -->
 <div class="container">
 
   <div class="hero">
-    <h1>Scroll sous la batterie</h1>
-    <p>Ce contenu défile sous la <strong>vraie barre de statut du téléphone</strong> (heure, batterie, wifi) qui reste transparente — exactement comme ton <strong>index NeTubeX</strong>.</p>
+    <h1>App <span class="highlight">POC</span></h1>
+    <p>Cette page reproduit <strong>exactement</strong> le mécanisme de l'index NeTubeX. Scrolle vers le bas : le contenu passe sous la zone de la batterie du téléphone, qui reste transparente.</p>
   </div>
 
   <section>
     <div class="test-card">
-      <div class="icon">📱</div>
+      <div class="icon"><i class="fas fa-mobile-alt"></i></div>
       <h2>Zone batterie transparente</h2>
-      <p>Grâce à <code>black-translucent</code> + <code>viewport-fit=cover</code>, la barre système iOS/Android devient transparente et laisse passer le contenu en dessous. Le <code>body</code> n'a aucun <code>padding-top</code>, donc le scroll démarre à y=0.</p>
+      <p>Le dégradé et le contenu passent sous l'heure, la batterie et le wifi du téléphone, exactement comme sur l'index.</p>
     </div>
   </section>
 
   <section>
     <div class="test-card">
-      <div class="icon">🎨</div>
-      <h2>Fond fixe qui couvre tout</h2>
-      <p>Le <code>.bg-fixed</code> occupe <code>top:0;bottom:0</code> et couvre même la zone occupée par la batterie. Aucune bande blanche, aucun décalage, même en scrollant vite.</p>
+      <div class="icon"><i class="fas fa-paint-brush"></i></div>
+      <h2>Fond fixe continu</h2>
+      <p>Le <code>.bg-fixed</code> couvre tout l'écran physique, de <code>top:0</code> à <code>bottom:0</code>, sans coupure ni décalage.</p>
     </div>
   </section>
 
   <section>
     <div class="test-card">
-      <div class="icon">⚡</div>
-      <h2>Navbar protégée par safe-area</h2>
-      <p>La navbar flottante utilise <code>top:max(20px, env(safe-area-inset-top, 20px))</code> — elle se place juste sous la batterie sans jamais la chevaucher.</p>
+      <div class="icon"><i class="fas fa-compass"></i></div>
+      <h2>Navbar safe-area</h2>
+      <p>La navbar flottante utilise <code>env(safe-area-inset-top)</code> pour se placer juste sous la batterie sans jamais la chevaucher.</p>
     </div>
   </section>
 
   <section>
     <div class="test-card">
-      <div class="icon">📏</div>
-      <h2>Container avec calc + safe-area</h2>
-      <p>Le container compense avec <code>padding: calc(100px + env(safe-area-inset-top, 0px))</code> pour que le contenu démarre visuellement sous la navbar, tout en laissant la barre système intacte.</p>
+      <div class="icon"><i class="fas fa-scroll"></i></div>
+      <h2>Scroll fluide</h2>
+      <p>Le contenu défile en continu sous la barre système. Le fond reste fixe, seul le contenu bouge.</p>
     </div>
   </section>
 
   <section>
     <div class="test-card">
-      <div class="icon">✅</div>
+      <div class="icon"><i class="fas fa-check-circle"></i></div>
       <h2>100% atteint</h2>
-      <p>Quand tu arrives en bas, l'indicateur passe au <strong>vert</strong> et affiche 100%. Le contenu a défilé entièrement sous la batterie du téléphone sans jamais être caché.</p>
+      <p>En bas, tu vois que le scroll s'est fait entièrement sous la zone batterie sans jamais être caché.</p>
     </div>
   </section>
 
-  <footer>© 2026 — Reproduction fidèle du mécanisme de l'index NeTubeX</footer>
+  <footer>
+    <div class="footer-copyright">© 2026 — POC Reproduction de l'index NeTubeX</div>
+  </footer>
 </div>
 
 <script>
-// ═══ EXACTEMENT TA LOGIQUE DE SCROLL ═══
-const navbar = document.getElementById('navbar');
-const indicator = document.getElementById('indicator');
-let lastY = window.scrollY;
-let ticking = false;
-
-function onScroll(){
-  if(ticking) return;
-  ticking = true;
-  requestAnimationFrame(()=>{
+  const navbar = document.getElementById('navbar');
+  let lastY = window.scrollY;
+  window.addEventListener('scroll', function() {
     const y = window.scrollY;
-
-    // Ta logique navbar
-    if(y > lastY && y > 100) navbar.classList.add('scrolled');
+    if (y > lastY && y > 100) navbar.classList.add('scrolled');
     else navbar.classList.remove('scrolled');
     lastY = y;
-
-    // Indicateur %
-    const max = document.documentElement.scrollHeight - window.innerHeight;
-    const percent = max > 0 ? Math.round((y / max) * 100) : 0;
-    indicator.textContent = percent + '%';
-
-    if(y > 100) indicator.classList.add('visible');
-    else indicator.classList.remove('visible');
-
-    if(percent >= 100) indicator.classList.add('full');
-    else indicator.classList.remove('full');
-
-    ticking = false;
-  });
-}
-window.addEventListener('scroll', onScroll, {passive:true});
-window.addEventListener('load', onScroll);
+  }, { passive: true });
 </script>
 
 </body>
