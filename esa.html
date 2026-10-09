@@ -3,118 +3,918 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Test Ombre 2</title>
+<title>NeTubeX RDC</title>
+<meta name="theme-color" content="#ffffff">
+<meta name="format-detection" content="telephone=no">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="icon" type="image/x-icon" href="https://www.netubex.com/favicon.ico">
+<script>
+(function(){try{var t=localStorage.getItem('ntx_theme');if(t==='dark'){document.documentElement.classList.add('dark-mode');}}catch(e){}})();
+</script>
+<script>
+(function(){
+'use strict';
+var IMGBB_API_KEY='3c7603b68d243e8bbd5fe29e8e54c8ee';
+var IMGBB_UPLOAD_URL='https://api.imgbb.com/1/upload';
+var MAX_SIZE=10*1024*1024;
+var ALLOWED_TYPES=['image/png','image/jpeg','image/webp','image/gif'];
+async function uploadToImgbb(file){
+if(!file)throw new Error('Aucun fichier');
+if(file.size>MAX_SIZE)throw new Error('Image trop lourde (max 10 Mo)');
+if(ALLOWED_TYPES.indexOf(file.type)===-1)throw new Error('Format non supporté');
+var base64=await new Promise(function(resolve,reject){
+var reader=new FileReader();
+reader.onload=function(e){var dataUrl=e.target.result;var commaIndex=dataUrl.indexOf(',');if(commaIndex===-1)return reject(new Error('Lecture échouée'));resolve(dataUrl.substring(commaIndex+1));};
+reader.onerror=function(){reject(new Error('Lecture échouée'));};
+reader.readAsDataURL(file);
+});
+var fd=new FormData();
+fd.append('image',base64);
+if(file.name)fd.append('name',file.name.replace(/[^\w\-.]/g,'_').slice(0,32));
+var url=IMGBB_UPLOAD_URL+'?key='+encodeURIComponent(IMGBB_API_KEY);
+var res=await fetch(url,{method:'POST',body:fd});
+var responseText=await res.text();
+if(!res.ok){if(res.status===429)throw new Error('Limite ImgBB atteinte');throw new Error('Erreur HTTP '+res.status);}
+var json;try{json=JSON.parse(responseText);}catch(e){throw new Error('Réponse invalide');}
+if(!json.success||!json.data)throw new Error('ImgBB a refusé');
+return{image_url:json.data.display_url||json.data.url,delete_url:json.data.delete_url,image_id:json.data.id};
+}
+async function compresser(file,maxWidth,quality){
+maxWidth=maxWidth||1200;quality=quality||0.85;
+return new Promise(function(resolve,reject){
+var reader=new FileReader();
+reader.onload=function(ev){
+var img=new Image();
+img.onload=function(){
+var canvas=document.createElement('canvas');
+var ratio=Math.min(maxWidth/img.width,maxWidth/img.height,1);
+canvas.width=Math.round(img.width*ratio);
+canvas.height=Math.round(img.height*ratio);
+var ctx=canvas.getContext('2d');
+ctx.drawImage(img,0,0,canvas.width,canvas.height);
+canvas.toBlob(function(blob){if(blob)resolve(new File([blob],file.name||'image.jpg',{type:'image/jpeg'}));else reject(new Error('Compression échouée'));},'image/jpeg',quality);
+};
+img.onerror=function(){reject(new Error('Image invalide'));};
+img.src=ev.target.result;
+};
+reader.onerror=function(){reject(new Error('Lecture échouée'));};
+reader.readAsDataURL(file);
+});
+}
+async function compressAndUpload(file){var compressed=await compresser(file,1200,0.85);return uploadToImgbb(compressed);}
+window.picrd={upload:uploadToImgbb,compressAndUpload:compressAndUpload,compress:compresser};
+})();
+</script>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, doc, setDoc, updateDoc, increment, getDoc, collection, query, where, getDocs, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+const firebaseConfig={apiKey:"AIzaSyB_GdmPBnWl3w6g99j1cGO7vxDdxmKr4QA",authDomain:"netubexmoney.firebaseapp.com",projectId:"netubexmoney",storageBucket:"netubexmoney.firebasestorage.app",messagingSenderId:"856592608176",appId:"1:856592608176:web:69f9df9cfd4f8c28630475"};
+const app=initializeApp(firebaseConfig);const db=getFirestore(app);const auth=getAuth(app);
+window.db=db;window.auth=auth;window.getDocRef=getDoc;window.docRef=doc;window.setDoc=setDoc;window.updateDoc=updateDoc;window.increment=increment;window.getDocs=getDocs;window.collection=collection;window.deleteDocRef=deleteDoc;
+const DB_NAME='netubex-db';const DB_VERSION=5;
+const STORES={account:'account',boutique:'boutique',cart:'cart',theme:'theme',notifications:'notifications',deblocages:'deblocages',commerce:'commerce',offre:'offre',stats:'stats',jetons:'jetons',images:'images',config:'config'};
+let _idbInstance=null;
+function ouvrirIDB(){if(_idbInstance)return Promise.resolve(_idbInstance);return new Promise((resolve,reject)=>{const request=indexedDB.open(DB_NAME,DB_VERSION);request.onupgradeneeded=(e)=>{const idb=e.target.result;Object.values(STORES).forEach(name=>{if(!idb.objectStoreNames.contains(name))idb.createObjectStore(name);});};request.onsuccess=()=>{_idbInstance=request.result;resolve(_idbInstance);};request.onerror=()=>reject(request.error);});}
+async function idbSet(store,key,value){try{const idb=await ouvrirIDB();return new Promise((resolve,reject)=>{const tx=idb.transaction(store,'readwrite');const req=tx.objectStore(store).put(value,key);req.onsuccess=()=>resolve(true);req.onerror=()=>reject(req.error);});}catch(e){return false;}}
+async function idbGet(store,key){try{const idb=await ouvrirIDB();return new Promise((resolve,reject)=>{const tx=idb.transaction(store,'readonly');const req=tx.objectStore(store).get(key);req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}catch(e){return null;}}
+async function idbDelete(store,key){try{const idb=await ouvrirIDB();return new Promise((resolve,reject)=>{const tx=idb.transaction(store,'readwrite');const req=tx.objectStore(store).delete(key);req.onsuccess=()=>resolve(true);req.onerror=()=>reject(req.error);});}catch(e){return false;}}
+async function getStored(store,key,fallback=null){const val=await idbGet(store,key);return val!==undefined&&val!==null?val:fallback;}
+async function setStored(store,key,value){return idbSet(store,key,value);}
+async function setCachedList(store,key,data){return idbSet(store,key,{data:data,ts:Date.now(),v:1});}
+async function getCachedList(store,key,maxAgeMs){maxAgeMs=maxAgeMs||7*24*60*60*1000;var v=await idbGet(store,key);if(!v)return null;if(Array.isArray(v))return v;if(!v.data)return null;if(v.ts&&(Date.now()-v.ts)>maxAgeMs)return null;return v.data;}
+async function migrerDepuisLocalStorage(){const done=await idbGet('stats','migration_done');if(done)return;await idbSet('stats','migration_done',true);}
+window.idbGet=idbGet;window.idbSet=idbSet;window.idbDelete=idbDelete;window.getStored=getStored;window.setStored=setStored;window.setCachedList=setCachedList;window.getCachedList=getCachedList;window.migrerDepuisLocalStorage=migrerDepuisLocalStorage;window.STORES=STORES;
+window.createUser=async function(data){const cred=await createUserWithEmailAndPassword(auth,data.email,data.password);const uid=cred.user.uid;const codeParrainage='NTX-'+uid.slice(0,6).toUpperCase();await setDoc(doc(db,'netubers',uid),{nom:data.nom||'',prenom:data.prenom||'',nomComplet:data.nomComplet||((data.nom||'')+' '+(data.prenom||'')).trim(),sexe:data.sexe||'',phone:data.phone||'',emailAuth:data.email||'',code:data.password||'',ville:data.ville||'',role:'user',actif:true,dateCreation:new Date().toISOString(),stats:{deblocages:0,commandes:0,parrainage:0,jetons:0,badges:[]},notifications:[],parrainage:{code:codeParrainage,count:0,palier:0,joursRestants:0,dateDernierePub:null},parrainId:data.parrainId||null});return{uid:uid,code:data.password,codeParrainage:codeParrainage};};
+window.loginByPhoneCode=async function(phone,code){var q=query(collection(db,'netubers'),where('phone','==',phone),where('code','==',code));var snap=await getDocs(q);if(snap.empty)return null;const dd=snap.docs[0],data=dd.data();if(data.actif===false)return{error:'compte_desactive'};if(data.emailAuth){try{await signInWithEmailAndPassword(auth,data.emailAuth,code);}catch(e){return null;}}return{uid:dd.id,id:dd.id,nomComplet:data.nomComplet,name:data.nomComplet,sexe:data.sexe||'',phone:data.phone,code:data.code,emailAuth:data.emailAuth,ville:data.ville,role:data.role,boutique:data.boutique||null,parrainage:data.parrainage||null,actif:data.actif,dateCreation:data.dateCreation};};
+window.updatePhone=async function(uid,nouveauPhone){await updateDoc(doc(db,'netubers',uid),{phone:nouveauPhone});return{success:true,phone:nouveauPhone};};
+window.logoutUser=async function(){try{await signOut(auth);}catch(e){}};
+window.mesDeblocages=async function(uid){const q=query(collection(db,'deblocages'),where('uid','==',uid));const snap=await getDocs(q);const list=[];snap.forEach(function(d){list.push({id:d.id,...d.data()});});return list;};
+window.creerAnnonce=async function(data,coordonnees,paiement){const annonceId='ANN-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);const annonceData={titre:data.titre||'',desc:data.desc||'',ville:data.ville||'',quartier:data.quartier||'',prix:data.prix||'',img:data.img||'',images:Array.isArray(data.images)?data.images.slice(0,3):[],cat:data.cat||'autre',tag:data.tag||'',tagClass:data.tagClass||'',proprietaireUid:data.proprietaireUid||null,publieurNom:data.publieurNom||'',publieurType:data.publieurType||'user',publieurBoutique:data.publieurBoutique||null,publieurPhone:data.publieurPhone||'',publieurVille:data.publieurVille||'',publieurParrainage:data.publieurParrainage||null,publieurSexe:data.publieurSexe||'',dateCreation:new Date().toISOString(),actif:false,statut:'en_attente',vues:0};if(paiement.gratuit){annonceData.paiement={gratuit:true,montant:0};}else{annonceData.paiement={transactionId:paiement.transactionId,numeroEnvoi:paiement.numeroEnvoi,montant:paiement.montant||400,destinataire:'+243976953045',datePaiement:new Date().toISOString()};}await setDoc(doc(db,'annonces',annonceId),annonceData);await setDoc(doc(db,'annonces',annonceId,'prive','contact'),{nom:coordonnees.nom||'',adresse:coordonnees.adresse||'',telephone:coordonnees.telephone||'',email:coordonnees.email||''});return{annonceId:annonceId};};
+window.creerDemandeBoutique=async function(data){const demandeId='DEM-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);await setDoc(doc(db,'demandes_boutiques',demandeId),Object.assign({},data,{statut:'en_attente',dateCreation:new Date().toISOString()}));return{demandeId:demandeId};};
+window.creerDeblocage=async function(uid,annonceId,transactionId,montant,numeroEnvoi){const key=uid+'_'+annonceId;await setDoc(doc(db,'deblocages',key),{uid:uid,annonceId:annonceId,statut:'en_attente',montant:montant||400,transactionId:transactionId,numeroEnvoi:numeroEnvoi,destinataire:'+243976953045',dateDemande:new Date().toISOString(),dateValidation:null,coordonnees:null});return{success:true,key:key};};
+window.incrementerVuesAnnonceFirestore=async function(annonceId){if(!annonceId)return false;try{await updateDoc(doc(db,'annonces',annonceId),{vues:increment(1)});return true;}catch(e){return false;}};
+window.incrementerVuesCommerceFirestore=async function(commerceId){if(!commerceId)return false;try{await updateDoc(doc(db,'commerces',commerceId),{vues:increment(1)});return true;}catch(e){return false;}};
+window.supprimerAnnonceFirestore=async function(annonceId){if(!annonceId)throw new Error('ID manquant');await deleteDoc(doc(db,'annonces',annonceId));try{await deleteDoc(doc(db,'annonces',annonceId,'prive','contact'));}catch(e){}return true;};
+window.chargerCommercesFirestore=async function(){try{const snap=await getDocs(collection(db,'commerces'));const commerces=[];snap.forEach(d=>{const data=d.data();if(data.statut==='approuve'){const produitsApprouves=(Array.isArray(data.produits)?data.produits:[]).filter(p=>!p.statut||p.statut==='approuve');commerces.push({id:d.id,uid:data.uid||null,nom:data.nom||data.nomCommerce||'',type:data.type||'Autres',ville:data.ville||'',quartier:data.quartier||'',horaires:data.horaires||'08h - 20h',description:data.description||'Découvrez notre catalogue.',telephone:data.telephone||'',whatsapp:data.whatsapp||data.whatsappCommercial||data.telephone||'',img:data.img||'',emoji:data.emoji||'🏪',produits:produitsApprouves,dateCreation:data.dateCreation||'',vues:data.vues||0});}});commerces.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));return commerces;}catch(e){return[];}};
+window.chargerAnnoncesFirestore=async function(){try{const snap=await getDocs(collection(db,'annonces'));const annonces=[];snap.forEach(d=>{const data=d.data();if(data.actif===false||data.statut!=='approuve')return;annonces.push({id:d.id,annonceId:d.id,title:data.titre||'',name:data.publieurNom||'Utilisateur NeTubeX',initials:(data.publieurNom||'??').substring(0,2).toUpperCase(),avatar:data.avatar||'',location:data.ville||'',dateCreation:data.dateCreation||'',price:data.prix||'',priceClass:data.tagClass||'post-tag-autre',desc:data.desc||'',img:data.img||'',images:Array.isArray(data.images)?data.images:[],cat:data.cat||'autre',tag:data.tag||'',tagClass:data.tagClass||'post-tag-autre',unlock:true,urgence:false,publieurType:data.publieurType||'user',publieurUid:data.proprietaireUid||null,publieurPhone:data.publieurPhone||'',isCommerce:data.publieurType==='commerce',vues:data.vues||0,publieurParrainage:data.publieurParrainage||null,publieurSexe:data.publieurSexe||''});});annonces.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));return annonces;}catch(e){return[];}};
+</script>
 <style>
-html,body{overscroll-behavior-y:none!important;overscroll-behavior-x:none!important;touch-action:pan-y!important;scrollbar-width:none!important}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#050505;overflow-x:hidden}
-
-.fb-header{background:#fff;border-bottom:1px solid #e4e6eb;position:fixed;top:0;left:0;right:0;z-index:40;padding:10px;text-align:center;font-weight:900;color:#2563eb}
-
-main{padding-top:120px;min-height:100vh;background:#f0f2f5}
-
-.bloc{background:#fff;margin:12px;padding:16px;border-radius:12px;border:1px solid #e4e6eb}
-.bloc h2{font-size:14px;margin-bottom:8px}
-button{display:block;width:100%;padding:12px;margin:6px 0;border-radius:10px;border:none;font-size:14px;font-weight:700;cursor:pointer}
-.btn{border:none;font-family:inherit}
-.btn-primary{background:#2563eb;color:#fff}
-.btn-danger{background:#dc2626;color:#fff}
-
-/* ==== ÉLÉMENTS NÉTUBEX À TESTER ==== */
-
-/* 1. HERO-BADGE avec backdrop-filter */
-.hero-badge{position:relative;display:inline-flex;align-items:center;gap:10px;padding:10px 18px;border-radius:999px;background:linear-gradient(90deg,#2563eb,#ea580c,#2563eb);overflow:hidden;isolation:isolate}
-.hero-badge::before{content:'';position:absolute;inset:2px;border-radius:999px;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:0}
-.hero-badge>*{position:relative;z-index:1}
-.hero-badge-dot{width:8px;height:8px;border-radius:50%;background:#ea580c}
-.hero-typewriter{color:#fbbf24;font-size:12px;font-weight:800;text-transform:uppercase}
-
-/* 2. COMMERCE PROMO (100vw + gradient) */
-.commerce-promo{width:100vw;max-width:100vw;margin-left:calc(-50vw + 50%);margin-right:calc(-50vw + 50%);background:linear-gradient(90deg,#1e3a8a 0%,#312e81 50%,#0f172a 100%);padding:24px 16px;color:#fff}
-.commerce-promo h3{font-size:18px;margin-bottom:8px}
-.commerce-promo p{font-size:13px;color:#cbd5e1}
-
-/* 3. CATEGORY HERO avec backdrop-filter */
-.category-hero-custom{background:linear-gradient(135deg,#1e40af 0%,#2563eb 60%,#ea580c 100%);padding:24px 14px;color:#fff;position:relative;overflow:hidden}
-.category-badge-custom{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.28);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:#fff;padding:7px 14px;border-radius:999px;font-size:11.5px;font-weight:900}
-.category-hero-stat{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;padding:6px 12px;border-radius:10px;font-size:11.5px;font-weight:800;margin-right:6px}
-
-/* FOOTER */
-footer{background:#fff;border-top:1px solid #e4e6eb;padding:30px 20px 40px;text-align:center}
-footer .copy{font-size:12px;color:#64748b;font-weight:700;margin-bottom:6px}
-footer a{color:#2563eb;text-decoration:none;font-weight:700;font-size:12px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%;background:#f0f2f5;overflow-x:hidden;overscroll-behavior:none}
+html.dark-mode{background:#18191a}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#f0f2f5;color:#050505;overflow-x:hidden;position:relative;overscroll-behavior:none;-webkit-overflow-scrolling:touch;min-height:1px}
+html.dark-mode body{background:#18191a;color:#e4e6eb}
+::-webkit-scrollbar{width:0;height:0;display:none}
+html,body{scrollbar-width:none;-ms-overflow-style:none}
+input,select,textarea{font-size:16px!important;font-family:inherit}
+*{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+input,textarea,select,[contenteditable="true"]{-webkit-user-select:text!important;user-select:text!important}
+img{pointer-events:none;-webkit-user-drag:none;max-width:100%;display:block}
+:root{--bg-app:#f0f2f5;--bg-card:#ffffff;--bg-card-soft:#f0f2f5;--bg-header:#ffffff;--text-primary:#050505;--text-secondary:#65676b;--text-muted:#8a8d91;--border-primary:#e4e6eb;--border-soft:rgba(0,0,0,.06);--ntx-blue:#2563eb;--ntx-blue-dark:#1e40af;--ntx-blue-light:#eff6ff;--ntx-orange:#ea580c;--ntx-orange-light:#fff7ed}
+html.dark-mode{--bg-app:#18191a;--bg-card:#242526;--bg-card-soft:#3a3b3c;--bg-header:#242526;--text-primary:#e4e6eb;--text-secondary:#b0b3b8;--text-muted:#8a8d91;--border-primary:#3e4042;--border-soft:rgba(255,255,255,.06);--ntx-blue:#3b82f6;--ntx-blue-dark:#1d4ed8;--ntx-blue-light:rgba(59,130,246,.15);--ntx-orange:#fb923c;--ntx-orange-light:rgba(251,146,60,.15)}
+.page{display:none}
+.page.active{display:block}
+.modal{display:none}
+.modal.active{display:flex}
+.fb-header{background:var(--bg-header);border-bottom:1px solid var(--border-primary);position:sticky;top:0;z-index:40;width:100%}
+.fb-header-top{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:10px 12px;gap:8px;max-width:1400px;margin:0 auto}
+.fb-header-left{display:flex;align-items:center;justify-self:start}
+.fb-header-right{display:flex;align-items:center;justify-self:end}
+.fb-header-btn{height:42px;min-width:42px;border-radius:12px;background:transparent;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;border:none;padding:0;font-family:inherit;overflow:hidden}
+.fb-header-btn.is-back{padding:0 12px;background:var(--bg-card-soft);border:1px solid var(--border-primary)}
+.fb-header-logo-img{width:100%;height:100%;object-fit:contain;padding:5px;display:block}
+.fb-header-back-icon{display:none;align-items:center;gap:6px;color:var(--ntx-blue);font-weight:800;white-space:nowrap;font-size:12.5px}
+.fb-header-btn.is-back .fb-header-logo-img{display:none}
+.fb-header-btn.is-back .fb-header-back-icon{display:inline-flex}
+.fb-brand-title{font-weight:900;font-size:20px;letter-spacing:-.5px;text-align:center;white-space:nowrap;line-height:1.1}
+.brand-white{color:#1e40af}
+.brand-bright{color:#2563eb}
+.brand-gold{color:#ea580c}
+html.dark-mode .brand-white{color:#60a5fa}
+html.dark-mode .brand-bright{color:#3b82f6}
+html.dark-mode .brand-gold{color:#fb923c}
+@media(min-width:640px){.fb-brand-title{font-size:24px}}
+.fb-icon-btn{width:38px;height:38px;border-radius:50%;background:var(--bg-card-soft);display:flex;align-items:center;justify-content:center;color:var(--text-secondary);font-size:15px;position:relative;cursor:pointer;border:none;flex-shrink:0}
+.fb-notif-dot{position:absolute;top:4px;right:4px;min-width:18px;height:18px;padding:0 5px;background:#e41e3f;border-radius:999px;color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg-header)}
+.fb-header .lg-nav{display:none}
+@media(min-width:1024px){
+.fb-header .lg-nav{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:700;max-width:1400px;margin:0 auto;padding:0 16px 12px;border-top:1px solid var(--border-soft)}
+.fb-header .lg-nav a{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;color:var(--text-secondary);text-decoration:none;font-weight:700}
+.fb-header .lg-nav a i{color:var(--ntx-blue);font-size:16px}
+}
+.categories-bar{background:var(--bg-header);border-top:1px solid var(--border-soft);padding:8px 0 10px;overflow:hidden}
+@media(min-width:1024px){.categories-bar{display:none}}
+.categories-scroll{display:flex;gap:8px;overflow-x:auto;padding:0 12px 4px;scrollbar-width:none}
+.categories-scroll::-webkit-scrollbar{display:none}
+.category-btn{flex-shrink:0;padding:8px 14px;border-radius:20px;font-size:12px;font-weight:700;background:var(--bg-card-soft);color:var(--text-secondary);border:none;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;font-family:inherit;min-height:36px}
+.category-btn.active{background:var(--ntx-blue);color:#fff}
+main{background:var(--bg-app);min-height:1px}
+.btn-3d{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer;border:none;font-family:inherit;text-decoration:none}
+.btn-3d.green{background:var(--ntx-blue);color:#fff}
+.btn-3d.blue{background:var(--ntx-blue);color:#fff}
+.btn-3d.red{background:#e41e3f;color:#fff}
+.btn-3d.amber{background:var(--ntx-orange);color:#fff}
+.btn-3d.gray{background:var(--bg-card-soft);color:var(--text-primary)}
+.section-card-3d{background:var(--bg-card);border:1px solid var(--border-primary);border-radius:14px}
+.form-input-3d{width:100%;padding:14px 16px;border:1px solid var(--border-primary);border-radius:12px;font-size:16px;background:var(--bg-card-soft);color:var(--text-primary);outline:none;font-family:inherit}
+.form-input-3d:focus{border-color:var(--ntx-blue)}
+.page-header-3d{background:#2563eb;color:#fff;padding:24px 16px}
+html.dark-mode .page-header-3d{background:#1e3a8a}
+.page-title-3d{font-size:22px;font-weight:900;line-height:1.2}
+.page-subtitle-3d{font-size:13.5px;color:rgba(255,255,255,.85);margin-top:8px;line-height:1.5}
+.home-hero{background:#0f172a;color:#fff;padding:24px 16px 28px;text-align:center}
+.hero-title{font-size:22px;font-weight:900;line-height:1.25;margin-bottom:10px}
+@media(min-width:640px){.hero-title{font-size:28px}}
+.hero-sub{font-size:13px;color:#cbd5e1;line-height:1.6;max-width:520px;margin:0 auto 16px}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:999px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fbbf24;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;margin-bottom:16px}
+.hero-badge-dot{width:8px;height:8px;border-radius:50%;background:#10b981;flex-shrink:0}
+.hero-actions{display:flex;flex-direction:column;gap:10px;max-width:480px;margin:0 auto}
+@media(min-width:640px){.hero-actions{flex-direction:row}}
+.hero-btn{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 20px;border-radius:12px;font-weight:700;font-size:13.5px;text-decoration:none;cursor:pointer;border:none;font-family:inherit}
+.hero-btn.primary{background:#2563eb;color:#fff}
+.hero-btn.secondary{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2)}
+.container-3d{max-width:100%;margin:0;padding:12px}
+@media(min-width:1024px){.container-3d{max-width:1400px;margin:0 auto;padding:24px 28px}}
+.fb-feed{display:flex;flex-direction:column;gap:8px;background:transparent}
+.fb-post{background:var(--bg-card);border:1px solid var(--border-primary);border-radius:14px;overflow:hidden;cursor:pointer;padding:0}
+.fb-post-head{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:14px}
+.fb-post-avatar{width:48px;height:48px;border-radius:50%;background:#2563eb;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:15px;flex-shrink:0}
+.fb-post-avatar-img{width:48px;height:48px;border-radius:50%;object-fit:cover;flex-shrink:0;display:block}
+.fb-post-name{font-weight:700;font-size:14px;color:var(--text-primary);display:flex;align-items:center;gap:5px;flex-wrap:wrap;line-height:1.4}
+.fb-post-sub{font-size:11.5px;color:var(--text-muted);margin-top:3px}
+.fb-post-body{padding:0 14px 12px}
+.fb-post-title{font-size:15px;font-weight:800;color:var(--text-primary);line-height:1.4;margin-bottom:8px}
+.fb-post-desc{font-size:14px;color:var(--text-secondary);line-height:1.6}
+.fb-post-media{width:100%;background:var(--bg-card-soft);overflow:hidden;aspect-ratio:16/10;position:relative}
+.fb-post-media img{width:100%;height:100%;object-fit:cover;display:block}
+.fb-post-price{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:13px;padding:7px 12px;border-radius:8px;margin-top:10px}
+.fb-post-actions{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--border-soft);flex-wrap:wrap}
+.fb-action-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:10px;font-weight:700;font-size:12.5px;color:var(--text-secondary);background:var(--bg-card-soft);border:none;cursor:pointer;font-family:inherit;white-space:nowrap}
+.fb-action-primary{background:var(--ntx-blue);color:#fff;margin-left:auto}
+.fb-post-views{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:var(--ntx-blue-light);color:var(--ntx-blue);font-size:10.5px;font-weight:800;margin-top:8px}
+.feed-badge{background:var(--bg-card-soft);color:var(--text-secondary);border-radius:8px;font-weight:800;padding:5px 10px;font-size:9.5px;text-transform:uppercase;letter-spacing:.4px}
+.verified-badge{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#1877F2;color:#fff;font-size:10px;flex-shrink:0;margin-left:3px;transform:translateY(1px)}
+#commercesGrid{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:640px){#commercesGrid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}}
+.commerce-card{background:var(--bg-card);border:1px solid var(--border-primary);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;cursor:pointer}
+.commerce-card-image{position:relative;width:100%;aspect-ratio:16/10;background:var(--bg-card-soft);overflow:hidden}
+.commerce-card-image img{width:100%;height:100%;object-fit:cover}
+.commerce-card-type-badge{position:absolute;top:10px;left:10px;background:rgba(15,23,42,.85);color:#67e8f9;font-size:9.5px;font-weight:900;padding:4px 10px;border-radius:8px;text-transform:uppercase}
+.commerce-card-body{padding:14px;display:flex;flex-direction:column;gap:8px}
+.commerce-card-title{font-size:15px;font-weight:900;color:var(--text-primary)}
+.commerce-card-location{font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:5px}
+.commerce-card-desc{font-size:12.5px;color:var(--text-secondary);line-height:1.5}
+.commerce-card-footer{padding:12px 14px;border-top:1px solid var(--border-soft);display:flex;justify-content:space-between;align-items:center;gap:10px}
+.commerce-card-hours{font-size:11px;color:var(--text-muted);display:inline-flex;align-items:center;gap:5px}
+.commerce-card-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:9px;font-size:11.5px;font-weight:800;background:var(--ntx-blue);color:#fff;border:none;cursor:pointer;font-family:inherit;text-decoration:none}
+footer.app-footer{background:var(--bg-card);border-top:1px solid var(--border-primary);padding:24px 16px;text-align:center;margin-top:20px}
+footer.app-footer .copy{font-size:12px;color:var(--text-muted);font-weight:700;margin-bottom:6px}
+footer.app-footer a{color:var(--ntx-blue);text-decoration:none;font-weight:700;font-size:12px}
+.cart-floating-btn{position:fixed;bottom:20px;right:16px;z-index:450;width:64px;height:64px;border-radius:50%;border:none;background:var(--ntx-blue);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.cart-floating-btn.hidden{display:none}
+.cart-icon-emoji{font-size:32px;line-height:1}
+.cart-floating-btn .cfb-badge{position:absolute;top:-2px;right:-2px;min-width:22px;height:22px;padding:0 6px;background:#e41e3f;color:#fff;font-size:11px;font-weight:900;border-radius:999px;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg-app)}
+.cart-drawer{position:fixed;top:0;right:0;bottom:0;width:100%;max-width:440px;background:var(--bg-app);z-index:600;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .35s cubic-bezier(.22,.9,.28,1)}
+.cart-drawer.active{transform:translateX(0)}
+.cart-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.65);z-index:590;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .3s ease,visibility .3s ease}
+.cart-overlay.active{opacity:1;visibility:visible;pointer-events:auto}
+.cart-header{padding:16px 18px;background:#1e3a8a;color:#fff;flex-shrink:0}
+.cart-header-row{display:flex;align-items:center;gap:12px}
+.cart-header-icon{width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.cart-header-info{flex:1;min-width:0}
+.cart-header-title{font-size:17px;font-weight:900;line-height:1.2}
+.cart-header-sub{font-size:12px;color:rgba(255,255,255,.85);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cart-close{width:42px;height:42px;border-radius:50%;background:#e41e3f;border:none;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;flex-shrink:0}
+.cart-info-bar{padding:10px 18px;background:rgba(255,255,255,.1);display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(255,255,255,.92);font-weight:700}
+.cart-info-bar i{color:#67e8f9;font-size:12px}
+.cart-body{flex:1;overflow-y:auto;padding:16px 14px 20px;background:var(--bg-app);-webkit-overflow-scrolling:touch}
+.cart-empty{text-align:center;padding:60px 24px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg-card);border-radius:14px;border:1px solid var(--border-primary)}
+.cart-empty-icon{width:90px;height:90px;border-radius:50%;background:var(--ntx-blue-light);display:flex;align-items:center;justify-content:center;font-size:44px;margin-bottom:18px}
+.cart-empty h3{font-size:16px;font-weight:900;color:var(--text-primary);margin-bottom:6px}
+.cart-empty p{font-size:13px;color:var(--text-muted);line-height:1.55;max-width:260px}
+.cart-items{display:flex;flex-direction:column;gap:10px}
+.cart-item{display:flex;gap:12px;padding:12px;background:var(--bg-card);border-radius:12px;border:1px solid var(--border-primary);position:relative}
+.cart-item-thumb{width:52px;height:52px;border-radius:10px;background:var(--bg-card-soft);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;overflow:hidden}
+.cart-item-main{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:space-between;gap:8px}
+.cart-item-name{font-size:13.5px;font-weight:700;color:var(--text-primary);line-height:1.3;word-break:break-word;padding-right:26px}
+.cart-item-price-line{font-size:11px;color:var(--text-muted);font-weight:700}
+.cart-item-price-line strong{color:var(--ntx-blue);font-size:12.5px;font-weight:900}
+.cart-item-actions{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.cart-qty-control{display:inline-flex;align-items:center;background:var(--bg-card-soft);border-radius:8px;overflow:hidden}
+.cart-qty-btn{width:30px;height:30px;border:none;background:transparent;color:var(--text-primary);cursor:pointer;font-weight:900;font-size:15px;display:flex;align-items:center;justify-content:center;font-family:inherit}
+.cart-qty-value{font-size:13.5px;font-weight:900;color:var(--text-primary);min-width:28px;text-align:center;padding:0 4px}
+.cart-item-subtotal{font-size:14.5px;font-weight:900;color:var(--ntx-blue)}
+.cart-item-remove{position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:8px;background:rgba(228,30,63,.08);border:none;color:#e41e3f;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center}
+.cart-total-row{display:flex;justify-content:space-between;align-items:center;padding:13px 15px;background:var(--ntx-blue-light);border:1px solid var(--border-primary);border-radius:12px;margin-bottom:12px}
+.cart-total-row span:first-child{font-size:13.5px;font-weight:700;color:var(--ntx-blue)}
+.cart-total-row span:last-child{font-size:18px;font-weight:900;color:var(--ntx-blue)}
+.cart-client-fields{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.cart-client-fields input{width:100%;padding:12px 14px;border:1px solid var(--border-primary);border-radius:10px;font-size:14px;font-family:inherit;background:var(--bg-card-soft);color:var(--text-primary);outline:none}
+.cart-whatsapp-btn{width:100%;padding:15px;border-radius:12px;background:#25D366;color:#fff;font-weight:700;font-size:14px;border:none;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:9px}
+.cart-whatsapp-btn i{font-size:17px}
+#toast{position:fixed;top:80px;left:50%;transform:translateX(-50%) translateY(-200%);background:#0f172a;color:#fff;padding:14px 22px;border-radius:999px;font-size:14px;font-weight:800;z-index:9999;transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .35s ease;opacity:0;pointer-events:none;display:inline-flex;align-items:center;gap:10px;max-width:calc(100vw - 24px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+#toast i{color:#10b981;font-size:16px;flex-shrink:0}
+html.dark-mode #toast{background:#fff;color:#0f172a}
+.toast-hidden{display:none}
+.publish-pending-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.7);z-index:700;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .3s ease,visibility .3s ease}
+.publish-pending-overlay.active{opacity:1;visibility:visible;pointer-events:auto}
+.publish-pending-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.85);background:var(--bg-card);border-radius:20px;padding:32px 26px 24px;max-width:400px;width:calc(100% - 32px);text-align:center;border:1px solid var(--border-primary);z-index:710;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .3s ease,transform .3s ease,visibility .3s ease}
+.publish-pending-modal.active{opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+.publish-pending-icon{width:72px;height:72px;border-radius:50%;background:var(--ntx-blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 18px}
+.publish-pending-title{font-size:18px;font-weight:900;color:var(--text-primary);margin-bottom:8px}
+.publish-pending-desc{font-size:13.5px;color:var(--text-secondary);line-height:1.55;margin-bottom:16px}
+.publish-pending-close{width:100%;padding:14px 20px;border-radius:12px;background:var(--ntx-blue);color:#fff;font-weight:700;font-size:13.5px;border:none;cursor:pointer;font-family:inherit}
+.deblocage-pending-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.7);z-index:720;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .3s ease,visibility .3s ease}
+.deblocage-pending-overlay.active{opacity:1;visibility:visible;pointer-events:auto}
+.deblocage-pending-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.85);background:var(--bg-card);border-radius:20px;padding:32px 26px 24px;max-width:400px;width:calc(100% - 32px);text-align:center;border:1px solid var(--border-primary);z-index:730;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .3s ease,transform .3s ease,visibility .3s ease}
+.deblocage-pending-modal.active{opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+.deblocage-pending-icon{width:72px;height:72px;border-radius:50%;background:var(--ntx-orange);color:#fff;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 18px}
+.deblocage-pending-title{font-size:18px;font-weight:900;color:var(--text-primary);margin-bottom:8px}
+.deblocage-pending-desc{font-size:13.5px;color:var(--text-secondary);line-height:1.55;margin-bottom:16px}
+.deblocage-pending-close{flex:1;padding:13px 18px;border-radius:12px;font-weight:700;font-size:13px;border:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.deblocage-pending-close.primary{background:var(--ntx-blue);color:#fff}
+.deblocage-pending-close.secondary{background:var(--bg-card-soft);color:var(--text-secondary)}
+.dash-tabs-scroll{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.dash-tabs-scroll::-webkit-scrollbar{display:none}
+.dash-tab{flex-shrink:0;padding:9px 14px;border-radius:10px;font-size:12px;font-weight:700;background:var(--bg-card-soft);color:var(--text-secondary);border:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.dash-tab.active{background:var(--ntx-blue);color:#fff}
+.deblocage-subtabs{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none}
+.deblocage-subtab{flex-shrink:0;padding:8px 12px;border-radius:10px;font-size:11.5px;font-weight:700;background:var(--bg-card-soft);color:var(--text-secondary);border:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px}
+.deblocage-subtab.active{background:var(--ntx-blue);color:#fff}
+.dbt-badge{background:var(--bg-card);color:var(--ntx-blue);font-size:9.5px;font-weight:900;padding:2px 7px;border-radius:999px;min-width:18px;text-align:center}
+.deblocage-subtab.active .dbt-badge{background:#fff;color:var(--ntx-blue)}
+.merchant-hero{background:#2563eb;border-radius:16px;padding:20px;color:#fff;margin-bottom:14px}
+.merchant-hero-content{display:flex;align-items:center;gap:12px}
+.merchant-avatar{width:56px;height:56px;border-radius:16px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.merchant-info{flex:1;min-width:0}
+.merchant-title{font-size:16px;font-weight:900;line-height:1.2;margin-bottom:4px}
+.merchant-sub{font-size:12px;color:rgba(255,255,255,.85);font-weight:600}
+.merchant-stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.merchant-stat{background:rgba(255,255,255,.15);border-radius:12px;padding:10px 8px;text-align:center}
+.merchant-stat-value{font-size:18px;font-weight:900;color:#fff;line-height:1;margin-bottom:4px}
+.merchant-stat-label{font-size:9.5px;font-weight:800;color:rgba(255,255,255,.85);text-transform:uppercase}
+.merchant-boutique-card{background:var(--bg-card);border:1px solid var(--border-primary);border-radius:14px;padding:14px;margin-bottom:12px}
+.merchant-boutique-row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.merchant-boutique-img{width:52px;height:52px;border-radius:12px;background:var(--ntx-blue-light);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;overflow:hidden}
+.merchant-boutique-img img{width:100%;height:100%;object-fit:cover}
+.merchant-boutique-name{font-size:14px;font-weight:900;color:var(--text-primary);line-height:1.3}
+.merchant-boutique-meta{font-size:11.5px;color:var(--text-muted);font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:3px}
+.merchant-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.merchant-action-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 12px;border-radius:10px;font-size:12px;font-weight:700;border:none;cursor:pointer;font-family:inherit}
+.merchant-action-btn.primary{background:var(--ntx-blue);color:#fff}
+.merchant-action-btn.success{background:#25D366;color:#fff}
+.merchant-action-btn.gray{background:var(--bg-card-soft);color:var(--text-secondary)}
+.phone-field{display:flex;align-items:stretch;border:1px solid var(--border-primary);border-radius:10px;overflow:hidden;background:var(--bg-card-soft)}
+.phone-field:focus-within{border-color:var(--ntx-blue)}
+.phone-field .phone-prefix{display:flex;align-items:center;justify-content:center;padding:0 12px;background:var(--ntx-blue-light);color:var(--ntx-blue);font-weight:900;font-size:14px;flex-shrink:0;border-right:1px solid var(--border-primary);pointer-events:none}
+.phone-field input{flex:1;min-width:0;padding:13px 14px;border:none;background:transparent;color:var(--text-primary);font-size:16px;font-weight:700;outline:none;letter-spacing:1px}
+.hidden{display:none!important}
+.selecteur-pro{display:none;background:#f59e0b;border-radius:14px;padding:14px;margin-bottom:12px;color:#4c1d95}
+.selecteur-pro-title{font-size:10.5px;font-weight:900;text-transform:uppercase;opacity:.85}
+.selecteur-pro-name{font-size:13px;font-weight:900;margin-top:2px}
 </style>
 </head>
 <body>
-
-<header class="fb-header">🧪 Test Ombre 2</header>
-
+<header class="fb-header">
+<div class="fb-header-top">
+<div class="fb-header-left">
+<button class="fb-header-btn" id="headerBackBtn" onclick="headerBackAction()" aria-label="Retour">
+<img src="https://www.netubex.com/favicon.ico" alt="NeTubeX" class="fb-header-logo-img" onerror="this.style.display='none'">
+<span class="fb-header-back-icon"><i class="fa-solid fa-arrow-left"></i><span>Retour</span></span>
+</button>
+</div>
+<div class="fb-brand-title"><span class="brand-white">Ne</span><span class="brand-bright">Tube</span><span class="brand-gold">X</span> <span class="brand-white">RDC</span></div>
+<div class="fb-header-right">
+<button class="fb-icon-btn" onclick="openAccountOrProfile()" aria-label="Mon compte"><i class="fa-regular fa-user"></i><span class="fb-notif-dot" id="notifDot" style="display:none">0</span></button>
+</div>
+</div>
+<nav class="lg-nav">
+<a href="#" onclick="event.preventDefault();go('category','jobs');return false;"><i class="fa-solid fa-briefcase"></i> Jobs</a>
+<a href="#" onclick="event.preventDefault();go('category','immobilier');return false;"><i class="fa-solid fa-house"></i> Immobilier</a>
+<a href="#" onclick="event.preventDefault();allerAuxCommerces();return false;"><i class="fa-solid fa-bag-shopping"></i> Commerces</a>
+<a href="#" onclick="event.preventDefault();go('category','autre');return false;"><i class="fa-solid fa-screwdriver-wrench"></i> Autres</a>
+</nav>
+<div class="categories-bar">
+<div class="categories-scroll">
+<button class="category-btn active" data-cat="jobs" onclick="filterCategory(this,'jobs')"><i class="fa-solid fa-briefcase"></i> Jobs</button>
+<button class="category-btn" data-cat="immobilier" onclick="filterCategory(this,'immobilier')"><i class="fa-solid fa-house"></i> Immobilier</button>
+<button class="category-btn" data-cat="commerces" onclick="filterCategory(this,'commerces')"><i class="fa-solid fa-bag-shopping"></i> Commerces</button>
+<button class="category-btn" data-cat="autre" onclick="filterCategory(this,'autre')"><i class="fa-solid fa-screwdriver-wrench"></i> Autres</button>
+<button class="category-btn" data-cat="comment" onclick="go('comment')"><i class="fa-solid fa-circle-question"></i></button>
+</div>
+</div>
+</header>
 <main>
-  <div class="bloc">
-    <h2>🎯 But</h2>
-    <p style="font-size:13px;color:#64748b">Utilise les boutons pour ajouter progressivement les éléments NeTubeX. Dès que l'ombre apparaît, tu sauras LEQUEL la cause.</p>
-  </div>
-
-  <div class="bloc">
-    <h2>1. Hero-badge avec backdrop-filter:blur(12px)</h2>
-    <button class="btn btn-primary" onclick="document.getElementById('heroBloc').style.display='block';showToast('Hero ajouté')">Ajouter le hero-badge</button>
-    <div id="heroBloc" style="display:none;margin-top:14px;text-align:center">
-      <div class="hero-badge"><span class="hero-badge-dot"></span><span class="hero-typewriter">Test typewriter</span></div>
-    </div>
-  </div>
-
-  <div class="bloc">
-    <h2>2. Commerce-promo (100vw + gradient)</h2>
-    <button class="btn btn-primary" onclick="document.getElementById('promoBloc').style.display='block';showToast('Promo ajoutée')">Ajouter commerce-promo</button>
-    <div id="promoBloc" style="display:none;margin-top:14px">
-      <div class="commerce-promo">
-        <h3>Supermarchés, Restaurants, Hôtels</h3>
-        <p>Explorez les catalogues en direct</p>
-      </div>
-    </div>
-  </div>
-
-  <div class="bloc">
-    <h2>3. Category hero (backdrop-filter)</h2>
-    <button class="btn btn-primary" onclick="document.getElementById('catBloc').style.display='block';showToast('Cat hero ajouté')">Ajouter category hero</button>
-    <div id="catBloc" style="display:none;margin-top:14px">
-      <div class="category-hero-custom">
-        <div class="category-badge-custom">🎓 Test Badge</div>
-        <span class="category-hero-stat">0 offres</span>
-        <span class="category-hero-stat">Vérifiées</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Faux contenu -->
-  <div class="bloc"><h2>Contenu 1</h2><p>Lorem ipsum dolor sit amet.</p></div>
-  <div class="bloc"><h2>Contenu 2</h2><p>Sed do eiusmod tempor.</p></div>
-  <div class="bloc"><h2>Contenu 3</h2><p>Ut enim ad minim veniam.</p></div>
-  <div class="bloc"><h2>Contenu 4</h2><p>Duis aute irure dolor.</p></div>
-  <div class="bloc"><h2>Contenu 5</h2><p>Excepteur sint occaecat.</p></div>
-</main>
-
-<footer>
-  <div class="copy">Test © 2026</div>
-  <a href="#">www.test.com</a>
+<div id="page-index" class="page active">
+<div class="home-hero">
+<div class="hero-badge"><span class="hero-badge-dot"></span><span>NeTubeX RDC · Plateforme locale</span></div>
+<h1 class="hero-title">Le système congolais de mise en relation directe</h1>
+<p class="hero-sub">Publiez, découvrez, commandez. Jobs, immobilier, commerces et services en RDC.</p>
+<div class="hero-actions">
+<a href="#" onclick="event.preventDefault();ouvrirInscriptionBoutique();return false;" class="hero-btn primary"><i class="fa-solid fa-store"></i> Ouvrir ma boutique</a>
+<a href="#" onclick="event.preventDefault();allerAuxCommerces();return false;" class="hero-btn secondary"><i class="fa-solid fa-bag-shopping"></i> Explorer les commerces</a>
+</div>
+</div>
+<div class="container-3d">
+<div class="fb-feed" id="mainFeed"></div>
+<div id="feedSentinel" style="height:1px"></div>
+</div>
+<footer class="app-footer">
+<div class="copy">NeTubeX © <span id="footerYear">2026</span></div>
+<a href="https://www.netubex.com" target="_blank" rel="noopener">www.netubex.com</a>
 </footer>
-
-<div id="toast" style="position:fixed;top:80px;left:50%;transform:translateX(-50%) translateY(-120%) scale(.95);background:#fff;color:#050505;padding:14px 24px;border-radius:12px;font-size:14px;font-weight:700;z-index:9999;transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .35s ease;opacity:0;pointer-events:none;border:1px solid #e4e6eb"><span id="toast-text">Test</span></div>
-
+</div>
+<div id="page-category" class="page">
+<div class="page-header-3d">
+<h1 class="page-title-3d" id="cat-title">Offres</h1>
+<p class="page-subtitle-3d" id="cat-desc">Découvrez les offres disponibles.</p>
+</div>
+<div class="container-3d">
+<div class="fb-feed" id="categoryFeed"></div>
+</div>
+<footer class="app-footer">
+<div class="copy">NeTubeX © <span class="footer-year">2026</span></div>
+<a href="https://www.netubex.com" target="_blank" rel="noopener">www.netubex.com</a>
+</footer>
+</div>
+<div id="page-commerces" class="page">
+<div class="page-header-3d">
+<h1 class="page-title-3d">Répertoire des Commerces</h1>
+<p class="page-subtitle-3d">Supermarchés, restaurants, hôtels, pharmacies, boutiques et plus.</p>
+</div>
+<div class="container-3d">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+<h2 style="font-size:18px;font-weight:900;color:var(--text-primary)">Établissements actifs</h2>
+<p style="font-size:12.5px;color:var(--text-muted)" id="commercesCount">0 établissement</p>
+</div>
+<div id="commercesGrid"></div>
+</div>
+<footer class="app-footer">
+<div class="copy">NeTubeX © <span class="footer-year">2026</span></div>
+<a href="https://www.netubex.com" target="_blank" rel="noopener">www.netubex.com</a>
+</footer>
+</div>
+<div id="page-catalogue" class="page">
+<div class="page-header-3d" id="catalogueHeader"></div>
+<div class="container-3d">
+<div class="fb-feed" id="catalogueFeed"></div>
+</div>
+<footer class="app-footer">
+<div class="copy">NeTubeX © <span class="footer-year">2026</span></div>
+<a href="https://www.netubex.com" target="_blank" rel="noopener">www.netubex.com</a>
+</footer>
+</div>
+<div id="page-detail" class="page">
+<div class="container-3d" id="detailContent"></div>
+<footer class="app-footer">
+<div class="copy">NeTubeX © <span class="footer-year">2026</span></div>
+<a href="https://www.netubex.com" target="_blank" rel="noopener">www.netubex.com</a>
+</footer>
+</div>
+<div id="page-comment" class="page">
+<div class="page-header-3d">
+<h1 class="page-title-3d">Comment ça marche ?</h1>
+<p class="page-subtitle-3d">Découvrez chaque espace en un coup d'œil.</p>
+</div>
+<div class="container-3d">
+<div class="section-card-3d" style="padding:24px;text-align:center">
+<div style="font-size:56px;margin-bottom:16px">💡</div>
+<h2 style="font-size:20px;font-weight:900;color:var(--text-primary);margin-bottom:12px">Simple et Direct</h2>
+<p style="font-size:14px;color:var(--text-secondary);line-height:1.75;max-width:640px;margin:0 auto">NeTubeX RDC met en relation vendeurs et acheteurs locaux, chercheurs d'emploi et recruteurs, commerçants et clients — partout en République Démocratique du Congo.</p>
+</div>
+</div>
+<footer class="app-footer">
+<div class="copy">NeTubeX © <span class="footer-year">2026</span></div>
+<a href="https://www.netubex.com" target="_blank" rel="noopener">www.netubex.com</a>
+</footer>
+</div>
+<div id="page-dashboard-utilisateur" class="page">
+<div class="container-3d">
+<div id="merchantHeroContainer"></div>
+<div id="merchantBoutiqueContainer"></div>
+<div class="dash-tabs-scroll">
+<button class="dash-tab active" data-tab="compte" onclick="switchDashTab(this,'compte')"><i class="fa-solid fa-user"></i> Mon compte</button>
+<button class="dash-tab" data-tab="boutique" onclick="switchDashTab(this,'boutique')" id="dashTabBoutique" style="display:none"><i class="fa-solid fa-store"></i> Ma boutique</button>
+</div>
+<div id="dashPanelCompte" class="dash-panel" style="display:block">
+<div class="section-card-3d" style="padding:14px;margin-bottom:10px">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;background:var(--bg-card-soft);border-radius:10px">
+<div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1">
+<div style="width:38px;height:38px;border-radius:10px;background:#25D366;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0"><i class="fa-brands fa-whatsapp"></i></div>
+<div style="min-width:0;flex:1">
+<div style="font-size:12.5px;font-weight:800;color:var(--text-primary)">Numéro WhatsApp</div>
+<div style="font-size:11px;color:var(--text-muted);margin-top:2px;word-break:break-all" id="profilPhoneDisplay">—</div>
+</div>
+</div>
+<button onclick="ouvrirChangerNumero()" class="btn-3d blue" style="padding:8px 12px;font-size:11px"><i class="fa-solid fa-pen"></i> Modifier</button>
+</div>
+</div>
+<div class="section-card-3d" style="padding:14px;margin-bottom:10px">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;background:var(--bg-card-soft);border-radius:10px">
+<div style="display:flex;align-items:center;gap:10px;flex:1">
+<div style="width:38px;height:38px;border-radius:10px;background:var(--ntx-blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0"><i class="fa-solid fa-moon" id="themeIconProfil"></i></div>
+<div style="flex:1">
+<div style="font-size:12.5px;font-weight:800;color:var(--text-primary)">Apparence</div>
+<div style="font-size:11px;color:var(--text-muted);margin-top:2px" id="themeLabelProfil">Mode clair</div>
+</div>
+</div>
+<button onclick="toggleThemeProfil()" id="themeToggleBtn" style="position:relative;width:52px;height:28px;border-radius:999px;background:#cbd5e1;border:none;cursor:pointer;padding:0;flex-shrink:0"><span id="themeToggleKnob" style="position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .3s;display:flex;align-items:center;justify-content:center;font-size:10px;color:#64748b"><i class="fa-solid fa-sun" id="themeKnobIcon"></i></span></button>
+</div>
+</div>
+<button onclick="doLogout()" class="btn-3d red" style="width:100%;padding:14px"><i class="fa-solid fa-right-from-bracket"></i> Se déconnecter</button>
+</div>
+<div id="dashPanelBoutique" class="dash-panel" style="display:none"></div>
+</div>
+<footer class="app-footer">
+<div class="copy">NeTubeX © <span class="footer-year">2026</span></div>
+<a href="https://www.netubex.com" target="_blank" rel="noopener">www.netubex.com</a>
+</footer>
+</div>
+</main>
+<button id="cartFloatingBtn" class="cart-floating-btn hidden" onclick="openCart()" aria-label="Panier"><span class="cart-icon-emoji">🛒</span><span class="cfb-badge" id="cartFloatBadge">0</span></button>
+<div id="cart-drawer" class="cart-drawer">
+<div class="cart-header">
+<div class="cart-header-row">
+<div class="cart-header-icon">🛒</div>
+<div class="cart-header-info">
+<div class="cart-header-title">Mon Panier</div>
+<div class="cart-header-sub" id="cartHeaderSub">—</div>
+</div>
+<button class="cart-close" onclick="closeCart()"><i class="fa-solid fa-xmark"></i></button>
+</div>
+</div>
+<div class="cart-info-bar"><i class="fa-solid fa-circle-info"></i><span id="cartInfoBarText">Vos articles</span></div>
+<div class="cart-body">
+<div class="cart-empty" id="cart-empty">
+<div class="cart-empty-icon">🛒</div>
+<h3>Votre panier est vide</h3>
+<p>Ajoutez des articles depuis le catalogue d'une boutique.</p>
+</div>
+<div class="cart-items" id="cart-items"></div>
+<div class="cart-total-row" style="margin-top:16px"><span>Total :</span><span id="cart-total">0 FC</span></div>
+<div class="cart-client-fields">
+<input type="text" id="client-nom" placeholder="Votre nom complet *">
+<div class="phone-field"><span class="phone-prefix">+243</span><input type="tel" id="client-tel" placeholder="8XX XXX XXX" maxlength="9" inputmode="numeric"></div>
+</div>
+<button onclick="submitOrder()" class="cart-whatsapp-btn"><i class="fa-brands fa-whatsapp"></i> Commander sur WhatsApp</button>
+</div>
+</div>
+<div id="cart-overlay" onclick="closeCart()" class="cart-overlay"></div>
+<div id="publishPendingOverlay" class="publish-pending-overlay" onclick="closePublishPending()"></div>
+<div id="publishPendingModal" class="publish-pending-modal">
+<div class="publish-pending-icon"><i class="fa-solid fa-hourglass-half"></i></div>
+<h2 class="publish-pending-title">Publication en vérification</h2>
+<p class="publish-pending-desc">Votre publication sera rendue publique après vérification.</p>
+<button class="publish-pending-close" onclick="closePublishPending()"><i class="fa-solid fa-check"></i> Compris</button>
+</div>
+<div id="deblocagePendingOverlay" class="deblocage-pending-overlay" onclick="closeDeblocagePending()"></div>
+<div id="deblocagePendingModal" class="deblocage-pending-modal">
+<div class="deblocage-pending-icon"><i class="fa-solid fa-hourglass-half"></i></div>
+<h2 class="deblocage-pending-title">Déblocage en vérification</h2>
+<p class="deblocage-pending-desc">Votre paiement a été enregistré. Les coordonnées seront débloquées après vérification.</p>
+<div style="display:flex;gap:10px;margin-top:8px">
+<button class="deblocage-pending-close secondary" onclick="closeDeblocagePending()"><i class="fa-solid fa-check"></i> Compris</button>
+<button class="deblocage-pending-close primary" onclick="closeDeblocagePending();go('dashboard-utilisateur')"><i class="fa-solid fa-user"></i> Mon profil</button>
+</div>
+</div>
+<div id="toast"><i class="fa-solid fa-circle-check"></i><span id="toast-text">Action effectuée</span></div>
+<div id="account-modal" class="modal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.6);z-index:500;align-items:flex-end;justify-content:center">
+<div style="background:var(--bg-card);border-radius:24px 24px 0 0;max-width:520px;width:100%;padding:24px;padding-bottom:max(24px,env(safe-area-inset-bottom));max-height:90vh;overflow-y:auto;position:relative">
+<button onclick="closeAccountModal()" style="position:absolute;top:12px;right:12px;width:42px;height:42px;border-radius:50%;background:#e41e3f;border:none;color:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;z-index:5"><i class="fa-solid fa-xmark"></i></button>
+<div style="text-align:center;margin-bottom:18px">
+<div style="width:64px;height:64px;border-radius:20px;background:var(--ntx-blue);display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;margin:0 auto 14px"><i class="fa-solid fa-user-plus"></i></div>
+<h3 style="font-size:18px;font-weight:900;color:var(--text-primary)">Créer votre compte</h3>
+<p id="account-modal-msg" style="font-size:12.5px;color:var(--text-muted);margin-top:6px">Vous devez créer un compte pour continuer.</p>
+</div>
+<div style="display:flex;gap:6px;margin-bottom:14px;background:var(--bg-card-soft);padding:5px;border-radius:10px">
+<button type="button" onclick="basculerModalAccueil('inscription',this)" id="tabInscription" style="flex:1;padding:10px;border-radius:8px;font-size:12.5px;font-weight:700;border:none;cursor:pointer;font-family:inherit;background:var(--ntx-blue);color:#fff">Créer un compte</button>
+<button type="button" onclick="basculerModalAccueil('connexion',this)" id="tabConnexion" style="flex:1;padding:10px;border-radius:8px;font-size:12.5px;font-weight:700;border:none;cursor:pointer;font-family:inherit;background:transparent;color:var(--text-secondary)">Se connecter</button>
+</div>
+<div id="accountModalInscription">
+<form onsubmit="event.preventDefault();submitAccountModal();" style="display:flex;flex-direction:column;gap:14px">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+<input type="text" id="accNom" required placeholder="Nom *" class="form-input-3d">
+<input type="text" id="accPrenom" required placeholder="Prénom *" class="form-input-3d">
+</div>
+<div style="display:flex;gap:6px;background:var(--bg-card-soft);padding:5px;border-radius:10px">
+<button type="button" id="sexeHomme" onclick="choisirSexe('homme')" style="flex:1;padding:11px;border-radius:8px;font-size:12.5px;font-weight:700;border:none;cursor:pointer;font-family:inherit;background:transparent;color:var(--text-secondary);text-transform:uppercase">Homme</button>
+<button type="button" id="sexeFemme" onclick="choisirSexe('femme')" style="flex:1;padding:11px;border-radius:8px;font-size:12.5px;font-weight:700;border:none;cursor:pointer;font-family:inherit;background:transparent;color:var(--text-secondary);text-transform:uppercase">Femme</button>
+</div>
+<input type="hidden" id="accSexe" value="">
+<div class="phone-field"><span class="phone-prefix">+243</span><input type="tel" id="accPhone" required placeholder="8XX XXX XXX" maxlength="9" inputmode="numeric"></div>
+<div>
+<div style="position:relative">
+<input type="password" id="accPassword" required placeholder="Mot de passe (min. 6 caractères)" minlength="6" class="form-input-3d" style="padding-right:46px">
+<button type="button" onclick="togglePasswordVisibility('accPassword',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:16px;padding:6px"><i class="fa-solid fa-eye"></i></button>
+</div>
+</div>
+<div>
+<div style="position:relative">
+<input type="password" id="accPasswordConfirm" required placeholder="Confirmer le mot de passe" minlength="6" class="form-input-3d" style="padding-right:46px">
+<button type="button" onclick="togglePasswordVisibility('accPasswordConfirm',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:16px;padding:6px"><i class="fa-solid fa-eye"></i></button>
+</div>
+</div>
+<button type="submit" class="btn-3d blue" style="width:100%;padding:16px"><i class="fa-solid fa-check"></i> Créer mon compte</button>
+</form>
+</div>
+<div id="accountModalConnexion" style="display:none">
+<form onsubmit="event.preventDefault();submitAccountLogin();" style="display:flex;flex-direction:column;gap:14px">
+<div class="phone-field"><span class="phone-prefix">+243</span><input type="tel" id="accLoginPhone" required placeholder="8XX XXX XXX" maxlength="9" inputmode="numeric"></div>
+<div style="position:relative">
+<input type="password" id="accLoginCode" required placeholder="Votre mot de passe" class="form-input-3d" style="padding-right:46px">
+<button type="button" onclick="togglePasswordVisibility('accLoginCode',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:16px;padding:6px"><i class="fa-solid fa-eye"></i></button>
+</div>
+<button type="submit" class="btn-3d green" style="width:100%;padding:16px"><i class="fa-solid fa-arrow-right-to-bracket"></i> Se connecter</button>
+</form>
+</div>
+</div>
+</div>
+<div id="changePhoneModal" class="modal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.6);z-index:500;align-items:flex-end;justify-content:center">
+<div style="background:var(--bg-card);border-radius:24px 24px 0 0;max-width:520px;width:100%;padding:24px;padding-bottom:max(24px,env(safe-area-inset-bottom));position:relative">
+<button onclick="fermerChangerNumero()" style="position:absolute;top:12px;right:12px;width:42px;height:42px;border-radius:50%;background:#e41e3f;border:none;color:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center"><i class="fa-solid fa-xmark"></i></button>
+<div style="text-align:center;margin-bottom:18px"><h3 style="font-size:18px;font-weight:900;color:var(--text-primary)">Changer mon numéro</h3></div>
+<form onsubmit="event.preventDefault();validerChangerNumero();" style="display:flex;flex-direction:column;gap:14px">
+<div class="phone-field"><span class="phone-prefix">+243</span><input type="tel" id="newPhoneInput" required placeholder="8XX XXX XXX" maxlength="9" inputmode="numeric"></div>
+<div class="phone-field"><span class="phone-prefix">+243</span><input type="tel" id="confirmPhoneInput" required placeholder="Confirmer" maxlength="9" inputmode="numeric"></div>
+<button type="submit" class="btn-3d green" style="width:100%;padding:16px"><i class="fa-solid fa-check"></i> Enregistrer</button>
+</form>
+</div>
+</div>
+<div id="logoutConfirmModal" class="modal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.6);z-index:600;align-items:center;justify-content:center;padding:20px">
+<div style="background:var(--bg-card);border-radius:16px;max-width:380px;width:100%;padding:24px;text-align:center">
+<div style="width:64px;height:64px;border-radius:50%;background:#e41e3f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 16px"><i class="fa-solid fa-right-from-bracket"></i></div>
+<h3 style="font-size:17px;font-weight:900;color:var(--text-primary);margin-bottom:8px">Se déconnecter ?</h3>
+<p style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-bottom:20px">Vous devrez ressaisir votre numéro et mot de passe pour vous reconnecter.</p>
+<div style="display:flex;gap:10px">
+<button onclick="fermerConfirmLogout()" class="btn-3d gray" style="flex:1;padding:13px;justify-content:center"><i class="fa-solid fa-xmark"></i> Annuler</button>
+<button onclick="confirmerLogout()" class="btn-3d red" style="flex:1;padding:13px;justify-content:center"><i class="fa-solid fa-check"></i> Déconnecter</button>
+</div>
+</div>
+</div>
 <script>
+var _navFromPopstate=false;
+var cart=[];var CURRENT_COMMERCE=null;var CURRENT_ACCOUNT=null;var CURRENT_OFFRE=null;var CURRENT_CATEGORY=null;
+var COMMERCES_DATA=[];var ANNONCES_DATA=[];
+var DEBLOCAGES_MEMORY=[];var DEBLOCAGES_LAST_FETCH=0;var DEBLOCAGES_DIRTY=true;var DEBLOCAGES_FETCH_COOLDOWN=15000;
+var currentTab='index';
+var _paiementValide=false;var _deblocageValide=false;
+var CATALOGUE_PRODUITS=[];
+var ORDER_TYPE='retrait';var CURRENT_ORDER_CODE=null;
+var _nextFeedOrder=null;var _feedInitialise=false;var _dernierFeedHash='';var feedPage=0;var FEED_PER_PAGE=5;var _feedObserver=null;
+var DEBLOCAGE_DUREE_MS=12*60*60*1000;
+var _globalFrozen=false;
+(async function chargerCompteIDB(){try{await window.migrerDepuisLocalStorage();CURRENT_ACCOUNT=await window.getStored(window.STORES.account,'current',null);}catch(e){}})();
+function haptic(ms){if(navigator.vibrate)navigator.vibrate(ms||15);}
 var toastTimer=null;
-function showToast(msg){
-  var t=document.getElementById('toast');
-  document.getElementById('toast-text').textContent=msg;
-  t.style.transform='translateX(-50%) translateY(0) scale(1)';
-  t.style.opacity='1';
-  clearTimeout(toastTimer);
-  toastTimer=setTimeout(function(){
-    t.style.transform='translateX(-50%) translateY(-120%) scale(.95)';
-    t.style.opacity='0';
-  },2000);
+function showToast(msg){var t=document.getElementById('toast');var txt=document.getElementById('toast-text');if(!t||!txt)return;if(msg&&msg.length>45)msg=msg.substring(0,42)+'...';txt.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.classList.remove('show');},3500);}
+function esc(s){if(!s)return'';return String(s).replace(/[&<>"']/g,function(m){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];});}
+function tempsRelatif(ds){if(!ds)return'Récemment';try{var d=new Date(ds);var diff=Date.now()-d.getTime();if(diff<0)return'À l\'instant';var s=Math.floor(diff/1000),m=Math.floor(s/60),h=Math.floor(m/60),j=Math.floor(h/24);if(s<30)return'À l\'instant';if(s<60)return'Il y a '+s+'s';if(m<60)return'Il y a '+m+' min';if(h<24)return'Il y a '+h+'h';if(j<7)return'Il y a '+j+' jour'+(j>1?'s':'');return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});}catch(e){return'Récemment';}}
+function getTodayKey(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function estLogementAReserver(o){if(!o)return false;var c=String(o.cat||'').toLowerCase();if(c==='parcelle')return false;if(c==='logement'||c==='location'||c==='immobilier')return true;return false;}
+function estParcelle(o){if(!o)return false;return String(o.cat||'').toLowerCase()==='parcelle';}
+function estImmobilier(o){if(!o)return false;var c=String(o.cat||'').toLowerCase();return c==='immobilier'||c==='location'||c==='logement'||c==='parcelle';}
+function trouverDeblocagePourAnnonce(aId){if(!aId)return null;if(!DEBLOCAGES_MEMORY||DEBLOCAGES_MEMORY.length===0)return null;return DEBLOCAGES_MEMORY.find(function(d){if(d.annonceId!==aId)return false;if(d.statut!=='debloque')return false;if(!d.dateValidation||!d.coordonnees||!d.coordonnees.telephone)return false;var v=new Date(d.dateValidation).getTime();if(isNaN(v))return false;if((Date.now()-v)>=DEBLOCAGE_DUREE_MS)return false;return true;})||null;}
+function isLoggedIn(){return CURRENT_ACCOUNT!==null;}
+function requireLogin(a,cb){if(isLoggedIn()){if(cb)cb();return true;}showAccountModal('Vous devez créer votre compte pour continuer.',cb);return false;}
+function go(page,param){
+  var pp=['index','commerces','category','comment'];
+  if(pp.indexOf(page)===-1&&!CURRENT_ACCOUNT){requireLogin('accéder',function(){go(page,param);});return;}
+  haptic();currentTab=page;
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  var el=document.getElementById('page-'+page);
+  if(el)el.classList.add('active');
+  window.scrollTo(0,0);
+  var hb=document.getElementById('headerBackBtn');
+  if(hb){if(page==='index')hb.classList.remove('is-back');else hb.classList.add('is-back');}
+  if(page==='index')renderFeed();
+  if(page==='category'){CURRENT_CATEGORY=param||'jobs';renderCategoryFeed(param||'jobs');updateCategoryHeader(param||'jobs');}
+  if(page==='commerces')renderCommercesGrid();
+  if(page==='dashboard-utilisateur'){renderMerchantDashboard();appliquerThemeProfilUI();var pd=document.getElementById('profilPhoneDisplay');if(pd)pd.textContent=CURRENT_ACCOUNT?(CURRENT_ACCOUNT.phone||'—'):'—';}
+  if(page!=='category')CURRENT_CATEGORY=null;
 }
+function headerBackAction(){haptic(15);go('index');}
+function updateCategoryHeader(cat){
+  var t=document.getElementById('cat-title');var d=document.getElementById('cat-desc');
+  var map={jobs:{t:'Offres d\'emploi',d:'Découvrez les meilleures opportunités professionnelles en RDC.'},immobilier:{t:'Logements & Parcelles',d:'Trouvez votre prochain chez-vous.'},autre:{t:'Services & Artisans',d:'Faites appel aux meilleurs artisans.'}};
+  var m=map[cat]||map.jobs;if(t)t.textContent=m.t;if(d)d.textContent=m.d;
+}
+function getAvatarHTML(o,size){size=size||48;var src=null;if(o.avatar)src=o.avatar;else if(o.img)src=o.img;if(src){return'<div style="width:'+size+'px;height:'+size+'px;position:relative;flex-shrink:0"><img src="'+src+'" class="fb-post-avatar-img" style="width:'+size+'px;height:'+size+'px" loading="lazy" onerror="this.style.display=\'none\'"><div class="fb-post-avatar" style="width:'+size+'px;height:'+size+'px;position:absolute;top:0;left:0;display:none">'+((o.initials||'??'))+'</div></div>';}return'<div class="fb-post-avatar" style="width:'+size+'px;height:'+size+'px">'+(o.initials||'??')+'</div>';}
+function getVerifiedBadgeHTML(o){if(!o)return'';var e=o.isCommerce||o.publieurType==='commerce'||o.cat==='entreprise'||o.cat==='hopital';if(e)return' <span class="verified-badge"><i class="fa-solid fa-check"></i></span>';return'';}
+function renderOffreCard(p){
+  var actionBtn='';
+  if(p.unlock){
+    var dv=p.annonceId&&trouverDeblocagePourAnnonce(p.annonceId);
+    if(dv){actionBtn='<button class="fb-action-btn" style="background:#d1fae5;color:#065f46"><i class="fa-solid fa-circle-check"></i> Débloqué</button>';}
+    else{actionBtn='<button class="fb-action-btn fb-action-primary" onclick="event.stopPropagation();haptic();openDetail('+JSON.stringify(p).replace(/'/g,"&#39;")+')"><i class="fa-solid fa-lock"></i> Débloquer</button>';}
+  }
+  var media='';
+  if(p.img)media='<div class="fb-post-media"><img src="'+p.img+'" alt="" loading="lazy"></div>';
+  var ta=p.dateCreation?tempsRelatif(p.dateCreation):'Récemment';
+  return '<article class="fb-post" onclick=\'openDetail('+JSON.stringify(p).replace(/'/g,"&#39;")+')\'><div class="fb-post-head">'+getAvatarHTML(p,48)+'<div style="min-width:0;overflow:hidden"><div class="fb-post-name">'+esc(p.name||'Utilisateur')+getVerifiedBadgeHTML(p)+'</div><div class="fb-post-sub">'+esc(p.location||'RDC')+' · '+ta+'</div></div><span class="feed-badge">'+esc(p.tag||'ANNONCE')+'</span></div><div class="fb-post-body"><h3 class="fb-post-title">'+esc(p.title||'')+'</h3><p class="fb-post-desc">'+esc(p.desc||'')+'</p>'+(p.price?'<div class="fb-post-price" style="background:var(--ntx-blue-light);color:var(--ntx-blue)">'+esc(p.price)+'</div>':'')+'<div class="fb-post-views"><i class="fa-solid fa-hand-pointer"></i> '+(p.vues||0)+' clic'+((p.vues||0)===1?'':'s')+'</div></div>'+media+'<div class="fb-post-actions"><button class="fb-action-btn" onclick="event.stopPropagation()"><i class="fa-solid fa-share-nodes"></i> Partager</button>'+actionBtn+'</div></article>';
+}
+function renderFeed(){
+  var feed=document.getElementById('mainFeed');if(!feed)return;
+  if(!_nextFeedOrder)_nextFeedOrder=ANNONCES_DATA.slice();
+  feed.innerHTML='';
+  if(!ANNONCES_DATA||ANNONCES_DATA.length===0){feed.innerHTML='<div style="text-align:center;padding:60px 20px;background:var(--bg-card);border:1px solid var(--border-primary);border-radius:14px"><div style="font-size:48px;opacity:.35;margin-bottom:14px">📭</div><h3 style="font-size:15px;font-weight:800">Aucun contenu</h3></div>';return;}
+  feed.innerHTML=ANNONCES_DATA.map(renderOffreCard).join('');
+}
+function renderCategoryFeed(cat){
+  var f=document.getElementById('categoryFeed');if(!f)return;
+  var r;
+  if(cat==='jobs')r=ANNONCES_DATA.filter(function(p){return p.cat==='ecole'||p.cat==='entreprise'||p.cat==='jobs';});
+  else if(cat==='immobilier')r=ANNONCES_DATA.filter(function(p){return p.cat==='logement'||p.cat==='parcelle'||p.cat==='immobilier'||p.cat==='location';});
+  else r=ANNONCES_DATA.filter(function(p){return p.cat===cat;});
+  if(r.length===0){f.innerHTML='<div style="text-align:center;padding:60px 20px;background:var(--bg-card);border:1px solid var(--border-primary);border-radius:14px"><div style="font-size:48px;opacity:.35;margin-bottom:14px">📭</div><h3 style="font-size:15px;font-weight:800">Aucune annonce</h3></div>';return;}
+  f.innerHTML=r.map(renderOffreCard).join('');
+}
+function filterCategory(el,cat){
+  if(!CURRENT_ACCOUNT){requireLogin('filtres',function(){filterCategory(el,cat);});return;}
+  haptic();
+  document.querySelectorAll('.category-btn').forEach(function(b){b.classList.remove('active');});
+  el.classList.add('active');
+  if(cat==='commerces'){allerAuxCommerces();return;}
+  go('category',cat);
+}
+function renderCommercesGrid(){
+  var g=document.getElementById('commercesGrid');if(!g)return;
+  if(!COMMERCES_DATA||COMMERCES_DATA.length===0){g.innerHTML='<div style="text-align:center;padding:60px 20px;background:var(--bg-card);border:1px solid var(--border-primary);border-radius:14px"><div style="font-size:48px;opacity:.35;margin-bottom:14px">🏪</div><h3 style="font-size:15px;font-weight:800">Aucun commerce disponible</h3></div>';return;}
+  g.innerHTML=COMMERCES_DATA.map(function(c){
+    var fb='https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80';
+    var img=c.img||fb;
+    return '<article class="commerce-card" onclick="openCatalogue(\''+c.id+'\')"><div class="commerce-card-image"><img src="'+img+'" alt="" loading="lazy" onerror="this.src=\''+fb+'\'"><span class="commerce-card-type-badge">'+esc(c.type||'')+'</span></div><div class="commerce-card-body"><h3 class="commerce-card-title">'+esc(c.nom||'')+'</h3><div class="commerce-card-location"><i class="fa-solid fa-location-dot"></i> '+esc((c.ville||'RDC')+(c.quartier?' · '+c.quartier:''))+'</div><p class="commerce-card-desc">'+esc(c.description||'')+'</p></div><div class="commerce-card-footer"><span class="commerce-card-hours"><i class="fa-regular fa-clock"></i> '+esc(c.horaires||'Ouvert')+'</span><button class="commerce-card-btn">Catalogue <i class="fa-solid fa-arrow-right"></i></button></div></article>';
+  }).join('');
+  var cnt=document.getElementById('commercesCount');if(cnt)cnt.textContent=COMMERCES_DATA.length+' établissement'+(COMMERCES_DATA.length>1?'s':'');
+}
+function allerAuxCommerces(){haptic(20);if(!CURRENT_ACCOUNT){showAccountModal('Inscrivez-vous pour explorer les commerces.',function(){go('commerces');});return;}go('commerces');}
+function openCatalogue(id){
+  if(!CURRENT_ACCOUNT){requireLogin('catalogue',function(){openCatalogue(id);});return;}
+  haptic(20);
+  var c=COMMERCES_DATA.find(function(x){return x.id===id;});
+  if(!c){showToast('Introuvable');return;}
+  CURRENT_COMMERCE=c;cart=[];updateCart();renderCatalogue(c);go('catalogue');
+}
+function renderCatalogue(c){
+  var h=document.getElementById('catalogueHeader');var f=document.getElementById('catalogueFeed');
+  if(h){h.innerHTML='<h1 class="page-title-3d">'+esc(c.nom||'Boutique')+'</h1><p class="page-subtitle-3d">'+esc((c.ville||'RDC')+(c.quartier?' · '+c.quartier:''))+' · '+esc(c.type||'')+'</p>';}
+  if(!f)return;
+  CATALOGUE_PRODUITS=Array.isArray(c.produits)?c.produits:[];
+  if(CATALOGUE_PRODUITS.length===0){f.innerHTML='<div style="text-align:center;padding:60px 20px;background:var(--bg-card);border:1px solid var(--border-primary);border-radius:14px"><div style="font-size:48px;opacity:.35;margin-bottom:14px">📦</div><h3 style="font-size:15px;font-weight:800">Aucun article</h3></div>';return;}
+  f.innerHTML=CATALOGUE_PRODUITS.map(function(p){
+    var img=p.img?'<div class="fb-post-media"><img src="'+esc(p.img)+'" alt="" loading="lazy"></div>':'';
+    var nm=String(p.nom||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    return '<article class="fb-post"><div class="fb-post-body"><h3 class="fb-post-title">'+esc(p.nom||'')+'</h3><div class="fb-post-price" style="background:var(--ntx-orange-light);color:var(--ntx-orange)">'+(p.prix||0).toLocaleString('fr-FR')+' FC'+(p.prixLabel?' '+esc(p.prixLabel):'')+'</div></div>'+img+'<div class="fb-post-actions"><button class="fb-action-btn fb-action-primary" onclick="addToCart(\''+nm+'\','+(p.prix||0)+')"><i class="fa-solid fa-cart-shopping"></i> Ajouter</button></div></article>';
+  }).join('');
+}
+function openDetail(o){
+  if(!CURRENT_ACCOUNT){requireLogin('détails',function(){openDetail(o);});return;}
+  CURRENT_OFFRE=o;haptic();renderDetail(o);go('detail');
+}
+function renderDetail(o){
+  var c=document.getElementById('detailContent');if(!c)return;
+  var img=o.img?'<img src="'+o.img+'" alt="" style="width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:14px;margin-bottom:14px">':'';
+  var dv=o.annonceId&&trouverDeblocagePourAnnonce(o.annonceId);
+  var coords=dv&&dv.coordonnees?dv.coordonnees:null;
+  var contact='';
+  if(coords){
+    contact='<div class="section-card-3d" style="padding:16px;margin-top:14px"><h3 style="font-size:12px;font-weight:900;color:var(--text-secondary);text-transform:uppercase;margin-bottom:10px">Coordonnées</h3><div style="display:flex;flex-direction:column;gap:8px"><div style="font-size:14px;font-weight:800;color:var(--text-primary)">'+esc(coords.nom||'')+'</div><div style="font-size:13px;color:var(--text-secondary)"><i class="fa-solid fa-location-dot"></i> '+esc(coords.adresse||'—')+'</div><div style="font-size:14px;font-weight:800;color:var(--ntx-blue);font-family:monospace"><i class="fa-solid fa-phone"></i> '+esc(coords.telephone||'—')+'</div></div></div>';
+  }else if(o.unlock){
+    contact='<button class="btn-3d green" style="width:100%;padding:16px;margin-top:14px" onclick="openUnlock()"><i class="fa-solid fa-key"></i> Débloquer les coordonnées</button>';
+  }
+  c.innerHTML=img+'<div class="section-card-3d" style="padding:16px"><h1 style="font-size:20px;font-weight:900;color:var(--text-primary);line-height:1.3;margin-bottom:10px">'+esc(o.title||'')+'</h1><div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">'+esc(o.location||'')+' · '+tempsRelatif(o.dateCreation)+'</div>'+(o.price?'<div class="fb-post-price" style="background:var(--ntx-blue-light);color:var(--ntx-blue);font-size:15px">'+esc(o.price)+'</div>':'')+'</div><div class="section-card-3d" style="padding:16px;margin-top:14px"><h3 style="font-size:12px;font-weight:900;color:var(--text-secondary);text-transform:uppercase;margin-bottom:10px">Description</h3><div style="font-size:14px;color:var(--text-secondary);line-height:1.7;white-space:pre-line">'+esc(o.desc||'—')+'</div></div>'+contact;
+}
+function openUnlock(){
+  haptic(20);
+  if(!CURRENT_OFFRE)return;
+  var isImmo=estImmobilier(CURRENT_OFFRE);
+  var f=isImmo?5000:400;
+  showToast('Déblocage '+f.toLocaleString('fr-FR')+' FC — envoyez au +243 976 953 045');
+}
+function updateCart(){
+  var it=document.getElementById('cart-items');var em=document.getElementById('cart-empty');var total=document.getElementById('cart-total');
+  var badge=document.getElementById('cartFloatBadge');var btn=document.getElementById('cartFloatingBtn');
+  var c=cart.reduce(function(s,i){return s+i.qty;},0);
+  if(badge)badge.textContent=c;
+  if(btn){if(c>0&&CURRENT_ACCOUNT)btn.classList.remove('hidden');else btn.classList.add('hidden');}
+  if(!it)return;
+  if(c===0){if(em)em.style.display='flex';it.innerHTML='';if(total)total.textContent='0 FC';return;}
+  if(em)em.style.display='none';
+  it.innerHTML=cart.map(function(i,idx){return'<div class="cart-item"><div class="cart-item-thumb">📦</div><div class="cart-item-main"><div class="cart-item-name">'+esc(i.name)+'</div><div class="cart-item-price-line">P.U. <strong>'+i.price.toLocaleString('fr-FR')+' FC</strong></div><div class="cart-item-actions"><div class="cart-qty-control"><button class="cart-qty-btn" onclick="changeQty('+idx+',-1)">−</button><span class="cart-qty-value">'+i.qty+'</span><button class="cart-qty-btn" onclick="changeQty('+idx+',1)">+</button></div><div class="cart-item-subtotal">'+(i.price*i.qty).toLocaleString('fr-FR')+' FC</div></div></div><button class="cart-item-remove" onclick="removeItem('+idx+')"><i class="fa-solid fa-xmark"></i></button></div>';}).join('');
+  var tot=cart.reduce(function(s,i){return s+i.price*i.qty;},0);
+  if(total)total.textContent=tot.toLocaleString('fr-FR')+' FC';
+}
+function addToCart(n,p){haptic(30);var e=cart.find(function(i){return i.name===n;});if(e)e.qty++;else cart.push({name:n,price:p,qty:1});updateCart();showToast('Article ajouté');openCart();}
+function changeQty(i,d){cart[i].qty+=d;if(cart[i].qty<=0)cart.splice(i,1);updateCart();}
+function removeItem(i){cart.splice(i,1);updateCart();}
+function openCart(){if(!CURRENT_ACCOUNT){requireLogin('panier',function(){openCart();});return;}document.getElementById('cart-drawer').classList.add('active');document.getElementById('cart-overlay').classList.add('active');}
+function closeCart(){document.getElementById('cart-drawer').classList.remove('active');document.getElementById('cart-overlay').classList.remove('active');}
+function submitOrder(){
+  if(cart.length===0){showToast('Panier vide');return;}
+  var n=(document.getElementById('client-nom')||{}).value||'';
+  var t=(document.getElementById('client-tel')||{}).value||'';
+  if(!n||!t){showToast('Remplissez nom et téléphone');return;}
+  var wc='243857525821';
+  if(CURRENT_COMMERCE&&(CURRENT_COMMERCE.whatsapp||CURRENT_COMMERCE.telephone))wc=(CURRENT_COMMERCE.whatsapp||CURRENT_COMMERCE.telephone).replace(/[^\d]/g,'');
+  var msg='🛒 Nouvelle commande NeTubeX\n\nClient : '+n+'\nTél : +243'+t+'\n\n';
+  cart.forEach(function(i){msg+='• '+i.name+' x'+i.qty+' = '+(i.price*i.qty).toLocaleString('fr-FR')+' FC\n';});
+  var tot=cart.reduce(function(s,i){return s+i.price*i.qty;},0);
+  msg+='\nTOTAL : '+tot.toLocaleString('fr-FR')+' FC';
+  window.open('https://wa.me/'+wc+'?text='+encodeURIComponent(msg),'_blank');
+  closeCart();cart=[];updateCart();
+}
+function showAccountModal(msg,cb){
+  var modal=document.getElementById('account-modal');
+  window._pendingCallback=cb||null;
+  var m=document.getElementById('account-modal-msg');if(m)m.textContent=msg||'Continuez';
+  modal.style.display='flex';setTimeout(function(){modal.classList.add('active');},10);
+}
+function closeAccountModal(){var m=document.getElementById('account-modal');m.classList.remove('active');setTimeout(function(){m.style.display='none';},200);}
+function basculerModalAccueil(mode,btn){
+  var ti=document.getElementById('tabInscription');var tc=document.getElementById('tabConnexion');
+  var bi=document.getElementById('accountModalInscription');var bc=document.getElementById('accountModalConnexion');
+  if(mode==='inscription'){ti.style.background='var(--ntx-blue)';ti.style.color='#fff';tc.style.background='transparent';tc.style.color='var(--text-secondary)';bi.style.display='block';bc.style.display='none';}
+  else{tc.style.background='var(--ntx-blue)';tc.style.color='#fff';ti.style.background='transparent';ti.style.color='var(--text-secondary)';bc.style.display='block';bi.style.display='none';}
+}
+function choisirSexe(s){var h=document.getElementById('accSexe');if(h)h.value=s;var bh=document.getElementById('sexeHomme');var bf=document.getElementById('sexeFemme');if(s==='homme'){if(bh){bh.style.background='var(--ntx-blue)';bh.style.color='#fff';}if(bf){bf.style.background='transparent';bf.style.color='var(--text-secondary)';}}else{if(bf){bf.style.background='var(--ntx-blue)';bf.style.color='#fff';}if(bh){bh.style.background='transparent';bh.style.color='var(--text-secondary)';}}}
+function togglePasswordVisibility(id,btn){var inp=document.getElementById(id);if(!inp)return;if(inp.type==='password'){inp.type='text';btn.innerHTML='<i class="fa-solid fa-eye-slash"></i>';}else{inp.type='password';btn.innerHTML='<i class="fa-solid fa-eye"></i>';}}
+async function submitAccountModal(){
+  var nom=(document.getElementById('accNom')||{}).value||'';
+  var prenom=(document.getElementById('accPrenom')||{}).value||'';
+  var sexe=(document.getElementById('accSexe')||{}).value||'';
+  var phone=(document.getElementById('accPhone')||{}).value||'';
+  var pwd=(document.getElementById('accPassword')||{}).value||'';
+  var pwd2=(document.getElementById('accPasswordConfirm')||{}).value||'';
+  if(!nom||!prenom||!phone||!pwd||!pwd2){showToast('Remplissez tous les champs');return;}
+  if(!sexe){showToast('Choisissez votre sexe');return;}
+  if(pwd.length<6){showToast('Mot de passe min. 6 caractères');return;}
+  if(pwd!==pwd2){showToast('Mots de passe différents');return;}
+  var digits=phone.replace(/[^\d]/g,'').slice(-9);
+  if(digits.length!==9){showToast('Numéro invalide');return;}
+  var fullPhone='+243'+digits;
+  var nc=nom+' '+prenom;
+  var nse=(nc||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
+  var ef=nse+digits+'@gmail.com';
+  try{
+    var r=await window.createUser({nom:nom,prenom:prenom,nomComplet:nc,sexe:sexe,phone:fullPhone,email:ef,password:pwd,ville:''});
+    CURRENT_ACCOUNT={id:r.uid,nom:nom,prenom:prenom,nomComplet:nc,name:nc,sexe:sexe,phone:fullPhone,code:pwd,emailAuth:ef,dateCreation:new Date().toISOString(),boutique:null,parrainage:{code:r.codeParrainage,count:0,palier:0,joursRestants:0}};
+    await window.setStored(window.STORES.account,'current',CURRENT_ACCOUNT);
+    closeAccountModal();showToast('Compte créé');
+    var cb=window._pendingCallback;window._pendingCallback=null;if(cb)setTimeout(cb,300);
+  }catch(e){showToast('Erreur : '+(e.message||''));}
+}
+async function submitAccountLogin(){
+  var phone=(document.getElementById('accLoginPhone')||{}).value||'';
+  var pwd=(document.getElementById('accLoginCode')||{}).value||'';
+  if(!phone||!pwd){showToast('Remplissez tous les champs');return;}
+  var digits=phone.replace(/[^\d]/g,'').slice(-9);
+  if(digits.length!==9){showToast('Numéro invalide');return;}
+  var full='+243'+digits;
+  try{
+    var u=await window.loginByPhoneCode(full,pwd);
+    if(u&&u.error==='compte_desactive'){showToast('Compte désactivé');return;}
+    if(u){CURRENT_ACCOUNT=u;await window.setStored(window.STORES.account,'current',u);closeAccountModal();showToast('Connecté');var cb=window._pendingCallback;window._pendingCallback=null;if(cb)setTimeout(cb,300);}
+    else{showToast('Numéro ou mot de passe incorrect');}
+  }catch(e){showToast('Erreur');}
+}
+function openAccountOrProfile(){haptic(20);if(CURRENT_ACCOUNT)go('dashboard-utilisateur');else showAccountModal('Connectez-vous ou créez un compte.',function(){go('dashboard-utilisateur');});}
+function doLogout(){var m=document.getElementById('logoutConfirmModal');if(m)m.style.display='flex';}
+function fermerConfirmLogout(){var m=document.getElementById('logoutConfirmModal');if(m)m.style.display='none';}
+async function confirmerLogout(){
+  fermerConfirmLogout();
+  if(window.logoutUser)try{await window.logoutUser();}catch(e){}
+  CURRENT_ACCOUNT=null;cart=[];
+  try{await window.idbDelete(window.STORES.account,'current');}catch(e){}
+  showToast('Déconnecté');go('index');
+}
+function appliquerThemeProfilUI(){
+  var iD=document.body.classList.contains('dark-mode');
+  var l=document.getElementById('themeLabelProfil');var i=document.getElementById('themeIconProfil');
+  var k=document.getElementById('themeToggleKnob');var ki=document.getElementById('themeKnobIcon');var b=document.getElementById('themeToggleBtn');
+  if(l)l.textContent=iD?'Mode sombre':'Mode clair';
+  if(i)i.className=iD?'fa-solid fa-sun':'fa-solid fa-moon';
+  if(ki)ki.className=iD?'fa-solid fa-moon':'fa-solid fa-sun';
+  if(k)k.style.transform=iD?'translateX(24px)':'translateX(0)';
+  if(b)b.style.background=iD?'#2563eb':'#cbd5e1';
+}
+function toggleThemeProfil(){
+  haptic(20);
+  var iD=document.body.classList.contains('dark-mode');
+  if(iD){document.body.classList.remove('dark-mode');document.documentElement.classList.remove('dark-mode');try{localStorage.setItem('ntx_theme','light');}catch(e){}}
+  else{document.body.classList.add('dark-mode');document.documentElement.classList.add('dark-mode');try{localStorage.setItem('ntx_theme','dark');}catch(e){}}
+  appliquerThemeProfilUI();
+}
+(function(){try{var t=localStorage.getItem('ntx_theme');if(t==='dark'){document.body.classList.add('dark-mode');document.documentElement.classList.add('dark-mode');}appliquerThemeProfilUI();}catch(e){}})();
+function ouvrirChangerNumero(){var m=document.getElementById('changePhoneModal');m.classList.add('active');}
+function fermerChangerNumero(){var m=document.getElementById('changePhoneModal');m.classList.remove('active');}
+async function validerChangerNumero(){
+  var np=(document.getElementById('newPhoneInput')||{}).value||'';
+  var cp=(document.getElementById('confirmPhoneInput')||{}).value||'';
+  var n1=np.replace(/[^\d]/g,'').slice(-9);var n2=cp.replace(/[^\d]/g,'').slice(-9);
+  if(n1!==n2){showToast('Numéros différents');return;}
+  if(n1.length!==9){showToast('Numéro invalide');return;}
+  if(!CURRENT_ACCOUNT)return;
+  try{await window.updatePhone(CURRENT_ACCOUNT.id,'+243'+n1);CURRENT_ACCOUNT.phone='+243'+n1;await window.setStored(window.STORES.account,'current',CURRENT_ACCOUNT);var pd=document.getElementById('profilPhoneDisplay');if(pd)pd.textContent='+243'+n1;fermerChangerNumero();showToast('Numéro modifié');}catch(e){showToast('Erreur');}
+}
+function renderMerchantDashboard(){
+  var hero=document.getElementById('merchantHeroContainer');
+  var tabB=document.getElementById('dashTabBoutique');
+  if(!CURRENT_ACCOUNT){if(hero)hero.innerHTML='';if(tabB)tabB.style.display='none';return;}
+  var nom=CURRENT_ACCOUNT.name||CURRENT_ACCOUNT.nomComplet||'Utilisateur';
+  if(hero)hero.innerHTML='<div class="merchant-hero"><div class="merchant-hero-content"><div class="merchant-avatar">'+nom.substring(0,2).toUpperCase()+'</div><div class="merchant-info"><div class="merchant-title">'+esc(nom)+'</div><div class="merchant-sub">'+esc(CURRENT_ACCOUNT.phone||'')+'</div></div></div><div class="merchant-stats-grid"><div class="merchant-stat"><div class="merchant-stat-value">0</div><div class="merchant-stat-label">Annonces</div></div><div class="merchant-stat"><div class="merchant-stat-value">0</div><div class="merchant-stat-label">Boutique</div></div><div class="merchant-stat"><div class="merchant-stat-value">0</div><div class="merchant-stat-label">Clics</div></div></div></div>';
+  if(tabB)tabB.style.display='none';
+}
+function switchDashTab(el,t){haptic();document.querySelectorAll('.dash-tab').forEach(function(x){x.classList.remove('active');});el.classList.add('active');document.querySelectorAll('.dash-panel').forEach(function(p){p.style.display='none';});var p=document.getElementById(t==='boutique'?'dashPanelBoutique':'dashPanelCompte');if(p)p.style.display='block';}
+function ouvrirInscriptionBoutique(){haptic(20);showToast('Fonction inscription boutique');}
+function openPublishPopup(){haptic(20);showToast('Publier une annonce');}
+function closePublishPending(){document.getElementById('publishPendingOverlay').classList.remove('active');document.getElementById('publishPendingModal').classList.remove('active');go('index');}
+function closeDeblocagePending(){document.getElementById('deblocagePendingOverlay').classList.remove('active');document.getElementById('deblocagePendingModal').classList.remove('active');}
+function fermerSuppression(){}
+function confirmerSuppression(){}
+function signalerOffre(){}
+function submitSignalement(){}
+(function(){
+  function initYear(){document.querySelectorAll('.footer-year,#footerYear').forEach(function(e){e.textContent=new Date().getFullYear();});}
+  async function initApp(){
+    initYear();
+    try{await window.migrerDepuisLocalStorage();}catch(e){}
+    try{
+      var cC=await window.getCachedList('commerce','cached_list');
+      var cA=await window.getCachedList('offre','cached_list');
+      if(cC&&cC.length)COMMERCES_DATA=cC;
+      if(cA&&cA.length)ANNONCES_DATA=cA;
+    }catch(e){}
+    try{
+      var co=await window.chargerCommercesFirestore();
+      var an=await window.chargerAnnoncesFirestore();
+      if(co&&co.length){COMMERCES_DATA=co;try{await window.setCachedList('commerce','cached_list',co);}catch(e){}}
+      if(an&&an.length){ANNONCES_DATA=an;try{await window.setCachedList('offre','cached_list',an);}catch(e){}}
+    }catch(e){}
+    renderCommercesGrid();
+    renderFeed();
+    updateCart();
+    appliquerThemeProfilUI();
+    go('index');
+  }
+  document.addEventListener('DOMContentLoaded',initApp);
+})();
+window.go=go;window.headerBackAction=headerBackAction;window.filterCategory=filterCategory;
+window.openCatalogue=openCatalogue;window.openDetail=openDetail;window.openUnlock=openUnlock;
+window.addToCart=addToCart;window.changeQty=changeQty;window.removeItem=removeItem;
+window.openCart=openCart;window.closeCart=closeCart;window.submitOrder=submitOrder;
+window.openAccountOrProfile=openAccountOrProfile;window.showAccountModal=showAccountModal;
+window.closeAccountModal=closeAccountModal;window.basculerModalAccueil=basculerModalAccueil;
+window.choisirSexe=choisirSexe;window.togglePasswordVisibility=togglePasswordVisibility;
+window.submitAccountModal=submitAccountModal;window.submitAccountLogin=submitAccountLogin;
+window.doLogout=doLogout;window.fermerConfirmLogout=fermerConfirmLogout;window.confirmerLogout=confirmerLogout;
+window.toggleThemeProfil=toggleThemeProfil;window.ouvrirChangerNumero=ouvrirChangerNumero;
+window.fermerChangerNumero=fermerChangerNumero;window.validerChangerNumero=validerChangerNumero;
+window.requireLogin=requireLogin;window.allerAuxCommerces=allerAuxCommerces;
+window.ouvrirInscriptionBoutique=ouvrirInscriptionBoutique;window.openPublishPopup=openPublishPopup;
+window.closePublishPending=closePublishPending;window.closeDeblocagePending=closeDeblocagePending;
+window.switchDashTab=switchDashTab;window.renderMerchantDashboard=renderMerchantDashboard;
 </script>
-
 </body>
 </html>
