@@ -224,6 +224,13 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 .pdf-choice-card.selected{border-color:#25d366;background:rgba(37,211,102,0.1);}
 .pdf-choice-card h4{color:#e4e6eb;font-size:15px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px;}
 .pdf-choice-card p{color:#b0b3b8;font-size:12px;line-height:1.5;}
+.pdf-option-select{margin-top:12px;display:none;}
+.pdf-option-select.show{display:block;}
+.pdf-option-select label{font-size:11px;font-weight:700;color:#25d366;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px;display:block;}
+.pdf-option-select select{width:100%;padding:10px 14px;border-radius:6px;background:#242526;border:1px solid #3a3b3c;color:#e4e6eb;font-family:inherit;font-size:13px;}
+.pdf-option-select select:focus{outline:none;border-color:#25d366;}
+.pdf-option-count{font-size:12px;color:#b0b3b8;margin-top:8px;text-align:center;}
+.pdf-option-count strong{color:#25d366;}
 .import-zone{border:2px dashed #3a3b3c;border-radius:8px;padding:30px;text-align:center;cursor:pointer;transition:all 0.2s;background:#1c1e21;}
 .import-zone:hover{border-color:#25d366;background:rgba(37,211,102,0.05);}
 .import-zone.dragover{border-color:#25d366;background:rgba(37,211,102,0.1);}
@@ -425,7 +432,6 @@ let localEleves = [];
 let triAlphabetiqueActif = false;
 let periodeFilterCotation = 'all';
 let modeMultiOptionsActif = false;
-let pdfModeChoisi = null;
 let jsonImportData = null;
 
 const optionsParClasse = {
@@ -1267,125 +1273,229 @@ document.getElementById('exportCurrentBtn').onclick = async function() {
     if (!currentFiche) { toast("Aucune fiche sélectionnée", 'error'); return; }
     if (!currentFiche.eleves || currentFiche.eleves.length === 0) { toast("Aucun élève à exporter", 'error'); return; }
 
+    const eleves = currentFiche.eleves || [];
+    const optionsPresentes = [...new Set(eleves.map(e => e.option).filter(Boolean))].sort();
+
+    let optionsHtml = optionsPresentes.map(opt => {
+        const count = eleves.filter(e => e.option === opt).length;
+        return `<option value="${escapeHtml(opt)}">${escapeHtml(opt)} (${count} élève${count > 1 ? 's' : ''})</option>`;
+    }).join('');
+
     let d = document.createElement('div');
     d.className = 'modal-fullscreen show';
-    d.innerHTML = `<div class="modal-content" style="max-width:520px;">
+    d.innerHTML = `<div class="modal-content" style="max-width:560px;">
         <h3 style="color:#25d366;">📄 EXPORTER EN PDF</h3>
-        <p style="color:#b0b3b8;font-size:13px;line-height:1.6;margin-bottom:8px;">Choisissez le format d'export :</p>
+        <p style="color:#b0b3b8;font-size:13px;line-height:1.6;margin-bottom:16px;">Choisissez le format d'export :</p>
         <div class="pdf-choice-grid">
             <div class="pdf-choice-card" id="pdfMulti">
                 <h4>📊 Multi-options</h4>
-                <p>Affiche toutes les options avec une colonne <strong>OPT</strong> séparée. Recommandé si la fiche contient plusieurs options.</p>
+                <p>Toutes les options dans un tableau avec une colonne <strong>OPT</strong> séparée.</p>
             </div>
             <div class="pdf-choice-card" id="pdfUnique">
                 <h4>📋 Option unique</h4>
-                <p>Masque la colonne OPT. Idéal pour une classe homogène.</p>
+                <p>Sélectionnez une option précise. Sans colonne OPT.</p>
+                <div class="pdf-option-select" id="pdfOptionWrap">
+                    <label>Choisir une option :</label>
+                    <select id="pdfOptionSelect">
+                        <option value="">-- Sélectionner --</option>
+                        ${optionsHtml}
+                    </select>
+                    <div class="pdf-option-count" id="pdfOptionCount"></div>
+                </div>
             </div>
         </div>
-        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px;"><button class="btn btn-secondary" id="pdfCancel">Annuler</button></div>
+        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px;">
+            <button class="btn btn-secondary" id="pdfCancel">Annuler</button>
+            <button class="btn btn-success" id="pdfGo" disabled style="opacity:0.5;">📄 GÉNÉRER PDF</button>
+        </div>
     </div>`;
     document.body.appendChild(d);
 
-    const genererPDF = async (multiOpt) => {
-        d.remove();
-        try {
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF('landscape', 'mm', 'a4');
-            const rn = currentFiche.numeroRef ? formatNumero(currentFiche.numeroRef) : 'F---';
+    let pdfModeChoisiLocal = null;
+    let pdfOptionChoisie = null;
 
-            pdf.setFillColor(37, 211, 102);
-            pdf.rect(0, 0, 297, 15, 'F');
-            pdf.setTextColor(255, 255, 255);
-            pdf.setFont('helvetica', 'bold');
-            pdf.setFontSize(14);
-            pdf.text(SCHOOL_DISPLAY_NAME, 148, 10, { align: 'center' });
-
-            pdf.setTextColor(0, 0, 0);
-            pdf.setFont('helvetica', 'normal');
-            pdf.setFontSize(10);
-            pdf.text('Année scolaire : ' + (currentFiche.anneeScolaire || '2026-2027'), 14, 22);
-
-            pdf.setFont('helvetica', 'bold');
-            pdf.setFontSize(12);
-            pdf.text('FICHE DE COTATION', 148, 30, { align: 'center' });
-
-            pdf.setFont('helvetica', 'normal');
-            pdf.setFontSize(9);
-            pdf.text('Référence : ' + rn, 14, 38);
-            pdf.text('Cours : ' + (currentFiche.cours || ''), 14, 44);
-            pdf.text('Classe : ' + (currentFiche.classe || ''), 14, 50);
-
-            pdf.setFont('helvetica', 'bold');
-            pdf.text('Titulaire : ' + TITULAIRE_NAME, 14, 56);
-
-            if (currentFiche.option) {
-                pdf.setFont('helvetica', 'normal');
-                pdf.text('Option : ' + currentFiche.option, 14, 62);
-            }
-
-            const p1m = getPeriodeMax();
-            const e1m = p1m * 2;
-            const ts1m = p1m * 4;
-            const tam = p1m * 8;
-
-            let hd = ['N°', 'NOMS COMPLETS', 'S'];
-            if (multiOpt) hd.push('OPT');
-            hd = hd.concat(['P1/' + p1m, 'P2/' + p1m, 'EX1/' + e1m, 'TS1/' + ts1m, 'P3/' + p1m, 'P4/' + p1m, 'EX2/' + e1m, 'TS2/' + ts1m, 'TOT/' + tam]);
-
-            let bd = [['MAX', '', ''].concat(multiOpt ? [''] : [], [p1m, p1m, e1m, ts1m, p1m, p1m, e1m, ts1m, tam])];
-
-            for (let i = 0; i < currentFiche.eleves.length; i++) {
-                const e = currentFiche.eleves[i];
-                const n = e.notes || {};
-                const p1 = calcMoy(1, n.p1, e), p2 = calcMoy(2, n.p2, e), p3 = calcMoy(3, n.p3, e), p4 = calcMoy(4, n.p4, e);
-                const ex1 = n.exam1 || 0, ex2 = n.exam2 || 0;
-                let row = [(i + 1).toString(), getNomComplet(e).toUpperCase(), e.sexe === 'F' ? 'F' : 'M'];
-                if (multiOpt) row.push((e.option || '—').substring(0, 5));
-                row = row.concat([p1, p2, ex1, p1 + p2 + ex1, p3, p4, ex2, p3 + p4 + ex2, p1 + p2 + ex1 + p3 + p4 + ex2]);
-                bd.push(row);
-            }
-
-            pdf.autoTable({
-                head: [hd],
-                body: bd,
-                startY: 66,
-                theme: 'grid',
-                styles: {
-                    fontSize: 9,
-                    cellPadding: 1.5,
-                    halign: 'center',
-                    valign: 'middle',
-                    textColor: [0, 0, 0],
-                    lineColor: [180, 180, 180],
-                    lineWidth: 0.1
-                },
-                headStyles: {
-                    fillColor: [37, 211, 102],
-                    textColor: [255, 255, 255],
-                    fontStyle: 'bold',
-                    fontSize: 9
-                },
-                rowStyles: {
-                    0: { fillColor: [255, 235, 232], textColor: [240, 40, 73], fontStyle: 'bold' }
-                },
-                alternateRowStyles: { fillColor: [245, 250, 245] },
-                columnStyles: {
-                    0: { cellWidth: 10 },
-                    1: { cellWidth: multiOpt ? 70 : 80, halign: 'left', fontStyle: 'bold' }
-                },
-                margin: { left: 8, right: 8, top: 8, bottom: 8 },
-                showHead: 'firstPage'
-            });
-
-            pdf.save("Fiche_" + rn + "_" + (currentFiche.cours || 'cours') + ".pdf");
-            toast("PDF exporté", 'success');
-        } catch (e) { toast("Erreur PDF", 'error'); }
+    const updateGo = () => {
+        const goBtn = d.querySelector('#pdfGo');
+        if (pdfModeChoisiLocal === 'multi') {
+            goBtn.disabled = false;
+            goBtn.style.opacity = '1';
+            goBtn.textContent = `📄 GÉNÉRER PDF (${eleves.length} élèves)`;
+        } else if (pdfModeChoisiLocal === 'unique' && pdfOptionChoisie) {
+            const count = eleves.filter(e => e.option === pdfOptionChoisie).length;
+            goBtn.disabled = false;
+            goBtn.style.opacity = '1';
+            goBtn.textContent = `📄 GÉNÉRER PDF (${count} élèves)`;
+        } else {
+            goBtn.disabled = true;
+            goBtn.style.opacity = '0.5';
+            goBtn.textContent = '📄 GÉNÉRER PDF';
+        }
     };
 
-    d.querySelector('#pdfMulti').onclick = () => genererPDF(true);
-    d.querySelector('#pdfUnique').onclick = () => genererPDF(false);
+    d.querySelector('#pdfMulti').onclick = () => {
+        pdfModeChoisiLocal = 'multi';
+        d.querySelector('#pdfMulti').classList.add('selected');
+        d.querySelector('#pdfUnique').classList.remove('selected');
+        d.querySelector('#pdfOptionWrap').classList.remove('show');
+        pdfOptionChoisie = null;
+        updateGo();
+    };
+
+    d.querySelector('#pdfUnique').onclick = () => {
+        pdfModeChoisiLocal = 'unique';
+        d.querySelector('#pdfUnique').classList.add('selected');
+        d.querySelector('#pdfMulti').classList.remove('selected');
+        d.querySelector('#pdfOptionWrap').classList.add('show');
+        if (optionsPresentes.length === 1) {
+            d.querySelector('#pdfOptionSelect').value = optionsPresentes[0];
+            pdfOptionChoisie = optionsPresentes[0];
+            const count = eleves.filter(e => e.option === optionsPresentes[0]).length;
+            d.querySelector('#pdfOptionCount').innerHTML = `<strong>${count}</strong> élève(s) seront inclus dans le PDF`;
+        }
+        updateGo();
+    };
+
+    d.querySelector('#pdfOptionSelect').onchange = function() {
+        pdfOptionChoisie = this.value || null;
+        const count = pdfOptionChoisie ? eleves.filter(e => e.option === pdfOptionChoisie).length : 0;
+        d.querySelector('#pdfOptionCount').innerHTML = pdfOptionChoisie ? `<strong>${count}</strong> élève(s) seront inclus dans le PDF` : '';
+        updateGo();
+    };
+
     d.querySelector('#pdfCancel').onclick = () => d.remove();
+
+    d.querySelector('#pdfGo').onclick = async () => {
+        if (!pdfModeChoisiLocal) return;
+        if (pdfModeChoisiLocal === 'unique' && !pdfOptionChoisie) return;
+        d.remove();
+        await genererPDF(pdfModeChoisiLocal === 'multi', pdfOptionChoisiLocal);
+    };
 };
+
+async function genererPDF(multiOpt, optionFiltre) {
+    try {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('landscape', 'mm', 'a4');
+        const rn = currentFiche.numeroRef ? formatNumero(currentFiche.numeroRef) : 'F---';
+
+        let elevesExport = currentFiche.eleves || [];
+        if (!multiOpt && optionFiltre) {
+            elevesExport = elevesExport.filter(e => e.option === optionFiltre);
+        }
+        if (elevesExport.length === 0) {
+            toast("Aucun élève à exporter", 'error');
+            return;
+        }
+
+        const p1m = getPeriodeMax();
+        const e1m = p1m * 2;
+        const ts1m = p1m * 4;
+        const tam = p1m * 8;
+
+        pdf.setFillColor(37, 211, 102);
+        pdf.rect(0, 0, 297, 15, 'F');
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(14);
+        pdf.text(SCHOOL_DISPLAY_NAME, 148, 10, { align: 'center' });
+
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+        pdf.text('Année scolaire : ' + (currentFiche.anneeScolaire || '2026-2027'), 14, 22);
+
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(12);
+        pdf.text('FICHE DE COTATION', 148, 30, { align: 'center' });
+
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        pdf.text('Référence : ' + rn, 14, 38);
+        pdf.text('Cours : ' + (currentFiche.cours || ''), 14, 44);
+        pdf.text('Classe : ' + (currentFiche.classe || ''), 14, 50);
+
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Titulaire : ' + TITULAIRE_NAME, 14, 56);
+
+        if (currentFiche.option) {
+            pdf.setFont('helvetica', 'normal');
+            pdf.text('Option : ' + currentFiche.option, 14, 62);
+        }
+
+        let hd = ['N°', 'NOMS COMPLETS', 'S'];
+        if (multiOpt) hd.push('OPT');
+        hd = hd.concat(['P1/' + p1m, 'P2/' + p1m, 'EX1/' + e1m, 'TS1/' + ts1m, 'P3/' + p1m, 'P4/' + p1m, 'EX2/' + e1m, 'TS2/' + ts1m, 'TOT/' + tam]);
+
+        let maxRow = [];
+        maxRow.push({ content: 'MAX', styles: { halign: 'center' } });
+        maxRow.push({ content: '', styles: {} });
+        maxRow.push({ content: '', styles: {} });
+        if (multiOpt) maxRow.push({ content: '', styles: {} });
+        maxRow.push({ content: p1m, styles: { halign: 'center' } });
+        maxRow.push({ content: p1m, styles: { halign: 'center' } });
+        maxRow.push({ content: e1m, styles: { halign: 'center' } });
+        maxRow.push({ content: ts1m, styles: { halign: 'center' } });
+        maxRow.push({ content: p1m, styles: { halign: 'center' } });
+        maxRow.push({ content: p1m, styles: { halign: 'center' } });
+        maxRow.push({ content: e1m, styles: { halign: 'center' } });
+        maxRow.push({ content: ts1m, styles: { halign: 'center' } });
+        maxRow.push({ content: tam, styles: { halign: 'center' } });
+
+        let bd = [maxRow];
+
+        for (let i = 0; i < elevesExport.length; i++) {
+            const e = elevesExport[i];
+            const n = e.notes || {};
+            const p1 = calcMoy(1, n.p1, e), p2 = calcMoy(2, n.p2, e), p3 = calcMoy(3, n.p3, e), p4 = calcMoy(4, n.p4, e);
+            const ex1 = n.exam1 || 0, ex2 = n.exam2 || 0;
+            let row = [(i + 1).toString(), getNomComplet(e).toUpperCase(), e.sexe === 'F' ? 'F' : 'M'];
+            if (multiOpt) row.push((e.option || '—').substring(0, 5));
+            row = row.concat([p1, p2, ex1, p1 + p2 + ex1, p3, p4, ex2, p3 + p4 + ex2, p1 + p2 + ex1 + p3 + p4 + ex2]);
+            bd.push(row);
+        }
+
+        pdf.autoTable({
+            head: [hd],
+            body: bd,
+            startY: 66,
+            theme: 'grid',
+            styles: {
+                fontSize: 9,
+                cellPadding: 1.5,
+                halign: 'center',
+                valign: 'middle',
+                textColor: [0, 0, 0],
+                lineColor: [180, 180, 180],
+                lineWidth: 0.1
+            },
+            headStyles: {
+                fillColor: [37, 211, 102],
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+                fontSize: 9
+            },
+            bodyStyles: {},
+            didParseCell: function(data) {
+                if (data.section === 'body' && data.row.index === 0) {
+                    data.cell.styles.fontStyle = 'bold';
+                    data.cell.styles.textColor = [0, 0, 0];
+                    data.cell.styles.fillColor = [255, 235, 232];
+                }
+            },
+            alternateRowStyles: { fillColor: [245, 250, 245] },
+            columnStyles: {
+                0: { cellWidth: 10 },
+                1: { cellWidth: multiOpt ? 70 : 80, halign: 'left', fontStyle: 'bold' }
+            },
+            margin: { left: 8, right: 8, top: 8, bottom: 8 },
+            showHead: 'firstPage'
+        });
+
+        const suffix = multiOpt ? 'MultiOptions' : (optionFiltre || 'Unique').replace(/\s/g, '_');
+        pdf.save("Fiche_" + rn + "_" + (currentFiche.cours || 'cours') + "_" + suffix + ".pdf");
+        toast("PDF exporté", 'success');
+    } catch (e) { toast("Erreur PDF", 'error'); }
+}
 
 document.getElementById('addEpreuve1').onclick = () => addEpreuve(1);
 document.getElementById('addEpreuve2').onclick = () => addEpreuve(2);
