@@ -55,7 +55,19 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
 .form-card{background:rgba(255,255,255,0.04);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.08);border-radius:24px;padding:32px;animation:fadeInUp 0.5s ease both;position:relative;overflow:hidden;}
 .form-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#10b981,#34d399,#fbbf24,#10b981);background-size:200% 100%;animation:gradientMove 4s linear infinite;}
 @keyframes gradientMove{from{background-position:0 0}to{background-position:200% 0}}
-.form-header{text-align:center;margin-bottom:28px;}
+
+.step-indicator{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:28px;padding:16px;background:rgba(255,255,255,0.02);border-radius:16px;border:1px solid rgba(255,255,255,0.05);}
+.step{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:12px;transition:all 0.3s;opacity:0.5;}
+.step.active{opacity:1;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);}
+.step.completed{opacity:1;}
+.step.completed .step-number{background:linear-gradient(135deg,#10b981,#059669);color:#fff;}
+.step-number{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#94a3b8;transition:all 0.3s;}
+.step.active .step-number{background:linear-gradient(135deg,#10b981,#059669);border-color:#10b981;color:#fff;box-shadow:0 0 16px rgba(16,185,129,0.5);}
+.step-label{font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;}
+.step.active .step-label{color:#10b981;}
+.step-line{flex:0 0 40px;height:2px;background:rgba(255,255,255,0.08);border-radius:2px;transition:all 0.3s;}
+
+.form-header{text-align:center;margin-bottom:24px;}
 .form-header-icon{font-size:40px;margin-bottom:8px;display:inline-block;animation:pop 2s ease-in-out infinite;}
 @keyframes pop{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
 .form-header h2{font-size:20px;font-weight:800;color:#f1f5f9;margin-bottom:4px;letter-spacing:-0.3px;}
@@ -78,6 +90,8 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
 .btn-submit:hover::before{left:100%;}
 .btn-submit:active{transform:translateY(0) scale(0.99);}
 .btn-submit:disabled{opacity:0.6;cursor:not-allowed;transform:none;}
+.btn-retour{background:linear-gradient(135deg,#475569,#334155);box-shadow:0 12px 32px -10px rgba(71,85,105,0.5);}
+.btn-retour:hover{box-shadow:0 18px 40px -10px rgba(71,85,105,0.7);}
 
 .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;visibility:hidden;opacity:0;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);}
 .modal-overlay.show{visibility:visible;opacity:1;}
@@ -164,6 +178,8 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
   .success-name{font-size:16px;}
   .stat-option-label{flex:0 0 100px;font-size:10px;}
   .login-card{padding:32px 22px;}
+  .step-label{font-size:10px;}
+  .step-line{flex:0 0 20px;}
 }
 </style>
 </head>
@@ -185,71 +201,103 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
     </div>
 
     <div class="tabs">
-        <button class="tab-btn active" data-tab="tabStats"><span>📊</span> STATISTIQUES</button>
-        <button class="tab-btn" data-tab="tabAjout"><span>➕</span> AJOUTER</button>
+        <button class="tab-btn" data-tab="tabStats"><span>📊</span> STATISTIQUES</button>
+        <button class="tab-btn active" data-tab="tabAjout"><span>➕</span> AJOUTER</button>
     </div>
 
-    <div id="tabStats" class="tab-content active">
+    <div id="tabStats" class="tab-content">
         <div class="stats-grid" id="statsGrid"></div>
     </div>
 
-    <div id="tabAjout" class="tab-content">
+    <div id="tabAjout" class="tab-content active">
         <div class="form-card">
-            <div class="form-header">
-                <div class="form-header-icon">✍️</div>
-                <h2>Nouvel élève</h2>
-                <p>Remplissez les informations ci-dessous</p>
+            <div class="step-indicator">
+                <div class="step active" id="step1Indicator">
+                    <span class="step-number">1</span>
+                    <span class="step-label">Infos personnelles</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step" id="step2Indicator">
+                    <span class="step-number">2</span>
+                    <span class="step-label">Scolarité</span>
+                </div>
             </div>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label class="form-label required">Nom</label>
-                    <input type="text" class="form-input uppercase-force" id="inpNom" placeholder="Ex: MUTOMBO" autocomplete="off">
+
+            <div class="form-step" id="formStep1">
+                <div class="form-header">
+                    <div class="form-header-icon">✍️</div>
+                    <h2>Étape 1 — Informations personnelles</h2>
+                    <p>Renseignez le nom et prénom de l'élève</p>
                 </div>
-                <div class="form-grid two-cols" style="gap:18px;display:grid;">
+                <div class="form-grid">
                     <div class="form-group">
-                        <label class="form-label">Postnom</label>
-                        <input type="text" class="form-input uppercase-force" id="inpPostnom" placeholder="Ex: BEN" autocomplete="off">
+                        <label class="form-label required">Nom</label>
+                        <input type="text" class="form-input uppercase-force" id="inpNom" placeholder="Ex: MUTOMBO" autocomplete="off">
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Prénom</label>
-                        <input type="text" class="form-input uppercase-force" id="inpPrenom" placeholder="Ex: MARC" autocomplete="off">
+                    <div class="form-grid two-cols" style="gap:18px;display:grid;">
+                        <div class="form-group">
+                            <label class="form-label">Postnom</label>
+                            <input type="text" class="form-input uppercase-force" id="inpPostnom" placeholder="Ex: BEN" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Prénom</label>
+                            <input type="text" class="form-input uppercase-force" id="inpPrenom" placeholder="Ex: MARC" autocomplete="off">
+                        </div>
                     </div>
+                    <button class="btn-submit" id="btnEtape1Suivant">
+                        <span>→</span> SUIVANT
+                    </button>
                 </div>
-                <div class="form-grid two-cols" style="gap:18px;display:grid;">
-                    <div class="form-group">
-                        <label class="form-label required">Sexe</label>
-                        <select class="form-select" id="inpSexe">
-                            <option value="M">MASCULIN</option>
-                            <option value="F">FÉMININ</option>
+            </div>
+
+            <div class="form-step" id="formStep2" style="display:none;">
+                <div class="form-header">
+                    <div class="form-header-icon">🎓</div>
+                    <h2>Étape 2 — Scolarité</h2>
+                    <p>Classe et option de l'élève</p>
+                </div>
+                <div class="form-grid">
+                    <div class="form-grid two-cols" style="gap:18px;display:grid;">
+                        <div class="form-group">
+                            <label class="form-label required">Sexe</label>
+                            <select class="form-select" id="inpSexe">
+                                <option value="M">MASCULIN</option>
+                                <option value="F">FÉMININ</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label required">Classe</label>
+                            <select class="form-select" id="inpClasse">
+                                <option value="7ème EB">7ÈME EB</option>
+                                <option value="8ème EB">8ÈME EB</option>
+                                <option value="1ère Année">1ÈRE ANNÉE</option>
+                                <option value="2ème Année">2ÈME ANNÉE</option>
+                                <option value="3ème Année">3ÈME ANNÉE</option>
+                                <option value="4ème Année" selected>4ÈME ANNÉE</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group" id="optionGroup">
+                        <label class="form-label">Option</label>
+                        <select class="form-select" id="inpOption">
+                            <option value="">-- AUCUNE --</option>
+                            <option value="SCIENCES">SCIENCES</option>
+                            <option value="PEDAGOGIE GENERALE">PÉDAGOGIE GÉNÉRALE</option>
+                            <option value="COMMERCIALE ET GESTION">COMMERCIALE ET GESTION</option>
+                            <option value="ELECTRICITE">ÉLECTRICITÉ</option>
+                            <option value="MECANIQUE GENERALE">MÉCANIQUE GÉNÉRALE</option>
+                            <option value="COUPE ET COUTURE">COUPE ET COUTURE</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label required">Classe</label>
-                        <select class="form-select" id="inpClasse">
-                            <option value="7ème EB">7ÈME EB</option>
-                            <option value="8ème EB">8ÈME EB</option>
-                            <option value="1ère Année">1ÈRE ANNÉE</option>
-                            <option value="2ème Année">2ÈME ANNÉE</option>
-                            <option value="3ème Année">3ÈME ANNÉE</option>
-                            <option value="4ème Année" selected>4ÈME ANNÉE</option>
-                        </select>
+                    <div class="form-grid two-cols" style="gap:12px;display:grid;">
+                        <button class="btn-submit btn-retour" id="btnEtape2Retour">
+                            <span>←</span> RETOUR
+                        </button>
+                        <button class="btn-submit" id="btnAjouter">
+                            <span>✅</span> AJOUTER
+                        </button>
                     </div>
                 </div>
-                <div class="form-group" id="optionGroup">
-                    <label class="form-label">Option</label>
-                    <select class="form-select" id="inpOption">
-                        <option value="">-- AUCUNE --</option>
-                        <option value="SCIENCES">SCIENCES</option>
-                        <option value="PEDAGOGIE GENERALE">PÉDAGOGIE GÉNÉRALE</option>
-                        <option value="COMMERCIALE ET GESTION">COMMERCIALE ET GESTION</option>
-                        <option value="ELECTRICITE">ÉLECTRICITÉ</option>
-                        <option value="MECANIQUE GENERALE">MÉCANIQUE GÉNÉRALE</option>
-                        <option value="COUPE ET COUTURE">COUPE ET COUTURE</option>
-                    </select>
-                </div>
-                <button class="btn-submit" id="btnAjouter">
-                    <span>✅</span> AJOUTER L'ÉLÈVE
-                </button>
             </div>
         </div>
     </div>
@@ -264,12 +312,14 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
 document.addEventListener('contextmenu', e => e.preventDefault());
 document.addEventListener('keydown', function(e) {
     if (e.key === 'F12') { e.preventDefault(); return false; }
-    if (e.ctrlKey && e.shiftKey && ['I','i','J','j','C','c','K','k'].includes(e.key)) { e.preventDefault(); return false; }
-    if (e.ctrlKey && ['u','U'].includes(e.key)) { e.preventDefault(); return false; }
+    if (e.ctrlKey && e.shiftKey && ['I','i','J',' `
+j','C','c','K','k'].           includes(e.key)) { e.preventDefault <(); return false;div }
+    if (e.ctrlKey && ['u','U class'].includes(e=".key)) { e.preventDefault();stat return false; }
 });
 
-import { initializeApp } from "firebase/app";
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
+import-card { initializeApp } from "firebase-header/app";
+import { getFirestore">
+               , collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 
 const firebaseConfig = {
@@ -294,6 +344,51 @@ const OPTIONS_DISPONIBLES = ["SCIENCES", "PEDAGOGIE GENERALE", "COMMERCIALE ET G
 
 let clesElevesExistants = new Set();
 let currentUser = null;
+let currentStep = 1;
+
+let voixPrete = false;
+let voixFeminine = null;
+let fileParole = [];
+
+function initVoix() {
+    if (!('speechSynthesis' in window)) return;
+    const voix = window.speechSynthesis.getVoices();
+    if (voix.length === 0) return;
+    voixPrete = true;
+    const voixFr = voix.filter(v => v.lang && v.lang.toLowerCase().startsWith('fr'));
+    const voixFem = voixFr.find(v => /Amelie|Amélie|Audrey|Marie|Julie|Celine|Céline|Hortense|female|femme|Google français/i.test(v.name));
+    voixFeminine = voixFem || voixFr[0] || voix[0] || null;
+}
+
+if ('speechSynthesis' in window) {
+    initVoix();
+    window.speechSynthesis.onvoiceschanged = initVoix;
+    setTimeout(initVoix, 500);
+    setTimeout(initVoix, 1500);
+}
+
+function parler(texte) {
+    if (!('speechSynthesis' in window)) return;
+    if (!texte) return;
+    if (!voixPrete) { fileParole.push(texte); return; }
+    window.speechSynthesis.cancel();
+    setTimeout(() => {
+        const u = new SpeechSynthesisUtterance(texte);
+        u.lang = 'fr-FR';
+        if (voixFeminine) u.voice = voixFeminine;
+        u.rate = 0.95;
+        u.pitch = 1.2;
+        u.volume = 1.0;
+        window.speechSynthesis.speak(u);
+    }, 120);
+}
+
+setInterval(() => {
+    if (voixPrete && fileParole.length > 0) {
+        const txt = fileParole.shift();
+        parler(txt);
+    }
+}, 500);
 
 function toast(message, type = "success") {
     const container = document.getElementById("toastContainer");
@@ -385,9 +480,7 @@ function renderStats(eleves) {
             optionsHtml += '</div>';
         }
 
-        card.innerHTML = `
-            <div class="stat-card-header">
-                <div class="stat-card-title"><span class="stat-card-title-icon">📊</span> ${escapeHtml(classe)}</div>
+        card.innerHTML = <div class="stat-card-title"><span class="stat-card-title-icon">📊</span> ${escapeHtml(classe)}</div>
                 <div class="stat-card-total">${total} élève${total > 1 ? 's' : ''}</div>
             </div>
             ${optionsHtml}
@@ -446,7 +539,6 @@ function afficherLogin() {
         btn.textContent = 'Connexion...';
         try {
             await signInWithEmailAndPassword(auth, email, pwd);
-            // onAuthStateChanged prendra le relais
         } catch (e) {
             errEl.textContent = "Email ou mot de passe incorrect";
             btn.disabled = false;
@@ -507,33 +599,48 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     });
 });
 
+function allerEtape1() {
+    currentStep = 1;
+    document.getElementById('formStep1').style.display = 'block';
+    document.getElementById('formStep2').style.display = 'none';
+    document.getElementById('step1Indicator').classList.add('active');
+    document.getElementById('step2Indicator').classList.remove('active');
+    document.getElementById('step1Indicator').classList.remove('completed');
+    document.getElementById('step2Indicator').classList.remove('completed');
+}
+
+function allerEtape2() {
+    const nom = document.getElementById('inpNom').value.trim();
+    if (!nom) {
+        toast("Le nom est obligatoire", 'error');
+        document.getElementById('inpNom').focus();
+        return;
+    }
+    currentStep = 2;
+    document.getElementById('formStep1').style.display = 'none';
+    document.getElementById('formStep2').style.display = 'block';
+    document.getElementById('step1Indicator').classList.remove('active');
+    document.getElementById('step1Indicator').classList.add('completed');
+    document.getElementById('step2Indicator').classList.add('active');
+    parler('Étape 2. Choisissez la classe et l\'option');
+    setTimeout(() => document.getElementById('inpSexe').focus(), 200);
+}
+
+document.getElementById('btnEtape1Suivant').addEventListener('click', allerEtape2);
+
+document.getElementById('btnEtape2Retour').addEventListener('click', () => {
+    allerEtape1();
+    parler('Retour à l\'étape 1');
+    setTimeout(() => document.getElementById('inpNom').focus(), 200);
+});
+
 function annoncerSucces(prenom, nom, option) {
-    if (!('speechSynthesis' in window)) return;
     const identifiant = (prenom && prenom.trim()) ? prenom : nom;
     if (!identifiant) return;
     let message = `L'élève ${identifiant} a été ajouté avec succès`;
     if (option && option.trim()) message += ` en ${option}`;
     message += ' !';
-    try {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(message);
-        const voices = window.speechSynthesis.getVoices();
-        const voixFr = voices.find(v => v.lang === 'fr-FR' && v.name.includes('Google'))
-                    || voices.find(v => v.lang === 'fr-FR' && v.name.includes('Amelie'))
-                    || voices.find(v => v.lang === 'fr-FR')
-                    || voices.find(v => v.lang && v.lang.startsWith('fr'));
-        if (voixFr) utterance.voice = voixFr;
-        utterance.lang = 'fr-FR';
-        utterance.rate = 0.95;
-        utterance.pitch = 1.1;
-        utterance.volume = 1.0;
-        window.speechSynthesis.speak(utterance);
-    } catch (e) {}
-}
-
-if ('speechSynthesis' in window) {
-    window.speechSynthesis.onvoiceschanged = () => {};
-    window.speechSynthesis.getVoices();
+    parler(message);
 }
 
 function lancerConfettis() {
@@ -617,6 +724,7 @@ function reinitialiserFormulaire() {
     const grp = document.getElementById('optionGroup');
     grp.style.opacity = '1';
     grp.style.pointerEvents = 'auto';
+    allerEtape1();
     setTimeout(() => document.getElementById('inpNom').focus(), 100);
 }
 
@@ -629,7 +737,7 @@ document.getElementById('btnAjouter').addEventListener('click', function() {
     let option = document.getElementById('inpOption').value;
     if (classe === '7ème EB' || classe === '8ème EB') option = '';
 
-    if (!nom) { toast("Le nom est obligatoire", 'error'); document.getElementById('inpNom').focus(); return; }
+    if (!nom) { toast("Le nom est obligatoire", 'error'); return; }
     if (!classe) { toast("La classe est obligatoire", 'error'); return; }
 
     const data = { nom, postnom, prenom, sexe, classe, option };
@@ -657,7 +765,7 @@ document.getElementById('btnAjouter').addEventListener('click', function() {
                 renderStats(eleves);
 
                 lancerConfettis();
-                setTimeout(() => annoncerSucces(prenom, nom, option), 400);
+                annoncerSucces(prenom, nom, option);
                 ouvrirModalSucces(nomComplet, reinitialiserFormulaire);
                 reinitialiserFormulaire();
                 toast("Élève ajouté avec succès", 'success');
@@ -668,7 +776,7 @@ document.getElementById('btnAjouter').addEventListener('click', function() {
             }
         },
         () => {
-            document.getElementById('inpNom').focus();
+            allerEtape2();
         }
     );
 });
