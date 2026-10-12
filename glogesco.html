@@ -219,17 +219,17 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 .modal-form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;}
 .pdf-choice-grid{display:grid;grid-template-columns:1fr;gap:12px;margin:20px 0;}
 @media(min-width:600px){.pdf-choice-grid{grid-template-columns:1fr 1fr;}}
-.pdf-choice-card{background:#1c1e21;border:2px solid #3a3b3c;border-radius:8px;padding:20px;cursor:pointer;transition:all 0.2s;}
+.pdf-choice-card{background:#1c1e21;border:2px solid #3a3b3c;border-radius:8px;padding:20px;cursor:pointer;transition:all 0.2s;position:relative;}
 .pdf-choice-card:hover{border-color:#25d366;transform:translateY(-2px);}
 .pdf-choice-card.selected{border-color:#25d366;background:rgba(37,211,102,0.1);}
+.pdf-choice-card.disabled{opacity:0.5;pointer-events:none;}
 .pdf-choice-card h4{color:#e4e6eb;font-size:15px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px;}
-.pdf-choice-card p{color:#b0b3b8;font-size:12px;line-height:1.5;}
-.pdf-option-select{margin-top:12px;display:none;}
-.pdf-option-select.show{display:block;}
-.pdf-option-select label{font-size:11px;font-weight:700;color:#25d366;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px;display:block;}
-.pdf-option-select select{width:100%;padding:10px 14px;border-radius:6px;background:#242526;border:1px solid #3a3b3c;color:#e4e6eb;font-family:inherit;font-size:13px;}
+.pdf-choice-card p{color:#b0b3b8;font-size:12px;line-height:1.5;margin-bottom:10px;}
+.pdf-option-select{margin-top:10px;}
+.pdf-option-select select{width:100%;padding:10px 14px;border-radius:6px;background:#242526;border:1px solid #3a3b3c;color:#e4e6eb;font-family:inherit;font-size:13px;cursor:pointer;}
 .pdf-option-select select:focus{outline:none;border-color:#25d366;}
-.pdf-option-count{font-size:12px;color:#b0b3b8;margin-top:8px;text-align:center;}
+.pdf-option-select select:disabled{opacity:0.5;cursor:not-allowed;}
+.pdf-option-count{font-size:12px;color:#b0b3b8;margin-top:8px;text-align:center;min-height:16px;}
 .pdf-option-count strong{color:#25d366;}
 .import-zone{border:2px dashed #3a3b3c;border-radius:8px;padding:30px;text-align:center;cursor:pointer;transition:all 0.2s;background:#1c1e21;}
 .import-zone:hover{border-color:#25d366;background:rgba(37,211,102,0.05);}
@@ -1294,10 +1294,9 @@ document.getElementById('exportCurrentBtn').onclick = async function() {
             <div class="pdf-choice-card" id="pdfUnique">
                 <h4>📋 Option unique</h4>
                 <p>Sélectionnez une option précise. Sans colonne OPT.</p>
-                <div class="pdf-option-select" id="pdfOptionWrap">
-                    <label>Choisir une option :</label>
+                <div class="pdf-option-select">
                     <select id="pdfOptionSelect">
-                        <option value="">-- Sélectionner --</option>
+                        <option value="">-- Sélectionner une option --</option>
                         ${optionsHtml}
                     </select>
                     <div class="pdf-option-count" id="pdfOptionCount"></div>
@@ -1314,8 +1313,13 @@ document.getElementById('exportCurrentBtn').onclick = async function() {
     let pdfModeChoisiLocal = null;
     let pdfOptionChoisie = null;
 
+    const cardMulti = d.querySelector('#pdfMulti');
+    const cardUnique = d.querySelector('#pdfUnique');
+    const selectOption = d.querySelector('#pdfOptionSelect');
+    const countEl = d.querySelector('#pdfOptionCount');
+    const goBtn = d.querySelector('#pdfGo');
+
     const updateGo = () => {
-        const goBtn = d.querySelector('#pdfGo');
         if (pdfModeChoisiLocal === 'multi') {
             goBtn.disabled = false;
             goBtn.style.opacity = '1';
@@ -1332,43 +1336,51 @@ document.getElementById('exportCurrentBtn').onclick = async function() {
         }
     };
 
-    d.querySelector('#pdfMulti').onclick = () => {
+    cardMulti.onclick = () => {
         pdfModeChoisiLocal = 'multi';
-        d.querySelector('#pdfMulti').classList.add('selected');
-        d.querySelector('#pdfUnique').classList.remove('selected');
-        d.querySelector('#pdfOptionWrap').classList.remove('show');
+        cardMulti.classList.add('selected');
+        cardUnique.classList.remove('selected');
+        cardUnique.classList.add('disabled');
+        selectOption.value = '';
         pdfOptionChoisie = null;
+        countEl.textContent = '';
         updateGo();
     };
 
-    d.querySelector('#pdfUnique').onclick = () => {
+    cardUnique.onclick = (e) => {
+        if (e.target === selectOption || e.target.closest('select')) return;
         pdfModeChoisiLocal = 'unique';
-        d.querySelector('#pdfUnique').classList.add('selected');
-        d.querySelector('#pdfMulti').classList.remove('selected');
-        d.querySelector('#pdfOptionWrap').classList.add('show');
-        if (optionsPresentes.length === 1) {
-            d.querySelector('#pdfOptionSelect').value = optionsPresentes[0];
-            pdfOptionChoisie = optionsPresentes[0];
-            const count = eleves.filter(e => e.option === optionsPresentes[0]).length;
-            d.querySelector('#pdfOptionCount').innerHTML = `<strong>${count}</strong> élève(s) seront inclus dans le PDF`;
-        }
+        cardUnique.classList.add('selected');
+        cardMulti.classList.remove('selected');
+        cardMulti.classList.add('disabled');
+        selectOption.focus();
         updateGo();
     };
 
-    d.querySelector('#pdfOptionSelect').onchange = function() {
+    selectOption.onclick = (e) => e.stopPropagation();
+    selectOption.onchange = function() {
         pdfOptionChoisie = this.value || null;
-        const count = pdfOptionChoisie ? eleves.filter(e => e.option === pdfOptionChoisie).length : 0;
-        d.querySelector('#pdfOptionCount').innerHTML = pdfOptionChoisie ? `<strong>${count}</strong> élève(s) seront inclus dans le PDF` : '';
+        if (pdfOptionChoisie) {
+            pdfModeChoisiLocal = 'unique';
+            cardUnique.classList.add('selected');
+            cardMulti.classList.remove('selected');
+            cardMulti.classList.add('disabled');
+            const count = eleves.filter(e => e.option === pdfOptionChoisie).length;
+            countEl.innerHTML = `<strong>${count}</strong> élève(s) seront inclus dans le PDF`;
+        } else {
+            countEl.textContent = '';
+            cardMulti.classList.remove('disabled');
+        }
         updateGo();
     };
 
     d.querySelector('#pdfCancel').onclick = () => d.remove();
 
-    d.querySelector('#pdfGo').onclick = async () => {
+    goBtn.onclick = async () => {
         if (!pdfModeChoisiLocal) return;
         if (pdfModeChoisiLocal === 'unique' && !pdfOptionChoisie) return;
         d.remove();
-        await genererPDF(pdfModeChoisiLocal === 'multi', pdfOptionChoisiLocal);
+        await genererPDF(pdfModeChoisiLocal === 'multi', pdfOptionChoisie);
     };
 };
 
@@ -1417,7 +1429,10 @@ async function genererPDF(multiOpt, optionFiltre) {
         pdf.setFont('helvetica', 'bold');
         pdf.text('Titulaire : ' + TITULAIRE_NAME, 14, 56);
 
-        if (currentFiche.option) {
+        if (!multiOpt && optionFiltre) {
+            pdf.setFont('helvetica', 'bold');
+            pdf.text('Option : ' + optionFiltre, 14, 62);
+        } else if (currentFiche.option) {
             pdf.setFont('helvetica', 'normal');
             pdf.text('Option : ' + currentFiche.option, 14, 62);
         }
@@ -1474,7 +1489,6 @@ async function genererPDF(multiOpt, optionFiltre) {
                 fontStyle: 'bold',
                 fontSize: 9
             },
-            bodyStyles: {},
             didParseCell: function(data) {
                 if (data.section === 'body' && data.row.index === 0) {
                     data.cell.styles.fontStyle = 'bold';
