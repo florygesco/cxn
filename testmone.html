@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Test — Double redirection vers NeTubeX</title>
+<title>Test — Piste 6 sans doublons</title>
 <style>
   body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background:#f1f5f9; color:#0f172a; margin:0; padding:20px; min-height:100vh; }
   .container { max-width:680px; margin:0 auto; }
@@ -16,59 +16,77 @@
   button { width:100%; padding:14px 18px; border-radius:12px; font-size:15px; font-weight:800; font-family:inherit; border:none; cursor:pointer; margin-bottom:8px; display:inline-flex; align-items:center; justify-content:center; gap:8px; transition:transform .12s ease; }
   button:active { transform:scale(.98); }
   .btn-green { background:#10b981; color:#fff; }
+  .btn-red   { background:#ef4444; color:#fff; }
   .btn-blue  { background:#3b82f6; color:#fff; }
-  .btn-purple{ background:#8b5cf6; color:#fff; }
-  .btn-orange{ background:#f59e0b; color:#fff; }
   .btn-gray  { background:#f1f5f9; color:#334155; border:1px solid #e2e8f0; }
   .badge { display:inline-block; font-size:11px; font-weight:900; padding:4px 10px; border-radius:999px; text-transform:uppercase; letter-spacing:.4px; background:#dbeafe; color:#1e40af; }
   .badge-best { background:#d1fae5; color:#065f46; }
-  .status-box { background:#0f172a; color:#67e8f9; font-family:ui-monospace, Menlo, monospace; font-size:13px; padding:14px; border-radius:10px; margin-top:12px; min-height:120px; line-height:1.6; white-space:pre-wrap; word-break:break-word; max-height:340px; overflow-y:auto; }
+  .badge-bad  { background:#fee2e2; color:#991b1b; }
+  .status-box { background:#0f172a; color:#67e8f9; font-family:ui-monospace, Menlo, monospace; font-size:13px; padding:14px; border-radius:10px; margin-top:12px; min-height:140px; line-height:1.6; white-space:pre-wrap; word-break:break-word; max-height:340px; overflow-y:auto; }
   .status-box .label { color:#94a3b8; display:block; font-size:11px; text-transform:uppercase; margin-bottom:4px; }
   .status-box .ok { color:#6ee7b7; }
   .status-box .info { color:#67e8f9; }
   .status-box .warn { color:#fcd34d; }
   .status-box .err { color:#fca5a5; }
   .info-note { font-size:12.5px; color:#78350f; background:#fffbeb; border:1px solid #fcd34d; border-radius:10px; padding:12px 14px; line-height:1.55; margin-top:14px; }
-  .info-note strong { color:#78350f; }
   footer { text-align:center; font-size:12px; color:#94a3b8; padding:20px 0; }
+  .counter { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:10px; font-size:13px; font-weight:900; color:#1e40af; margin-left:8px; }
 </style>
 </head>
 <body>
 <div class="container">
 
-  <h1>🧪 Double redirection → NeTubeX</h1>
+  <h1>🧪 Piste 6 sans doublons</h1>
   <p class="subtitle">
-    Objectif : <strong>NeTubeX RDC devant</strong> + <strong>cette page dans un nouvel onglet derrière</strong>.
+    Objectif : <strong>1 seul onglet Test réutilisé</strong>, même après plusieurs clics.
   </p>
 
   <div class="card">
-    <h3><span class="badge badge-best">Piste 1</span> open + replace + focus différé</h3>
-    <p>Ouvre cette page dans un nouvel onglet, puis redirige l'onglet actuel vers NeTubeX, puis tente de garder le focus.</p>
-    <button class="btn-green" onclick="piste1()">🔗 Tester Piste 1 → NeTubeX</button>
+    <h3>
+      <span class="badge badge-bad">Sans nom fixe</span>
+      Ancien comportement (crée des doublons)
+    </h3>
+    <p>
+      <code>window.open(url, '_blank')</code> → <strong>nouvel onglet à chaque clic</strong>. À éviter.
+    </p>
+    <button class="btn-red" onclick="piste6AvecDoublons()">
+      ❌ Tester (créera des doublons)
+    </button>
   </div>
 
   <div class="card">
-    <h3><span class="badge">Piste 6</span> about:blank + blur/focus</h3>
-    <p>Ouvre un onglet vide, y charge cette page, redirige l'onglet actuel, puis tente blur/focus.</p>
-    <button class="btn-blue" onclick="piste6()">🔗 Tester Piste 6 → NeTubeX</button>
+    <h3>
+      <span class="badge badge-best">Avec nom fixe</span>
+      <code>window.open(url, 'ntx_test_tab')</code>
+    </h3>
+    <p>
+      Même nom à chaque clic → le navigateur <strong>réutilise l'onglet</strong>. Cliquez plusieurs fois pour vérifier.
+    </p>
+    <button class="btn-green" onclick="piste6SansDoublon()">
+      ✅ Tester (1 seul onglet)
+    </button>
   </div>
 
   <div class="card">
-    <h3><span class="badge">Piste 7</span> Page intermédiaire</h3>
-    <p>Passe par une page data: qui orchestre les deux navigations de manière synchrone.</p>
-    <button class="btn-orange" onclick="piste7()">🔗 Tester Piste 7 → NeTubeX</button>
+    <h3>
+      <span class="badge">Vérification</span>
+      Compter les onglets nommés
+    </h3>
+    <p>Vérifie si l'onglet nommé <code>ntx_test_tab</code> existe déjà.</p>
+    <button class="btn-blue" onclick="verifierOngletExistant()">
+      🔍 Vérifier l'onglet existant
+    </button>
   </div>
 
   <div class="card">
-    <h3><span class="badge">Piste 8</span> Lien &lt;a&gt; + Ctrl/Cmd simulé</h3>
-    <p>Crée un vrai lien avec target="_blank" et simule Ctrl+clic pour forcer l'ouverture en arrière-plan côté navigateur.</p>
-    <button class="btn-purple" onclick="piste8()">🔗 Tester Piste 8 → NeTubeX</button>
-  </div>
-
-  <div class="card">
-    <h3><span class="badge">Comparaison</span> Simple redirection sans copie</h3>
-    <p>Pour référence : l'onglet actuel va sur NeTubeX, sans historique (bouton retour désactivé).</p>
-    <button class="btn-gray" onclick="comparaison()">🔗 NeTubeX simple (sans copie)</button>
+    <h3>
+      <span class="badge badge-bad">Fermeture</span>
+      Fermer l'onglet nommé
+    </h3>
+    <p>Utile pour tester proprement depuis zéro.</p>
+    <button class="btn-gray" onclick="fermerOngletNomme()">
+      🗑️ Fermer l'onglet 'ntx_test_tab'
+    </button>
   </div>
 
   <div class="card">
@@ -81,12 +99,12 @@
   </div>
 
   <div class="info-note">
-    <strong>🧠 Ce qu'il faut observer après chaque clic :</strong><br>
-    1. Sur quel onglet êtes-vous ? (NeTubeX ou cette page ?)<br>
-    2. Combien d'onglets sont ouverts au total ?<br>
-    3. Si vous cliquez sur l'autre onglet, que voyez-vous ?<br>
-    4. Le bouton ← Retour fonctionne-t-il ?<br><br>
-    <strong>Envoyez-moi vos observations</strong> (ex : « Piste 1 : je vois NeTubeX devant, cette page est dans l'onglet 2 derrière ») et je saurai quelle piste fonctionne sur votre navigateur.
+    <strong>🧪 Test à faire :</strong><br>
+    1. Cliquez sur <strong>« ✅ Tester (1 seul onglet) »</strong> une première fois.<br>
+    2. Notez combien d'onglets sont ouverts.<br>
+    3. Revenez sur cette page, cliquez à nouveau sur le même bouton.<br>
+    4. Le nombre d'onglets doit être <strong>identique</strong> : l'onglet est réutilisé, pas recréé.<br><br>
+    <strong>⚠️ Attention :</strong> le nom d'onglet fonctionne pour les onglets <em>du même domaine</em> (même origine). C'est notre cas ici, donc ça marche.
   </div>
 
   <footer>Test — NeTubeX RDC</footer>
@@ -95,6 +113,7 @@
 
 <script>
 var CIBLE = 'https://www.netubex.com/rdc';
+var NOM_ONGLET = 'ntx_test_tab'; // nom FIXE pour réutilisation
 
 function log(m, t) {
   var b = document.getElementById('statusBox');
@@ -108,28 +127,12 @@ function resetLog() {
 }
 
 // ============================================================
-// PISTE 1 — open(here) → replace(NeTubeX) → focus()
+// PISTE 6 AVEC DOUBLONS (mauvaise méthode — pour comparaison)
 // ============================================================
-function piste1() {
-  log('▶️ Piste 1 : open(ici) → replace(NeTubeX) → focus()', 'info');
+function piste6AvecDoublons() {
+  log('▶️ Piste 6 SANS nom fixe ("_blank") — créera des doublons', 'warn');
   var here = window.location.href;
-  var w = window.open(here, 'ntx_test_copy');
-  if (!w) { log('❌ Popup bloquée', 'err'); return; }
-  log('✅ Cette page ouverte dans un nouvel onglet', 'ok');
-  window.location.replace(CIBLE);
-  setTimeout(function () {
-    try { window.focus(); log('👀 focus() tenté sur NeTubeX', 'info'); } catch(e){}
-  }, 400);
-  log('➡️ Redirection de l\'onglet actuel vers NeTubeX', 'info');
-}
-
-// ============================================================
-// PISTE 6 — about:blank + blur/focus
-// ============================================================
-function piste6() {
-  log('▶️ Piste 6 : about:blank → charge ici → replace(NeTubeX) + blur/focus', 'info');
-  var here = window.location.href;
-  var w = window.open('about:blank', '_blank');
+  var w = window.open('about:blank', '_blank');  // ⚠️ _blank = toujours nouveau
   if (!w) { log('❌ Popup bloquée', 'err'); return; }
   try { w.location.href = here; } catch(e) {
     try { w.location.replace(here); } catch(e2){}
@@ -138,58 +141,79 @@ function piste6() {
   setTimeout(function(){
     try { w.blur(); } catch(e){}
     try { window.focus(); } catch(e){}
-    log('👀 blur/focus tentés', 'info');
+  }, 150);
+  log('⚠️ Un nouvel onglet a été créé (pas réutilisé)', 'warn');
+}
+
+// ============================================================
+// PISTE 6 SANS DOUBLONS (nom fixe)
+// ============================================================
+function piste6SansDoublon() {
+  log('▶️ Piste 6 AVEC nom fixe "' + NOM_ONGLET + '"', 'info');
+
+  var here = window.location.href;
+
+  // ⚠️ La clé : nom FIXE au lieu de '_blank'
+  // → 1er clic : crée l'onglet
+  // → clics suivants : réutilise le même onglet
+  var w = window.open('about:blank', NOM_ONGLET);
+
+  if (!w) {
+    log('❌ Popup bloquée. Autorisez les popups.', 'err');
+    return;
+  }
+
+  log('✅ Onglet "' + NOM_ONGLET + '" prêt (créé ou réutilisé)', 'ok');
+
+  // Charge cette page dans l'onglet nommé
+  try {
+    w.location.href = here;
+  } catch(e) {
+    try { w.location.replace(here); } catch(e2) {
+      log('❌ Impossible de charger la page dans l\'onglet', 'err');
+    }
+  }
+
+  // Redirige l'onglet actuel vers NeTubeX
+  window.location.replace(CIBLE);
+
+  // Tente de garder le focus sur l'onglet actuel (NeTubeX)
+  setTimeout(function(){
+    try { w.blur(); } catch(e){}
+    try { window.focus(); } catch(e){}
+    log('👀 blur/focus tentés sur l\'onglet NeTubeX', 'info');
   }, 150);
 }
 
 // ============================================================
-// PISTE 7 — Page intermédiaire
+// VÉRIFIER SI L'ONGLET EXISTE DÉJÀ
 // ============================================================
-function piste7() {
-  log('▶️ Piste 7 : page intermédiaire data:', 'info');
-  var here = window.location.href;
-  var inter = 'data:text/html;charset=utf-8,' + encodeURIComponent(
-    '<!DOCTYPE html><html><head><meta charset="utf-8"><title>…</title></head><body>' +
-    '<script>' +
-    'var ntx=' + JSON.stringify(here) + ';' +
-    'var cible=' + JSON.stringify(CIBLE) + ';' +
-    'var w=window.open(ntx,"_blank");' +
-    'window.location.replace(cible);' +
-    '<\/script></body></html>'
-  );
-  window.location.replace(inter);
+function verifierOngletExistant() {
+  log('🔍 Vérification de l\'onglet "' + NOM_ONGLET + '"…', 'info');
+
+  // Tentative d'accès à l'onglet nommé
+  var w = window.open('', NOM_ONGLET);
+
+  if (w && w.location && w.location.href !== 'about:blank') {
+    log('✅ L\'onglet existe déjà (URL : ' + w.location.href + ')', 'ok');
+  } else if (w) {
+    log('ℹ️ Un onglet vide "' + NOM_ONGLET + '" existe ou vient d\'être créé', 'info');
+  } else {
+    log('❌ Aucun onglet "' + NOM_ONGLET + '" trouvé', 'warn');
+  }
 }
 
 // ============================================================
-// PISTE 8 — Vrai lien + Ctrl/Cmd simulé
+// FERMER L'ONGLET NOMMÉ
 // ============================================================
-function piste8() {
-  log('▶️ Piste 8 : lien <a target=_blank> + Ctrl/Cmd clic simulé', 'info');
-  var a = document.createElement('a');
-  a.href = window.location.href;
-  a.target = '_blank';
-  a.rel = 'noopener';
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  var evt = new MouseEvent('click', {
-    ctrlKey: true,
-    metaKey: true,
-    bubbles: true,
-    cancelable: true
-  });
-  a.dispatchEvent(evt);
-  setTimeout(function(){ a.remove(); }, 200);
-  // Puis on redirige l'onglet actuel
-  setTimeout(function(){ window.location.replace(CIBLE); }, 50);
-  log('✅ Clic Ctrl/Cmd simulé + redirection de l\'onglet actuel', 'ok');
-}
-
-// ============================================================
-// COMPARAISON — Simple sans copie
-// ============================================================
-function comparaison() {
-  log('▶️ Comparaison : replace(NeTubeX) sans copie', 'info');
-  window.location.replace(CIBLE);
+function fermerOngletNomme() {
+  var w = window.open('', NOM_ONGLET);
+  if (w) {
+    w.close();
+    log('🗑️ Onglet "' + NOM_ONGLET + '" fermé', 'ok');
+  } else {
+    log('ℹ️ Aucun onglet à fermer', 'info');
+  }
 }
 
 // Détection blur/focus
@@ -197,13 +221,13 @@ var lastBlur = 0;
 window.addEventListener('blur', function(){ lastBlur = Date.now(); });
 window.addEventListener('focus', function(){
   if (lastBlur && Date.now() - lastBlur > 300) {
-    var d = ((Date.now() - lastBlur) / 1000).toFixed(1);
-    log('👀 Retour sur cette page après ' + d + 's', 'info');
+    log('👀 Retour sur cette page après ' + ((Date.now()-lastBlur)/1000).toFixed(1) + 's', 'info');
     lastBlur = 0;
   }
 });
 
-log('Page de test chargée. Cible : ' + CIBLE, 'ok');
+log('Page chargée. Cible : ' + CIBLE, 'ok');
+log('Nom d\'onglet utilisé : "' + NOM_ONGLET + '"', 'info');
 </script>
 </body>
 </html>
