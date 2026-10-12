@@ -54,12 +54,14 @@ body{overscroll-behavior:none;}
 .btn-secondary{background:#3a3b3c;color:#e4e6eb;}
 .btn-primary{background:#1877f2;color:#fff;}
 .btn-primary:hover{background:#166fe5;}
+.btn-warning{background:#f7b928;color:#050505;}
+.btn-warning:hover{background:#e0a520;}
 .table-wrapper{width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;display:block;border-radius:8px;border:1px solid #3a3b3c;}
 .student-table{width:100%;border-collapse:collapse;font-size:13px;min-width:800px;background:#242526;}
 .student-table th{background:#3a3b3c;padding:12px 6px;border-bottom:1px solid #3a3b3c;font-size:12px;color:#b0b3b8;font-weight:600;text-align:center;}
 .student-table td{border-bottom:1px solid #3a3b3c;padding:8px 4px;color:#e4e6eb;text-align:center;}
 .student-table tr:nth-child(even) td{background:#2a2b2c;}
-.student-table input{width:55px;padding:6px;border-radius:6px;background:#3a3b3c;border:1px solid transparent;color:#e4e6eb;text-align:center;font-family:inherit;font-size:13px;}
+.student-table input{width:60px;padding:6px;border-radius:6px;background:#3a3b3c;border:1px solid transparent;color:#e4e6eb;text-align:center;font-family:inherit;font-size:13px;}
 .student-table input:focus{outline:none;border-color:#25d366;background:#4a4b4c;}
 .student-table input.note-insuffisant{color:#f02849;font-weight:700;}
 .student-table input.note-moyen{color:#f7b928;font-weight:700;}
@@ -167,6 +169,15 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
   .cotation-sidebar{order:1;flex-direction:row;flex-wrap:wrap;}
   .cotation-sidebar .sidebar-block{flex:1;min-width:220px;}
 }
+.multioptions-config{margin-top:14px;padding:14px;background:#1c1e21;border-radius:6px;border:1px dashed #3a3b3c;}
+.multioptions-config.hidden{display:none;}
+.multioptions-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:6px 10px;background:#242526;border-radius:6px;}
+.multioptions-row label{flex:1;font-size:13px;color:#e4e6eb;font-weight:500;}
+.multioptions-row input{width:80px;padding:6px 10px;border-radius:6px;background:#3a3b3c;border:1px solid transparent;color:#e4e6eb;font-family:inherit;font-size:13px;text-align:center;}
+.multioptions-row input:focus{outline:none;border-color:#25d366;}
+.multioptions-toggle{display:flex;gap:8px;margin-bottom:12px;}
+.multioptions-toggle button{flex:1;padding:8px 12px;border-radius:6px;background:#3a3b3c;border:none;color:#b0b3b8;font-weight:600;font-size:12px;cursor:pointer;font-family:inherit;}
+.multioptions-toggle button.active{background:#25d366;color:#fff;}
 .technique-panel{position:fixed;top:0;left:0;right:0;bottom:0;background:#1c1e21;z-index:18000;display:flex;flex-direction:column;visibility:hidden;opacity:0;transition:all 0.3s;}
 .technique-panel.show{visibility:visible;opacity:1;}
 .technique-header{background:#242526;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #3a3b3c;}
@@ -245,10 +256,21 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 </div>
 <div class="prof-config" style="margin:0 20px 20px 20px;"><h3>CONFIGURATION</h3>
 <div class="note-max-row"><label>Note max / période :</label><input type="number" id="p1MaxConfig" value="20" step="1"></div>
-<div class="btn-group" id="btnGroupContainer">
+
+<div id="multiOptionsSection" class="multioptions-config hidden">
+<div style="font-size:12px;font-weight:700;color:#25d366;letter-spacing:0.5px;margin-bottom:10px;">⚙️ NOTE MAX PAR OPTION</div>
+<div class="multioptions-toggle">
+<button type="button" id="modeUniforme" class="active">Note unique</button>
+<button type="button" id="modePersonnalise">Note par option</button>
+</div>
+<div id="multiOptionsList" style="display:none;"></div>
+</div>
+
+<div class="btn-group" id="btnGroupContainer" style="margin-top:16px;">
 <button class="btn btn-success" id="creerFicheBtn">CRÉER</button>
 <button class="btn btn-primary" id="modifierFicheBtn" style="display:none;">MODIFIER</button>
 <button class="btn btn-danger" id="supprimerFicheBtn" style="display:none;">SUPPRIMER</button>
+<button class="btn btn-warning" id="diviserFicheBtn" style="display:none;">✂️ DIVISER PAR OPTION</button>
 <button class="btn btn-secondary" id="viderChampsBtn">EFFACER</button>
 </div>
 </div>
@@ -383,6 +405,7 @@ let champsModifiables = false;
 let localEleves = [];
 let triAlphabetiqueActif = false;
 let periodeFilterCotation = 'all';
+let modeMultiOptionsActif = false;
 
 const optionsParClasse = {
     "1ère Année": ["SCIENCES", "PEDAGOGIE GENERALE", "COMMERCIALE ET GESTION", "ELECTRICITE", "MECANIQUE GENERALE", "COUPE ET COUTURE", "TOUTES"],
@@ -392,6 +415,7 @@ const optionsParClasse = {
     "7ème EB": [], "8ème EB": []
 };
 
+const OPTIONS_DISPONIBLES = ["SCIENCES", "PEDAGOGIE GENERALE", "COMMERCIALE ET GESTION", "ELECTRICITE", "MECANIQUE GENERALE", "COUPE ET COUTURE"];
 const SCHOOL_DISPLAY_NAME = "ÉCOLE GLORIA DEI";
 const TITULAIRE_NAME = "NGENDA FLORY";
 
@@ -492,6 +516,17 @@ function getNomComplet(eleve) {
     return [eleve.nom, eleve.postnom, eleve.prenom].filter(p => p && p.trim()).join(' ') || 'Élève';
 }
 
+function getNotesMaxForEleve(eleve) {
+    if (!currentFiche) return 20;
+    if (currentFiche.modeMultiOptions && currentFiche.notesMaxParOption) {
+        const opt = eleve.option || '';
+        if (opt && currentFiche.notesMaxParOption[opt]) {
+            return currentFiche.notesMaxParOption[opt];
+        }
+    }
+    return currentFiche.p1Max || 20;
+}
+
 async function loadAllFiches() {
     if (!currentProf) return [];
     try {
@@ -565,6 +600,7 @@ async function selectFiche(id) {
                 document.getElementById('optionSelect').value = currentFiche.option || '';
                 document.getElementById('p1MaxConfig').value = currentFiche.p1Max || 20;
                 toggleOptionField();
+                updateMultiOptionsUI();
                 updateSidebarFicheInfo();
                 afficherEpreuves();
                 afficherEleves();
@@ -598,6 +634,34 @@ function toggleOptionField() {
     if (c === '7ème EB' || c === '8ème EB') { o.classList.add('hidden-field'); document.getElementById('optionSelect').value = ''; }
     else if (c) o.classList.remove('hidden-field');
     else o.classList.add('hidden-field');
+    updateMultiOptionsUI();
+}
+
+function updateMultiOptionsUI() {
+    const opt = document.getElementById('optionSelect').value;
+    const section = document.getElementById('multiOptionsSection');
+    if (opt === 'TOUTES') {
+        section.classList.remove('hidden');
+    } else {
+        section.classList.add('hidden');
+        modeMultiOptionsActif = false;
+        document.getElementById('modeUniforme').classList.add('active');
+        document.getElementById('modePersonnalise').classList.remove('active');
+        document.getElementById('multiOptionsList').style.display = 'none';
+    }
+}
+
+function renderMultiOptionsList() {
+    const container = document.getElementById('multiOptionsList');
+    let html = '';
+    for (const opt of OPTIONS_DISPONIBLES) {
+        let val = 20;
+        if (currentFiche && currentFiche.notesMaxParOption && currentFiche.notesMaxParOption[opt]) {
+            val = currentFiche.notesMaxParOption[opt];
+        }
+        html += `<div class="multioptions-row"><label>${opt}</label><input type="number" data-option="${opt}" value="${val}" min="1" step="1"></div>`;
+    }
+    container.innerHTML = html;
 }
 
 function setChampsModifiables(actif) {
@@ -617,15 +681,22 @@ function mettreAJourBoutons() {
     const creerBtn = document.getElementById('creerFicheBtn');
     const modifierBtn = document.getElementById('modifierFicheBtn');
     const supprimerBtn = document.getElementById('supprimerFicheBtn');
+    const diviserBtn = document.getElementById('diviserFicheBtn');
     if (currentFicheId && currentFiche) {
         creerBtn.style.display = 'none';
         modifierBtn.style.display = 'inline-flex';
         supprimerBtn.style.display = 'inline-flex';
+        if (currentFiche.option === 'TOUTES') {
+            diviserBtn.style.display = 'inline-flex';
+        } else {
+            diviserBtn.style.display = 'none';
+        }
         if (!champsModifiables) setChampsModifiables(false);
     } else {
         creerBtn.style.display = 'inline-flex';
         modifierBtn.style.display = 'none';
         supprimerBtn.style.display = 'none';
+        diviserBtn.style.display = 'none';
         champsModifiables = true;
         setChampsModifiables(true);
     }
@@ -636,6 +707,10 @@ function viderChamps() {
     document.getElementById('classeSelect').value = '';
     document.getElementById('optionSelect').value = '';
     document.getElementById('p1MaxConfig').value = 20;
+    modeMultiOptionsActif = false;
+    document.getElementById('modeUniforme').classList.add('active');
+    document.getElementById('modePersonnalise').classList.remove('active');
+    document.getElementById('multiOptionsList').style.display = 'none';
     toggleOptionField();
     champsModifiables = true;
     currentFiche = null;
@@ -653,7 +728,8 @@ function afficherEleves() {
     for (let i = 0; i < ev.length; i++) {
         let d = document.createElement('div');
         d.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 12px;background:#2a2b2c;border-radius:6px;margin-bottom:6px;border:1px solid #3a3b3c;';
-        d.innerHTML = `<span style="flex:1;color:#e4e6eb;font-size:13px;font-weight:500;">${escapeHtml(getNomComplet(ev[i]))}</span><span style="color:#b0b3b8;font-size:12px;">${ev[i].sexe || 'M'}</span>`;
+        const nMax = getNotesMaxForEleve(ev[i]);
+        d.innerHTML = `<span style="flex:1;color:#e4e6eb;font-size:13px;font-weight:500;">${escapeHtml(getNomComplet(ev[i]))}</span><span style="color:#b0b3b8;font-size:12px;">${ev[i].sexe || 'M'}</span><span style="color:#25d366;font-size:11px;font-weight:600;">${ev[i].option || '—'} /${nMax}</span>`;
         c.appendChild(d);
     }
     if (ev.length === 0) c.innerHTML = '<div class="empty-state">Aucun élève dans cette fiche</div>';
@@ -664,13 +740,13 @@ function getExamMax(s) { return getPeriodeMax() * 2; }
 function getTotalSemestreMax(s) { return getPeriodeMax() * 4; }
 function getTotalAnnuelMax() { return getPeriodeMax() * 8; }
 
-function calcMoy(p, notes) {
+function calcMoy(p, notes, eleve) {
     let eps = currentFiche.epreuvesParPeriode?.[p] || [];
     if (!eps.length || !notes?.length) return 0;
     let sommeNotes = 0, sommeMax = 0;
     for (let i = 0; i < eps.length; i++) { sommeNotes += (notes[i] || 0); sommeMax += (eps[i].max || 1); }
     if (sommeMax === 0) return 0;
-    let noteMaxPeriode = currentFiche.p1Max || 20;
+    let noteMaxPeriode = eleve ? getNotesMaxForEleve(eleve) : getPeriodeMax();
     return Math.round(Math.min(noteMaxPeriode, (sommeNotes / sommeMax) * noteMaxPeriode));
 }
 
@@ -697,44 +773,46 @@ function afficherCotation() {
     if (searchTerm) elevesFiltres = elevesFiltres.filter(e => getNomComplet(e).toLowerCase().includes(searchTerm));
     if (triAlphabetiqueActif) elevesFiltres.sort((a, b) => getNomComplet(a).localeCompare(getNomComplet(b)));
     if (!elevesFiltres.length) { th.innerHTML = ''; tb.innerHTML = '<tr><td class="empty-state">Aucun élève</td></tr>'; return; }
-    let p1m = getPeriodeMax(), p2m = getPeriodeMax(), p3m = getPeriodeMax(), p4m = getPeriodeMax();
-    let e1m = getExamMax(1), e2m = getExamMax(2);
     let h = ['<th>N°</th><th>NOMS COMPLETS</th><th>SEXE</th>'];
+    if (currentFiche.option === 'TOUTES') h.push('<th>OPTION</th>');
     let e1 = currentFiche.epreuvesParPeriode?.[1] || [];
     let e2 = currentFiche.epreuvesParPeriode?.[2] || [];
     let e3 = currentFiche.epreuvesParPeriode?.[3] || [];
     let e4 = currentFiche.epreuvesParPeriode?.[4] || [];
     const pf = periodeFilterCotation;
-    if (pf === 'all' || pf === '1') { for (let ep of e1) h.push('<th>' + ep.nom + '<br>P1 /' + ep.max + '</th>'); h.push('<th>MOY P1<br>/' + p1m + '</th>'); }
-    if (pf === 'all' || pf === '2') { for (let ep of e2) h.push('<th>' + ep.nom + '<br>P2 /' + ep.max + '</th>'); h.push('<th>MOY P2<br>/' + p2m + '</th>'); }
-    if (pf === 'all') h.push('<th>EXAM S1<br>/' + e1m + '</th>');
-    if (pf === 'all' || pf === '3') { for (let ep of e3) h.push('<th>' + ep.nom + '<br>P3 /' + ep.max + '</th>'); h.push('<th>MOY P3<br>/' + p3m + '</th>'); }
-    if (pf === 'all' || pf === '4') { for (let ep of e4) h.push('<th>' + ep.nom + '<br>P4 /' + ep.max + '</th>'); h.push('<th>MOY P4<br>/' + p4m + '</th>'); }
-    if (pf === 'all') h.push('<th>EXAM S2<br>/' + e2m + '</th>');
+    if (pf === 'all' || pf === '1') { for (let ep of e1) h.push('<th>' + ep.nom + '<br>P1 /' + ep.max + '</th>'); h.push('<th>MOY P1<br>normalisée</th>'); }
+    if (pf === 'all' || pf === '2') { for (let ep of e2) h.push('<th>' + ep.nom + '<br>P2 /' + ep.max + '</th>'); h.push('<th>MOY P2<br>normalisée</th>'); }
+    if (pf === 'all') h.push('<th>EXAM S1<br>normalisée</th>');
+    if (pf === 'all' || pf === '3') { for (let ep of e3) h.push('<th>' + ep.nom + '<br>P3 /' + ep.max + '</th>'); h.push('<th>MOY P3<br>normalisée</th>'); }
+    if (pf === 'all' || pf === '4') { for (let ep of e4) h.push('<th>' + ep.nom + '<br>P4 /' + ep.max + '</th>'); h.push('<th>MOY P4<br>normalisée</th>'); }
+    if (pf === 'all') h.push('<th>EXAM S2<br>normalisée</th>');
     th.innerHTML = h.join('');
     tb.innerHTML = '';
     for (let i = 0; i < elevesFiltres.length; i++) {
         let e = elevesFiltres[i];
         if (!e.notes) e.notes = { p1: [], p2: [], p3: [], p4: [], exam1: 0, exam2: 0 };
-        let p1 = calcMoy(1, e.notes.p1), p2 = calcMoy(2, e.notes.p2), p3 = calcMoy(3, e.notes.p3), p4 = calcMoy(4, e.notes.p4);
+        const nMaxEleve = getNotesMaxForEleve(e);
+        const examMaxEleve = nMaxEleve * 2;
+        let p1 = calcMoy(1, e.notes.p1, e), p2 = calcMoy(2, e.notes.p2, e), p3 = calcMoy(3, e.notes.p3, e), p4 = calcMoy(4, e.notes.p4, e);
         let ex1 = e.notes.exam1 || 0, ex2 = e.notes.exam2 || 0;
         let r = '<tr>';
         r += '<td>' + String(i + 1).padStart(2, '0') + '</td>';
         r += '<td style="text-align:left;padding-left:16px;font-weight:600;">' + escapeHtml(getNomComplet(e)) + '</td>';
         r += '<td>' + (e.sexe || 'M') + '</td>';
-        if (pf === 'all' || pf === '1') { for (let ei = 0; ei < e1.length; ei++) { let val = e.notes.p1?.[ei] || 0; let maxVal = e1[ei]?.max || 20; let nc = getNoteClass(val, maxVal); r += '<td><input type="number" step="0.5" min="0" max="' + maxVal + '" value="' + val + '" onchange="window.updNote(' + i + ',1,' + ei + ',this.value)" class="' + nc + '"></td>'; } let p1c = getNoteClass(p1, p1m); r += '<td style="background:#3a3b3c;font-weight:700;" class="' + p1c + '">' + p1 + '</td>'; }
-        if (pf === 'all' || pf === '2') { for (let ei = 0; ei < e2.length; ei++) { let val = e.notes.p2?.[ei] || 0; let maxVal = e2[ei]?.max || 20; let nc = getNoteClass(val, maxVal); r += '<td><input type="number" step="0.5" min="0" max="' + maxVal + '" value="' + val + '" onchange="window.updNote(' + i + ',2,' + ei + ',this.value)" class="' + nc + '"></td>'; } let p2c = getNoteClass(p2, p2m); r += '<td style="background:#3a3b3c;font-weight:700;" class="' + p2c + '">' + p2 + '</td>'; }
-        if (pf === 'all') { let e1c = getNoteClass(ex1, e1m); r += '<td><input type="number" step="0.5" min="0" max="' + e1m + '" value="' + ex1 + '" onchange="window.updExam(' + i + ',1,this.value)" class="' + e1c + '"></td>'; }
-        if (pf === 'all' || pf === '3') { for (let ei = 0; ei < e3.length; ei++) { let val = e.notes.p3?.[ei] || 0; let maxVal = e3[ei]?.max || 20; let nc = getNoteClass(val, maxVal); r += '<td><input type="number" step="0.5" min="0" max="' + maxVal + '" value="' + val + '" onchange="window.updNote(' + i + ',3,' + ei + ',this.value)" class="' + nc + '"></td>'; } let p3c = getNoteClass(p3, p3m); r += '<td style="background:#3a3b3c;font-weight:700;" class="' + p3c + '">' + p3 + '</td>'; }
-        if (pf === 'all' || pf === '4') { for (let ei = 0; ei < e4.length; ei++) { let val = e.notes.p4?.[ei] || 0; let maxVal = e4[ei]?.max || 20; let nc = getNoteClass(val, maxVal); r += '<td><input type="number" step="0.5" min="0" max="' + maxVal + '" value="' + val + '" onchange="window.updNote(' + i + ',4,' + ei + ',this.value)" class="' + nc + '"></td>'; } let p4c = getNoteClass(p4, p4m); r += '<td style="background:#3a3b3c;font-weight:700;" class="' + p4c + '">' + p4 + '</td>'; }
-        if (pf === 'all') { let e2c = getNoteClass(ex2, e2m); r += '<td><input type="number" step="0.5" min="0" max="' + e2m + '" value="' + ex2 + '" onchange="window.updExam(' + i + ',2,this.value)" class="' + e2c + '"></td>'; }
+        if (currentFiche.option === 'TOUTES') r += '<td style="font-size:11px;color:#25d366;font-weight:600;">' + escapeHtml(e.option || '—') + '</td>';
+        if (pf === 'all' || pf === '1') { for (let ei = 0; ei < e1.length; ei++) { let val = e.notes.p1?.[ei] || 0; let maxVal = e1[ei]?.max || 20; let nc = getNoteClass(val, maxVal); r += '<td><input type="number" step="0.5" min="0" max="' + maxVal + '" value="' + val + '" onchange="window.updNote(' + i + ',1,' + ei + ',this.value)" class="' + nc + '"></td>'; } let p1c = getNoteClass(p1, nMaxEleve); r += '<td style="background:#3a3b3c;font-weight:700;" class="' + p1c + '">' + p1 + '/' + nMaxEleve + '</td>'; }
+        if (pf === 'all' || pf === '2') { for (let ei = 0; ei < e2.length; ei++) { let val = e.notes.p2?.[ei] || 0; let maxVal = e2[ei]?.max || 20; let nc = getNoteClass(val, maxVal); r += '<td><input type="number" step="0.5" min="0" max="' + maxVal + '" value="' + val + '" onchange="window.updNote(' + i + ',2,' + ei + ',this.value)" class="' + nc + '"></td>'; } let p2c = getNoteClass(p2, nMaxEleve); r += '<td style="background:#3a3b3c;font-weight:700;" class="' + p2c + '">' + p2 + '/' + nMaxEleve + '</td>'; }
+        if (pf === 'all') { let e1c = getNoteClass(ex1, examMaxEleve); r += '<td><input type="number" step="0.5" min="0" max="' + examMaxEleve + '" value="' + ex1 + '" onchange="window.updExam(' + i + ',1,this.value)" class="' + e1c + '"></td>'; }
+        if (pf === 'all' || pf === '3') { for (let ei = 0; ei < e3.length; ei++) { let val = e.notes.p3?.[ei] || 0; let maxVal = e3[ei]?.max || 20; let nc = getNoteClass(val, maxVal); r += '<td><input type="number" step="0.5" min="0" max="' + maxVal + '" value="' + val + '" onchange="window.updNote(' + i + ',3,' + ei + ',this.value)" class="' + nc + '"></td>'; } let p3c = getNoteClass(p3, nMaxEleve); r += '<td style="background:#3a3b3c;font-weight:700;" class="' + p3c + '">' + p3 + '/' + nMaxEleve + '</td>'; }
+        if (pf === 'all' || pf === '4') { for (let ei = 0; ei < e4.length; ei++) { let val = e.notes.p4?.[ei] || 0; let maxVal = e4[ei]?.max || 20; let nc = getNoteClass(val, maxVal); r += '<td><input type="number" step="0.5" min="0" max="' + maxVal + '" value="' + val + '" onchange="window.updNote(' + i + ',4,' + ei + ',this.value)" class="' + nc + '"></td>'; } let p4c = getNoteClass(p4, nMaxEleve); r += '<td style="background:#3a3b3c;font-weight:700;" class="' + p4c + '">' + p4 + '/' + nMaxEleve + '</td>'; }
+        if (pf === 'all') { let e2c = getNoteClass(ex2, examMaxEleve); r += '<td><input type="number" step="0.5" min="0" max="' + examMaxEleve + '" value="' + ex2 + '" onchange="window.updExam(' + i + ',2,this.value)" class="' + e2c + '"></td>'; }
         r += '</tr>';
         tb.innerHTML += r;
     }
 }
 
 window.updNote = function(i, p, epi, v) { let va = parseFloat(v) || 0; let me = currentFiche.epreuvesParPeriode[p]?.[epi]?.max || 20; if (va > me) va = me; if (va < 0) va = 0; if (!currentFiche.eleves[i].notes) currentFiche.eleves[i].notes = { p1: [], p2: [], p3: [], p4: [], exam1: 0, exam2: 0 }; if (!currentFiche.eleves[i].notes['p' + p]) currentFiche.eleves[i].notes['p' + p] = []; currentFiche.eleves[i].notes['p' + p][epi] = va; afficherCotation(); };
-window.updExam = function(i, s, v) { let va = parseFloat(v) || 0; let me = getExamMax(s); if (va > me) va = me; if (va < 0) va = 0; if (!currentFiche.eleves[i].notes) currentFiche.eleves[i].notes = { p1: [], p2: [], p3: [], p4: [], exam1: 0, exam2: 0 }; if (s === 1) currentFiche.eleves[i].notes.exam1 = va; else currentFiche.eleves[i].notes.exam2 = va; afficherCotation(); };
+window.updExam = function(i, s, v) { let va = parseFloat(v) || 0; let eleve = currentFiche.eleves[i]; let me = getNotesMaxForEleve(eleve) * 2; if (va > me) va = me; if (va < 0) va = 0; if (!currentFiche.eleves[i].notes) currentFiche.eleves[i].notes = { p1: [], p2: [], p3: [], p4: [], exam1: 0, exam2: 0 }; if (s === 1) currentFiche.eleves[i].notes.exam1 = va; else currentFiche.eleves[i].notes.exam2 = va; afficherCotation(); };
 
 function afficherEpreuves() {
     let c = document.getElementById('epreuvesContainer');
@@ -785,6 +863,21 @@ function addEpreuve(p) {
     afficherCotation();
     saveCurrentFiche();
 }
+
+document.getElementById('modeUniforme').addEventListener('click', function() {
+    modeMultiOptionsActif = false;
+    this.classList.add('active');
+    document.getElementById('modePersonnalise').classList.remove('active');
+    document.getElementById('multiOptionsList').style.display = 'none';
+});
+
+document.getElementById('modePersonnalise').addEventListener('click', function() {
+    modeMultiOptionsActif = true;
+    this.classList.add('active');
+    document.getElementById('modeUniforme').classList.remove('active');
+    document.getElementById('multiOptionsList').style.display = 'block';
+    if (!document.getElementById('multiOptionsList').innerHTML) renderMultiOptionsList();
+});
 
 async function showLogin() {
     const fa = document.querySelector('.floating-actions');
@@ -908,11 +1001,23 @@ document.getElementById('creerFicheBtn').addEventListener('click', async functio
     const cours = document.getElementById('coursInput').value.trim();
     const classe = document.getElementById('classeSelect').value;
     const option = document.getElementById('optionSelect').value;
-    const noteMax = document.getElementById('p1MaxConfig').value || 20;
+    const noteMax = parseFloat(document.getElementById('p1MaxConfig').value) || 20;
     if (!cours) { toast("Veuillez renseigner le cours", 'error'); return; }
     if (!classe) { toast("Veuillez sélectionner une classe", 'error'); return; }
     if (classe !== '7ème EB' && classe !== '8ème EB' && !option) { toast("Veuillez sélectionner une option", 'error'); return; }
     const fop = (classe === '7ème EB' || classe === '8ème EB') ? '' : option;
+
+    let notesMaxParOption = null;
+    if (fop === 'TOUTES' && modeMultiOptionsActif) {
+        notesMaxParOption = {};
+        const inputs = document.querySelectorAll('#multiOptionsList input');
+        inputs.forEach(inp => {
+            const opt = inp.dataset.option;
+            const val = parseFloat(inp.value) || 20;
+            notesMaxParOption[opt] = val;
+        });
+    }
+
     const doublon = toutesFiches.find(f => f.cours === cours && f.classe === classe && (f.option || '') === fop);
     if (doublon) { toast("Une fiche identique existe déjà", 'warning'); return; }
     isCreatingFiche = true;
@@ -938,16 +1043,21 @@ document.getElementById('creerFicheBtn').addEventListener('click', async functio
             id: e.id,
             nom: e.nom || '', postnom: e.postnom || '', prenom: e.prenom || '',
             sexe: e.sexe || 'M',
+            option: e.option || '',
             notes: { p1: [], p2: [], p3: [], p4: [], exam1: 0, exam2: 0 },
             source: "auto"
         }));
         const nouvelleFiche = {
             profId: currentProf.id, ficheId: nid, cours, classe, option: fop,
-            titulaire: TITULAIRE_NAME, anneeScolaire: "2026-2027", p1Max: parseFloat(noteMax) || 20,
+            titulaire: TITULAIRE_NAME, anneeScolaire: "2026-2027", p1Max: noteMax,
             numeroRef: nnum, dateCreation: now, lastModified: now,
             epreuvesParPeriode: { 1: [{ nom: "Interrogation", max: 20 }], 2: [{ nom: "Interrogation", max: 20 }], 3: [{ nom: "Interrogation", max: 20 }], 4: [{ nom: "Interrogation", max: 20 }] },
             eleves: eleves, school: ECOLET_ID
         };
+        if (notesMaxParOption) {
+            nouvelleFiche.modeMultiOptions = true;
+            nouvelleFiche.notesMaxParOption = notesMaxParOption;
+        }
         await setDoc(doc(db, "ecoles", ECOLET_ID, SC.FICHES, nid), nouvelleFiche);
         currentFiche = nouvelleFiche;
         currentFicheId = nid;
@@ -971,6 +1081,14 @@ document.getElementById('modifierFicheBtn').addEventListener('click', async func
     try {
         currentFiche.cours = document.getElementById('coursInput').value.trim();
         currentFiche.p1Max = parseFloat(document.getElementById('p1MaxConfig').value) || 20;
+        if (currentFiche.option === 'TOUTES' && modeMultiOptionsActif) {
+            currentFiche.modeMultiOptions = true;
+            currentFiche.notesMaxParOption = currentFiche.notesMaxParOption || {};
+            const inputs = document.querySelectorAll('#multiOptionsList input');
+            inputs.forEach(inp => {
+                currentFiche.notesMaxParOption[inp.dataset.option] = parseFloat(inp.value) || 20;
+            });
+        }
         currentFiche.lastModified = new Date();
         await setDoc(doc(db, "ecoles", ECOLET_ID, SC.FICHES, currentFicheId), currentFiche);
         await refreshSelectors(currentFicheId);
@@ -1001,6 +1119,76 @@ document.getElementById('supprimerFicheBtn').addEventListener('click', function(
     });
 });
 
+document.getElementById('diviserFicheBtn').addEventListener('click', async function() {
+    if (!currentFiche || currentFiche.option !== 'TOUTES') {
+        toast("Seules les fiches TOUTES peuvent être divisées", 'error');
+        return;
+    }
+    const eleves = currentFiche.eleves || [];
+    const elevesParOption = {};
+    for (const e of eleves) {
+        const opt = e.option || 'SANS_OPTION';
+        if (!elevesParOption[opt]) elevesParOption[opt] = [];
+        elevesParOption[opt].push(e);
+    }
+    const optionsPresentes = Object.keys(elevesParOption).filter(k => k !== 'SANS_OPTION');
+    if (optionsPresentes.length < 2) {
+        toast("Il faut au moins 2 options différentes pour diviser", 'warning');
+        return;
+    }
+
+    let listeHtml = optionsPresentes.map(opt => `<li style="margin-bottom:6px;color:#e4e6eb;font-size:13px;"><strong>${escapeHtml(opt)}</strong> — ${elevesParOption[opt].length} élèves</li>`).join('');
+
+    let d = document.createElement('div');
+    d.className = 'modal-fullscreen show';
+    d.innerHTML = `<div class="modal-content" style="max-width:520px;"><h3 style="color:#25d366;">✂️ DIVISER PAR OPTION</h3>
+    <p style="color:#b0b3b8;font-size:13px;line-height:1.6;margin-bottom:16px;">Cette action va créer <strong style="color:#25d366;">${optionsPresentes.length}</strong> fiches séparées. La fiche originale sera conservée.</p>
+    <ul style="list-style:none;padding:14px;background:#1c1e21;border-radius:6px;margin-bottom:20px;">${listeHtml}</ul>
+    <div style="display:flex;gap:12px;justify-content:flex-end;"><button class="btn btn-secondary" id="divCancel">Annuler</button><button class="btn btn-warning" id="divOk">DIVISER</button></div></div>`;
+    document.body.appendChild(d);
+
+    d.querySelector('#divCancel').onclick = () => d.remove();
+    d.querySelector('#divOk').onclick = async function() {
+        this.disabled = true;
+        this.textContent = 'Division...';
+        try {
+            const baseNum = currentFiche.numeroRef || getNextNumeroLocal();
+            let index = 0;
+            for (const opt of optionsPresentes) {
+                index++;
+                const nid = 'f' + Date.now() + '_' + index + '_' + Math.random().toString(36).substr(2, 4);
+                const p1MaxOpt = (currentFiche.notesMaxParOption && currentFiche.notesMaxParOption[opt]) || currentFiche.p1Max || 20;
+                const nouvelleFiche = {
+                    profId: currentProf.id,
+                    ficheId: nid,
+                    cours: currentFiche.cours,
+                    classe: currentFiche.classe,
+                    option: opt,
+                    titulaire: TITULAIRE_NAME,
+                    anneeScolaire: currentFiche.anneeScolaire || "2026-2027",
+                    p1Max: p1MaxOpt,
+                    numeroRef: baseNum,
+                    dateCreation: new Date(),
+                    lastModified: new Date(),
+                    epreuvesParPeriode: JSON.parse(JSON.stringify(currentFiche.epreuvesParPeriode || { 1: [], 2: [], 3: [], 4: [] })),
+                    eleves: JSON.parse(JSON.stringify(elevesParOption[opt])),
+                    school: ECOLET_ID,
+                    ficheParente: currentFicheId,
+                    suffixe: String.fromCharCode(96 + index)
+                };
+                await setDoc(doc(db, "ecoles", ECOLET_ID, SC.FICHES, nid), nouvelleFiche);
+            }
+            d.remove();
+            await refreshSelectors(currentFicheId);
+            toast(`Fiche divisée en ${optionsPresentes.length} fiches`, 'success');
+        } catch (e) {
+            toast("Erreur lors de la division", 'error');
+            this.disabled = false;
+            this.textContent = 'DIVISER';
+        }
+    };
+});
+
 document.getElementById('viderChampsBtn').addEventListener('click', function() {
     viderChamps();
     refreshSelectors();
@@ -1028,6 +1216,7 @@ document.getElementById('rechargerElevesBtn').onclick = async function() {
             id: e.id,
             nom: e.nom || '', postnom: e.postnom || '', prenom: e.prenom || '',
             sexe: e.sexe || 'M',
+            option: e.option || '',
             notes: notesExistantes[e.id] || { p1: [], p2: [], p3: [], p4: [], exam1: 0, exam2: 0 },
             source: "reload"
         }));
@@ -1042,7 +1231,7 @@ document.getElementById('rechargerElevesBtn').onclick = async function() {
 
 document.getElementById('coursInput').oninput = function() { if (currentFiche && champsModifiables) currentFiche.cours = this.value; };
 document.getElementById('classeSelect').onchange = function() { if (currentFiche && champsModifiables) { currentFiche.classe = this.value; if (['7ème EB', '8ème EB'].includes(this.value)) { currentFiche.option = ''; document.getElementById('optionSelect').value = ''; } } toggleOptionField(); };
-document.getElementById('optionSelect').onchange = function() { if (currentFiche && champsModifiables) currentFiche.option = this.value; };
+document.getElementById('optionSelect').onchange = function() { if (currentFiche && champsModifiables) currentFiche.option = this.value; toggleOptionField(); };
 document.getElementById('p1MaxConfig').onchange = function() { if (currentFiche && champsModifiables) { currentFiche.p1Max = parseFloat(this.value) || 20; afficherCotation(); } };
 
 document.getElementById('saveCotationBtn').onclick = async function() {
@@ -1090,30 +1279,33 @@ document.getElementById('exportCurrentBtn').onclick = async function() {
             pdf.text('Option : ' + currentFiche.option, 14, 68);
         }
 
-        const p1m = getPeriodeMax(), p2m = getPeriodeMax(), p3m = getPeriodeMax(), p4m = getPeriodeMax();
-        const e1m = getExamMax(1), e2m = getExamMax(2);
-        const ts1m = getTotalSemestreMax(1), ts2m = getTotalSemestreMax(2), tam = getTotalAnnuelMax();
+        const p1m = getPeriodeMax();
+        const e1m = p1m * 2;
+        const ts1m = p1m * 4;
+        const tam = p1m * 8;
+        const multiOpt = currentFiche.option === 'TOUTES';
 
-        const hd = [['N°', 'NOMS COMPLETS', 'S', 'P1/' + p1m, 'P2/' + p2m, 'EX1/' + e1m, 'TS1/' + ts1m, 'P3/' + p3m, 'P4/' + p4m, 'EX2/' + e2m, 'TS2/' + ts2m, 'TOT/' + tam]];
-        const bd = [['MAX', '', '', p1m, p2m, e1m, ts1m, p3m, p4m, e2m, ts2m, tam]];
+        let hd = ['N°', 'NOMS COMPLETS', 'S'];
+        if (multiOpt) hd.push('OPT');
+        hd = hd.concat(['P1/' + p1m, 'P2/' + p1m, 'EX1/' + e1m, 'TS1/' + ts1m, 'P3/' + p1m, 'P4/' + p1m, 'EX2/' + e1m, 'TS2/' + ts1m, 'TOT/' + tam]);
+
+        let bd = [['MAX', '', ''].concat(multiOpt ? [''] : [], [p1m, p1m, e1m, ts1m, p1m, p1m, e1m, ts1m, tam])];
 
         for (let i = 0; i < currentFiche.eleves.length; i++) {
             const e = currentFiche.eleves[i];
             const n = e.notes || {};
-            const p1 = calcMoy(1, n.p1), p2 = calcMoy(2, n.p2), p3 = calcMoy(3, n.p3), p4 = calcMoy(4, n.p4);
+            const nMax = getNotesMaxForEleve(e);
+            const eMax = nMax * 2;
+            const p1 = calcMoy(1, n.p1, e), p2 = calcMoy(2, n.p2, e), p3 = calcMoy(3, n.p3, e), p4 = calcMoy(4, n.p4, e);
             const ex1 = n.exam1 || 0, ex2 = n.exam2 || 0;
-            bd.push([
-                (i + 1).toString(),
-                getNomComplet(e).toUpperCase(),
-                e.sexe === 'F' ? 'F' : 'M',
-                p1, p2, ex1, p1 + p2 + ex1,
-                p3, p4, ex2, p3 + p4 + ex2,
-                p1 + p2 + ex1 + p3 + p4 + ex2
-            ]);
+            let row = [(i + 1).toString(), getNomComplet(e).toUpperCase(), e.sexe === 'F' ? 'F' : 'M'];
+            if (multiOpt) row.push((e.option || '—').substring(0, 5));
+            row = row.concat([p1, p2, ex1, p1 + p2 + ex1, p3, p4, ex2, p3 + p4 + ex2, p1 + p2 + ex1 + p3 + p4 + ex2]);
+            bd.push(row);
         }
 
         pdf.autoTable({
-            head: hd,
+            head: [hd],
             body: bd,
             startY: 74,
             theme: 'grid',
@@ -1140,8 +1332,7 @@ document.getElementById('exportCurrentBtn').onclick = async function() {
             alternateRowStyles: { fillColor: [245, 250, 245] },
             columnStyles: {
                 0: { cellWidth: 9 },
-                1: { cellWidth: 62, halign: 'left', fontStyle: 'bold' },
-                2: { cellWidth: 8 }
+                1: { cellWidth: multiOpt ? 50 : 62, halign: 'left', fontStyle: 'bold' }
             },
             margin: { left: 8, right: 8, top: 8, bottom: 8 },
             showHead: 'firstPage'
@@ -1244,7 +1435,7 @@ function showEleveForm(eleve = null) {
         </select></div>
         <div class="form-group"><label>Option</label><select id="efOption">
             <option value="">-- Aucune --</option>
-            ${['SCIENCES','PEDAGOGIE GENERALE','COMMERCIALE ET GESTION','ELECTRICITE','MECANIQUE GENERALE','COUPE ET COUTURE','TOUTES'].map(o => `<option value="${o}" ${eleve?.option === o ? 'selected' : ''}>${o}</option>`).join('')}
+            ${['SCIENCES','PEDAGOGIE GENERALE','COMMERCIALE ET GESTION','ELECTRICITE','MECANIQUE GENERALE','COUPE ET COUTURE'].map(o => `<option value="${o}" ${eleve?.option === o ? 'selected' : ''}>${o}</option>`).join('')}
         </select></div>
         <div class="modal-form-actions">
             <button class="btn btn-secondary" id="efCancel">Annuler</button>
