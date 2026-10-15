@@ -1489,14 +1489,13 @@ return annonces;
 window.lireConfigApp=async function(){
 try{
 var snap=await getDoc(doc(db,'config','app'));
-if(!snap.exists())return{livraisonActive:true,retraitActive:true,lastUpdate:0};
+if(!snap.exists())return{livraisonActive:true,retraitActive:true};
 var d=snap.data();
 return{
 livraisonActive:d.livraisonActive!==false,
-retraitActive:d.retraitActive!==false,
-lastUpdate:d.lastUpdate||0
+retraitActive:d.retraitActive!==false
 };
-}catch(e){return{livraisonActive:true,retraitActive:true,lastUpdate:0};}
+}catch(e){return{livraisonActive:true,retraitActive:true};}
 };
 window.uploadImageAnnonce=async function(file){
 if(!window.CURRENT_ACCOUNT_REF)throw new Error('Non connecté');
@@ -1550,7 +1549,7 @@ var CURRENT_CATEGORY=null;
 var CURRENT_COMMERCANT=null;
 var COMMERCES_DATA=[];
 var ANNONCES_DATA=[];
-var CONFIG_APP={livraisonActive:true,retraitActive:true,lastUpdate:0};
+var CONFIG_APP={livraisonActive:true,retraitActive:true};
 var DEBLOCAGES_MEMORY=[];
 var DEBLOCAGES_LAST_FETCH=0;
 var DEBLOCAGES_DIRTY=true;
@@ -1602,11 +1601,6 @@ var _sessionEnCours=true;
 var _dernierQuery={q:'',ville:''};
 var _derniersResultats=[];
 var _searchTabActive='all';
-var _adminPollTimer=null;
-var _lastAdminUpdate=0;
-var _derniereActiviteUser=Date.now();
-var _inactiviteMax=120000;
-var _activiteListenersAttaches=false;
 function demarrerBarreProgression(){var c=document.getElementById('feedProgressContainer');var b=document.getElementById('feedProgressBar');if(!c||!b)return;c.style.display='block';b.style.width='30%';setTimeout(function(){b.style.width='70%';},200);}
 function terminerBarreProgression(){var c=document.getElementById('feedProgressContainer');var b=document.getElementById('feedProgressBar');if(!c||!b)return;b.style.width='100%';setTimeout(function(){c.style.display='none';b.style.width='0%';},300);}
 var toastTimer=null;
@@ -1865,7 +1859,6 @@ function ouvrirConnexion(){if(CURRENT_ACCOUNT){go('dashboard-utilisateur');retur
 async function doLogout(){
 if(window.logoutUser)try{await window.logoutUser();}catch(e){}
 arreterPolling();
-arreterAdminPoll();
 if(_debloques_timer){clearInterval(_debloques_timer);_debloques_timer=null;}
 CURRENT_ACCOUNT=null;window.CURRENT_ACCOUNT_REF=null;CURRENT_COMMERCANT=null;CURRENT_COMMERCE=null;
 cart=[];DEBLOCAGES_MEMORY=[];DEBLOCAGES_DIRTY=true;DEBLOCAGES_LAST_FETCH=0;
@@ -1897,23 +1890,7 @@ if(!CURRENT_ACCOUNT||!CURRENT_ACCOUNT.id)return[];
 var now=Date.now();
 var cv=!DEBLOCAGES_DIRTY&&(now-DEBLOCAGES_LAST_FETCH)<DEBLOCAGES_FETCH_COOLDOWN;
 if(!fr&&cv){return DEBLOCAGES_MEMORY;}
-try{
-var list=await window.mesDeblocages(CURRENT_ACCOUNT.id);
-var aChangement=(JSON.stringify(list)!==JSON.stringify(DEBLOCAGES_MEMORY));
-DEBLOCAGES_MEMORY=list;
-DEBLOCAGES_LAST_FETCH=now;
-DEBLOCAGES_DIRTY=false;
-if(aChangement){
-if(currentTab==='detail'&&CURRENT_OFFRE){
-try{await renderDetail(CURRENT_OFFRE);}catch(e){}
-}
-if(currentTab==='dashboard-utilisateur'){
-try{renderDeblocagesEnAttente();}catch(e){}
-try{renderDeblocagesDebloques();}catch(e){}
-}
-}
-return list;
-}catch(e){return DEBLOCAGES_MEMORY;}
+try{var list=await window.mesDeblocages(CURRENT_ACCOUNT.id);DEBLOCAGES_MEMORY=list;DEBLOCAGES_LAST_FETCH=now;DEBLOCAGES_DIRTY=false;return list;}catch(e){return DEBLOCAGES_MEMORY;}
 }
 function demarrerPollingDeblocages(){if(DEBLOCAGES_POLL_TIMER)clearInterval(DEBLOCAGES_POLL_TIMER);if(!CURRENT_ACCOUNT||!CURRENT_ACCOUNT.id)return;DEBLOCAGES_POLL_TIMER=setInterval(async function(){if(document.hidden)return;if(currentTab!=='dashboard-utilisateur'&&currentTab!=='detail')return;try{await chargerDeblocages(true);}catch(e){}},180000);}
 function arreterPollingDeblocages(){if(DEBLOCAGES_POLL_TIMER){clearInterval(DEBLOCAGES_POLL_TIMER);DEBLOCAGES_POLL_TIMER=null;}}
@@ -2603,7 +2580,7 @@ if(CONFIG_APP.livraisonActive){selectOrderType('livraison');}
 function openCart(){
 if(!CURRENT_ACCOUNT){requireLogin('panier',function(){openCart();});return;}
 (async function(){
-try{CONFIG_APP=await window.lireConfigApp();_lastAdminUpdate=CONFIG_APP.lastUpdate||0;}catch(e){}
+try{CONFIG_APP=await window.lireConfigApp();}catch(e){}
 appliquerConfigCommandes();
 })();
 CART_PAGE=1;cartGoToPage(1);genererEtAfficherCodeCommande();
@@ -3057,84 +3034,6 @@ var _scrollingTimer;
 window.addEventListener('scroll',function(){document.body.classList.add('is-scrolling');if(_scrollingTimer)clearTimeout(_scrollingTimer);_scrollingTimer=setTimeout(function(){document.body.classList.remove('is-scrolling');},150);},{passive:true});
 function demarrerPolling(){if(_pollingTimer)return;if(!_appEstActive)return;if(currentTab==='index')return;_pollingTimer=setInterval(rafraichirDonneesSilencieusement,600000);}
 function arreterPolling(){if(_pollingTimer){clearInterval(_pollingTimer);_pollingTimer=null;}}
-function attacherDetecteursActivite(){
-if(_activiteListenersAttaches)return;
-_activiteListenersAttaches=true;
-var marquer=function(){_derniereActiviteUser=Date.now();};
-['click','touchstart','keydown','scroll','mousemove','visibilitychange'].forEach(function(evt){window.addEventListener(evt,marquer,{passive:true});});
-}
-function utilisateurActif(){
-if(document.hidden)return false;
-if(!_appEstActive)return false;
-if(!navigator.onLine)return false;
-if((Date.now()-_derniereActiviteUser)>_inactiviteMax)return false;
-return true;
-}
-function demarrerAdminPoll(){
-if(_adminPollTimer)return;
-_adminPollTimer=setInterval(async function(){
-if(!utilisateurActif())return;
-if(currentTab==='index'||currentTab==='catalogue')return;
-try{
-var cfg=await window.lireConfigApp();
-var adminUpdate=cfg.lastUpdate||0;
-if(adminUpdate>_lastAdminUpdate){
-_lastAdminUpdate=adminUpdate;
-CONFIG_APP.livraisonActive=cfg.livraisonActive;
-CONFIG_APP.retraitActive=cfg.retraitActive;
-appliquerConfigCommandes();
-await rafraichirToutApresAdmin();
-}
-}catch(e){}
-},30000);
-}
-function arreterAdminPoll(){if(_adminPollTimer){clearInterval(_adminPollTimer);_adminPollTimer=null;}}
-async function verifierChangementAdminMaintenant(){
-if(!utilisateurActif())return;
-try{
-var cfg=await window.lireConfigApp();
-var adminUpdate=cfg.lastUpdate||0;
-if(adminUpdate>_lastAdminUpdate){
-_lastAdminUpdate=adminUpdate;
-CONFIG_APP.livraisonActive=cfg.livraisonActive;
-CONFIG_APP.retraitActive=cfg.retraitActive;
-appliquerConfigCommandes();
-await rafraichirToutApresAdmin();
-}
-}catch(e){}
-}
-async function rafraichirToutApresAdmin(){
-try{
-var annonces=await window.chargerAnnoncesFirestore(true);
-var commerces=await window.chargerCommercesFirestore(true);
-if(Array.isArray(annonces))ANNONCES_DATA=annonces;
-if(Array.isArray(commerces))COMMERCES_DATA=commerces;
-_feedCycleItems=[];
-_feedCycleIndex=0;
-_feedSeenIds.clear();
-_nextFeedOrder=null;
-if(currentTab==='index'){initFeed();}
-if(currentTab==='category'){renderCategoryFeed(CURRENT_CATEGORY||'autre');}
-if(currentTab==='commerces'){renderCommercesGrid();}
-if(currentTab==='jobs'){renderJobsFeed();}
-if(currentTab==='immobilier'){var sub=document.querySelector('.immobilier-subtab.active');renderImmobilierFeed(sub?sub.getAttribute('data-sub')||'all':'all');}
-if(currentTab==='catalogue'&&CURRENT_COMMERCE){renderCatalogue(CURRENT_COMMERCE);}
-if(currentTab==='detail'&&CURRENT_OFFRE){await renderDetail(CURRENT_OFFRE);}
-if(currentTab==='dashboard-utilisateur'){
-DEBLOCAGES_DIRTY=true;
-await chargerDeblocages(true);
-renderDeblocagesEnAttente();
-renderDeblocagesDebloques();
-}
-if(CURRENT_ACCOUNT&&CURRENT_ACCOUNT.id){
-try{
-DEBLOCAGES_DIRTY=true;
-await chargerDeblocages(true);
-if(currentTab==='detail'&&CURRENT_OFFRE){await renderDetail(CURRENT_OFFRE);}
-}catch(e){}
-}
-}catch(e){}
-}
 async function rafraichirDonneesSilencieusement(){
 if(!navigator.onLine||document.hidden||currentTab==='index'||currentTab==='catalogue')return;
 try{
@@ -3148,32 +3047,9 @@ if(currentTab==='jobs'){renderJobsFeed();}
 if(currentTab==='immobilier'){var sub=document.querySelector('.immobilier-subtab.active');renderImmobilierFeed(sub?sub.getAttribute('data-sub')||'all':'all');}
 }catch(e){}
 }
-document.addEventListener('visibilitychange',function(){
-if(document.hidden){
-_appEstActive=false;
-arreterPolling();
-arreterAdminPoll();
-}else{
-_appEstActive=true;
-_derniereActiviteUser=Date.now();
-demarrerPolling();
-demarrerAdminPoll();
-verifierChangementAdminMaintenant();
-}
-});
-window.addEventListener('online',function(){
-if(_appEstActive){
-rafraichirDonneesSilencieusement();
-verifierChangementAdminMaintenant();
-}
-});
+document.addEventListener('visibilitychange',function(){if(document.hidden){_appEstActive=false;arreterPolling();}else{_appEstActive=true;demarrerPolling();}});
+window.addEventListener('online',function(){if(_appEstActive)rafraichirDonneesSilencieusement();});
 window.addEventListener('offline',function(){arreterPolling();});
-document.addEventListener('click',function(){
-if(_adminPollTimer===null&&_appEstActive){
-verifierChangementAdminMaintenant();
-demarrerAdminPoll();
-}
-},{passive:true});
 async function verifierCompteLocal(){
 if(!CURRENT_ACCOUNT||!CURRENT_ACCOUNT.id)return;
 var lastCheck=sessionStorage.getItem('ntx_last_verify');
@@ -3219,10 +3095,7 @@ if(CURRENT_ACCOUNT){window.CURRENT_ACCOUNT_REF=CURRENT_ACCOUNT;}
 await verifierCompteLocal();
 try{
 CONFIG_APP=await window.lireConfigApp();
-_lastAdminUpdate=CONFIG_APP.lastUpdate||0;
 }catch(e){}
-attacherDetecteursActivite();
-demarrerAdminPoll();
 var ey=document.getElementById('footerYear');
 if(ey)ey.textContent=new Date().getFullYear();
 demarrerBarreProgression();
