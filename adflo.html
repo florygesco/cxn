@@ -228,9 +228,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 .realtime-box{padding:18px;border-radius:12px;margin-bottom:18px;border:1.5px solid transparent}
 .realtime-box.active{background:linear-gradient(135deg,rgba(16,185,129,.06),rgba(16,185,129,.02));border-color:var(--success)}
 .realtime-box.inactive{background:var(--bg-soft);border-color:var(--border)}
-.freeze-box{padding:18px;border-radius:12px;margin-bottom:18px;border:1.5px solid transparent}
-.freeze-box.frozen{background:linear-gradient(135deg,rgba(59,130,246,.06),rgba(59,130,246,.02));border-color:var(--info)}
-.freeze-box.normal{background:linear-gradient(135deg,rgba(245,158,11,.06),rgba(245,158,11,.02));border-color:var(--warning)}
 .toggle-btn{width:100%;padding:14px;border-radius:10px;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:9px}
 .toggle-btn-on{background:linear-gradient(135deg,#10b981,#059669);color:#fff}
 .toggle-btn-off{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff}
@@ -330,7 +327,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 </div>
 <div class="nav-group">
 <div class="nav-label">Système</div>
-<button class="nav-item" data-tab="tabRealtime"><i class="fas fa-bolt"></i><span>Temps Réel</span><span class="nav-badge" id="badgeRealtime" style="display:none;background:#10b981">ON</span></button>
+<button class="nav-item" data-tab="tabRealtime"><i class="fas fa-bolt"></i><span>Invalidation</span><span class="nav-badge" id="badgeRealtime" style="display:none;background:#10b981">ON</span></button>
 </div>
 </nav>
 <div class="sidebar-footer">
@@ -570,44 +567,73 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 </div>
 </div>
 <div class="tab-content" id="tabRealtime">
-<div class="page-header"><div class="page-title">Système Temps Réel</div><div class="page-subtitle">Boost et gel global</div></div>
+<div class="page-header">
+<div class="page-title">Invalidation Directe</div>
+<div class="page-subtitle">Synchronisation instantanée de l'app NeTubeX</div>
+</div>
+
 <div class="card">
-<div class="card-header"><div class="card-title"><i class="fas fa-bolt"></i>Contrôle système</div><div class="card-actions"><button class="btn btn-outline btn-sm" id="btnRafraichirConfig"><i class="fas fa-rotate"></i>Rafraîchir</button><span id="realtimeStatusBadge" class="badge badge-gray">Chargement…</span></div></div>
+<div class="card-header">
+<div class="card-title"><i class="fas fa-bolt"></i>Contrôle de synchronisation</div>
+<div class="card-actions">
+<button class="btn btn-outline btn-sm" id="btnRafraichirConfig"><i class="fas fa-rotate"></i>Rafraîchir</button>
+<span id="realtimeStatusBadge" class="badge badge-gray">Chargement…</span>
+</div>
+</div>
 <div class="card-body">
-<div class="info-box"><strong style="display:block;margin-bottom:4px;color:var(--text)">Deux outils</strong><strong>🔥 Boost</strong> — Rafraîchissement 3s au lieu de 30s.<br><strong>🧊 Gel</strong> — Bloque les rafraîchissements automatiques.</div>
-<div class="realtime-box" id="realtimeCurrentState">
-<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
-<div id="realtimeIconBig" style="width:48px;height:48px;border-radius:12px;background:var(--bg-soft);display:flex;align-items:center;justify-content:center;font-size:22px">⚫</div>
-<div><div style="font-size:14px;font-weight:800;color:var(--text)">Boost Temps Réel</div><div id="realtimeSubLabel" style="font-size:12px;color:var(--text-2);margin-top:2px">Fonctionnement normal (60s)</div></div>
+
+<div class="info-box">
+<strong style="display:block;margin-bottom:6px;color:var(--text)">🎯 Un seul bouton, deux états</strong>
+<strong>✅ Activé</strong> — Chaque action admin est <b>immédiatement</b> appliquée chez tous les utilisateurs (délai max 3 secondes).<br>
+<strong>⛔ Désactivé</strong> — Les utilisateurs voient les mises à jour au rythme normal (jusqu'à 10 minutes).
 </div>
-<div id="realtimeLabelBig" style="padding:16px;text-align:center;background:var(--bg-soft);border-radius:10px;margin-bottom:14px;font-size:15px;font-weight:800;color:var(--text-2)">Boost désactivé</div>
-<div class="grid-2" style="margin-bottom:14px">
-<div class="field"><label>Durée (min)</label><input type="number" id="realtimeDuree" value="60" min="5" max="1440" step="5" style="text-align:center;font-weight:800"></div>
-<div class="field"><label>Temps écoulé</label><input type="text" id="realtimeElapsed" value="—" readonly style="text-align:center;font-weight:800;font-family:'JetBrains Mono',monospace"></div>
+
+<div class="realtime-box inactive" id="realtimeCurrentState" style="text-align:center;padding:32px 20px">
+<div id="realtimeIconBig" style="width:80px;height:80px;border-radius:50%;background:var(--bg-soft);display:flex;align-items:center;justify-content:center;font-size:38px;margin:0 auto 18px">⛔</div>
+<div id="realtimeLabelBig" style="font-size:22px;font-weight:900;color:var(--text-2);margin-bottom:8px">Désactivé</div>
+<div id="realtimeSubLabel" style="font-size:13.5px;color:var(--text-3);margin-bottom:24px;line-height:1.55">Les utilisateurs voient les mises à jour au rythme normal.</div>
+<button class="toggle-btn toggle-btn-off" id="btnToggleInvalidation" style="max-width:400px;margin:0 auto">
+<i class="fas fa-power-off"></i>ACTIVER L'INVALIDATION DIRECTE
+</button>
+<div id="realtimeLastAction" style="margin-top:18px;font-size:11.5px;color:var(--text-3);font-weight:600"></div>
 </div>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-<button class="btn btn-success" id="btnActiverRealtime" style="padding:14px;justify-content:center"><i class="fas fa-play"></i>ACTIVER</button>
-<button class="btn btn-danger" id="btnDesactiverRealtime" style="padding:14px;justify-content:center"><i class="fas fa-stop"></i>DÉSACTIVER</button>
-</div>
-</div>
-<div class="freeze-box" id="globalFreezeState">
-<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
-<div id="freezeIconBig" style="width:48px;height:48px;border-radius:12px;background:var(--bg-soft);display:flex;align-items:center;justify-content:center;font-size:22px">🔥</div>
-<div><div style="font-size:14px;font-weight:800;color:var(--text)">Gel Global</div><div id="freezeSubLabel" style="font-size:12px;color:var(--text-2);margin-top:2px">Rafraîchissements actifs</div></div>
-</div>
-<div id="freezeLabelBig" style="padding:16px;text-align:center;background:var(--bg-soft);border-radius:10px;margin-bottom:14px;font-size:15px;font-weight:800;color:var(--text-2)">Fonctionnement normal</div>
-<button class="toggle-btn toggle-btn-off" id="btnToggleFreeze"><i class="fas fa-snowflake"></i>TOUT GELER</button>
-</div>
-<div class="info-box" style="margin-top:16px;background:linear-gradient(135deg,rgba(16,185,129,.06),rgba(16,185,129,.02));border-color:rgba(16,185,129,.15);color:#065f46">
-<strong style="display:block;margin-bottom:6px;color:var(--text)">📦 Options commandes (client)</strong>
-Ces toggles déterminent si le client peut choisir <strong>Retrait en boutique</strong> ou <strong>Livraison à domicile</strong> lors de sa commande.
-</div>
-<div class="grid-2" style="margin-top:12px">
-<div class="field"><label>🏪 Retrait en boutique</label><button class="btn btn-success" id="btnToggleRetrait" onclick="toggleRetrait()" style="width:100%;padding:14px;justify-content:center">Activer</button></div>
-<div class="field"><label>🚚 Livraison à domicile</label><button class="btn btn-success" id="btnToggleLivraison" onclick="toggleLivraison()" style="width:100%;padding:14px;justify-content:center">Activer</button></div>
+
 </div>
 </div>
+
+<div class="card">
+<div class="card-header"><div class="card-title"><i class="fas fa-info-circle"></i>Comment ça marche ?</div></div>
+<div class="card-body">
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+<div style="padding:16px;background:var(--bg-soft);border-radius:12px">
+<div style="font-size:26px;margin-bottom:10px">1️⃣</div>
+<div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:6px">Action admin</div>
+<div style="font-size:12px;color:var(--text-2);line-height:1.55">Vous approuvez, refusez, supprimez ou modifiez quelque chose.</div>
 </div>
+<div style="padding:16px;background:var(--bg-soft);border-radius:12px">
+<div style="font-size:26px;margin-bottom:10px">2️⃣</div>
+<div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:6px">Signal envoyé</div>
+<div style="font-size:12px;color:var(--text-2);line-height:1.55">L'app NeTubeX est notifiée instantanément du changement.</div>
+</div>
+<div style="padding:16px;background:var(--bg-soft);border-radius:12px">
+<div style="font-size:26px;margin-bottom:10px">3️⃣</div>
+<div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:6px">Refresh client</div>
+<div style="font-size:12px;color:var(--text-2);line-height:1.55">Tous les utilisateurs connectés voient la mise à jour en moins de 3 secondes.</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="card">
+<div class="card-header"><div class="card-title"><i class="fas fa-store"></i>Options de commande par boutique</div></div>
+<div class="card-body">
+<div class="info-box" style="background:linear-gradient(135deg,rgba(59,130,246,.06),rgba(59,130,246,.02));border-color:rgba(59,130,246,.15);color:#1e40af">
+Les options <b>Retrait</b> et <b>Livraison</b> se configurent désormais <b>individuellement</b> pour chaque boutique.<br>
+👉 Allez dans <b>Commerces actifs</b> → cliquez sur ✏️ <b>Modifier</b> d'une boutique → activez ou désactivez ses options.
+</div>
+</div>
+</div>
+
 </div>
 </main>
 </div>
@@ -779,12 +805,21 @@ const clean=function(){document.getElementById('alertOk').onclick=null;modal.cla
 document.getElementById('alertOk').onclick=function(){clean();resolve(true);};
 });
 }
-async function notifierChangement(){
+async function notifierChangement(action,cible){
 try{
 const ref=doc(db,'config','app');
 const snap=await getDoc(ref);
 const existing=snap.exists()?snap.data():{};
-await setDoc(ref,Object.assign({},existing,{lastUpdate:Date.now()}),{merge:true});
+const inv=existing.invalidationDirecte||{active:false};
+const updates={lastUpdate:Date.now(),updatedAt:new Date().toISOString()};
+if(inv.active===true){
+updates.invalidationForcee=Date.now();
+updates.invalidationAction=action||'admin';
+updates.invalidationCible=cible||null;
+updates.invalidationPar=currentUser?currentUser.email:'admin';
+updates.invalidationDirecte=Object.assign({},inv,{lastAction:action||'admin',lastAt:Date.now()});
+}
+await setDoc(ref,Object.assign({},existing,updates),{merge:true});
 }catch(e){}
 }
 window.adminPrompt=adminPrompt;
@@ -840,7 +875,7 @@ document.getElementById('loginScreen').style.display='flex';
 document.getElementById('app').style.display='none';
 }
 });
-const TAB_LABELS={tabDashboard:{t:'Tableau de bord',s:'Direction Stratégie & Innovation'},tabBoutiques:{t:'Boutiques',s:'Gérer les demandes d\'inscription'},tabDeblocages:{t:'Déblocages',s:'Valider les paiements'},tabPublications:{t:'Publications',s:'Catalogue produits'},tabAnnonces:{t:'Annonces',s:'Toutes les annonces'},tabModerationFeed:{t:'Modération',s:'Gérer le contenu publié'},tabActives:{t:'Commerces actifs',s:'Boutiques visibles'},tabNetubers:{t:'Utilisateurs',s:'Comptes enregistrés'},tabImportMultiple:{t:'Import Multiple',s:'Créer plusieurs produits en une fois'},tabGererCatalogue:{t:'Gérer Catalogue',s:'Modifier plusieurs articles en masse'},tabRealtime:{t:'Temps Réel',s:'Boost et gel système'}};
+const TAB_LABELS={tabDashboard:{t:'Tableau de bord',s:'Direction Stratégie & Innovation'},tabBoutiques:{t:'Boutiques',s:'Gérer les demandes d\'inscription'},tabDeblocages:{t:'Déblocages',s:'Valider les paiements'},tabPublications:{t:'Publications',s:'Catalogue produits'},tabAnnonces:{t:'Annonces',s:'Toutes les annonces'},tabModerationFeed:{t:'Modération',s:'Gérer le contenu publié'},tabActives:{t:'Commerces actifs',s:'Boutiques visibles'},tabNetubers:{t:'Utilisateurs',s:'Comptes enregistrés'},tabImportMultiple:{t:'Import Multiple',s:'Créer plusieurs produits en une fois'},tabGererCatalogue:{t:'Gérer Catalogue',s:'Modifier plusieurs articles en masse'},tabRealtime:{t:'Invalidation & Commandes',s:'Synchronisation et options de commande'}};
 function switchTab(tab){
 document.querySelectorAll('.nav-item').forEach(x=>{if(x.dataset.tab===tab)x.classList.add('active');else x.classList.remove('active');});
 document.querySelectorAll('.tab-content').forEach(p=>p.classList.remove('active'));
@@ -854,7 +889,7 @@ const content=document.querySelector('.content');
 if(content)content.scrollTop=0;
 if(tab==='tabImportMultiple')initImportMultiple();
 if(tab==='tabGererCatalogue')initGererCatalogue();
-if(tab==='tabRealtime'){chargerConfigApp();updateToggleUI();}
+if(tab==='tabRealtime'){chargerConfigApp();}
 }
 document.querySelectorAll('.nav-item').forEach(item=>{item.onclick=()=>switchTab(item.dataset.tab);});
 function openSidebar(){document.getElementById('sidebar').classList.add('show');document.getElementById('sidebarOverlay').classList.add('show');}
@@ -872,7 +907,6 @@ await Promise.all([loadBoutiques(),loadDeblocages(),loadPublications(),loadNetub
 renderKPIs();
 renderRecentActivity();
 initConfigApp();
-updateToggleUI();
 }finally{setLoader(false);updateCacheStats();}
 }
 async function reloadSome(keys){
@@ -891,7 +925,7 @@ renderRecentActivity();
 async function loadBoutiques(force){
 try{
 const list=await loadCollection('demandes_boutiques',force);
-boutiques=list.map(d=>({id:d.id,nom:d.nom||'',nomCommerce:d.nomCommerce||'',type:d.type||'',ville:d.ville||'',quartier:d.quartier||'',adresse:d.adresse||'',horaires:d.horaires||'',description:d.description||'',telephone:d.telephone||'',whatsappCommercial:d.whatsappCommercial||'',uid:d.uid||null,statut:d.statut||'en_attente',dateCreation:d.dateCreation||'',dateApprobation:d.dateApprobation||'',img:d.img||''}));
+boutiques=list.map(d=>({id:d.id,nom:d.nom||'',nomCommerce:d.nomCommerce||'',type:d.type||'',ville:d.ville||'',quartier:d.quartier||'',adresse:d.adresse||'',horaires:d.horaires||'',description:d.description||'',telephone:d.telephone||'',whatsappCommercial:d.whatsappCommercial||'',uid:d.uid||null,statut:d.statut||'en_attente',dateCreation:d.dateCreation||'',dateApprobation:d.dateApprobation||'',img:d.img||'',retraitActif:d.retraitActif!==false,livraisonActive:d.livraisonActive!==false}));
 boutiques.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
 renderBoutiques();
 updateBadge('badgeBoutiques',boutiques.filter(b=>b.statut==='en_attente').length);
@@ -943,181 +977,130 @@ renderActives();
 }catch(e){console.warn(e.message);}
 }
 async function getCommerces(){return await loadCollection('commerces');}
-let _realtimeActive=false;
-let _realtimeTimer=null;
-let _realtimeDateActivation=null;
-let _realtimeDuree=0;
-let _globalFrozen=false;
+// ═══════════════════════════════════════════════════════════════
+// INVALIDATION DIRECTE (fusion Boost + Gel)
+// ═══════════════════════════════════════════════════════════════
+let _invalidationActive=false;
+let _invalidationLastAction=null;
+let _invalidationLastAt=null;
 let _configPollingTimer=null;
 const CONFIG_POLL_INTERVAL=60000;
+
 async function chargerConfigApp(){
 try{
 const snap=await getDoc(doc(db,'config','app'));
 const data=snap.exists()?snap.data():{};
-const boost=data.boost||{enabled:false};
-_realtimeActive=boost.enabled===true;
-_realtimeDateActivation=boost.dateActivation||null;
-_realtimeDuree=boost.dureeMinute||0;
-const freeze=data.freeze||{frozen:false};
-_globalFrozen=freeze.frozen===true;
+const inv=data.invalidationDirecte||{active:false};
+_invalidationActive=inv.active===true;
+_invalidationLastAction=inv.lastAction||null;
+_invalidationLastAt=inv.lastAt||null;
 updateRealtimeUI();
-updateFreezeUI();
 updateKpiBadges();
-if(_realtimeActive&&_realtimeDateActivation&&_realtimeDuree){const expireAt=new Date(_realtimeDateActivation).getTime()+(_realtimeDuree*60000);if(Date.now()>=expireAt)desactiverRealtimeSilencieux();}
-if(_realtimeTimer){clearInterval(_realtimeTimer);_realtimeTimer=null;}
-if(_realtimeActive){_realtimeTimer=setInterval(updateRealtimeElapsed,1000);updateRealtimeElapsed();}
-}catch(err){_realtimeActive=false;_globalFrozen=false;updateRealtimeUI();updateFreezeUI();}
+}catch(err){
+_invalidationActive=false;
+updateRealtimeUI();
+updateKpiBadges();
 }
-function initConfigApp(){chargerConfigApp();if(_configPollingTimer)clearInterval(_configPollingTimer);_configPollingTimer=setInterval(chargerConfigApp,CONFIG_POLL_INTERVAL);}
-async function rafraichirConfigManuel(){await chargerConfigApp();toast('Configuration rafraîchie');}
-function updateRealtimeElapsed(){
-const el=document.getElementById('realtimeElapsed');
-if(!el)return;
-if(!_realtimeActive||!_realtimeDateActivation){el.value='—';return;}
-const start=new Date(_realtimeDateActivation).getTime();
-const elapsed=Date.now()-start;
-if(elapsed<0){el.value='—';return;}
-const totalSec=Math.floor(elapsed/1000);
-const h=Math.floor(totalSec/3600);const m=Math.floor((totalSec%3600)/60);const s=totalSec%60;
-el.value=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
 }
+
+function initConfigApp(){
+chargerConfigApp();
+if(_configPollingTimer)clearInterval(_configPollingTimer);
+_configPollingTimer=setInterval(chargerConfigApp,CONFIG_POLL_INTERVAL);
+}
+
+async function rafraichirConfigManuel(){
+await chargerConfigApp();
+toast('Configuration rafraîchie');
+}
+
 function updateRealtimeUI(){
 const box=document.getElementById('realtimeCurrentState');
 const iconBig=document.getElementById('realtimeIconBig');
 const labelBig=document.getElementById('realtimeLabelBig');
 const subLabel=document.getElementById('realtimeSubLabel');
 const badge=document.getElementById('realtimeStatusBadge');
-const btnActiver=document.getElementById('btnActiverRealtime');
-const btnDesactiver=document.getElementById('btnDesactiverRealtime');
+const btn=document.getElementById('btnToggleInvalidation');
+const lastActionEl=document.getElementById('realtimeLastAction');
 const navBadge=document.getElementById('badgeRealtime');
-const durationInput=document.getElementById('realtimeDuree');
 if(!box)return;
-if(_realtimeActive){
-box.classList.add('active');box.classList.remove('inactive');
-if(iconBig)iconBig.textContent='🔴';
-if(labelBig){labelBig.textContent='BOOST ACTIF';labelBig.style.color='#059669';labelBig.style.background='linear-gradient(135deg,rgba(16,185,129,.12),rgba(16,185,129,.04))';}
-if(subLabel)subLabel.textContent='Rafraîchissement toutes les 3s'+(_realtimeDuree?' · '+_realtimeDuree+' min':'');
-if(badge){badge.className='badge badge-ok';badge.textContent=_globalFrozen?'GELÉ':'ACTIF';}
-if(btnActiver){btnActiver.disabled=true;btnActiver.style.opacity='.5';}
-if(btnDesactiver){btnDesactiver.disabled=false;btnDesactiver.style.opacity='1';}
+
+if(_invalidationActive){
+box.classList.add('active');
+box.classList.remove('inactive');
+if(iconBig)iconBig.textContent='✅';
+if(labelBig){labelBig.textContent='Invalidation Directe ACTIVÉE';labelBig.style.color='#059669';}
+if(subLabel)subLabel.textContent='Chaque action est appliquée en moins de 3 secondes chez tous les utilisateurs.';
+if(badge){badge.className='badge badge-ok';badge.textContent='ACTIF';}
+if(btn){btn.innerHTML='<i class="fas fa-power-off"></i>DÉSACTIVER L\'INVALIDATION';btn.classList.remove('toggle-btn-off');btn.classList.add('toggle-btn-on');}
 if(navBadge)navBadge.style.display='inline-block';
-if(durationInput)durationInput.disabled=true;
 }else{
-box.classList.remove('active');box.classList.add('inactive');
-if(iconBig)iconBig.textContent='⚫';
-if(labelBig){labelBig.textContent='Boost désactivé';labelBig.style.color='var(--text-2)';labelBig.style.background='var(--bg-soft)';}
-if(subLabel)subLabel.textContent='Fonctionnement normal (60s)';
-if(badge){badge.className='badge badge-gray';badge.textContent=_globalFrozen?'GELÉ':'DÉSACTIVÉ';}
-if(btnActiver){btnActiver.disabled=false;btnActiver.style.opacity='1';}
-if(btnDesactiver){btnDesactiver.disabled=true;btnDesactiver.style.opacity='.5';}
+box.classList.remove('active');
+box.classList.add('inactive');
+if(iconBig)iconBig.textContent='⛔';
+if(labelBig){labelBig.textContent='Invalidation Directe DÉSACTIVÉE';labelBig.style.color='var(--text-2)';}
+if(subLabel)subLabel.textContent='Les utilisateurs voient les mises à jour au rythme normal (jusqu\'à 10 minutes).';
+if(badge){badge.className='badge badge-gray';badge.textContent='INACTIF';}
+if(btn){btn.innerHTML='<i class="fas fa-power-off"></i>ACTIVER L\'INVALIDATION DIRECTE';btn.classList.remove('toggle-btn-on');btn.classList.add('toggle-btn-off');}
 if(navBadge)navBadge.style.display='none';
-if(durationInput)durationInput.disabled=false;
 }
-}
-async function activerRealtime(){
-const durationInput=document.getElementById('realtimeDuree');
-const duree=parseInt(durationInput.value,10)||60;
-if(duree<5||duree>1440){toast('Durée entre 5 et 1440 minutes','err');return;}
-const ok=await adminConfirm('Activer le boost ?','Rafraîchissement toutes les <strong>3 secondes</strong> pour <strong>'+duree+' minutes</strong>.','warning');
-if(!ok)return;
-setLoader(true);
-try{
-const ref=doc(db,'config','app');
-const snap=await getDoc(ref);
-const existing=snap.exists()?snap.data():{};
-await setDoc(ref,{...existing,boost:{enabled:true,dateActivation:new Date().toISOString(),dureeMinute:duree,activePar:currentUser?currentUser.email:''},updatedAt:new Date().toISOString()},{merge:true});
-await notifierChangement();
-toast('🔥 Boost ACTIVÉ pour '+duree+' min');
-await chargerConfigApp();
-}catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
-}
-async function desactiverRealtime(){
-const ok=await adminConfirm('Désactiver le boost ?','Retour au rafraîchissement normal (60s).','warning');
-if(!ok)return;
-setLoader(true);
-try{
-const ref=doc(db,'config','app');
-const snap=await getDoc(ref);
-const existing=snap.exists()?snap.data():{};
-await setDoc(ref,{...existing,boost:{enabled:false,dateDesactivation:new Date().toISOString()},updatedAt:new Date().toISOString()},{merge:true});
-await notifierChangement();
-toast('⚫ Boost DÉSACTIVÉ','warn');
-await chargerConfigApp();
-}catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
-}
-async function desactiverRealtimeSilencieux(){
-try{
-const ref=doc(db,'config','app');
-const snap=await getDoc(ref);
-const existing=snap.exists()?snap.data():{};
-await setDoc(ref,{...existing,boost:{enabled:false,dateDesactivation:new Date().toISOString(),expireAuto:true},updatedAt:new Date().toISOString()},{merge:true});
-await notifierChangement();
-toast('⏱️ Boost expiré','warn');
-await chargerConfigApp();
-}catch(e){}
-}
-document.getElementById('btnActiverRealtime').onclick=activerRealtime;
-document.getElementById('btnDesactiverRealtime').onclick=desactiverRealtime;
-document.getElementById('btnRafraichirConfig').onclick=rafraichirConfigManuel;
-function updateFreezeUI(){
-const box=document.getElementById('globalFreezeState');
-const icon=document.getElementById('freezeIconBig');
-const label=document.getElementById('freezeLabelBig');
-const sub=document.getElementById('freezeSubLabel');
-const btn=document.getElementById('btnToggleFreeze');
-if(!box)return;
-if(_globalFrozen){
-box.classList.add('frozen');box.classList.remove('normal');
-if(icon)icon.textContent='🧊';
-if(label){label.textContent='APPLICATION GELÉE';label.style.color='#1e40af';label.style.background='linear-gradient(135deg,rgba(59,130,246,.12),rgba(59,130,246,.04))';}
-if(sub)sub.textContent='Aucun rafraîchissement automatique';
-if(btn){btn.innerHTML='<i class="fas fa-fire"></i>DÉGELER';btn.classList.remove('toggle-btn-off');btn.classList.add('toggle-btn-on');}
+
+if(lastActionEl){
+if(_invalidationLastAction&&_invalidationLastAt){
+const d=new Date(_invalidationLastAt);
+const fmt=d.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+lastActionEl.innerHTML='Dernière action : <strong style="color:var(--accent)">'+esc(_invalidationLastAction)+'</strong> · '+fmt;
 }else{
-box.classList.remove('frozen');box.classList.add('normal');
-if(icon)icon.textContent='🔥';
-if(label){label.textContent='Fonctionnement normal';label.style.color='#92400e';label.style.background='linear-gradient(135deg,rgba(245,158,11,.12),rgba(245,158,11,.04))';}
-if(sub)sub.textContent='Rafraîchissements actifs';
-if(btn){btn.innerHTML='<i class="fas fa-snowflake"></i>TOUT GELER';btn.classList.remove('toggle-btn-on');btn.classList.add('toggle-btn-off');}
+lastActionEl.textContent='';
 }
 }
-async function toggleGlobalFreeze(){
-const action=_globalFrozen?'DÉGELER':'GELER';
-const msg=_globalFrozen?'Les utilisateurs reprendront les rafraîchissements automatiques.':'Tous les rafraîchissements seront <strong>bloqués</strong>.';
-const ok=await adminConfirm('Voulez-vous '+action.toLowerCase()+' l\'application ?',msg,_globalFrozen?'info':'warning');
+}
+
+async function toggleInvalidationDirecte(){
+const nouvelleValeur=!_invalidationActive;
+const titre=nouvelleValeur?'Activer l\'invalidation directe ?':'Désactiver l\'invalidation directe ?';
+const message=nouvelleValeur
+?'Chaque action admin sera <strong>immédiatement</strong> répercutée chez tous les utilisateurs de l\'app NeTubeX (délai max 3 secondes).'
+:'Les utilisateurs verront les mises à jour au rythme normal (jusqu\'à 10 minutes).';
+const ok=await adminConfirm(titre,message,nouvelleValeur?'warning':'info');
 if(!ok)return;
 setLoader(true);
 try{
 const ref=doc(db,'config','app');
 const snap=await getDoc(ref);
 const existing=snap.exists()?snap.data():{};
-await setDoc(ref,{...existing,freeze:{frozen:!_globalFrozen,dateChangement:new Date().toISOString(),par:currentUser?currentUser.email:''},updatedAt:new Date().toISOString()},{merge:true});
-await notifierChangement();
-toast(_globalFrozen?'🔥 Application DÉGELÉE':'🧊 Application GELÉE',_globalFrozen?'ok':'warn');
-await chargerConfigApp();
-}catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
+await setDoc(ref,Object.assign({},existing,{
+invalidationDirecte:{
+active:nouvelleValeur,
+lastChangeAt:new Date().toISOString(),
+changedBy:currentUser?currentUser.email:'admin'
 }
-document.getElementById('btnToggleFreeze').onclick=toggleGlobalFreeze;
+}),{merge:true});
+toast(nouvelleValeur?'✅ Invalidation directe ACTIVÉE':'⛔ Invalidation directe DÉSACTIVÉE',nouvelleValeur?'ok':'warn');
+await chargerConfigApp();
+}catch(e){
+toast('Erreur: '+e.message,'err');
+}finally{
+setLoader(false);
+}
+}
+
+document.getElementById('btnToggleInvalidation').onclick=toggleInvalidationDirecte;
+document.getElementById('btnRafraichirConfig').onclick=rafraichirConfigManuel;
+
 function updateKpiBadges(){
 const grid=document.getElementById('kpiGrid');
 if(!grid)return;
-const oldF=document.getElementById('freezeKpiBadge');if(oldF)oldF.remove();
-const oldB=document.getElementById('boostKpiBadge');if(oldB)oldB.remove();
-const boostBadge=document.createElement('div');
-boostBadge.id='boostKpiBadge';
-boostBadge.style.cssText='position:relative;border-radius:14px;padding:18px 20px;overflow:hidden;background:'+(_realtimeActive?'linear-gradient(135deg,#10b981 0%,#059669 100%)':'linear-gradient(135deg,#64748b 0%,#334155 100%)')+';cursor:pointer';
-boostBadge.onclick=()=>switchTab('tabRealtime');
-boostBadge.innerHTML=`<div style="width:40px;height:40px;border-radius:9px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;margin-bottom:12px"><i class="fas fa-bolt"></i></div><div style="font-size:22px;font-weight:800;color:#fff;line-height:1;margin-bottom:5px">${_realtimeActive?'ACTIF':'OFF'}</div><div style="font-size:11.5px;font-weight:600;color:rgba(255,255,255,.9);text-transform:uppercase">Boost</div>`;
-grid.appendChild(boostBadge);
-const freezeBadge=document.createElement('div');
-freezeBadge.id='freezeKpiBadge';
-freezeBadge.style.cssText='position:relative;border-radius:14px;padding:18px 20px;overflow:hidden;background:'+(_globalFrozen?'linear-gradient(135deg,#3b82f6 0%,#1e40af 100%)':'linear-gradient(135deg,#f59e0b 0%,#b45309 100%)')+';cursor:pointer';
-freezeBadge.onclick=()=>switchTab('tabRealtime');
-freezeBadge.innerHTML=`<div style="width:40px;height:40px;border-radius:9px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;margin-bottom:12px"><i class="fas fa-${_globalFrozen?'snowflake':'fire'}"></i></div><div style="font-size:22px;font-weight:800;color:#fff;line-height:1;margin-bottom:5px">${_globalFrozen?'GELÉ':'NORMAL'}</div><div style="font-size:11.5px;font-weight:600;color:rgba(255,255,255,.9);text-transform:uppercase">État système</div>`;
-grid.appendChild(freezeBadge);
+const old=document.getElementById('invalidationKpiBadge');
+if(old)old.remove();
+const badge=document.createElement('div');
+badge.id='invalidationKpiBadge';
+badge.style.cssText='position:relative;border-radius:14px;padding:18px 20px;overflow:hidden;cursor:pointer;background:'+(_invalidationActive?'linear-gradient(135deg,#10b981 0%,#059669 100%)':'linear-gradient(135deg,#64748b 0%,#334155 100%)');
+badge.onclick=()=>switchTab('tabRealtime');
+badge.innerHTML='<div style="width:40px;height:40px;border-radius:9px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;margin-bottom:12px"><i class="fas fa-bolt"></i></div><div style="font-size:22px;font-weight:800;color:#fff;line-height:1;margin-bottom:5px">'+(_invalidationActive?'ACTIF':'OFF')+'</div><div style="font-size:11.5px;font-weight:600;color:rgba(255,255,255,.9);text-transform:uppercase">Invalidation</div>';
+grid.appendChild(badge);
 }
+
 function renderKPIs(){
 const totalUsers=netubers.length;
 const actifsUsers=netubers.filter(n=>n.actif!==false).length;
@@ -1194,7 +1177,7 @@ const now=new Date().toISOString();
 batch.update(doc(db,'demandes_boutiques',id),{statut:'approuve',dateApprobation:now});
 let uid=b.uid||null;
 if(uid){
-const boutiqueData={uid,nom:b.nomCommerce,nomCommerce:b.nomCommerce,type:b.type,ville:b.ville,quartier:b.quartier,adresse:b.adresse||'',horaires:b.horaires||'08h - 20h',description:b.description||'Découvrez notre catalogue.',telephone:b.telephone,whatsapp:b.whatsappCommercial||b.telephone,whatsappCommercial:b.whatsappCommercial||b.telephone,img:b.img||'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80',emoji:'🏪',statut:'approuve',dateCreation:b.dateCreation||now,dateApprobation:now};
+const boutiqueData={uid,nom:b.nomCommerce,nomCommerce:b.nomCommerce,type:b.type,ville:b.ville,quartier:b.quartier,adresse:b.adresse||'',horaires:b.horaires||'08h - 20h',description:b.description||'Découvrez notre catalogue.',telephone:b.telephone,whatsapp:b.whatsappCommercial||b.telephone,whatsappCommercial:b.whatsappCommercial||b.telephone,img:b.img||'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80',emoji:'🏪',statut:'approuve',dateCreation:b.dateCreation||now,dateApprobation:now,retraitActif:true,livraisonActive:true};
 batch.update(doc(db,'netubers',uid),{boutique:boutiqueData});
 const commerceId='COM-'+id.replace('DEM-','');
 batch.set(doc(db,'commerces',commerceId),{...boutiqueData,demandeId:id,produits:[],creeParDirection:false},{merge:true});
@@ -1204,7 +1187,7 @@ const idx=boutiques.findIndex(x=>x.id===id);
 if(idx>=0){boutiques[idx].statut='approuve';boutiques[idx].dateApprobation=now;}
 renderBoutiques();
 updateBadge('badgeBoutiques',boutiques.filter(x=>x.statut==='en_attente').length);
-await notifierChangement();
+await notifierChangement('approveBoutique',id);
 toast('Boutique approuvée');
 cacheInvalidate('netubers');cacheInvalidate('actives');cacheInvalidate('commerces');
 await reloadSome(['actives']);
@@ -1226,7 +1209,7 @@ const idx=boutiques.findIndex(x=>x.id===id);
 if(idx>=0)boutiques[idx].statut='refuse';
 renderBoutiques();
 updateBadge('badgeBoutiques',boutiques.filter(x=>x.statut==='en_attente').length);
-await notifierChangement();
+await notifierChangement('refuseBoutique',id);
 toast('Boutique refusée','warn');
 cacheInvalidate('netubers');
 }catch(e){toast('Erreur: '+e.message,'err');}
@@ -1241,7 +1224,7 @@ await deleteDoc(doc(db,'demandes_boutiques',id));
 boutiques=boutiques.filter(x=>x.id!==id);
 cacheSet('demandes_boutiques',boutiques);
 renderBoutiques();
-await notifierChangement();
+await notifierChangement('deleteDemandeBoutique',id);
 toast('Demande supprimée','warn');
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
@@ -1310,7 +1293,7 @@ const idx=deblocages.findIndex(x=>x.id===id);
 if(idx>=0){deblocages[idx].statut='debloque';deblocages[idx].dateValidation=now;}
 renderDeblocages();
 updateBadge('badgeDeblocages',deblocages.filter(x=>x.statut==='en_attente').length);
-await notifierChangement();
+await notifierChangement('validerDeblocage',id);
 toast('Déblocage validé');
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
@@ -1325,7 +1308,7 @@ const idx=deblocages.findIndex(x=>x.id===id);
 if(idx>=0)deblocages[idx].statut='echoue';
 renderDeblocages();
 updateBadge('badgeDeblocages',deblocages.filter(x=>x.statut==='en_attente').length);
-await notifierChangement();
+await notifierChangement('rejeterDeblocage',id);
 toast('Déblocage rejeté','warn');
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
@@ -1338,7 +1321,7 @@ await deleteDoc(doc(db,'deblocages',id));
 deblocages=deblocages.filter(x=>x.id!==id);
 cacheSet('deblocages',deblocages);
 renderDeblocages();
-await notifierChangement();
+await notifierChangement('deleteDeblocage',id);
 toast('Déblocage supprimé','warn');
 }catch(e){toast('Erreur: '+e.message,'err');}
 }
@@ -1378,7 +1361,7 @@ const idx=publications.findIndex(x=>x.id===id);
 if(idx>=0)publications[idx].statut='approuve';
 renderPublications();
 updateBadge('badgePublications',publications.filter(x=>x.statut==='en_attente').length);
-await notifierChangement();
+await notifierChangement('approuverPublication',id);
 toast('Publication approuvée');
 await reloadSome(['actives']);
 }catch(e){toast('Erreur: '+e.message,'err');}
@@ -1392,7 +1375,7 @@ const idx=publications.findIndex(x=>x.id===id);
 if(idx>=0)publications[idx].statut='refuse';
 renderPublications();
 updateBadge('badgePublications',publications.filter(x=>x.statut==='en_attente').length);
-await notifierChangement();
+await notifierChangement('rejeterPublication',id);
 toast('Publication refusée','warn');
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
@@ -1420,7 +1403,7 @@ await batch.commit();
 publications=publications.filter(x=>x.id!==id);
 cacheSet('publications',publications);
 renderPublications();
-await notifierChangement();
+await notifierChangement('supprimerPublication',id);
 toast('Publication supprimée','warn');
 await reloadSome(['actives']);
 }catch(e){toast('Erreur: '+e.message,'err');}
@@ -1484,7 +1467,7 @@ await batch.commit();
 const idx=publications.findIndex(x=>x.id===id);
 if(idx>=0)publications[idx]={...publications[idx],...updates};
 renderPublications();
-await notifierChangement();
+await notifierChangement('editPublication',id);
 toast('Publication modifiée');
 d.remove();
 await reloadSome(['actives']);
@@ -1536,7 +1519,7 @@ renderAnnonces();
 moderationAnnonces=annonces.slice();
 renderModerationFeed();
 updateBadge('badgeAnnonces',annonces.filter(x=>x.statut==='en_attente').length);
-await notifierChangement();
+await notifierChangement('approveAnnonce',id);
 toast('Publication approuvée');
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
@@ -1553,7 +1536,7 @@ renderAnnonces();
 moderationAnnonces=annonces.slice();
 renderModerationFeed();
 updateBadge('badgeAnnonces',annonces.filter(x=>x.statut==='en_attente').length);
-await notifierChangement();
+await notifierChangement('refuseAnnonce',id);
 toast('Publication refusée','warn');
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
@@ -1638,7 +1621,7 @@ renderAnnonces();
 moderationAnnonces=annonces.slice();
 renderModerationFeed();
 updateBadge('badgeAnnonces',annonces.filter(x=>x.statut==='en_attente').length);
-await notifierChangement();
+await notifierChangement('supprimerAnnonce',id);
 toast('Annonce supprimée','warn');
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
@@ -1704,7 +1687,7 @@ if(idx>=0)annonces[idx]={...annonces[idx],...updates};
 renderAnnonces();
 moderationAnnonces=annonces.slice();
 renderModerationFeed();
-await notifierChangement();
+await notifierChangement('editAnnonce',id);
 toast('✅ Annonce modifiée');
 d.remove();
 }catch(e){toast('Erreur: '+e.message,'err');}
@@ -1763,7 +1746,7 @@ ops++;success++;
 if(ops>=450){await batch.commit();batch=writeBatch(db);ops=0;}
 }
 if(ops>0)await batch.commit();
-await notifierChangement();
+await notifierChangement('viderFeed',null);
 toast(`Feed vidé : ${success} supprimée${success>1?'s':''}`,fail>0?'warn':'ok');
 annonces=[];
 cacheSet('annonces',[]);
@@ -1789,7 +1772,9 @@ if(pageList.length===0){tbody.innerHTML=`<tr><td colspan="8"><div class="empty">
 const offset=(pagination.actives-1)*PER_PAGE;
 tbody.innerHTML=pageList.map((b,i)=>{
 const img=b.img?`<img src="${esc(b.img)}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;border:1px solid var(--border)">`:'<div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#06b6d4,#0891b2);display:flex;align-items:center;justify-content:center;font-size:20px">🏪</div>';
-return `<tr><td>${offset+i+1}</td><td>${img}</td><td><strong style="color:var(--text)">${esc(b.nom||'-')}</strong></td><td><span class="badge badge-info">${esc(b.type||'-')}</span></td><td style="font-size:11.5px">${esc(b.ville||'')} · ${esc(b.quartier||'')}</td><td>${esc(b.nomComplet||'-')}</td><td style="font-size:11px;font-family:'JetBrains Mono',monospace">${esc(b.telephone||'-')}</td><td><div class="act"><button class="btn-ico info" data-act="view-catalogue" data-id="${esc(b.uid)}" title="Voir catalogue"><i class="fas fa-box"></i></button><button class="btn-ico warn" data-act="edit-active" data-id="${esc(b.uid)}" title="Modifier"><i class="fas fa-pen"></i></button><button class="btn-ico err" data-act="retirer-active" data-id="${esc(b.uid)}" title="Retirer"><i class="fas fa-ban"></i></button><button class="btn-ico err" data-act="delete-boutique" data-id="${esc(b.uid)}" title="Supprimer"><i class="fas fa-trash"></i></button></div></td></tr>`;
+const retraitBadge=b.retraitActif===false?'<span class="badge badge-err" style="font-size:9px">⛔ Retrait</span>':'<span class="badge badge-ok" style="font-size:9px">✅ Retrait</span>';
+const livraisonBadge=b.livraisonActive===false?'<span class="badge badge-err" style="font-size:9px">⛔ Livr.</span>':'<span class="badge badge-ok" style="font-size:9px">✅ Livr.</span>';
+return `<tr><td>${offset+i+1}</td><td>${img}</td><td><strong style="color:var(--text)">${esc(b.nom||'-')}</strong><div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">${retraitBadge}${livraisonBadge}</div></td><td><span class="badge badge-info">${esc(b.type||'-')}</span></td><td style="font-size:11.5px">${esc(b.ville||'')} · ${esc(b.quartier||'')}</td><td>${esc(b.nomComplet||'-')}</td><td style="font-size:11px;font-family:'JetBrains Mono',monospace">${esc(b.telephone||'-')}</td><td><div class="act"><button class="btn-ico info" data-act="view-catalogue" data-id="${esc(b.uid)}" title="Voir catalogue"><i class="fas fa-box"></i></button><button class="btn-ico warn" data-act="edit-active" data-id="${esc(b.uid)}" title="Modifier"><i class="fas fa-pen"></i></button><button class="btn-ico err" data-act="retirer-active" data-id="${esc(b.uid)}" title="Retirer"><i class="fas fa-ban"></i></button><button class="btn-ico err" data-act="delete-boutique" data-id="${esc(b.uid)}" title="Supprimer"><i class="fas fa-trash"></i></button></div></td></tr>`;
 }).join('');
 }
 document.getElementById('searchActives').oninput=()=>{pagination.actives=1;renderActives();};
@@ -1800,7 +1785,7 @@ setLoader(true);
 try{
 await setDoc(doc(db,'netubers',uid),{boutique:{statut:'refuse'}},{merge:true});
 cacheInvalidate('netubers');cacheInvalidate('actives');
-await notifierChangement();
+await notifierChangement('retirerActive',uid);
 toast('Boutique retirée','warn');
 await reloadSome(['netubers','actives']);
 }catch(e){toast('Erreur: '+e.message,'err');}
@@ -1837,7 +1822,7 @@ if(pub.uidCommerce===uid||pub.uid===uid){batch.delete(doc(db,'publications',pub.
 }
 await batch.commit();
 cacheInvalidateAll();
-await notifierChangement();
+await notifierChangement('supprimerBoutique',uid);
 toast('Boutique supprimée');
 await reloadSome(['netubers','actives','publications']);
 }catch(e){toast('Erreur: '+e.message,'err');}
@@ -1853,7 +1838,7 @@ commercesList.forEach(c=>{if(c.uid===uid)commerceDocId=c.id;});
 const usersOptions=netubers.length>0?netubers.map(n=>`<option value="${esc(n.id)}" data-phone="${esc(n.phone||'')}" ${n.id===uid?'selected':''}>${esc(n.nomComplet||n.nom||n.phone)} — ${esc(n.phone||'')}</option>`).join(''):'<option value="">- Aucun utilisateur inscrit -</option>';
 const d=document.createElement('div');
 d.className='modal show';
-d.innerHTML=`<div class="modal-box" style="max-width:620px"><h2><i class="fas fa-pen"></i>Modifier la boutique</h2><div class="field"><label>Gérant *</label><select id="editBoutiqueUid">${usersOptions}</select></div><div class="field"><label>Nom du commerce *</label><input type="text" id="editBoutiqueNom" value="${esc(commerce.nom||commerce.nomCommerce||'')}"></div><div class="field"><label>Type de commerce *</label><select id="editBoutiqueType"><option value="">— Choisir —</option>${['Supermarché / Alimentation','Restaurant / Traiteur','Hôtel / Hébergement','Pharmacie / Parapharmacie','Mode, Vêtements & Beauté','Cosmétiques','Salon de Coiffure','Services / Atelier','Boulangerie','Quincaillerie','Électronique','Concessionnaire (Auto)','Vivriers & Fruits','Matériaux de construction','Meubles & Décoration','Téléphones & Accessoires','Pâtisserie & Confiserie','Bijouterie & Accessoires','Salle de fête','Télécommunications'].map(t=>`<option value="${t}" ${commerce.type===t?'selected':''}>${t}</option>`).join('')}</select></div><div class="grid-2"><div class="field"><label>Ville *</label><select id="editBoutiqueVille"><option value="">— Choisir —</option>${['Kinshasa','Lubumbashi','Kasumbalesa'].map(v=>`<option value="${v}" ${commerce.ville===v?'selected':''}>${v}</option>`).join('')}</select></div><div class="field"><label>Quartier *</label><input type="text" id="editBoutiqueQuartier" value="${esc(commerce.quartier||'')}"></div></div><div class="grid-2"><div class="field"><label>Téléphone *</label><input type="tel" id="editBoutiqueTel" value="${esc(commerce.telephone||'')}"></div><div class="field"><label>WhatsApp *</label><input type="tel" id="editBoutiqueWhatsapp" value="${esc(commerce.whatsapp||commerce.whatsappCommercial||'')}"></div></div><div class="field"><label>Horaires</label><input type="text" id="editBoutiqueHoraires" value="${esc(commerce.horaires||'08h - 20h')}"></div><div class="field"><label>Description</label><textarea id="editBoutiqueDesc" rows="3">${esc(commerce.description||'')}</textarea></div><div style="margin-bottom:16px"><div style="font-size:10.5px;font-weight:800;color:var(--text-3);text-transform:uppercase;margin-bottom:8px;text-align:center">Image</div><div class="media-preview" id="editBoutiqueImgPreview">${commerce.img?`<img src="${esc(commerce.img)}" alt="">`:''}</div><div class="media-actions"><label for="editBoutiqueImgFile" class="upload-label"><i class="fas fa-upload"></i>Uploader</label><button type="button" class="upload-label" id="editBoutiqueImgUrlBtn"><i class="fas fa-link"></i>URL</button></div><input type="file" id="editBoutiqueImgFile" accept="image/*" style="display:none"></div><div class="form-actions"><button class="btn btn-outline" data-cancel>ANNULER</button><button class="btn btn-success" data-save>ENREGISTRER</button></div></div>`;
+d.innerHTML=`<div class="modal-box" style="max-width:620px"><h2><i class="fas fa-pen"></i>Modifier la boutique</h2><div class="field"><label>Gérant *</label><select id="editBoutiqueUid">${usersOptions}</select></div><div class="field"><label>Nom du commerce *</label><input type="text" id="editBoutiqueNom" value="${esc(commerce.nom||commerce.nomCommerce||'')}"></div><div class="field"><label>Type de commerce *</label><select id="editBoutiqueType"><option value="">— Choisir —</option>${['Supermarché / Alimentation','Restaurant / Traiteur','Hôtel / Hébergement','Pharmacie / Parapharmacie','Mode, Vêtements & Beauté','Cosmétiques','Salon de Coiffure','Services / Atelier','Boulangerie','Quincaillerie','Électronique','Concessionnaire (Auto)','Vivriers & Fruits','Matériaux de construction','Meubles & Décoration','Téléphones & Accessoires','Pâtisserie & Confiserie','Bijouterie & Accessoires','Salle de fête','Télécommunications'].map(t=>`<option value="${t}" ${commerce.type===t?'selected':''}>${t}</option>`).join('')}</select></div><div class="grid-2"><div class="field"><label>Ville *</label><select id="editBoutiqueVille"><option value="">— Choisir —</option>${['Kinshasa','Lubumbashi','Kasumbalesa'].map(v=>`<option value="${v}" ${commerce.ville===v?'selected':''}>${v}</option>`).join('')}</select></div><div class="field"><label>Quartier *</label><input type="text" id="editBoutiqueQuartier" value="${esc(commerce.quartier||'')}"></div></div><div class="grid-2"><div class="field"><label>Téléphone *</label><input type="tel" id="editBoutiqueTel" value="${esc(commerce.telephone||'')}"></div><div class="field"><label>WhatsApp *</label><input type="tel" id="editBoutiqueWhatsapp" value="${esc(commerce.whatsapp||commerce.whatsappCommercial||'')}"></div></div><div class="field"><label>Horaires</label><input type="text" id="editBoutiqueHoraires" value="${esc(commerce.horaires||'08h - 20h')}"></div><div style="margin-top:18px;padding:16px;background:var(--bg-soft);border:1px solid var(--border);border-radius:12px"><div style="font-size:12px;font-weight:900;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px"><i class="fas fa-truck-fast" style="color:var(--accent)"></i> Options de commande</div><div class="grid-2"><div class="field" style="margin-bottom:0"><label style="margin-bottom:8px">🏪 Retrait en boutique</label><button type="button" id="editBoutiqueRetraitBtn" data-state="${commerce.retraitActif===false?'off':'on'}" class="btn ${commerce.retraitActif===false?'btn-danger':'btn-success'}" style="width:100%;padding:14px;justify-content:center;font-size:13px"><i class="fas fa-${commerce.retraitActif===false?'times-circle':'check-circle'}"></i> ${commerce.retraitActif===false?'Désactivé':'Activé'}</button></div><div class="field" style="margin-bottom:0"><label style="margin-bottom:8px">🚚 Livraison à domicile</label><button type="button" id="editBoutiqueLivraisonBtn" data-state="${commerce.livraisonActive===false?'off':'on'}" class="btn ${commerce.livraisonActive===false?'btn-danger':'btn-success'}" style="width:100%;padding:14px;justify-content:center;font-size:13px"><i class="fas fa-${commerce.livraisonActive===false?'times-circle':'check-circle'}"></i> ${commerce.livraisonActive===false?'Désactivé':'Activé'}</button></div></div></div><div class="field"><label>Description</label><textarea id="editBoutiqueDesc" rows="3">${esc(commerce.description||'')}</textarea></div><div style="margin-bottom:16px"><div style="font-size:10.5px;font-weight:800;color:var(--text-3);text-transform:uppercase;margin-bottom:8px;text-align:center">Image</div><div class="media-preview" id="editBoutiqueImgPreview">${commerce.img?`<img src="${esc(commerce.img)}" alt="">`:''}</div><div class="media-actions"><label for="editBoutiqueImgFile" class="upload-label"><i class="fas fa-upload"></i>Uploader</label><button type="button" class="upload-label" id="editBoutiqueImgUrlBtn"><i class="fas fa-link"></i>URL</button></div><input type="file" id="editBoutiqueImgFile" accept="image/*" style="display:none"></div><div class="form-actions"><button class="btn btn-outline" data-cancel>ANNULER</button><button class="btn btn-success" data-save>ENREGISTRER</button></div></div>`;
 document.body.appendChild(d);
 let imgBase64=null;
 const fileInput=d.querySelector('#editBoutiqueImgFile');
@@ -1877,6 +1862,19 @@ d.querySelector('#editBoutiqueImgUrlBtn').onclick=async()=>{
 const u=await adminPrompt('URL de l\'image','Collez l\'URL de l\'image','https://…',commerce.img&&!commerce.img.startsWith('data:')?commerce.img:'','fa-link','#3b82f6');
 if(u){imgBase64=u;preview.innerHTML=`<img src="${esc(imgBase64)}" alt="">`;toast('URL appliquée');}
 };
+const toggleEditBoutiqueOption=function(type){
+const btnId=type==='retrait'?'editBoutiqueRetraitBtn':'editBoutiqueLivraisonBtn';
+const btn=d.querySelector('#'+btnId);
+if(!btn)return;
+const etatActuel=btn.getAttribute('data-state')==='on';
+const nouvelEtat=!etatActuel;
+btn.setAttribute('data-state',nouvelEtat?'on':'off');
+btn.className='btn '+(nouvelEtat?'btn-success':'btn-danger');
+btn.innerHTML='<i class="fas fa-'+(nouvelEtat?'check-circle':'times-circle')+'"></i> '+(nouvelEtat?'Activé':'Désactivé');
+btn.style.width='100%';btn.style.padding='14px';btn.style.justifyContent='center';btn.style.fontSize='13px';
+};
+d.querySelector('#editBoutiqueRetraitBtn').onclick=()=>toggleEditBoutiqueOption('retrait');
+d.querySelector('#editBoutiqueLivraisonBtn').onclick=()=>toggleEditBoutiqueOption('livraison');
 d.querySelector('[data-cancel]').onclick=()=>d.remove();
 d.onclick=e=>{if(e.target===d)d.remove();};
 d.querySelector('[data-save]').onclick=async()=>{
@@ -1890,18 +1888,22 @@ const whatsapp=d.querySelector('#editBoutiqueWhatsapp').value.trim();
 const horaires=d.querySelector('#editBoutiqueHoraires').value.trim()||'08h - 20h';
 const desc=d.querySelector('#editBoutiqueDesc').value.trim();
 const imgFinal=imgBase64||commerce.img||'';
+const retraitBtn=d.querySelector('#editBoutiqueRetraitBtn');
+const livraisonBtn=d.querySelector('#editBoutiqueLivraisonBtn');
+const retraitActif=retraitBtn?retraitBtn.getAttribute('data-state')==='on':true;
+const livraisonActive=livraisonBtn?livraisonBtn.getAttribute('data-state')==='on':true;
 if(!nom||!type||!ville||!quartier||!tel||!whatsapp){toast('Remplissez tous les champs obligatoires','err');return;}
 setLoader(true);
 try{
 const now=new Date().toISOString();
-const boutiqueData={uid:newUid,nom,nomCommerce:nom,type,ville,quartier,adresse:commerce.adresse||'',horaires,description:desc||'Découvrez notre catalogue.',telephone:tel,whatsapp,whatsappCommercial:whatsapp,img:imgFinal,emoji:'🏪',statut:'approuve',dateCreation:commerce.dateCreation||now,dateApprobation:commerce.dateApprobation||now};
+const boutiqueData={uid:newUid,nom,nomCommerce:nom,type,ville,quartier,adresse:commerce.adresse||'',horaires,description:desc||'Découvrez notre catalogue.',telephone:tel,whatsapp,whatsappCommercial:whatsapp,img:imgFinal,emoji:'🏪',statut:'approuve',dateCreation:commerce.dateCreation||now,dateApprobation:commerce.dateApprobation||now,retraitActif,livraisonActive};
 const batch=writeBatch(db);
 if(commerceDocId){batch.set(doc(db,'commerces',commerceDocId),{...boutiqueData,produits:commerce.produits||[]},{merge:true});}
 batch.update(doc(db,'netubers',uid),{boutique:boutiqueData});
 if(newUid!==uid){batch.update(doc(db,'netubers',newUid),{boutique:boutiqueData});batch.update(doc(db,'netubers',uid),{boutique:null});}
 await batch.commit();
 cacheInvalidateAll();
-await notifierChangement();
+await notifierChangement('editBoutique',uid);
 toast('Boutique modifiée');
 d.remove();
 await reloadSome(['netubers','actives']);
@@ -1959,7 +1961,7 @@ const idx=netubers.findIndex(x=>x.id===id);
 if(idx>=0)netubers[idx].actif=actif;
 renderNetubers();
 renderKPIs();
-await notifierChangement();
+await notifierChangement('toggleActifUser',id);
 toast(`Compte ${action}`);
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
@@ -2000,7 +2002,7 @@ for(const c of commercesList){if(c.uid===id){batch.delete(doc(db,'commerces',c.i
 batch.delete(doc(db,'netubers',id));ops++;stats.netuber=true;
 await batch.commit();
 const total=stats.annonces+stats.deblocages+stats.publications+stats.demandes;
-await notifierChangement();
+await notifierChangement('supprimerUtilisateur',id);
 toast(`Utilisateur supprimé (${total} élément${total>1?'s':''})`);
 cacheInvalidateAll();
 await reloadSome(['netubers','actives','annonces','deblocages','publications','boutiques']);
@@ -2078,7 +2080,7 @@ const nouveaux=produits.slice();
 nouveaux.splice(idx,1);
 await setDoc(doc(db,'commerces',commerceId),{produits:nouveaux},{merge:true});
 cacheInvalidate('commerces');
-await notifierChangement();
+await notifierChangement('supprimerArticle',commerceId);
 toast('Article supprimé','warn');
 if(onDone)onDone();
 }catch(e){toast('Erreur: '+e.message,'err');}
@@ -2162,7 +2164,7 @@ if(isNew){produits.push(articleData);}
 else{produits[idx]={...produits[idx],...articleData};}
 await setDoc(doc(db,'commerces',commerceId),{produits},{merge:true});
 cacheInvalidate('commerces');
-await notifierChangement();
+await notifierChangement(isNew?'ajouterArticle':'editArticle',commerceId);
 toast(isNew?'Article ajouté':'Article modifié');
 modal.remove();
 if(onDone)onDone();
@@ -2174,7 +2176,7 @@ function ouvrirModalCreateBoutique(){
 const usersOptions=netubers.length>0?netubers.map(n=>`<option value="${esc(n.id)}" data-phone="${esc(n.phone||'')}">${esc(n.nomComplet||n.nom||n.phone)} — ${esc(n.phone||'')}</option>`).join(''):'<option value="">- Aucun utilisateur inscrit -</option>';
 const d=document.createElement('div');
 d.className='modal show';
-d.innerHTML=`<div class="modal-box" style="max-width:620px"><h2><i class="fas fa-store"></i>Créer une boutique</h2><div class="field"><label>Propriétaire *</label><select id="newBoutiqueUid"><option value="">— Choisir —</option>${usersOptions}</select></div><div class="field"><label>Nom du commerce *</label><input type="text" id="newBoutiqueNom"></div><div class="field"><label>Type *</label><select id="newBoutiqueType"><option value="">— Choisir —</option>${['Supermarché / Alimentation','Restaurant / Traiteur','Hôtel / Hébergement','Pharmacie / Parapharmacie','Mode, Vêtements & Beauté','Cosmétiques','Salon de Coiffure','Services / Atelier','Boulangerie','Quincaillerie','Électronique','Concessionnaire (Auto)','Vivriers & Fruits','Matériaux de construction','Meubles & Décoration','Téléphones & Accessoires','Pâtisserie & Confiserie','Bijouterie & Accessoires','Salle de fête','Télécommunications'].map(t=>`<option value="${t}">${t}</option>`).join('')}</select></div><div class="grid-2"><div class="field"><label>Ville *</label><select id="newBoutiqueVille"><option value="">— Choisir —</option>${['Kinshasa','Lubumbashi','Kasumbalesa'].map(v=>`<option value="${v}">${v}</option>`).join('')}</select></div><div class="field"><label>Quartier *</label><input type="text" id="newBoutiqueQuartier"></div></div><div class="grid-2"><div class="field"><label>Téléphone *</label><input type="tel" id="newBoutiqueTel"></div><div class="field"><label>WhatsApp *</label><input type="tel" id="newBoutiqueWhatsapp"></div></div><div class="field"><label>Horaires</label><input type="text" id="newBoutiqueHoraires" value="08h - 20h"></div><div class="field"><label>Description</label><textarea id="newBoutiqueDesc" rows="3"></textarea></div><div style="margin-bottom:16px"><div style="font-size:10.5px;font-weight:800;color:var(--text-3);text-transform:uppercase;margin-bottom:8px;text-align:center">Image *</div><div class="media-preview" id="newBoutiqueImgPreview"></div><div class="media-actions"><label for="newBoutiqueImgFile" class="upload-label"><i class="fas fa-upload"></i>Uploader</label><button type="button" class="upload-label" id="newBoutiqueImgUrlBtn"><i class="fas fa-link"></i>URL</button></div><input type="file" id="newBoutiqueImgFile" accept="image/*" style="display:none"></div><div class="form-actions"><button class="btn btn-outline" data-cancel>ANNULER</button><button class="btn btn-success" data-save>CRÉER</button></div></div>`;
+d.innerHTML=`<div class="modal-box" style="max-width:620px"><h2><i class="fas fa-store"></i>Créer une boutique</h2><div class="field"><label>Propriétaire *</label><select id="newBoutiqueUid"><option value="">— Choisir —</option>${usersOptions}</select></div><div class="field"><label>Nom du commerce *</label><input type="text" id="newBoutiqueNom"></div><div class="field"><label>Type *</label><select id="newBoutiqueType"><option value="">— Choisir —</option>${['Supermarché / Alimentation','Restaurant / Traiteur','Hôtel / Hébergement','Pharmacie / Parapharmacie','Mode, Vêtements & Beauté','Cosmétiques','Salon de Coiffure','Services / Atelier','Boulangerie','Quincaillerie','Électronique','Concessionnaire (Auto)','Vivriers & Fruits','Matériaux de construction','Meubles & Décoration','Téléphones & Accessoires','Pâtisserie & Confiserie','Bijouterie & Accessoires','Salle de fête','Télécommunications'].map(t=>`<option value="${t}">${t}</option>`).join('')}</select></div><div class="grid-2"><div class="field"><label>Ville *</label><select id="newBoutiqueVille"><option value="">— Choisir —</option>${['Kinshasa','Lubumbashi','Kasumbalesa'].map(v=>`<option value="${v}">${v}</option>`).join('')}</select></div><div class="field"><label>Quartier *</label><input type="text" id="newBoutiqueQuartier"></div></div><div class="grid-2"><div class="field"><label>Téléphone *</label><input type="tel" id="newBoutiqueTel"></div><div class="field"><label>WhatsApp *</label><input type="tel" id="newBoutiqueWhatsapp"></div></div><div class="field"><label>Horaires</label><input type="text" id="newBoutiqueHoraires" value="08h - 20h"></div><div style="margin-top:18px;padding:16px;background:var(--bg-soft);border:1px solid var(--border);border-radius:12px"><div style="font-size:12px;font-weight:900;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px"><i class="fas fa-truck-fast" style="color:var(--accent)"></i> Options de commande</div><div class="grid-2"><div class="field" style="margin-bottom:0"><label style="margin-bottom:8px">🏪 Retrait en boutique</label><button type="button" id="newBoutiqueRetraitBtn" data-state="on" class="btn btn-success" style="width:100%;padding:14px;justify-content:center;font-size:13px"><i class="fas fa-check-circle"></i> Activé</button></div><div class="field" style="margin-bottom:0"><label style="margin-bottom:8px">🚚 Livraison à domicile</label><button type="button" id="newBoutiqueLivraisonBtn" data-state="on" class="btn btn-success" style="width:100%;padding:14px;justify-content:center;font-size:13px"><i class="fas fa-check-circle"></i> Activé</button></div></div></div><div class="field"><label>Description</label><textarea id="newBoutiqueDesc" rows="3"></textarea></div><div style="margin-bottom:16px"><div style="font-size:10.5px;font-weight:800;color:var(--text-3);text-transform:uppercase;margin-bottom:8px;text-align:center">Image *</div><div class="media-preview" id="newBoutiqueImgPreview"></div><div class="media-actions"><label for="newBoutiqueImgFile" class="upload-label"><i class="fas fa-upload"></i>Uploader</label><button type="button" class="upload-label" id="newBoutiqueImgUrlBtn"><i class="fas fa-link"></i>URL</button></div><input type="file" id="newBoutiqueImgFile" accept="image/*" style="display:none"></div><div class="form-actions"><button class="btn btn-outline" data-cancel>ANNULER</button><button class="btn btn-success" data-save>CRÉER</button></div></div>`;
 document.body.appendChild(d);
 let imgBase64=null;
 const fileInput=d.querySelector('#newBoutiqueImgFile');
@@ -2198,6 +2200,19 @@ d.querySelector('#newBoutiqueImgUrlBtn').onclick=async()=>{
 const u=await adminPrompt('URL de l\'image','Collez l\'URL','https://…','','fa-link','#3b82f6');
 if(u){imgBase64=u;preview.innerHTML=`<img src="${esc(imgBase64)}" alt="">`;toast('URL appliquée');}
 };
+const toggleNewBoutiqueOption=function(type){
+const btnId=type==='retrait'?'newBoutiqueRetraitBtn':'newBoutiqueLivraisonBtn';
+const btn=d.querySelector('#'+btnId);
+if(!btn)return;
+const etatActuel=btn.getAttribute('data-state')==='on';
+const nouvelEtat=!etatActuel;
+btn.setAttribute('data-state',nouvelEtat?'on':'off');
+btn.className='btn '+(nouvelEtat?'btn-success':'btn-danger');
+btn.innerHTML='<i class="fas fa-'+(nouvelEtat?'check-circle':'times-circle')+'"></i> '+(nouvelEtat?'Activé':'Désactivé');
+btn.style.width='100%';btn.style.padding='14px';btn.style.justifyContent='center';btn.style.fontSize='13px';
+};
+d.querySelector('#newBoutiqueRetraitBtn').onclick=()=>toggleNewBoutiqueOption('retrait');
+d.querySelector('#newBoutiqueLivraisonBtn').onclick=()=>toggleNewBoutiqueOption('livraison');
 const selectUser=d.querySelector('#newBoutiqueUid');
 selectUser.onchange=()=>{
 const opt=selectUser.options[selectUser.selectedIndex];
@@ -2217,12 +2232,16 @@ const whatsapp=d.querySelector('#newBoutiqueWhatsapp').value.trim();
 const horaires=d.querySelector('#newBoutiqueHoraires').value.trim()||'08h - 20h';
 const desc=d.querySelector('#newBoutiqueDesc').value.trim();
 const imgFinal=imgBase64;
+const retraitBtn=d.querySelector('#newBoutiqueRetraitBtn');
+const livraisonBtn=d.querySelector('#newBoutiqueLivraisonBtn');
+const retraitActif=retraitBtn?retraitBtn.getAttribute('data-state')==='on':true;
+const livraisonActive=livraisonBtn?livraisonBtn.getAttribute('data-state')==='on':true;
 if(!uid||!nom||!type||!ville||!quartier||!tel||!whatsapp||!imgFinal){toast('Remplissez tous les champs obligatoires','err');return;}
 setLoader(true);
 try{
 const now=new Date().toISOString();
 const commerceId='COM-'+Date.now();
-const boutiqueData={uid,nom,nomCommerce:nom,type,ville,quartier,adresse:'',horaires,description:desc||'Découvrez notre catalogue.',telephone:tel,whatsapp,whatsappCommercial:whatsapp,img:imgFinal,emoji:'🏪',statut:'approuve',dateCreation:now,dateApprobation:now};
+const boutiqueData={uid,nom,nomCommerce:nom,type,ville,quartier,adresse:'',horaires,description:desc||'Découvrez notre catalogue.',telephone:tel,whatsapp,whatsappCommercial:whatsapp,img:imgFinal,emoji:'🏪',statut:'approuve',dateCreation:now,dateApprobation:now,retraitActif,livraisonActive};
 const batch=writeBatch(db);
 batch.set(doc(db,'commerces',commerceId),{...boutiqueData,produits:[],creeParDirection:true});
 batch.update(doc(db,'netubers',uid),{boutique:boutiqueData});
@@ -2230,7 +2249,7 @@ const demandeId='DEM-'+Date.now();
 batch.set(doc(db,'demandes_boutiques',demandeId),{...boutiqueData,statut:'approuve',creeParDirection:true});
 await batch.commit();
 cacheInvalidateAll();
-await notifierChangement();
+await notifierChangement('createBoutique',uid);
 toast('Boutique créée');
 d.remove();
 await reloadSome(['boutiques','actives','netubers']);
@@ -2298,7 +2317,7 @@ cacheInvalidate('commerces');
 }
 await batch.commit();
 cacheInvalidate('publications');
-await notifierChangement();
+await notifierChangement('createPublication',pubId);
 toast('Publication créée');
 d.remove();
 await reloadSome(['publications','actives']);
@@ -2577,7 +2596,7 @@ const existants=Array.isArray(data.produits)?data.produits.slice():[];
 const nouveaux=aPublier.map(p=>({nom:p.nom||'Sans nom',prix:p.prix||0,prixLabel:p.prixLabel||'',categorie:p.categorie||'Autres',img:p.img,statut:p.statut||'approuve',ajouteParDirection:true,dateAjout:new Date().toISOString()}));
 await setDoc(doc(db,'commerces',commerceDocId),{produits:existants.concat(nouveaux)},{merge:true});
 aPublier.forEach(p=>{p.published=true;});
-await notifierChangement();
+await notifierChangement('importMultiple',uid);
 toast('✅ '+nouveaux.length+' articles publiés','ok');
 impRenderProducts();
 impUpdateSummary();
@@ -2738,50 +2757,10 @@ btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Enregistrement…';
 try{
 await setDoc(doc(db,'commerces',gcCommerceDocId),{produits:gcProduits},{merge:true});
 gcOriginalProduits=JSON.parse(JSON.stringify(gcProduits));
-await notifierChangement();
+await notifierChangement('gcEnregistrer',gcCommerceDocId);
 toast('✅ Catalogue enregistré','ok');
 }catch(e){toast('Erreur : '+e.message,'err');}
 finally{btn.disabled=false;btn.innerHTML='<i class="fas fa-save"></i> Enregistrer';}
-};
-async function lireConfigCommandesAdmin(){
-try{
-const snap=await getDoc(doc(db,'config','app'));
-const d=snap.exists()?snap.data():{};
-return{livraisonActive:d.livraisonActive!==false,retraitActive:d.retraitActive!==false};
-}catch(e){return{livraisonActive:true,retraitActive:true};}
-}
-async function updateToggleUI(){
-const cfg=await lireConfigCommandesAdmin();
-const bR=document.getElementById('btnToggleRetrait');
-const bL=document.getElementById('btnToggleLivraison');
-if(bR){
-if(cfg.retraitActive){bR.className='btn btn-success';bR.textContent='Activé';}
-else{bR.className='btn btn-danger';bR.textContent='Désactivé';}
-bR.style.width='100%';bR.style.padding='14px';bR.style.justifyContent='center';
-}
-if(bL){
-if(cfg.livraisonActive){bL.className='btn btn-success';bL.textContent='Activé';}
-else{bL.className='btn btn-danger';bL.textContent='Désactivé';}
-bL.style.width='100%';bL.style.padding='14px';bL.style.justifyContent='center';
-}
-}
-window.toggleRetrait=async function(){
-const cfg=await lireConfigCommandesAdmin();
-const ref=doc(db,'config','app');
-const snap=await getDoc(ref);
-const existing=snap.exists()?snap.data():{};
-await setDoc(ref,Object.assign({},existing,{retraitActive:!cfg.retraitActive,lastUpdate:Date.now(),updatedAt:new Date().toISOString()}),{merge:true});
-toast('Retrait '+(!cfg.retraitActive?'activé':'désactivé'));
-await updateToggleUI();
-};
-window.toggleLivraison=async function(){
-const cfg=await lireConfigCommandesAdmin();
-const ref=doc(db,'config','app');
-const snap=await getDoc(ref);
-const existing=snap.exists()?snap.data():{};
-await setDoc(ref,Object.assign({},existing,{livraisonActive:!cfg.livraisonActive,lastUpdate:Date.now(),updatedAt:new Date().toISOString()}),{merge:true});
-toast('Livraison '+(!cfg.livraisonActive?'activée':'désactivée'));
-await updateToggleUI();
 };
 </script>
 </body>
