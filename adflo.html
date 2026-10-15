@@ -76,7 +76,6 @@ var compressed=await compresser(file,1200,0.85);
 return uploadToImgbb(compressed);
 }
 window.picrd={upload:uploadToImgbb,compressAndUpload:compressAndUpload,compress:compresser};
-console.log('✅ imgbb module chargé');
 })();
 </script>
 <style>
@@ -599,6 +598,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 <div id="freezeLabelBig" style="padding:16px;text-align:center;background:var(--bg-soft);border-radius:10px;margin-bottom:14px;font-size:15px;font-weight:800;color:var(--text-2)">Fonctionnement normal</div>
 <button class="toggle-btn toggle-btn-off" id="btnToggleFreeze"><i class="fas fa-snowflake"></i>TOUT GELER</button>
 </div>
+<div class="info-box" style="margin-top:16px;background:linear-gradient(135deg,rgba(16,185,129,.06),rgba(16,185,129,.02));border-color:rgba(16,185,129,.15);color:#065f46">
+<strong style="display:block;margin-bottom:6px;color:var(--text)">📦 Options commandes (client)</strong>
+Ces toggles déterminent si le client peut choisir <strong>Retrait en boutique</strong> ou <strong>Livraison à domicile</strong> lors de sa commande.
+</div>
+<div class="grid-2" style="margin-top:12px">
+<div class="field"><label>🏪 Retrait en boutique</label><button class="btn btn-success" id="btnToggleRetrait" onclick="toggleRetrait()" style="width:100%;padding:14px;justify-content:center">Activer</button></div>
+<div class="field"><label>🚚 Livraison à domicile</label><button class="btn btn-success" id="btnToggleLivraison" onclick="toggleLivraison()" style="width:100%;padding:14px;justify-content:center">Activer</button></div>
+</div>
 </div>
 </div>
 </div>
@@ -620,6 +627,28 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 <h2><i class="fas fa-sliders" id="bulkIcon"></i><span id="bulkTitle">Action en masse</span></h2>
 <div id="bulkContent"></div>
 <div class="form-actions"><button class="btn btn-outline" onclick="closeBulkModal()">Annuler</button><button class="btn btn-success" onclick="applyBulkModal()">Appliquer</button></div>
+</div></div>
+<div class="modal" id="modalPrompt"><div class="modal-box" style="max-width:440px">
+<h2><i class="fas fa-pen" id="promptIcon"></i><span id="promptTitle">Saisie</span></h2>
+<p id="promptMessage" style="font-size:13px;color:var(--text-2);line-height:1.6;margin-bottom:18px"></p>
+<div class="field"><input type="text" id="promptInput" autocomplete="off"></div>
+<div class="form-actions"><button class="btn btn-outline" id="promptCancel">Annuler</button><button class="btn btn-primary" id="promptOk">Valider</button></div>
+</div></div>
+<div class="modal" id="modalConfirm"><div class="modal-box" style="max-width:440px">
+<div id="confirmIconWrap" style="width:56px;height:56px;border-radius:50%;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff">
+<i id="confirmIcon" class="fas fa-question"></i>
+</div>
+<h2 style="justify-content:center;text-align:center" id="confirmTitle">Confirmation</h2>
+<p id="confirmMessage" style="font-size:13px;color:var(--text-2);line-height:1.65;text-align:center;margin-bottom:22px"></p>
+<div class="form-actions"><button class="btn btn-outline" id="confirmCancel">Annuler</button><button class="btn btn-primary" id="confirmOk">Confirmer</button></div>
+</div></div>
+<div class="modal" id="modalAlert"><div class="modal-box" style="max-width:420px">
+<div id="alertIconWrap" style="width:56px;height:56px;border-radius:50%;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff">
+<i id="alertIcon" class="fas fa-info"></i>
+</div>
+<h2 style="justify-content:center;text-align:center" id="alertTitle">Information</h2>
+<p id="alertMessage" style="font-size:13px;color:var(--text-2);line-height:1.65;text-align:center;margin-bottom:22px"></p>
+<div class="form-actions"><button class="btn btn-primary" id="alertOk" style="width:100%">Compris</button></div>
 </div></div>
 <input type="file" id="gcBulkImageInput" accept="image/*" multiple style="display:none">
 <script type="importmap">
@@ -678,16 +707,90 @@ c.appendChild(el);
 requestAnimationFrame(()=>el.classList.add('show'));
 setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),400);},3200);
 }
-function confirmDialog(title,msg,onOk,danger){
-danger=danger!==false;
-const d=document.createElement('div');
-d.className='modal show';
-d.innerHTML=`<div class="modal-box" style="max-width:440px"><h2><i class="fas fa-exclamation-triangle" style="color:${danger?'#ef4444':'#10b981'}"></i>${esc(title)}</h2><p style="color:var(--text-2);font-size:13px;line-height:1.7;margin-bottom:22px;text-align:center">${msg}</p><div class="form-actions"><button class="btn btn-outline" data-cancel>ANNULER</button><button class="btn ${danger?'btn-danger':'btn-success'}" data-ok>CONFIRMER</button></div></div>`;
-document.body.appendChild(d);
-d.querySelector('[data-cancel]').onclick=()=>d.remove();
-d.querySelector('[data-ok]').onclick=()=>{d.remove();onOk();};
-d.onclick=e=>{if(e.target===d)d.remove();};
+function adminPrompt(titre,message,placeholder,valeurDefaut,iconName,iconColor){
+return new Promise(function(resolve){
+const modal=document.getElementById('modalPrompt');
+document.getElementById('promptTitle').textContent=titre||'Saisie';
+document.getElementById('promptMessage').textContent=message||'';
+const input=document.getElementById('promptInput');
+input.placeholder=placeholder||'';
+input.value=valeurDefaut||'';
+const icon=document.getElementById('promptIcon');
+icon.className='fas '+(iconName||'fa-pen');
+icon.style.color=iconColor||'var(--accent)';
+modal.classList.add('show');
+setTimeout(function(){input.focus();input.select();},100);
+const clean=function(){document.getElementById('promptOk').onclick=null;document.getElementById('promptCancel').onclick=null;input.onkeydown=null;modal.classList.remove('show');};
+const valider=function(){const v=input.value.trim();if(!v)return;clean();resolve(v);};
+document.getElementById('promptOk').onclick=valider;
+document.getElementById('promptCancel').onclick=function(){clean();resolve(null);};
+input.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();valider();}else if(e.key==='Escape'){clean();resolve(null);}};
+});
 }
+function adminConfirm(titre,message,type){
+return new Promise(function(resolve){
+const modal=document.getElementById('modalConfirm');
+document.getElementById('confirmTitle').textContent=titre||'Confirmation';
+document.getElementById('confirmMessage').innerHTML=message||'';
+const iconWrap=document.getElementById('confirmIconWrap');
+const icon=document.getElementById('confirmIcon');
+const okBtn=document.getElementById('confirmOk');
+if(type==='danger'){
+iconWrap.style.background='linear-gradient(135deg,#ef4444,#dc2626)';
+icon.className='fas fa-exclamation-triangle';
+okBtn.className='btn btn-danger';
+}else if(type==='warning'){
+iconWrap.style.background='linear-gradient(135deg,#f59e0b,#d97706)';
+icon.className='fas fa-exclamation';
+okBtn.className='btn btn-primary';
+}else{
+iconWrap.style.background='linear-gradient(135deg,#3b82f6,#2563eb)';
+icon.className='fas fa-question';
+okBtn.className='btn btn-primary';
+}
+modal.classList.add('show');
+const clean=function(){document.getElementById('confirmOk').onclick=null;document.getElementById('confirmCancel').onclick=null;modal.classList.remove('show');};
+document.getElementById('confirmOk').onclick=function(){clean();resolve(true);};
+document.getElementById('confirmCancel').onclick=function(){clean();resolve(false);};
+});
+}
+function adminAlert(titre,message,type){
+return new Promise(function(resolve){
+const modal=document.getElementById('modalAlert');
+document.getElementById('alertTitle').textContent=titre||'Information';
+document.getElementById('alertMessage').innerHTML=message||'';
+const iconWrap=document.getElementById('alertIconWrap');
+const icon=document.getElementById('alertIcon');
+if(type==='error'){
+iconWrap.style.background='linear-gradient(135deg,#ef4444,#dc2626)';
+icon.className='fas fa-exclamation-circle';
+}else if(type==='warning'){
+iconWrap.style.background='linear-gradient(135deg,#f59e0b,#d97706)';
+icon.className='fas fa-exclamation-triangle';
+}else if(type==='success'){
+iconWrap.style.background='linear-gradient(135deg,#10b981,#059669)';
+icon.className='fas fa-check-circle';
+}else{
+iconWrap.style.background='linear-gradient(135deg,#3b82f6,#2563eb)';
+icon.className='fas fa-info-circle';
+}
+modal.classList.add('show');
+const clean=function(){document.getElementById('alertOk').onclick=null;modal.classList.remove('show');};
+document.getElementById('alertOk').onclick=function(){clean();resolve(true);};
+});
+}
+async function notifierChangement(){
+try{
+const ref=doc(db,'config','app');
+const snap=await getDoc(ref);
+const existing=snap.exists()?snap.data():{};
+await setDoc(ref,Object.assign({},existing,{lastUpdate:Date.now()}),{merge:true});
+}catch(e){}
+}
+window.adminPrompt=adminPrompt;
+window.adminConfirm=adminConfirm;
+window.adminAlert=adminAlert;
+window.notifierChangement=notifierChangement;
 function updateBadge(id,n){const el=document.getElementById(id);if(!el)return;if(n>0){el.textContent=n;el.style.display='inline-block';}else el.style.display='none';}
 function renderPagination(id,total,current,onChange){
 const el=document.getElementById(id);
@@ -722,7 +825,7 @@ try{await signInWithEmailAndPassword(auth,email,pw);}
 catch(e){let msg='Email ou mot de passe incorrect';if(e.code==='auth/user-not-found')msg='Aucun compte avec cet email';if(e.code==='auth/wrong-password'||e.code==='auth/invalid-credential')msg='Mot de passe incorrect';if(e.code==='auth/invalid-email')msg='Email invalide';if(e.code==='auth/too-many-requests')msg='Trop de tentatives.';err.textContent=msg;btn.disabled=false;btn.innerHTML='SE CONNECTER';}
 finally{setLoader(false);}
 }
-document.getElementById('logoutBtn').onclick=()=>{confirmDialog('Confirmer la déconnexion','Voulez-vous vraiment vous déconnecter ?',async()=>{await signOut(auth);},true);};
+document.getElementById('logoutBtn').onclick=()=>{adminConfirm('Confirmer la déconnexion','Voulez-vous vraiment vous déconnecter ?','danger').then(ok=>{if(ok)signOut(auth);});};
 onAuthStateChanged(auth,async(user)=>{
 if(user){
 currentUser=user;
@@ -751,6 +854,7 @@ const content=document.querySelector('.content');
 if(content)content.scrollTop=0;
 if(tab==='tabImportMultiple')initImportMultiple();
 if(tab==='tabGererCatalogue')initGererCatalogue();
+if(tab==='tabRealtime'){chargerConfigApp();updateToggleUI();}
 }
 document.querySelectorAll('.nav-item').forEach(item=>{item.onclick=()=>switchTab(item.dataset.tab);});
 function openSidebar(){document.getElementById('sidebar').classList.add('show');document.getElementById('sidebarOverlay').classList.add('show');}
@@ -768,6 +872,7 @@ await Promise.all([loadBoutiques(),loadDeblocages(),loadPublications(),loadNetub
 renderKPIs();
 renderRecentActivity();
 initConfigApp();
+updateToggleUI();
 }finally{setLoader(false);updateCacheStats();}
 }
 async function reloadSome(keys){
@@ -861,7 +966,7 @@ updateKpiBadges();
 if(_realtimeActive&&_realtimeDateActivation&&_realtimeDuree){const expireAt=new Date(_realtimeDateActivation).getTime()+(_realtimeDuree*60000);if(Date.now()>=expireAt)desactiverRealtimeSilencieux();}
 if(_realtimeTimer){clearInterval(_realtimeTimer);_realtimeTimer=null;}
 if(_realtimeActive){_realtimeTimer=setInterval(updateRealtimeElapsed,1000);updateRealtimeElapsed();}
-}catch(err){console.warn('Erreur config:',err);_realtimeActive=false;_globalFrozen=false;updateRealtimeUI();updateFreezeUI();}
+}catch(err){_realtimeActive=false;_globalFrozen=false;updateRealtimeUI();updateFreezeUI();}
 }
 function initConfigApp(){chargerConfigApp();if(_configPollingTimer)clearInterval(_configPollingTimer);_configPollingTimer=setInterval(chargerConfigApp,CONFIG_POLL_INTERVAL);}
 async function rafraichirConfigManuel(){await chargerConfigApp();toast('Configuration rafraîchie');}
@@ -913,32 +1018,34 @@ async function activerRealtime(){
 const durationInput=document.getElementById('realtimeDuree');
 const duree=parseInt(durationInput.value,10)||60;
 if(duree<5||duree>1440){toast('Durée entre 5 et 1440 minutes','err');return;}
-confirmDialog('Activer le boost ?',`Rafraîchissement toutes les <strong>3 secondes</strong> pour <strong>${duree} minutes</strong>.`,async()=>{
+const ok=await adminConfirm('Activer le boost ?','Rafraîchissement toutes les <strong>3 secondes</strong> pour <strong>'+duree+' minutes</strong>.','warning');
+if(!ok)return;
 setLoader(true);
 try{
 const ref=doc(db,'config','app');
 const snap=await getDoc(ref);
 const existing=snap.exists()?snap.data():{};
 await setDoc(ref,{...existing,boost:{enabled:true,dateActivation:new Date().toISOString(),dureeMinute:duree,activePar:currentUser?currentUser.email:''},updatedAt:new Date().toISOString()},{merge:true});
+await notifierChangement();
 toast('🔥 Boost ACTIVÉ pour '+duree+' min');
 await chargerConfigApp();
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
-},false);
 }
 async function desactiverRealtime(){
-confirmDialog('Désactiver le boost ?','Retour au rafraîchissement normal (60s).',async()=>{
+const ok=await adminConfirm('Désactiver le boost ?','Retour au rafraîchissement normal (60s).','warning');
+if(!ok)return;
 setLoader(true);
 try{
 const ref=doc(db,'config','app');
 const snap=await getDoc(ref);
 const existing=snap.exists()?snap.data():{};
 await setDoc(ref,{...existing,boost:{enabled:false,dateDesactivation:new Date().toISOString()},updatedAt:new Date().toISOString()},{merge:true});
+await notifierChangement();
 toast('⚫ Boost DÉSACTIVÉ','warn');
 await chargerConfigApp();
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
-});
 }
 async function desactiverRealtimeSilencieux(){
 try{
@@ -946,6 +1053,7 @@ const ref=doc(db,'config','app');
 const snap=await getDoc(ref);
 const existing=snap.exists()?snap.data():{};
 await setDoc(ref,{...existing,boost:{enabled:false,dateDesactivation:new Date().toISOString(),expireAuto:true},updatedAt:new Date().toISOString()},{merge:true});
+await notifierChangement();
 toast('⏱️ Boost expiré','warn');
 await chargerConfigApp();
 }catch(e){}
@@ -977,18 +1085,19 @@ if(btn){btn.innerHTML='<i class="fas fa-snowflake"></i>TOUT GELER';btn.classList
 async function toggleGlobalFreeze(){
 const action=_globalFrozen?'DÉGELER':'GELER';
 const msg=_globalFrozen?'Les utilisateurs reprendront les rafraîchissements automatiques.':'Tous les rafraîchissements seront <strong>bloqués</strong>.';
-confirmDialog(`Voulez-vous ${action.toLowerCase()} l\'application ?`,msg,async()=>{
+const ok=await adminConfirm('Voulez-vous '+action.toLowerCase()+' l\'application ?',msg,_globalFrozen?'info':'warning');
+if(!ok)return;
 setLoader(true);
 try{
 const ref=doc(db,'config','app');
 const snap=await getDoc(ref);
 const existing=snap.exists()?snap.data():{};
 await setDoc(ref,{...existing,freeze:{frozen:!_globalFrozen,dateChangement:new Date().toISOString(),par:currentUser?currentUser.email:''},updatedAt:new Date().toISOString()},{merge:true});
+await notifierChangement();
 toast(_globalFrozen?'🔥 Application DÉGELÉE':'🧊 Application GELÉE',_globalFrozen?'ok':'warn');
 await chargerConfigApp();
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
-},!_globalFrozen);
 }
 document.getElementById('btnToggleFreeze').onclick=toggleGlobalFreeze;
 function updateKpiBadges(){
@@ -1076,7 +1185,8 @@ document.getElementById('filterBoutiqueStatut').onchange=()=>{pagination.boutiqu
 async function approveBoutique(id){
 const b=boutiques.find(x=>x.id===id);
 if(!b)return;
-confirmDialog('Approuver cette boutique ?',`Rendre <strong>${esc(b.nomCommerce)}</strong> visible ?`,async()=>{
+const ok=await adminConfirm('Approuver cette boutique ?','Rendre <strong>'+esc(b.nomCommerce)+'</strong> visible ?','info');
+if(!ok)return;
 setLoader(true);
 try{
 const batch=writeBatch(db);
@@ -1094,17 +1204,18 @@ const idx=boutiques.findIndex(x=>x.id===id);
 if(idx>=0){boutiques[idx].statut='approuve';boutiques[idx].dateApprobation=now;}
 renderBoutiques();
 updateBadge('badgeBoutiques',boutiques.filter(x=>x.statut==='en_attente').length);
+await notifierChangement();
 toast('Boutique approuvée');
 cacheInvalidate('netubers');cacheInvalidate('actives');cacheInvalidate('commerces');
 await reloadSome(['actives']);
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
-},false);
 }
 async function refuseBoutique(id){
 const b=boutiques.find(x=>x.id===id);
 if(!b)return;
-confirmDialog('Refuser cette boutique ?',`Refuser <strong>${esc(b.nomCommerce)}</strong> ?`,async()=>{
+const ok=await adminConfirm('Refuser cette boutique ?','Refuser <strong>'+esc(b.nomCommerce)+'</strong> ?','danger');
+if(!ok)return;
 setLoader(true);
 try{
 const batch=writeBatch(db);
@@ -1115,24 +1226,25 @@ const idx=boutiques.findIndex(x=>x.id===id);
 if(idx>=0)boutiques[idx].statut='refuse';
 renderBoutiques();
 updateBadge('badgeBoutiques',boutiques.filter(x=>x.statut==='en_attente').length);
+await notifierChangement();
 toast('Boutique refusée','warn');
 cacheInvalidate('netubers');
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
-});
 }
 async function deleteDemandeBoutique(id){
-confirmDialog('Supprimer cette demande ?','La demande sera définitivement supprimée.',async()=>{
+const ok=await adminConfirm('Supprimer cette demande ?','La demande sera définitivement supprimée.','danger');
+if(!ok)return;
 setLoader(true);
 try{
 await deleteDoc(doc(db,'demandes_boutiques',id));
 boutiques=boutiques.filter(x=>x.id!==id);
 cacheSet('demandes_boutiques',boutiques);
 renderBoutiques();
+await notifierChangement();
 toast('Demande supprimée','warn');
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
-});
 }
 function detailBoutique(id){
 const b=boutiques.find(x=>x.id===id);
@@ -1186,7 +1298,8 @@ modal.onclick=e=>{if(e.target===modal)modal.remove();};
 async function validerDeblocage(id){
 const d=deblocages.find(x=>x.id===id);
 if(!d)return;
-confirmDialog('Valider ce déblocage ?',`ID : <strong>${esc(d.transactionId||'—')}</strong><br>N° : <strong>${esc(d.numeroEnvoi||'—')}</strong>`,async()=>{
+const ok=await adminConfirm('Valider ce déblocage ?','ID : <strong>'+esc(d.transactionId||'—')+'</strong><br>N° : <strong>'+esc(d.numeroEnvoi||'—')+'</strong>','info');
+if(!ok)return;
 setLoader(true);
 try{
 let coordonnees=null;
@@ -1197,13 +1310,14 @@ const idx=deblocages.findIndex(x=>x.id===id);
 if(idx>=0){deblocages[idx].statut='debloque';deblocages[idx].dateValidation=now;}
 renderDeblocages();
 updateBadge('badgeDeblocages',deblocages.filter(x=>x.statut==='en_attente').length);
+await notifierChangement();
 toast('Déblocage validé');
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
-},false);
 }
 async function rejeterDeblocage(id){
-confirmDialog('Rejeter ce déblocage ?','La demande sera marquée non valide.',async()=>{
+const ok=await adminConfirm('Rejeter ce déblocage ?','La demande sera marquée non valide.','danger');
+if(!ok)return;
 setLoader(true);
 try{
 await setDoc(doc(db,'deblocages',id),{statut:'echoue',dateRejet:new Date().toISOString()},{merge:true});
@@ -1211,21 +1325,22 @@ const idx=deblocages.findIndex(x=>x.id===id);
 if(idx>=0)deblocages[idx].statut='echoue';
 renderDeblocages();
 updateBadge('badgeDeblocages',deblocages.filter(x=>x.statut==='en_attente').length);
+await notifierChangement();
 toast('Déblocage rejeté','warn');
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
-});
 }
 async function deleteDeblocage(id){
-confirmDialog('Supprimer ce déblocage ?','Action irréversible.',async()=>{
+const ok=await adminConfirm('Supprimer ce déblocage ?','Action irréversible.','danger');
+if(!ok)return;
 try{
 await deleteDoc(doc(db,'deblocages',id));
 deblocages=deblocages.filter(x=>x.id!==id);
 cacheSet('deblocages',deblocages);
 renderDeblocages();
+await notifierChangement();
 toast('Déblocage supprimé','warn');
 }catch(e){toast('Erreur: '+e.message,'err');}
-});
 }
 function renderPublications(){
 const tbody=document.getElementById('bodyPublications');
@@ -1263,6 +1378,7 @@ const idx=publications.findIndex(x=>x.id===id);
 if(idx>=0)publications[idx].statut='approuve';
 renderPublications();
 updateBadge('badgePublications',publications.filter(x=>x.statut==='en_attente').length);
+await notifierChangement();
 toast('Publication approuvée');
 await reloadSome(['actives']);
 }catch(e){toast('Erreur: '+e.message,'err');}
@@ -1276,12 +1392,14 @@ const idx=publications.findIndex(x=>x.id===id);
 if(idx>=0)publications[idx].statut='refuse';
 renderPublications();
 updateBadge('badgePublications',publications.filter(x=>x.statut==='en_attente').length);
+await notifierChangement();
 toast('Publication refusée','warn');
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
 }
 async function supprimerPublication(id){
-confirmDialog('Supprimer cette publication ?','Le produit sera aussi retiré.',async()=>{
+const ok=await adminConfirm('Supprimer cette publication ?','Le produit sera aussi retiré.','danger');
+if(!ok)return;
 setLoader(true);
 try{
 const pub=publications.find(p=>p.id===id);
@@ -1302,11 +1420,11 @@ await batch.commit();
 publications=publications.filter(x=>x.id!==id);
 cacheSet('publications',publications);
 renderPublications();
+await notifierChangement();
 toast('Publication supprimée','warn');
 await reloadSome(['actives']);
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
-});
 }
 function ouvrirModalEditPublication(id){
 const pub=publications.find(x=>x.id===id);
@@ -1333,12 +1451,13 @@ toast('✅ Image uploadée');
 }catch(err){toast('Erreur upload: '+err.message,'err');}
 finally{setLoader(false);fileInput.value='';}
 };
-d.querySelector('#pubEditImgUrlBtn').onclick=()=>{
-const u=prompt("URL de l'image :",newImg.startsWith('data:')?'':newImg);
-if(u&&u.trim()){newImg=u.trim();wrap.innerHTML=`<img src="${esc(newImg)}" alt="">`;toast('URL appliquée');}
+d.querySelector('#pubEditImgUrlBtn').onclick=async()=>{
+const u=await adminPrompt('URL de l\'image','Collez l\'URL de l\'image ci-dessous','https://…',newImg.startsWith('data:')?'':newImg,'fa-link','#3b82f6');
+if(u){newImg=u;wrap.innerHTML=`<img src="${esc(newImg)}" alt="">`;toast('URL appliquée');}
 };
-d.querySelector('#pubEditImgRemoveBtn').onclick=()=>{
-if(!confirm('Retirer l\'image ?'))return;
+d.querySelector('#pubEditImgRemoveBtn').onclick=async()=>{
+const ok=await adminConfirm('Retirer l\'image ?','L\'image sera supprimée de la publication.','warning');
+if(!ok)return;
 newImg='';
 wrap.innerHTML=`<div style="color:#64748b;font-size:13px;text-align:center"><i class="fas fa-image" style="font-size:32px;display:block;margin-bottom:8px;opacity:.5"></i>Aucune image</div>`;
 };
@@ -1365,6 +1484,7 @@ await batch.commit();
 const idx=publications.findIndex(x=>x.id===id);
 if(idx>=0)publications[idx]={...publications[idx],...updates};
 renderPublications();
+await notifierChangement();
 toast('Publication modifiée');
 d.remove();
 await reloadSome(['actives']);
@@ -1405,7 +1525,8 @@ document.getElementById('searchAnnonces').oninput=()=>{pagination.annonces=1;ren
 document.getElementById('filterAnnonceCat').onchange=()=>{pagination.annonces=1;renderAnnonces();};
 document.getElementById('filterAnnonceStatut').onchange=()=>{pagination.annonces=1;renderAnnonces();};
 async function approveAnnonceAdmin(id){
-confirmDialog('Approuver cette publication ?','Vérifiez le paiement au <strong>+243 976 953 045</strong>.',async()=>{
+const ok=await adminConfirm('Approuver cette publication ?','Vérifiez le paiement au <strong>+243 976 953 045</strong>.','info');
+if(!ok)return;
 setLoader(true);
 try{
 await setDoc(doc(db,'annonces',id),{statut:'approuve',actif:true,dateApprobation:new Date().toISOString()},{merge:true});
@@ -1415,13 +1536,14 @@ renderAnnonces();
 moderationAnnonces=annonces.slice();
 renderModerationFeed();
 updateBadge('badgeAnnonces',annonces.filter(x=>x.statut==='en_attente').length);
+await notifierChangement();
 toast('Publication approuvée');
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
-},false);
 }
 async function refuseAnnonceAdmin(id){
-confirmDialog('Refuser cette publication ?',"L'annonce restera invisible.",async()=>{
+const ok=await adminConfirm('Refuser cette publication ?','L\'annonce restera invisible.','danger');
+if(!ok)return;
 setLoader(true);
 try{
 await setDoc(doc(db,'annonces',id),{statut:'refuse',actif:false,dateRefus:new Date().toISOString()},{merge:true});
@@ -1431,10 +1553,10 @@ renderAnnonces();
 moderationAnnonces=annonces.slice();
 renderModerationFeed();
 updateBadge('badgeAnnonces',annonces.filter(x=>x.statut==='en_attente').length);
+await notifierChangement();
 toast('Publication refusée','warn');
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
-});
 }
 function detailAnnonceAdmin(id){
 const a=annonces.find(x=>x.id===id);
@@ -1505,7 +1627,8 @@ modal.onclick=e=>{if(e.target===modal)modal.remove();};
 async function supprimerAnnonce(id){
 const a=annonces.find(x=>x.id===id);
 const titre=a?a.titre:'cette annonce';
-confirmDialog('Supprimer cette annonce ?',`L'annonce <strong>${esc(titre)}</strong> sera supprimée.`,async()=>{
+const ok=await adminConfirm('Supprimer cette annonce ?','L\'annonce <strong>'+esc(titre)+'</strong> sera supprimée.','danger');
+if(!ok)return;
 setLoader(true);
 try{
 await deleteDoc(doc(db,'annonces',id));
@@ -1515,10 +1638,10 @@ renderAnnonces();
 moderationAnnonces=annonces.slice();
 renderModerationFeed();
 updateBadge('badgeAnnonces',annonces.filter(x=>x.statut==='en_attente').length);
+await notifierChangement();
 toast('Annonce supprimée','warn');
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
-});
 }
 async function ouvrirModalEditAnnonce(id){
 const a=annonces.find(x=>x.id===id);
@@ -1548,12 +1671,13 @@ toast('✅ Image uploadée');
 }catch(err){toast('Erreur upload: '+err.message,'err');}
 finally{setLoader(false);fileInput.value='';}
 };
-d.querySelector('#editAnnImgUrlBtn').onclick=()=>{
-const url=prompt("URL de l'image :",imgBase64.startsWith('data:')?'':imgBase64);
-if(url&&url.trim()){imgBase64=url.trim();if(preview){preview.src=imgBase64;}else{wrapper.innerHTML=`<img id="editAnnImgPreview" src="${esc(imgBase64)}" alt="">`;}toast('URL appliquée');}
+d.querySelector('#editAnnImgUrlBtn').onclick=async()=>{
+const url=await adminPrompt('URL de l\'image','Collez l\'URL de l\'image','https://…',imgBase64.startsWith('data:')?'':imgBase64,'fa-link','#3b82f6');
+if(url){imgBase64=url;if(preview){preview.src=imgBase64;}else{wrapper.innerHTML=`<img id="editAnnImgPreview" src="${esc(imgBase64)}" alt="">`;}toast('URL appliquée');}
 };
-d.querySelector('#editAnnImgRemoveBtn').onclick=()=>{
-if(!confirm('Retirer l\'image ?'))return;
+d.querySelector('#editAnnImgRemoveBtn').onclick=async()=>{
+const ok=await adminConfirm('Retirer l\'image ?','L\'image sera supprimée.','warning');
+if(!ok)return;
 imgBase64='';
 wrapper.innerHTML=`<div style="color:#64748b;font-size:13px;text-align:center"><i class="fas fa-image" style="font-size:32px;display:block;margin-bottom:8px;opacity:.5"></i>Aucune image</div>`;
 toast('Image retirée','warn');
@@ -1580,6 +1704,7 @@ if(idx>=0)annonces[idx]={...annonces[idx],...updates};
 renderAnnonces();
 moderationAnnonces=annonces.slice();
 renderModerationFeed();
+await notifierChangement();
 toast('✅ Annonce modifiée');
 d.remove();
 }catch(e){toast('Erreur: '+e.message,'err');}
@@ -1615,7 +1740,7 @@ const total=annonces.length;
 if(total===0){toast('Le feed est déjà vide','warn');return;}
 const d=document.createElement('div');
 d.className='modal show';
-d.innerHTML=`<div class="modal-box" style="max-width:480px"><h2><i class="fas fa-exclamation-triangle" style="color:#dc2626"></i>Vider tout le Feed ?</h2><div style="padding:16px;background:rgba(239,68,68,.08);border:1.5px solid rgba(239,68,68,.25);border-radius:14px;margin-bottom:16px"><div style="font-size:12.5px;font-weight:900;color:#dc2626;text-transform:uppercase;margin-bottom:8px"><i class="fas fa-radiation"></i> Action irréversible</div><div style="font-size:12px;color:var(--text-2);line-height:1.6">Supprimer <strong>${total} annonce${total>1?'s':''}</strong>.<br><br><strong>Tapez "SUPPRIMER" :</strong></div></div><div class="field"><input type="text" id="confirmViderInput" placeholder="SUPPRIMER" style="text-align:center;font-weight:800;letter-spacing:2px;color:#dc2626"></div><div class="form-actions"><button class="btn btn-outline" data-cancel>ANNULER</button><button class="btn btn-danger" data-ok disabled style="opacity:.5;cursor:not-allowed"><i class="fas fa-trash-alt"></i>TOUT SUPPRIMER</button></div></div>`;
+d.innerHTML=`<div class="modal-box" style="max-width:480px"><h2><i class="fas fa-exclamation-triangle" style="color:#dc2626"></i>Vider tout le Feed ?</h2><div style="padding:16px;background:rgba(239,68,68,.08);border:1.5px solid rgba(239,68,68,.25);border-radius:14px;margin-bottom:16px"><div style="font-size:12.5px;font-weight:900;color:#dc2626;text-transform:uppercase;margin-bottom:8px"><i class="fas fa-radiation"></i> Action irréversible</div><div style="font-size:12px;color:var(--text-2);line-height:1.6">Supprimer <strong>${total} annonce${total>1?'s':''}</strong>.<br><br><strong>Tapez "SUPPRIMER" :</strong></div></div><div class="field"><input type="text" id="confirmViderInput" placeholder="SUPPRIMER" style="text-align:center;font-weight:800;letter-spacing:2px;color:#dc2626;text-transform:uppercase"></div><div class="form-actions"><button class="btn btn-outline" data-cancel>ANNULER</button><button class="btn btn-danger" data-ok disabled style="opacity:.5;cursor:not-allowed"><i class="fas fa-trash-alt"></i>TOUT SUPPRIMER</button></div></div>`;
 document.body.appendChild(d);
 const input=d.querySelector('#confirmViderInput');
 const okBtn=d.querySelector('[data-ok]');
@@ -1638,6 +1763,7 @@ ops++;success++;
 if(ops>=450){await batch.commit();batch=writeBatch(db);ops=0;}
 }
 if(ops>0)await batch.commit();
+await notifierChangement();
 toast(`Feed vidé : ${success} supprimée${success>1?'s':''}`,fail>0?'warn':'ok');
 annonces=[];
 cacheSet('annonces',[]);
@@ -1668,16 +1794,17 @@ return `<tr><td>${offset+i+1}</td><td>${img}</td><td><strong style="color:var(--
 }
 document.getElementById('searchActives').oninput=()=>{pagination.actives=1;renderActives();};
 async function retirerActive(uid){
-confirmDialog('Retirer cette boutique ?','La boutique ne sera plus visible.',async()=>{
+const ok=await adminConfirm('Retirer cette boutique ?','La boutique ne sera plus visible.','warning');
+if(!ok)return;
 setLoader(true);
 try{
 await setDoc(doc(db,'netubers',uid),{boutique:{statut:'refuse'}},{merge:true});
 cacheInvalidate('netubers');cacheInvalidate('actives');
+await notifierChangement();
 toast('Boutique retirée','warn');
 await reloadSome(['netubers','actives']);
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
-});
 }
 async function supprimerBoutique(uid){
 const commerce=boutiquesActives.find(b=>b.uid===uid);
@@ -1685,7 +1812,7 @@ if(!commerce){toast('Commerce introuvable','err');return;}
 const nomBoutique=commerce.nom||commerce.nomCommerce||'cette boutique';
 const d=document.createElement('div');
 d.className='modal show';
-d.innerHTML=`<div class="modal-box" style="max-width:460px"><h2 style="color:#dc2626"><i class="fas fa-exclamation-triangle"></i>Supprimer</h2><p style="color:var(--text-2);font-size:13px;text-align:center;margin-bottom:16px">Vous allez supprimer <strong style="color:#dc2626">${esc(nomBoutique)}</strong> et <strong>tous ses articles</strong>.</p><div class="field"><label style="color:#dc2626">Tapez "SUPPRIMER" :</label><input type="text" id="confirmDeleteBoutique" placeholder="SUPPRIMER" style="text-align:center;font-weight:800;letter-spacing:2px;color:#dc2626"></div><div class="form-actions"><button class="btn btn-outline" data-cancel>ANNULER</button><button class="btn btn-danger" data-ok disabled style="opacity:.5;cursor:not-allowed"><i class="fas fa-trash"></i>SUPPRIMER</button></div></div>`;
+d.innerHTML=`<div class="modal-box" style="max-width:460px"><h2 style="color:#dc2626"><i class="fas fa-exclamation-triangle"></i>Supprimer</h2><p style="color:var(--text-2);font-size:13px;text-align:center;margin-bottom:16px">Vous allez supprimer <strong style="color:#dc2626">${esc(nomBoutique)}</strong> et <strong>tous ses articles</strong>.</p><div class="field"><label style="color:#dc2626">Tapez "SUPPRIMER" :</label><input type="text" id="confirmDeleteBoutique" placeholder="SUPPRIMER" style="text-align:center;font-weight:800;letter-spacing:2px;color:#dc2626;text-transform:uppercase"></div><div class="form-actions"><button class="btn btn-outline" data-cancel>ANNULER</button><button class="btn btn-danger" data-ok disabled style="opacity:.5;cursor:not-allowed"><i class="fas fa-trash"></i>SUPPRIMER</button></div></div>`;
 document.body.appendChild(d);
 const input=d.querySelector('#confirmDeleteBoutique');
 const okBtn=d.querySelector('[data-ok]');
@@ -1710,6 +1837,7 @@ if(pub.uidCommerce===uid||pub.uid===uid){batch.delete(doc(db,'publications',pub.
 }
 await batch.commit();
 cacheInvalidateAll();
+await notifierChangement();
 toast('Boutique supprimée');
 await reloadSome(['netubers','actives','publications']);
 }catch(e){toast('Erreur: '+e.message,'err');}
@@ -1745,9 +1873,9 @@ toast('✅ Image uploadée');
 }catch(err){toast('Erreur upload: '+err.message,'err');}
 finally{setLoader(false);fileInput.value='';}
 };
-d.querySelector('#editBoutiqueImgUrlBtn').onclick=()=>{
-const u=prompt("URL de l'image :",commerce.img&&!commerce.img.startsWith('data:')?commerce.img:'');
-if(u&&u.trim()){imgBase64=u.trim();preview.innerHTML=`<img src="${esc(imgBase64)}" alt="">`;toast('URL appliquée');}
+d.querySelector('#editBoutiqueImgUrlBtn').onclick=async()=>{
+const u=await adminPrompt('URL de l\'image','Collez l\'URL de l\'image','https://…',commerce.img&&!commerce.img.startsWith('data:')?commerce.img:'','fa-link','#3b82f6');
+if(u){imgBase64=u;preview.innerHTML=`<img src="${esc(imgBase64)}" alt="">`;toast('URL appliquée');}
 };
 d.querySelector('[data-cancel]').onclick=()=>d.remove();
 d.onclick=e=>{if(e.target===d)d.remove();};
@@ -1773,6 +1901,7 @@ batch.update(doc(db,'netubers',uid),{boutique:boutiqueData});
 if(newUid!==uid){batch.update(doc(db,'netubers',newUid),{boutique:boutiqueData});batch.update(doc(db,'netubers',uid),{boutique:null});}
 await batch.commit();
 cacheInvalidateAll();
+await notifierChangement();
 toast('Boutique modifiée');
 d.remove();
 await reloadSome(['netubers','actives']);
@@ -1821,7 +1950,8 @@ async function toggleActifUser(id,actif){
 const n=netubers.find(x=>x.id===id);
 if(!n)return;
 const action=actif?'activer':'désactiver';
-confirmDialog(`${action.charAt(0).toUpperCase()+action.slice(1)} ce compte ?`,`${esc(n.nomComplet||n.phone)}`,async()=>{
+const ok=await adminConfirm((action.charAt(0).toUpperCase()+action.slice(1))+' ce compte ?',esc(n.nomComplet||n.phone),actif?'info':'warning');
+if(!ok)return;
 setLoader(true);
 try{
 await setDoc(doc(db,'netubers',id),{actif},{merge:true});
@@ -1829,10 +1959,10 @@ const idx=netubers.findIndex(x=>x.id===id);
 if(idx>=0)netubers[idx].actif=actif;
 renderNetubers();
 renderKPIs();
+await notifierChangement();
 toast(`Compte ${action}`);
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
-},!actif);
 }
 async function supprimerUtilisateur(id){
 const n=netubers.find(x=>x.id===id);
@@ -1870,6 +2000,7 @@ for(const c of commercesList){if(c.uid===id){batch.delete(doc(db,'commerces',c.i
 batch.delete(doc(db,'netubers',id));ops++;stats.netuber=true;
 await batch.commit();
 const total=stats.annonces+stats.deblocages+stats.publications+stats.demandes;
+await notifierChangement();
 toast(`Utilisateur supprimé (${total} élément${total>1?'s':''})`);
 cacheInvalidateAll();
 await reloadSome(['netubers','actives','annonces','deblocages','publications','boutiques']);
@@ -1939,18 +2070,19 @@ if(!snap.exists()){toast('Commerce introuvable','err');return;}
 const produits=snap.data().produits||[];
 const article=produits[idx];
 if(!article){toast('Article introuvable','err');return;}
-confirmDialog('Supprimer cet article ?',`L'article <strong>${esc(article.nom||'')}</strong> sera supprimé.`,async()=>{
+const ok=await adminConfirm('Supprimer cet article ?','L\'article <strong>'+esc(article.nom||'')+'</strong> sera supprimé.','danger');
+if(!ok)return;
 setLoader(true);
 try{
 const nouveaux=produits.slice();
 nouveaux.splice(idx,1);
 await setDoc(doc(db,'commerces',commerceId),{produits:nouveaux},{merge:true});
 cacheInvalidate('commerces');
+await notifierChangement();
 toast('Article supprimé','warn');
 if(onDone)onDone();
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
-});
 }
 async function telechargerImageArticle(src,nom){
 if(!src){toast('Aucune image','warn');return;}
@@ -1972,7 +2104,7 @@ function voirImagePleinEcran(src){
 if(!src)return;
 const overlay=document.createElement('div');
 overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:60000;display:flex;align-items:center;justify-content:center;padding:20px;cursor:pointer';
-overlay.innerHTML=`<img src="${esc(src)}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:12px;cursor:default" onclick="event.stopPropagation()"><button style="position:absolute;top:20px;right:20px;width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center" onclick="event.stopPropagation();this.parentElement.remove()"><i class="fas fa-xmark"></i></button><button style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);padding:12px 22px;border-radius:30px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;font-size:13px;font-weight:800;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit" onclick="event.stopPropagation();telechargerImageArticle('${esc(src).replace(/'/g,"\\'")}','image')"><i class="fas fa-download"></i> Télécharger</button>`;
+overlay.innerHTML=`<img src="${esc(src)}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:12px;cursor:default" onclick="event.stopPropagation()"><button style="position:absolute;top:20px;right:20px;width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center" onclick="event.stopPropagation();this.parentElement.remove()"><i class="fas fa-xmark"></i></button>`;
 document.body.appendChild(overlay);
 overlay.onclick=()=>overlay.remove();
 }
@@ -1990,7 +2122,7 @@ const btnDownload=modal.querySelector('#artBtnDownload');
 const fileInput=modal.querySelector('#artImgFile');
 const preview=modal.querySelector('#artImgPreview');
 const wrapper=modal.querySelector('#artImgWrapper');
-if(btnUrl){btnUrl.onclick=()=>{const url=prompt("Entrez l'URL :",a.img&&!a.img.startsWith('data:')?a.img:'');if(url&&url.trim()){imgBase64=url.trim();if(preview){preview.src=imgBase64;}else{wrapper.innerHTML=`<img id="artImgPreview" src="${esc(imgBase64)}" alt="">`;}toast('URL appliquée');}};}
+if(btnUrl){btnUrl.onclick=async()=>{const url=await adminPrompt('URL de l\'image','Collez l\'URL','https://…',a.img&&!a.img.startsWith('data:')?a.img:'','fa-link','#3b82f6');if(url){imgBase64=url;if(preview){preview.src=imgBase64;}else{wrapper.innerHTML=`<img id="artImgPreview" src="${esc(imgBase64)}" alt="">`;}toast('URL appliquée');}};}
 if(btnUpload)btnUpload.onclick=()=>fileInput.click();
 if(btnDownload)btnDownload.onclick=()=>telechargerImageArticle(a.img,a.nom);
 fileInput.onchange=async()=>{
@@ -2030,6 +2162,7 @@ if(isNew){produits.push(articleData);}
 else{produits[idx]={...produits[idx],...articleData};}
 await setDoc(doc(db,'commerces',commerceId),{produits},{merge:true});
 cacheInvalidate('commerces');
+await notifierChangement();
 toast(isNew?'Article ajouté':'Article modifié');
 modal.remove();
 if(onDone)onDone();
@@ -2061,9 +2194,9 @@ toast('✅ Image uploadée');
 }catch(err){toast('Erreur upload: '+err.message,'err');}
 finally{setLoader(false);fileInput.value='';}
 };
-d.querySelector('#newBoutiqueImgUrlBtn').onclick=()=>{
-const u=prompt("URL de l'image :");
-if(u&&u.trim()){imgBase64=u.trim();preview.innerHTML=`<img src="${esc(imgBase64)}" alt="">`;toast('URL appliquée');}
+d.querySelector('#newBoutiqueImgUrlBtn').onclick=async()=>{
+const u=await adminPrompt('URL de l\'image','Collez l\'URL','https://…','','fa-link','#3b82f6');
+if(u){imgBase64=u;preview.innerHTML=`<img src="${esc(imgBase64)}" alt="">`;toast('URL appliquée');}
 };
 const selectUser=d.querySelector('#newBoutiqueUid');
 selectUser.onchange=()=>{
@@ -2097,6 +2230,7 @@ const demandeId='DEM-'+Date.now();
 batch.set(doc(db,'demandes_boutiques',demandeId),{...boutiqueData,statut:'approuve',creeParDirection:true});
 await batch.commit();
 cacheInvalidateAll();
+await notifierChangement();
 toast('Boutique créée');
 d.remove();
 await reloadSome(['boutiques','actives','netubers']);
@@ -2128,9 +2262,9 @@ toast('✅ Image uploadée');
 }catch(err){toast('Erreur upload: '+err.message,'err');}
 finally{setLoader(false);fileInput.value='';}
 };
-d.querySelector('#pubImgUrlBtn').onclick=()=>{
-const u=prompt("URL de l'image :");
-if(u&&u.trim()){imgBase64=u.trim();preview.innerHTML=`<img src="${esc(imgBase64)}" alt="">`;toast('URL appliquée');}
+d.querySelector('#pubImgUrlBtn').onclick=async()=>{
+const u=await adminPrompt('URL de l\'image','Collez l\'URL','https://…','','fa-link','#3b82f6');
+if(u){imgBase64=u;preview.innerHTML=`<img src="${esc(imgBase64)}" alt="">`;toast('URL appliquée');}
 };
 d.querySelector('[data-cancel]').onclick=()=>d.remove();
 d.onclick=e=>{if(e.target===d)d.remove();};
@@ -2164,6 +2298,7 @@ cacheInvalidate('commerces');
 }
 await batch.commit();
 cacheInvalidate('publications');
+await notifierChangement();
 toast('Publication créée');
 d.remove();
 await reloadSome(['publications','actives']);
@@ -2325,7 +2460,7 @@ document.getElementById('impPublishCount').textContent=impProduits.filter(p=>p.i
 }
 function impRenderProducts(){
 const list=document.getElementById('impProductsList');
-if(impProduits.length===0){list.innerHTML='<div class="empty"><div class="empty-icon">📦</div><div class="empty-text">Aucun article</div></div>';return;}
+if(impProduits.length===0){list.innerHTML='<div class="empty"><div class="empty-ic"><i class="fas fa-box-open"></i></div><div class="empty-t">Aucun article</div></div>';return;}
 list.innerHTML=impProduits.map((p,i)=>{
 const cls=p.error?'error':(p.img?'done':'');
 const thumb=p.img?'<div class="product-thumb"><img src="'+esc(p.img)+'" alt=""></div>':(p.uploading?'<div class="product-thumb" style="background:#e0f2fe"><div style="font-size:11px;font-weight:700;color:#0891b2">⏳</div></div>':'<div class="product-thumb"><i class="fas fa-image" style="color:#94a3b8"></i></div>');
@@ -2358,15 +2493,17 @@ impRenderProducts();
 impUpdateSummary();
 toast('Article modifié','ok');
 };
-window.impRemoveProduct=function(i){
-if(!confirm('Retirer cet article de la liste ?'))return;
+window.impRemoveProduct=async function(i){
+const ok=await adminConfirm('Retirer cet article ?','L\'article sera retiré de la liste.','warning');
+if(!ok)return;
 impProduits.splice(i,1);
 impRenderProducts();
 impUpdateSummary();
 };
-window.impViderListe=function(){
+window.impViderListe=async function(){
 if(impProduits.length===0)return;
-if(!confirm('Vider toute la liste ?'))return;
+const ok=await adminConfirm('Vider toute la liste ?','Tous les articles non publiés seront retirés.','danger');
+if(!ok)return;
 impProduits=[];
 impRenderProducts();
 impUpdateSummary();
@@ -2440,6 +2577,7 @@ const existants=Array.isArray(data.produits)?data.produits.slice():[];
 const nouveaux=aPublier.map(p=>({nom:p.nom||'Sans nom',prix:p.prix||0,prixLabel:p.prixLabel||'',categorie:p.categorie||'Autres',img:p.img,statut:p.statut||'approuve',ajouteParDirection:true,dateAjout:new Date().toISOString()}));
 await setDoc(doc(db,'commerces',commerceDocId),{produits:existants.concat(nouveaux)},{merge:true});
 aPublier.forEach(p=>{p.published=true;});
+await notifierChangement();
 toast('✅ '+nouveaux.length+' articles publiés','ok');
 impRenderProducts();
 impUpdateSummary();
@@ -2512,7 +2650,7 @@ if(!q)return true;
 return((p.nom||'')+' '+(p.categorie||'')).toLowerCase().includes(q);
 });
 document.getElementById('gcTotalCount').textContent=gcProduits.length;
-if(filtered.length===0){list.innerHTML='<div class="empty"><div class="empty-icon">📦</div><div class="empty-text">'+(gcProduits.length===0?'Aucun article':'Aucun résultat')+'</div></div>';return;}
+if(filtered.length===0){list.innerHTML='<div class="empty"><div class="empty-ic"><i class="fas fa-box-open"></i></div><div class="empty-t">'+(gcProduits.length===0?'Aucun article':'Aucun résultat')+'</div></div>';return;}
 list.innerHTML=filtered.map(({p,i})=>{
 const isSel=gcSelected.has(i);
 const thumb=p.img?'<div class="prod-thumb"><img src="'+esc(p.img)+'" alt=""></div>':'<div class="prod-thumb"><i class="fas fa-image" style="color:#94a3b8"></i></div>';
@@ -2537,8 +2675,9 @@ document.getElementById('editArtUnite').value=p.prixLabel||'';
 document.getElementById('editArtCat').value=p.categorie||'Autres';
 document.getElementById('modalEditArticle').classList.add('show');
 };
-window.gcSupprimerUn=function(i){
-if(!confirm('Supprimer cet article ?'))return;
+window.gcSupprimerUn=async function(i){
+const ok=await adminConfirm('Supprimer cet article ?','L\'article sera retiré du catalogue.','danger');
+if(!ok)return;
 gcProduits.splice(i,1);
 gcSelected.clear();
 gcRenderProducts();
@@ -2571,9 +2710,10 @@ html+='<div id="imagePreviewBulkGc" style="margin-top:14px"></div>';
 document.getElementById('bulkContent').innerHTML=html;
 document.getElementById('modalBulk').classList.add('show');
 };
-window.gcSupprimerSelection=function(){
+window.gcSupprimerSelection=async function(){
 if(gcSelected.size===0){toast('Aucun article sélectionné','warn');return;}
-if(!confirm('Supprimer les '+gcSelected.size+' articles sélectionnés ?'))return;
+const ok=await adminConfirm('Supprimer les '+gcSelected.size+' articles sélectionnés ?','Cette action est irréversible.','danger');
+if(!ok)return;
 const arr=Array.from(gcSelected).sort((a,b)=>b-a);
 arr.forEach(i=>gcProduits.splice(i,1));
 gcSelected.clear();
@@ -2581,8 +2721,9 @@ gcRenderProducts();
 gcUpdateSelectionInfo();
 toast('Articles supprimés','warn');
 };
-window.gcAnnuler=function(){
-if(!confirm('Annuler toutes les modifications ?'))return;
+window.gcAnnuler=async function(){
+const ok=await adminConfirm('Annuler toutes les modifications ?','Les changements non enregistrés seront perdus.','warning');
+if(!ok)return;
 gcProduits=JSON.parse(JSON.stringify(gcOriginalProduits));
 gcSelected.clear();
 gcRenderProducts();
@@ -2597,9 +2738,50 @@ btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Enregistrement…';
 try{
 await setDoc(doc(db,'commerces',gcCommerceDocId),{produits:gcProduits},{merge:true});
 gcOriginalProduits=JSON.parse(JSON.stringify(gcProduits));
+await notifierChangement();
 toast('✅ Catalogue enregistré','ok');
 }catch(e){toast('Erreur : '+e.message,'err');}
 finally{btn.disabled=false;btn.innerHTML='<i class="fas fa-save"></i> Enregistrer';}
+};
+async function lireConfigCommandesAdmin(){
+try{
+const snap=await getDoc(doc(db,'config','app'));
+const d=snap.exists()?snap.data():{};
+return{livraisonActive:d.livraisonActive!==false,retraitActive:d.retraitActive!==false};
+}catch(e){return{livraisonActive:true,retraitActive:true};}
+}
+async function updateToggleUI(){
+const cfg=await lireConfigCommandesAdmin();
+const bR=document.getElementById('btnToggleRetrait');
+const bL=document.getElementById('btnToggleLivraison');
+if(bR){
+if(cfg.retraitActive){bR.className='btn btn-success';bR.textContent='Activé';}
+else{bR.className='btn btn-danger';bR.textContent='Désactivé';}
+bR.style.width='100%';bR.style.padding='14px';bR.style.justifyContent='center';
+}
+if(bL){
+if(cfg.livraisonActive){bL.className='btn btn-success';bL.textContent='Activé';}
+else{bL.className='btn btn-danger';bL.textContent='Désactivé';}
+bL.style.width='100%';bL.style.padding='14px';bL.style.justifyContent='center';
+}
+}
+window.toggleRetrait=async function(){
+const cfg=await lireConfigCommandesAdmin();
+const ref=doc(db,'config','app');
+const snap=await getDoc(ref);
+const existing=snap.exists()?snap.data():{};
+await setDoc(ref,Object.assign({},existing,{retraitActive:!cfg.retraitActive,lastUpdate:Date.now(),updatedAt:new Date().toISOString()}),{merge:true});
+toast('Retrait '+(!cfg.retraitActive?'activé':'désactivé'));
+await updateToggleUI();
+};
+window.toggleLivraison=async function(){
+const cfg=await lireConfigCommandesAdmin();
+const ref=doc(db,'config','app');
+const snap=await getDoc(ref);
+const existing=snap.exists()?snap.data():{};
+await setDoc(ref,Object.assign({},existing,{livraisonActive:!cfg.livraisonActive,lastUpdate:Date.now(),updatedAt:new Date().toISOString()}),{merge:true});
+toast('Livraison '+(!cfg.livraisonActive?'activée':'désactivée'));
+await updateToggleUI();
 };
 </script>
 </body>
