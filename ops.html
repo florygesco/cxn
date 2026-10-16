@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Test Native - Limiter hauteur</title>
+<title>Test Native - Coupe exacte</title>
 <style>
   * { box-sizing: border-box; }
   body { font-family: system-ui, -apple-system, sans-serif; background:#f8fafc; margin:0; padding:16px; }
@@ -18,6 +18,7 @@
   .status.ok   { background:#d1fae5; color:#065f46; }
   .status.err  { background:#fee2e2; color:#991b1b; }
   .status.wait { background:#fef3c7; color:#78350f; }
+  .status.warn { background:#fef3c7; color:#92400e; }
 
   .fake-post {
     background:#fff; border:1px solid #e2e8f0; border-radius:14px;
@@ -69,13 +70,6 @@
   }
   .fb-post-ad-media a { display:block; width:100%; }
 
-  /* ⭐ LIMITER LA HAUTEUR DU CONTAINER ADSTERRA ⭐ */
-  #container-c8e9df92013d3020593ad443d2530ad4 {
-    max-height: 420px;
-    overflow: hidden;
-    position: relative;
-  }
-
   #logBox {
     background:#020617; color:#5cb3ff; padding:14px;
     border-radius:10px; font-family:ui-monospace,monospace;
@@ -100,8 +94,8 @@
 
 <div class="container">
 
-  <h1>🧪 Test Native - Limiter hauteur</h1>
-  <p class="sub">Key : c8e9df92013d3020593ad443d2530ad4 · max-height 420px</p>
+  <h1>🧪 Test Native - Coupe exacte</h1>
+  <p class="sub">Key : c8e9df92013d3020593ad443d2530ad4</p>
 
   <div id="status" class="status wait">
     <span>⏳</span> <span id="statusText">Chargement…</span>
@@ -149,7 +143,6 @@
 
   var ADSTERRA_KEY = 'c8e9df92013d3020593ad443d2530ad4';
   var ADSTERRA_SCRIPT_URL = 'https://bluntutilities.com/c8e9df92013d3020593ad443d2530ad4/invoke.js';
-  var MAX_HEIGHT = 420; // hauteur max visible
 
   var logEl = document.getElementById('logBox');
   var statusEl = document.getElementById('status');
@@ -174,20 +167,57 @@
     statusEl.querySelector('span').textContent = icon;
   }
 
+  // Coupe le container à la hauteur exacte de la 1ère pub
+  function couperApresPremierePub() {
+    var c = document.getElementById(containerId);
+    if (!c) return false;
+
+    var enfants = Array.from(c.children);
+    if (enfants.length === 0) return false;
+
+    // Masque tout sauf le premier enfant
+    for (var i = 1; i < enfants.length; i++) {
+      if (enfants[i].style.display !== 'none') {
+        enfants[i].style.display = 'none';
+      }
+    }
+
+    // Mesure la hauteur réelle de la 1ère pub (image incluse)
+    var premiere = enfants[0];
+    var img = premiere.querySelector('img');
+    var h = 0;
+
+    if (img && img.naturalHeight > 0 && img.offsetWidth > 0) {
+      // Calcule la hauteur totale de la 1ère pub en tenant compte de l'image
+      var ratio = img.naturalHeight / img.naturalWidth;
+      var imgHeight = img.offsetWidth * ratio;
+      // Hauteur de tout SAUF l'image + hauteur image calculée
+      var autres = premiere.getBoundingClientRect().height - img.getBoundingClientRect().height;
+      h = autres + imgHeight;
+    } else {
+      h = premiere.getBoundingClientRect().height;
+    }
+
+    if (h > 100) {
+      c.style.maxHeight = Math.ceil(h) + 'px';
+      c.style.height = Math.ceil(h) + 'px';
+      c.style.overflow = 'hidden';
+      log('📏 Container coupé à ' + Math.ceil(h) + 'px', 'ok');
+      return true;
+    }
+    return false;
+  }
+
   log('Script démarré', 'dim');
-  log('Stratégie : limiter la HAUTEUR du container (pas de display:none)', 'dim');
-  log('Hauteur max : ' + MAX_HEIGHT + 'px', 'dim');
+  log('Stratégie : mesurer la 1ère pub et couper exactement', 'dim');
 
   // Container + script
   if (!slot.querySelector('#' + containerId)) {
     var c = document.createElement('div');
     c.id = containerId;
-    // Appliquer directement max-height (au cas où le CSS ne s'applique pas)
-    c.style.maxHeight = MAX_HEIGHT + 'px';
     c.style.overflow = 'hidden';
     c.style.position = 'relative';
     slot.appendChild(c);
-    log('✅ Container créé avec max-height ' + MAX_HEIGHT + 'px', 'ok');
   }
 
   var s = document.createElement('script');
@@ -204,42 +234,57 @@
   };
   slot.appendChild(s);
 
-  // Diagnostic toutes les 2s
+  // Boucle : attend les pubs, puis coupe
   var attempts = 0;
+  var done = false;
   var iv = setInterval(function() {
     attempts++;
     var c = document.getElementById(containerId);
     if (!c) return;
+
     var enfants = c.children.length;
-    var totalHeight = c.scrollHeight;
-    var visibleHeight = c.offsetHeight;
+
     if (attempts % 4 === 0) {
-      log('📊 Enfants: ' + enfants + ' | Hauteur totale: ' + totalHeight + 'px | Visible: ' + visibleHeight + 'px', 'dim');
+      log('⏱ ' + (attempts * 0.5) + 's — Enfants: ' + enfants + ' | Hauteur: ' + c.scrollHeight + 'px', 'dim');
     }
-    if (attempts >= 20) {
+
+    // Prêt quand on a au moins 1 enfant
+    if (enfants >= 1 && !done) {
+      var coupe = couperApresPremierePub();
+      if (coupe) {
+        done = true;
+        clearInterval(iv);
+        log('═══════════════════════════════════', 'dim');
+        log('✅ ' + (enfants - 1) + ' pub(s) masquée(s)', 'ok');
+        setStatus('1 pub visible — ' + (enfants - 1) + ' masquée(s)', 'ok', '✅');
+        // Re-mesures de sécurité
+        setTimeout(couperApresPremierePub, 400);
+        setTimeout(couperApresPremierePub, 1000);
+        setTimeout(couperApresPremierePub, 2000);
+      }
+    }
+
+    if (attempts >= 40) {
       clearInterval(iv);
-      log('═══════════════════════════════════', 'dim');
-      if (totalHeight > MAX_HEIGHT) {
-        log('✅ ' + (totalHeight - MAX_HEIGHT) + 'px masqués (pubs 2,3,4 coupées)', 'ok');
-        setStatus('1 pub visible — ' + (totalHeight - MAX_HEIGHT) + 'px cachés', 'ok', '✅');
-      } else if (totalHeight === 0) {
-        log('❌ Container vide', 'err');
-        setStatus('Aucune pub reçue', 'err', '❌');
-      } else {
-        log('ℹ️ Contenu tient dans ' + MAX_HEIGHT + 'px', 'dim');
-        setStatus('Contenu chargé', 'ok', '✅');
+      if (!done) {
+        if (enfants === 0) {
+          setStatus('Aucune pub reçue', 'err', '❌');
+          log('❌ Container vide après 20s — rate limit Adsterra ?', 'err');
+        } else {
+          setStatus('Coupe non appliquée', 'warn', '⚠️');
+          log('⚠️ Enfants présents mais coupe non effectuée', 'warn');
+        }
       }
     }
   }, 500);
 
-  // Fallback
+  // Fallback : masquer la carte si rien n'est chargé
   setTimeout(function() {
     var c = document.getElementById(containerId);
     if (c && c.innerHTML.length < 100 && card) {
-      log('❌ Rien après 6s → masquer la carte', 'err');
       card.style.display = 'none';
     }
-  }, 6000);
+  }, 8000);
 })();
 </script>
 
