@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Test Native - Coupe exacte</title>
+<title>Test Native - Final</title>
 <style>
   * { box-sizing: border-box; }
   body { font-family: system-ui, -apple-system, sans-serif; background:#f8fafc; margin:0; padding:16px; }
@@ -94,7 +94,7 @@
 
 <div class="container">
 
-  <h1>🧪 Test Native - Coupe exacte</h1>
+  <h1>🧪 Test Native - Final</h1>
   <p class="sub">Key : c8e9df92013d3020593ad443d2530ad4</p>
 
   <div id="status" class="status wait">
@@ -151,6 +151,8 @@
   var slot = document.getElementById('adsterraSlot');
   var containerId = 'container-' + ADSTERRA_KEY;
 
+  var coupeEffectuee = false;
+
   function log(msg, cls) {
     cls = cls || '';
     var d = document.createElement('div');
@@ -167,49 +169,45 @@
     statusEl.querySelector('span').textContent = icon;
   }
 
-  // Coupe le container à la hauteur exacte de la 1ère pub
+  // Coupe UNE SEULE FOIS après mesure
   function couperApresPremierePub() {
+    if (coupeEffectuee) return;
     var c = document.getElementById(containerId);
-    if (!c) return false;
+    if (!c) return;
 
     var enfants = Array.from(c.children);
-    if (enfants.length === 0) return false;
-
-    // Masque tout sauf le premier enfant
-    for (var i = 1; i < enfants.length; i++) {
-      if (enfants[i].style.display !== 'none') {
-        enfants[i].style.display = 'none';
-      }
+    if (enfants.length < 2) {
+      log('ℹ️ Moins de 2 enfants — rien à couper', 'dim');
+      coupeEffectuee = true;
+      return;
     }
 
-    // Mesure la hauteur réelle de la 1ère pub (image incluse)
+    // Mesure la hauteur de la 1ère pub AVANT de masquer
     var premiere = enfants[0];
-    var img = premiere.querySelector('img');
-    var h = 0;
+    var h = premiere.getBoundingClientRect().height;
 
-    if (img && img.naturalHeight > 0 && img.offsetWidth > 0) {
-      // Calcule la hauteur totale de la 1ère pub en tenant compte de l'image
-      var ratio = img.naturalHeight / img.naturalWidth;
-      var imgHeight = img.offsetWidth * ratio;
-      // Hauteur de tout SAUF l'image + hauteur image calculée
-      var autres = premiere.getBoundingClientRect().height - img.getBoundingClientRect().height;
-      h = autres + imgHeight;
-    } else {
-      h = premiere.getBoundingClientRect().height;
+    // Protection : la pub doit faire au moins 150px
+    if (h < 150) {
+      log('⚠️ 1ère pub trop petite (' + Math.round(h) + 'px) — attends', 'warn');
+      return; // Ne pas marquer comme fait, réessayer
     }
 
-    if (h > 100) {
-      c.style.maxHeight = Math.ceil(h) + 'px';
-      c.style.height = Math.ceil(h) + 'px';
-      c.style.overflow = 'hidden';
-      log('📏 Container coupé à ' + Math.ceil(h) + 'px', 'ok');
-      return true;
+    // Masque les pubs 2, 3, 4...
+    for (var i = 1; i < enfants.length; i++) {
+      enfants[i].style.display = 'none';
     }
-    return false;
+
+    // Fixe la hauteur exacte
+    c.style.maxHeight = Math.ceil(h) + 'px';
+    c.style.height = Math.ceil(h) + 'px';
+    c.style.overflow = 'hidden';
+
+    coupeEffectuee = true;
+    log('✅ ' + (enfants.length - 1) + ' pub(s) masquée(s) — container coupé à ' + Math.ceil(h) + 'px', 'ok');
+    setStatus('1 pub visible', 'ok', '✅');
   }
 
   log('Script démarré', 'dim');
-  log('Stratégie : mesurer la 1ère pub et couper exactement', 'dim');
 
   // Container + script
   if (!slot.querySelector('#' + containerId)) {
@@ -226,7 +224,7 @@
   s.setAttribute('data-cfasync', 'false');
   s.src = ADSTERRA_SCRIPT_URL;
   s.onerror = function() {
-    log('❌ Script bloqué (AdBlock ?)', 'err');
+    log('❌ Script bloqué', 'err');
     setStatus('Script bloqué', 'err', '❌');
   };
   s.onload = function() {
@@ -234,49 +232,52 @@
   };
   slot.appendChild(s);
 
-  // Boucle : attend les pubs, puis coupe
-  var attempts = 0;
-  var done = false;
+  // Une seule tentative de coupe, à 3 secondes (après chargement complet)
+  setTimeout(function() {
+    log('⏱ 3s écoulées — tentative de coupe', 'dim');
+    couperApresPremierePub();
+
+    // Si échec (pub trop petite), réessayer à 5s
+    if (!coupeEffectuee) {
+      setTimeout(function() {
+        log('⏱ 5s — nouvelle tentative', 'dim');
+        couperApresPremierePub();
+
+        if (!coupeEffectuee) {
+          setTimeout(function() {
+            log('⏱ 8s — dernière tentative', 'dim');
+            couperApresPremierePub();
+
+            if (!coupeEffectuee) {
+              var c = document.getElementById(containerId);
+              var enfants = c ? c.children.length : 0;
+              log('═══════════════════════════════', 'dim');
+              if (enfants === 0) {
+                setStatus('Aucune pub', 'err', '❌');
+                log('❌ Rate limit Adsterra — attends 5-10 min', 'err');
+              } else if (enfants === 1) {
+                setStatus('1 pub — rien à couper', 'ok', '✅');
+                log('ℹ️ Une seule pub reçue, pas besoin de couper', 'dim');
+              } else {
+                setStatus('Coupe non appliquée', 'warn', '⚠️');
+                log('⚠️ ' + enfants + ' enfants mais coupe échouée', 'warn');
+              }
+            }
+          }, 3000);
+        }
+      }, 2000);
+    }
+  }, 3000);
+
+  // Log périodique
+  var t0 = Date.now();
   var iv = setInterval(function() {
-    attempts++;
     var c = document.getElementById(containerId);
     if (!c) return;
-
     var enfants = c.children.length;
-
-    if (attempts % 4 === 0) {
-      log('⏱ ' + (attempts * 0.5) + 's — Enfants: ' + enfants + ' | Hauteur: ' + c.scrollHeight + 'px', 'dim');
-    }
-
-    // Prêt quand on a au moins 1 enfant
-    if (enfants >= 1 && !done) {
-      var coupe = couperApresPremierePub();
-      if (coupe) {
-        done = true;
-        clearInterval(iv);
-        log('═══════════════════════════════════', 'dim');
-        log('✅ ' + (enfants - 1) + ' pub(s) masquée(s)', 'ok');
-        setStatus('1 pub visible — ' + (enfants - 1) + ' masquée(s)', 'ok', '✅');
-        // Re-mesures de sécurité
-        setTimeout(couperApresPremierePub, 400);
-        setTimeout(couperApresPremierePub, 1000);
-        setTimeout(couperApresPremierePub, 2000);
-      }
-    }
-
-    if (attempts >= 40) {
-      clearInterval(iv);
-      if (!done) {
-        if (enfants === 0) {
-          setStatus('Aucune pub reçue', 'err', '❌');
-          log('❌ Container vide après 20s — rate limit Adsterra ?', 'err');
-        } else {
-          setStatus('Coupe non appliquée', 'warn', '⚠️');
-          log('⚠️ Enfants présents mais coupe non effectuée', 'warn');
-        }
-      }
-    }
-  }, 500);
+    log('⏱ ' + Math.round((Date.now() - t0) / 1000) + 's — Enfants: ' + enfants + ' | HTML: ' + c.innerHTML.length + 'c', 'dim');
+    if (Date.now() - t0 > 10000) clearInterval(iv);
+  }, 1500);
 
   // Fallback : masquer la carte si rien n'est chargé
   setTimeout(function() {
