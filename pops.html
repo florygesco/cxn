@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Test Native - 1 pub</title>
+<title>Test Native - Coupe finale</title>
 <style>
   * { box-sizing: border-box; }
   body { font-family: system-ui, -apple-system, sans-serif; background:#f8fafc; margin:0; padding:16px; }
@@ -42,20 +42,9 @@
   .fake-desc { font-size:14.5px; color:#334155; line-height:1.45; margin:0; }
   .fake-media {
     width:100%; background:#f1f5f9; overflow:hidden;
-    aspect-ratio:16/10; max-height:260px; position:relative;
+    aspect-ratio:16/10; max-height:260px;
   }
   .fake-media img { width:100%; height:100%; object-fit:cover; display:block; }
-
-  .fb-post-ad-media {
-    width:100%; background:#f1f5f9; overflow:hidden;
-    aspect-ratio:16/10; max-height:260px; position:relative;
-  }
-  @media(min-width:640px){
-    .fake-media, .fb-post-ad-media { aspect-ratio:5/4; max-height:none; }
-  }
-  @media(min-width:1024px){
-    .fake-media, .fb-post-ad-media { aspect-ratio:3/2; min-height:200px; max-height:340px; }
-  }
 
   .fb-post-ad {
     width:100%; background:#fff; padding:12px 14px;
@@ -82,15 +71,25 @@
     color:#fff; flex-shrink:0;
   }
 
-  /* ⭐ LIMITATION CSS : garde seulement le 1er bloc pub ⭐ */
-  #container-c8e9df92013d3020593ad443d2530ad4 > *:nth-child(n+2) {
-    display: none !important;
+  /* ⭐ ZONE MÉDIA DE LA PUB — MÊME RÈGLE QUE LES POSTS ⭐ */
+  .fb-post-ad-media {
+    width:100%; background:#f1f5f9; overflow:hidden;
+    aspect-ratio:16/10; max-height:260px;
+    position:relative;
   }
-  #container-c8e9df92013d3020593ad443d2530ad4 > div > *:nth-child(n+2) {
-    display: none !important;
+  @media(min-width:640px){
+    .fb-post-ad-media { aspect-ratio:5/4; max-height:none; }
   }
-  #container-c8e9df92013d3020593ad443d2530ad4 > div > div > *:nth-child(n+2) {
-    display: none !important;
+  @media(min-width:1024px){
+    .fb-post-ad-media { aspect-ratio:3/2; min-height:200px; max-height:340px; }
+  }
+
+  /* ⭐ LE SLOT COUPE TOUT CE QUI DÉPASSE ⭐ */
+  #adsterraSlot {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    display: block;
   }
 
   #logBox {
@@ -124,13 +123,13 @@
 
 <div class="container">
 
-  <h1>🧪 Test Native - 1 pub</h1>
-  <p class="sub">CSS force : masque tout sauf le 1er élément du container</p>
+  <h1>🧪 Test Native - Coupe finale</h1>
+  <p class="sub">Le slot coupe tout ce qui dépasse la hauteur du post</p>
 
   <div>
     <span class="info-badge" id="info1">Post: —</span>
-    <span class="info-badge" id="info2">Pub: —</span>
-    <span class="info-badge" id="info3">Liens: 0</span>
+    <span class="info-badge" id="info2">Slot: —</span>
+    <span class="info-badge" id="info3">Imgs: 0</span>
   </div>
 
   <div id="status" class="status wait" style="margin-top:12px">
@@ -208,6 +207,7 @@
   var info3 = document.getElementById('info3');
   var card = document.getElementById('adsterraCard');
   var slot = document.getElementById('adsterraSlot');
+  var media = document.getElementById('adsterraMedia');
   var postAvant = document.getElementById('postAvant');
   var containerId = 'container-' + ADSTERRA_KEY;
 
@@ -227,55 +227,46 @@
     statusEl.querySelector('span').textContent = icon;
   }
 
-  // Masque les pubs 2, 3, 4 en profondeur (fallback JS)
-  function masquerPubsEnTrop() {
+  // Force le contenu Adsterra à se limiter à la zone média
+  function forcerZone() {
     var c = document.getElementById(containerId);
-    if (!c) return 0;
+    if (!c) return;
 
-    var masquees = 0;
+    // Le container Adsterra remplit toute la zone média
+    c.style.width = '100%';
+    c.style.height = '100%';
+    c.style.maxHeight = '100%';
+    c.style.overflow = 'hidden';
+    c.style.position = 'absolute';
+    c.style.top = '0';
+    c.style.left = '0';
+    c.style.right = '0';
+    c.style.bottom = '0';
 
-    // Cherche toutes les images
-    var imgs = Array.from(c.querySelectorAll('img'));
-    if (imgs.length <= 1) return 0;
-
-    // Pour chaque image (sauf la 1ère), masque son parent le plus haut dans le container
-    for (var i = 1; i < imgs.length; i++) {
-      var node = imgs[i];
-      // Remonte jusqu'au parent direct du container
-      while (node && node.parentElement && node.parentElement !== c) {
-        node = node.parentElement;
-      }
-      if (node && node.parentElement === c && node.style.display !== 'none') {
-        // Vérifie que ce bloc ne contient PAS la 1ère image
-        if (!node.contains(imgs[0])) {
-          node.style.display = 'none';
-          masquees++;
-        }
-      }
-    }
-
-    if (masquees > 0) {
-      log('🧹 ' + masquees + ' bloc(s) pub masqué(s)', 'ok');
-    }
-    return masquees;
+    // Force chaque image à ne pas dépasser
+    var imgs = c.querySelectorAll('img');
+    imgs.forEach(function(img) {
+      img.style.maxWidth = '100%';
+      img.style.height = 'auto';
+    });
   }
 
-  log('Script démarré', 'dim');
-
+  // Mesure le post précédent
+  var hauteurCible = 0;
   setTimeout(function() {
     if (postAvant) {
-      var h = postAvant.getBoundingClientRect().height;
-      info1.textContent = 'Post: ' + Math.round(h) + 'px';
+      hauteurCible = postAvant.getBoundingClientRect().height;
+      info1.textContent = 'Post: ' + Math.round(hauteurCible) + 'px';
+      log('📏 Hauteur post : ' + Math.round(hauteurCible) + 'px', 'ok');
     }
-  }, 800);
+  }, 500);
+
+  log('Script démarré', 'dim');
 
   // Container + script
   if (!slot.querySelector('#' + containerId)) {
     var c = document.createElement('div');
     c.id = containerId;
-    c.style.width = '100%';
-    c.style.position = 'relative';
-    c.style.overflow = 'hidden';
     slot.appendChild(c);
   }
 
@@ -293,40 +284,40 @@
   };
   slot.appendChild(s);
 
-  // Boucle : masque les pubs en trop + mesure
+  // Boucle : force la zone toutes les 500ms
   var t0 = Date.now();
-  var totalMasquees = 0;
   var iv = setInterval(function() {
+    forcerZone();
+
     var c = document.getElementById(containerId);
     if (!c) return;
 
-    var nouvelles = masquerPubsEnTrop();
-    totalMasquees += nouvelles;
-
-    var liens = c.querySelectorAll('a').length;
     var imgs = c.querySelectorAll('img').length;
-    var cardH = card.getBoundingClientRect().height;
-    info2.textContent = 'Pub: ' + Math.round(cardH) + 'px';
-    info3.textContent = 'Liens: ' + liens + ' / Imgs: ' + imgs;
+    var slotH = slot.getBoundingClientRect().height;
+    info2.textContent = 'Slot: ' + Math.round(slotH) + 'px';
+    info3.textContent = 'Imgs: ' + imgs;
 
-    log('⏱ ' + Math.round((Date.now() - t0) / 1000) + 's — Enfants: ' + c.children.length + ' | Imgs: ' + imgs + ' | Masquées cumulées: ' + totalMasquees, 'dim');
+    log('⏱ ' + Math.round((Date.now() - t0) / 1000) + 's — Enfants: ' + c.children.length + ' | Imgs: ' + imgs + ' | Slot: ' + Math.round(slotH) + 'px', 'dim');
 
     if (Date.now() - t0 > 10000) {
       clearInterval(iv);
-      masquerPubsEnTrop();
+      forcerZone();
 
+      var totalH = c.scrollHeight;
       log('═══════════════════════════════', 'dim');
-      log('Total masquées: ' + totalMasquees + ' | Images restantes: ' + imgs, 'dim');
+      log('Slot visible: ' + Math.round(slotH) + 'px', 'dim');
+      log('Contenu total: ' + Math.round(totalH) + 'px', 'dim');
+      log('Masqué par coupe: ' + Math.round(Math.max(0, totalH - slotH)) + 'px', 'dim');
 
       if (imgs === 0) {
         setStatus('Aucune pub reçue', 'err', '❌');
-      } else if (imgs <= 1 || totalMasquees > 0) {
-        setStatus('1 pub visible — ' + totalMasquees + ' masquée(s)', 'ok', '✅');
+      } else if (totalH > slotH) {
+        setStatus('1 pub visible — ' + Math.round(totalH - slotH) + 'px coupés', 'ok', '✅');
       } else {
-        setStatus('À vérifier', 'warn', '⚠️');
+        setStatus('Contenu chargé', 'ok', '✅');
       }
     }
-  }, 800);
+  }, 500);
 
   setTimeout(function() {
     var c = document.getElementById(containerId);
