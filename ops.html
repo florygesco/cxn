@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Test Native Banner - Final</title>
+<title>Test Native - Limiter hauteur</title>
 <style>
   * { box-sizing: border-box; }
   body { font-family: system-ui, -apple-system, sans-serif; background:#f8fafc; margin:0; padding:16px; }
@@ -11,12 +11,6 @@
 
   h1 { font-size:20px; font-weight:900; margin:0 0 4px; color:#0f172a; }
   .sub { color:#64748b; font-size:13px; margin:0 0 12px; }
-  .badge-info {
-    display:inline-block; padding:6px 12px; border-radius:8px;
-    background:#0f172a; color:#5cb3ff; font-size:11.5px;
-    font-weight:900; margin:4px 6px 4px 0;
-    font-family:ui-monospace,monospace;
-  }
 
   .status { padding:12px 16px; border-radius:10px; font-size:13.5px;
             font-weight:800; margin-bottom:16px; display:flex;
@@ -24,7 +18,6 @@
   .status.ok   { background:#d1fae5; color:#065f46; }
   .status.err  { background:#fee2e2; color:#991b1b; }
   .status.wait { background:#fef3c7; color:#78350f; }
-  .status.warn { background:#fef3c7; color:#92400e; }
 
   .fake-post {
     background:#fff; border:1px solid #e2e8f0; border-radius:14px;
@@ -76,10 +69,17 @@
   }
   .fb-post-ad-media a { display:block; width:100%; }
 
+  /* ⭐ LIMITER LA HAUTEUR DU CONTAINER ADSTERRA ⭐ */
+  #container-c8e9df92013d3020593ad443d2530ad4 {
+    max-height: 420px;
+    overflow: hidden;
+    position: relative;
+  }
+
   #logBox {
     background:#020617; color:#5cb3ff; padding:14px;
     border-radius:10px; font-family:ui-monospace,monospace;
-    font-size:11.5px; line-height:1.5; max-height:350px;
+    font-size:11.5px; line-height:1.5; max-height:300px;
     overflow-y:auto; margin-top:16px;
   }
   #logBox .err  { color:#f87171; }
@@ -100,16 +100,11 @@
 
 <div class="container">
 
-  <h1>🧪 Test Native Banner - Final</h1>
-  <p class="sub">Key : c8e9df92013d3020593ad443d2530ad4</p>
-  <div>
-    <span class="badge-info" id="counter1">Enfants: 0</span>
-    <span class="badge-info" id="counter2">Visibles: 0</span>
-    <span class="badge-info" id="counter3">HTML: 0c</span>
-  </div>
+  <h1>🧪 Test Native - Limiter hauteur</h1>
+  <p class="sub">Key : c8e9df92013d3020593ad443d2530ad4 · max-height 420px</p>
 
-  <div id="status" class="status wait" style="margin-top:12px">
-    <span>⏳</span> <span id="statusText">Chargement du Native Banner…</span>
+  <div id="status" class="status wait">
+    <span>⏳</span> <span id="statusText">Chargement…</span>
   </div>
 
   <div class="fake-post">
@@ -154,13 +149,11 @@
 
   var ADSTERRA_KEY = 'c8e9df92013d3020593ad443d2530ad4';
   var ADSTERRA_SCRIPT_URL = 'https://bluntutilities.com/c8e9df92013d3020593ad443d2530ad4/invoke.js';
+  var MAX_HEIGHT = 420; // hauteur max visible
 
   var logEl = document.getElementById('logBox');
   var statusEl = document.getElementById('status');
   var statusTxt = document.getElementById('statusText');
-  var counter1 = document.getElementById('counter1');
-  var counter2 = document.getElementById('counter2');
-  var counter3 = document.getElementById('counter3');
   var card = document.getElementById('adsterraCard');
   var slot = document.getElementById('adsterraSlot');
   var containerId = 'container-' + ADSTERRA_KEY;
@@ -181,61 +174,20 @@
     statusEl.querySelector('span').textContent = icon;
   }
 
-  function analyser() {
-    var c = document.getElementById(containerId);
-    if (!c) {
-      counter1.textContent = 'Container absent';
-      return null;
-    }
-    var enfants = c.children.length;
-    var visibles = Array.from(c.children).filter(function(el) {
-      return el.style.display !== 'none' && el.offsetHeight > 0;
-    }).length;
-    var htmlLen = c.innerHTML.length;
-    counter1.textContent = 'Enfants: ' + enfants;
-    counter2.textContent = 'Visibles: ' + visibles;
-    counter3.textContent = 'HTML: ' + htmlLen + 'c';
-    return { enfants: enfants, visibles: visibles, htmlLen: htmlLen };
-  }
-
-  // Ne masque QUE si plus de 1 enfant ET tous sont bien chargés
-  function garderUneSeulePub() {
-    var c = document.getElementById(containerId);
-    if (!c) return false;
-    var enfants = Array.from(c.children);
-    if (enfants.length <= 1) return false;
-    var nbMasques = 0;
-    for (var i = 1; i < enfants.length; i++) {
-      if (enfants[i].style.display !== 'none') {
-        enfants[i].style.display = 'none';
-        nbMasques++;
-      }
-    }
-    if (nbMasques > 0) {
-      log('🧹 ' + nbMasques + ' pub(s) masquée(s) → 1 seule reste', 'ok');
-      analyser();
-      return true;
-    }
-    return false;
-  }
-
   log('Script démarré', 'dim');
-  log('Key : ' + ADSTERRA_KEY, 'dim');
-  log('Objectif : diagnostic + limitation à 1 pub', 'dim');
+  log('Stratégie : limiter la HAUTEUR du container (pas de display:none)', 'dim');
+  log('Hauteur max : ' + MAX_HEIGHT + 'px', 'dim');
 
-  var t0 = Date.now();
-
-  // Observer : suit l'évolution du container
-  var obs = new MutationObserver(function() {
-    analyser();
-  });
-  obs.observe(slot, { childList: true, subtree: true });
-
-  // Container + script Adsterra
+  // Container + script
   if (!slot.querySelector('#' + containerId)) {
     var c = document.createElement('div');
     c.id = containerId;
+    // Appliquer directement max-height (au cas où le CSS ne s'applique pas)
+    c.style.maxHeight = MAX_HEIGHT + 'px';
+    c.style.overflow = 'hidden';
+    c.style.position = 'relative';
     slot.appendChild(c);
+    log('✅ Container créé avec max-height ' + MAX_HEIGHT + 'px', 'ok');
   }
 
   var s = document.createElement('script');
@@ -245,78 +197,49 @@
   s.src = ADSTERRA_SCRIPT_URL;
   s.onerror = function() {
     log('❌ Script bloqué (AdBlock ?)', 'err');
-    setStatus('Script bloqué — désactive AdBlock', 'err', '❌');
+    setStatus('Script bloqué', 'err', '❌');
   };
   s.onload = function() {
     log('✅ invoke.js chargé', 'ok');
   };
   slot.appendChild(s);
 
-  // Analyses progressives (diagnostic)
-  [1000, 2500, 5000].forEach(function(delay) {
-    setTimeout(function() {
-      log('─── Analyse à ' + delay + 'ms ───', 'dim');
-      var a = analyser();
-      if (a) {
-        log('  Enfants : ' + a.enfants + ' | Visibles : ' + a.visibles + ' | HTML : ' + a.htmlLen + 'c', 'dim');
-        if (a.htmlLen > 100 && a.enfants === 0) {
-          log('  ⚠️ Contenu présent mais PAS d\'enfants directs', 'warn');
-          log('  → Adsterra utilise peut-être une structure imbriquée', 'warn');
-        }
-      }
-    }, delay);
-  });
-
-  // Nettoyage progressif : démarre à 3s pour laisser Adsterra charger
+  // Diagnostic toutes les 2s
   var attempts = 0;
   var iv = setInterval(function() {
     attempts++;
-    // Attendre 3s avant de commencer à masquer
-    if (attempts >= 12) {
-      garderUneSeulePub();
+    var c = document.getElementById(containerId);
+    if (!c) return;
+    var enfants = c.children.length;
+    var totalHeight = c.scrollHeight;
+    var visibleHeight = c.offsetHeight;
+    if (attempts % 4 === 0) {
+      log('📊 Enfants: ' + enfants + ' | Hauteur totale: ' + totalHeight + 'px | Visible: ' + visibleHeight + 'px', 'dim');
     }
-    if (attempts === 4 || attempts === 12 || attempts === 24 || attempts === 40) {
-      analyser();
-    }
-    if (attempts >= 40) {
+    if (attempts >= 20) {
       clearInterval(iv);
-      log('🏁 Nettoyage terminé après 10s', 'dim');
-      var c = document.getElementById(containerId);
-      if (!c) {
-        setStatus('Container absent', 'err', '❌');
-        return;
-      }
-      var visibles = Array.from(c.children).filter(function(el) {
-        return el.style.display !== 'none' && el.offsetHeight > 0;
-      }).length;
-      var total = c.children.length;
-      if (visibles === 1 && total >= 1) {
-        setStatus('✅ 1 seule pub affichée (sur ' + total + ' reçues)', 'ok', '✅');
-      } else if (visibles > 1) {
-        setStatus(visibles + ' pubs affichées — nettoyage raté', 'warn', '⚠️');
-      } else if (total === 0) {
-        setStatus('Aucune pub reçue — attendre 5-10 min', 'err', '❌');
-        log('Causes :', 'warn');
-        log('1. Rate limit Adsterra (tu as testé trop souvent)', 'warn');
-        log('2. AdBlock actif', 'warn');
-        log('3. Pas de campagne dispo pour ta région', 'warn');
+      log('═══════════════════════════════════', 'dim');
+      if (totalHeight > MAX_HEIGHT) {
+        log('✅ ' + (totalHeight - MAX_HEIGHT) + 'px masqués (pubs 2,3,4 coupées)', 'ok');
+        setStatus('1 pub visible — ' + (totalHeight - MAX_HEIGHT) + 'px cachés', 'ok', '✅');
+      } else if (totalHeight === 0) {
+        log('❌ Container vide', 'err');
+        setStatus('Aucune pub reçue', 'err', '❌');
       } else {
-        setStatus('Structure différente — voir logs', 'warn', '⚠️');
+        log('ℹ️ Contenu tient dans ' + MAX_HEIGHT + 'px', 'dim');
+        setStatus('Contenu chargé', 'ok', '✅');
       }
     }
-  }, 250);
+  }, 500);
 
-  // Fallback : si vraiment rien après 6s, masquer la carte
+  // Fallback
   setTimeout(function() {
     var c = document.getElementById(containerId);
-    var htmlLen = c ? c.innerHTML.length : 0;
-    if (htmlLen < 100 && card) {
-      log('❌ Rien chargé après 6s → carte masquée', 'err');
+    if (c && c.innerHTML.length < 100 && card) {
+      log('❌ Rien après 6s → masquer la carte', 'err');
       card.style.display = 'none';
     }
   }, 6000);
-
-  analyser();
 })();
 </script>
 
