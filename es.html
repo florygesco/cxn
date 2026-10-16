@@ -30,7 +30,6 @@
   .btn-blue:hover { background:#0066cc; }
   .btn-green { background:#10b981; color:#fff; }
   .btn-green:hover { background:#059669; }
-  .btn-red { background:#ef4444; color:#fff; }
   .btn-gray { background:#334155; color:#fff; }
   .btn-gray:hover { background:#475569; }
 
@@ -49,7 +48,6 @@
   pre.console .key { color:#c084fc; }
   pre.console .dim { color:#64748b; }
 
-  /* Rendu pub simulé */
   .ad-preview {
     background:#fff; color:#0f172a; border-radius:14px; overflow:hidden;
     border:2px solid #f59e0b;
@@ -101,16 +99,14 @@
 
   <div class="grid2">
 
-    <!-- COLONNE GAUCHE : Config + Actions -->
     <div>
-
       <div class="card">
         <h2>⚙️ Configuration</h2>
 
         <div class="field">
           <label>API Key Adscod</label>
           <input type="password" id="apiKey"
-                 value="adc_pub_57c641c467730eb5526591814d999077">
+                 value="adc_pub_b5126817162ee388de8ff0a6d2c15eb3">
         </div>
 
         <div class="field">
@@ -161,10 +157,8 @@
         <h2>🖥️ Console</h2>
         <pre class="console" id="console">> Prêt à tester. Cliquez sur "Charger la pub".</pre>
       </div>
-
     </div>
 
-    <!-- COLONNE DROITE : Aperçu pub -->
     <div>
       <div class="card">
         <h2>👁️ Aperçu de la pub</h2>
@@ -188,19 +182,13 @@
 </div>
 
 <script>
-// ============================================================
-// ÉTAT
-// ============================================================
 const CONFIG = {
-  apiKey: 'adc_pub_57c641c467730eb5526591814d999077',
+  apiKey: 'adc_pub_b5126817162ee388de8ff0a6d2c15eb3',
   placementId: 'dbff4456-fbb8-434c-8ca9-0568d1ca9867',
   endpoint: 'https://api.adscod.com/api/v1/serve'
 };
 let _currentAd = null;
 
-// ============================================================
-// UI HELPERS
-// ============================================================
 const $ = id => document.getElementById(id);
 const consoleEl = $('console');
 
@@ -226,9 +214,6 @@ function setStatus(pillText, pillClass, text) {
 }
 function setMeta(html) { $('meta').innerHTML = html || ''; }
 
-// ============================================================
-// APPEL API
-// ============================================================
 async function chargerPub() {
   const apiKey = $('apiKey').value.trim();
   const placementId = $('placementId').value.trim();
@@ -278,7 +263,6 @@ async function chargerPub() {
 
     $('jsonRaw').textContent = JSON.stringify(data, null, 2);
 
-    // Gestion erreurs API
     if (!res.ok) {
       log(`❌ API erreur : ${data.error || data.message || 'inconnue'}`, 'err');
       setStatus('Erreur', 'pill-err', `HTTP ${res.status}`);
@@ -289,7 +273,6 @@ async function chargerPub() {
       return null;
     }
 
-    // No fill
     if (!data.ads || data.ads.length === 0) {
       log('⚠️ No fill — aucune campagne éligible pour ce slot', 'warn');
       setStatus('No fill', 'pill-warn', 'Aucune pub retournée');
@@ -304,7 +287,6 @@ async function chargerPub() {
       return null;
     }
 
-    // Succès
     _currentAd = data.ads[0];
     log(`✅ Pub reçue (${data.ads.length} au total)`, 'ok');
     log(`   title      : ${_currentAd.title || '—'}`, 'ok');
@@ -319,7 +301,6 @@ async function chargerPub() {
       <div>Ads retournées : <b>${data.ads.length}</b></div>
       <div>Titre : <b>${escapeHtml(_currentAd.title || '—')}</b></div>
       <div>CTA : <b>${escapeHtml(_currentAd.ctaLabel || '—')}</b></div>
-      ${_currentAd.imageUrl ? `<div>Image : <a href="${escapeHtml(_currentAd.imageUrl)}" target="_blank" style="color:#5cb3ff">${escapeHtml(_currentAd.imageUrl).slice(0,50)}…</a></div>` : ''}
     `);
 
     renderAdPreview(_currentAd);
@@ -330,7 +311,6 @@ async function chargerPub() {
     log(`❌ Exception (${dt}ms) : ${e.message}`, 'err');
     if (e.message.includes('Failed to fetch')) {
       log('→ Cause probable : CORS bloqué ou pas de connexion', 'warn');
-      log('→ Vérifiez la console DevTools (onglet Network)', 'warn');
     }
     setStatus('Erreur', 'pill-err', e.message);
     setMeta(`<div style="color:#f87171"><b>Exception :</b> ${escapeHtml(e.message)}</div>`);
@@ -341,9 +321,6 @@ async function chargerPub() {
   }
 }
 
-// ============================================================
-// RENDU APERÇU PUB (style NeTubeX)
-// ============================================================
 function renderAdPreview(ad) {
   if (!ad) { renderEmptyPreview(); return; }
   const img = ad.imageUrl
@@ -386,12 +363,8 @@ function renderEmptyPreview(msg) {
 
 function trackerClic(ev) {
   log(`🖱️ CLIC sur CTA → facturation 65/35 + redirection 302`, 'ok');
-  // Laisser la navigation normale (target=_blank)
 }
 
-// ============================================================
-// TEST MULTI-SLOTS
-// ============================================================
 async function testerMultiSlots() {
   const slots = ['feed', 'sidebar', 'banner', 'detail'];
   const originalSlot = $('slot').value;
@@ -421,11 +394,7 @@ async function testerMultiSlots() {
   $('btnMulti').disabled = false;
 }
 
-// ============================================================
-// INIT
-// ============================================================
 window.addEventListener('DOMContentLoaded', () => {
-  // Pré-remplir depuis CONFIG
   $('apiKey').value = CONFIG.apiKey;
   $('placementId').value = CONFIG.placementId;
   $('endpoint').value = CONFIG.endpoint;
