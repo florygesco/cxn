@@ -3,134 +3,442 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Test — Premier clic sans redirection</title>
+<title>Test API Adscod</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
-  * { box-sizing: border-box; }
-  body { font-family: system-ui, sans-serif; background:#f1f5f9; color:#0f172a; margin:0; padding:20px; min-height:100vh; }
-  .container { max-width:680px; margin:0 auto; }
-  h1 { font-size:22px; font-weight:900; text-align:center; color:#1e3a8a; margin-bottom:6px; }
-  .subtitle { text-align:center; font-size:14px; color:#64748b; margin-bottom:24px; }
-  .card { background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:20px; margin-bottom:16px; }
-  .card h3 { font-size:15px; font-weight:900; margin:0 0 6px; }
-  .card p { font-size:13px; color:#64748b; margin:0 0 14px; line-height:1.55; }
-  .card code { background:#f1f5f9; padding:2px 6px; border-radius:4px; font-size:12px; color:#1d4ed8; }
-  button { width:100%; padding:14px 18px; border-radius:12px; font-size:15px; font-weight:800; font-family:inherit; border:none; cursor:pointer; margin-bottom:8px; }
+  body { font-family: system-ui, -apple-system, sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:20px; }
+  .card { background:#1e293b; border-radius:14px; padding:18px; margin-bottom:16px; border:1px solid #334155; }
+  .card h2 { font-size:16px; font-weight:900; margin:0 0 14px; color:#fff; }
+  .field { margin-bottom:12px; }
+  .field label { display:block; font-size:11px; font-weight:800; color:#94a3b8;
+    text-transform:uppercase; margin-bottom:6px; letter-spacing:.5px; }
+  .field input, .field select {
+    width:100%; padding:11px 13px; border:1.5px solid #334155;
+    background:#0f172a; color:#fff; border-radius:9px;
+    font-family:ui-monospace,monospace; font-size:13px; outline:none;
+    box-sizing:border-box;
+  }
+  .field input:focus, .field select:focus { border-color:#007fff; }
+
+  .btn { padding:12px 20px; border-radius:10px; border:none; cursor:pointer;
+    font-family:inherit; font-weight:900; font-size:14px; display:inline-flex;
+    align-items:center; justify-content:center; gap:8px; transition:.15s; }
+  .btn:active { transform:scale(.97); }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .btn-blue { background:#007fff; color:#fff; }
+  .btn-blue:hover { background:#0066cc; }
   .btn-green { background:#10b981; color:#fff; }
-  .btn-blue  { background:#3b82f6; color:#fff; }
-  .btn-gray  { background:#f1f5f9; color:#334155; border:1px solid #e2e8f0; }
-  .badge { display:inline-block; font-size:11px; font-weight:900; padding:4px 10px; border-radius:999px; text-transform:uppercase; background:#d1fae5; color:#065f46; }
-  .status-box { background:#0f172a; color:#67e8f9; font-family:ui-monospace,monospace; font-size:13px; padding:14px; border-radius:10px; margin-top:12px; min-height:150px; line-height:1.6; white-space:pre-wrap; max-height:340px; overflow-y:auto; }
-  .status-box .label { color:#94a3b8; display:block; font-size:11px; text-transform:uppercase; margin-bottom:4px; }
-  .status-box .ok { color:#6ee7b7; }
-  .status-box .info { color:#67e8f9; }
-  .status-box .warn { color:#fcd34d; }
-  .info-note { font-size:12.5px; color:#78350f; background:#fffbeb; border:1px solid #fcd34d; border-radius:10px; padding:12px 14px; line-height:1.55; margin-top:14px; }
+  .btn-green:hover { background:#059669; }
+  .btn-red { background:#ef4444; color:#fff; }
+  .btn-gray { background:#334155; color:#fff; }
+  .btn-gray:hover { background:#475569; }
+
+  .row { display:flex; gap:10px; flex-wrap:wrap; }
+
+  pre.console {
+    background:#020617; color:#5cb3ff; padding:14px; border-radius:10px;
+    font-family:ui-monospace,monospace; font-size:11.5px; line-height:1.5;
+    overflow-x:auto; max-height:400px; overflow-y:auto;
+    border:1px solid #1e293b; white-space:pre-wrap; word-break:break-all;
+    margin:0;
+  }
+  pre.console .err { color:#f87171; }
+  pre.console .ok { color:#4ade80; }
+  pre.console .warn { color:#fbbf24; }
+  pre.console .key { color:#c084fc; }
+  pre.console .dim { color:#64748b; }
+
+  /* Rendu pub simulé */
+  .ad-preview {
+    background:#fff; color:#0f172a; border-radius:14px; overflow:hidden;
+    border:2px solid #f59e0b;
+  }
+  .ad-preview-head {
+    display:flex; align-items:center; gap:10px; padding:14px;
+    background:#fffbeb; border-bottom:1px solid #fef3c7;
+  }
+  .ad-avatar { width:44px; height:44px; border-radius:50%; background:#f59e0b;
+    display:flex; align-items:center; justify-content:center; font-size:20px; }
+  .ad-body { padding:14px; }
+  .ad-title { font-size:17px; font-weight:900; margin:0 0 8px; }
+  .ad-text { font-size:14.5px; line-height:1.5; color:#334155; margin:0 0 12px; white-space:pre-line; }
+  .ad-img { width:100%; aspect-ratio:16/10; object-fit:cover; border-radius:10px; margin-bottom:12px; display:block; }
+  .ad-cta { display:inline-flex; align-items:center; gap:8px; padding:12px 20px;
+    border-radius:10px; background:#007fff; color:#fff; font-weight:900;
+    font-size:14px; text-decoration:none; border:none; cursor:pointer; }
+  .ad-cta:hover { background:#0066cc; }
+
+  .status-pill { display:inline-block; padding:5px 12px; border-radius:999px;
+    font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:.4px; }
+  .pill-ok { background:#065f46; color:#6ee7b7; }
+  .pill-err { background:#7f1d1d; color:#fca5a5; }
+  .pill-warn { background:#78350f; color:#fcd34d; }
+  .pill-idle { background:#334155; color:#94a3b8; }
+
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width: 900px) { .grid2 { grid-template-columns:1fr; } }
+
+  .empty-preview {
+    background:#1e293b; border:2px dashed #334155; border-radius:14px;
+    padding:40px 20px; text-align:center; color:#64748b;
+  }
 </style>
 </head>
 <body>
-<div class="container">
 
-  <h1>🧪 Test — Sans redirection au 1er clic</h1>
-  <p class="subtitle">
-    L'onglet NeTubeX doit s'ouvrir <strong>sans que vous quittiez cette page</strong>.
-  </p>
+<div style="max-width:1400px;margin:0 auto">
 
-  <div class="card">
-    <h3><span class="badge">Méthode</span> Ouvrir NeTubeX (about:blank + injection différée)</h3>
-    <p>
-      Ouvre d'abord <code>about:blank</code>, puis injecte l'URL après un délai.<br>
-      Cette astuce empêche le navigateur de donner le focus au nouvel onglet.
+  <header style="margin-bottom:24px">
+    <h1 style="font-size:24px;font-weight:900;margin:0 0 6px;color:#fff">
+      🧪 Test API Adscod — Direct
+    </h1>
+    <p style="color:#94a3b8;margin:0;font-size:14px">
+      Appel réel à <code style="color:#5cb3ff">api.adscod.com</code> avec la vraie clé API.
+      <span style="color:#fbbf24">⚠️ Révoquez la clé après les tests.</span>
     </p>
-    <button class="btn-green" onclick="ouvrirNeTubeX('https://www.netubex.com/rdc')">
-      🔗 Ouvrir NeTubeX en arrière-plan
-    </button>
-  </div>
+  </header>
 
-  <div class="card">
-    <h3>🔗 Changer l'URL</h3>
-    <button class="btn-blue" onclick="ouvrirNeTubeX('https://www.netubex.com/rdc?page=2')">
-      NeTubeX page 2
-    </button>
-  </div>
+  <div class="grid2">
 
-  <div class="card">
-    <h3>📊 Journal</h3>
-    <div class="status-box" id="statusBox">
-      <span class="label">En attente</span>
-      <span class="info">Cliquez sur le bouton vert.</span>
+    <!-- COLONNE GAUCHE : Config + Actions -->
+    <div>
+
+      <div class="card">
+        <h2>⚙️ Configuration</h2>
+
+        <div class="field">
+          <label>API Key Adscod</label>
+          <input type="password" id="apiKey"
+                 value="adc_pub_57c641c467730eb5526591814d999077">
+        </div>
+
+        <div class="field">
+          <label>Placement ID</label>
+          <input type="text" id="placementId"
+                 value="dbff4456-fbb8-434c-8ca9-0568d1ca9867">
+        </div>
+
+        <div class="field">
+          <label>Slot</label>
+          <select id="slot">
+            <option value="feed" selected>feed</option>
+            <option value="sidebar">sidebar</option>
+            <option value="banner">banner</option>
+            <option value="detail">detail</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Endpoint</label>
+          <input type="text" id="endpoint"
+                 value="https://api.adscod.com/api/v1/serve">
+        </div>
+
+        <div class="row" style="margin-top:16px">
+          <button class="btn btn-blue" id="btnLoad" onclick="chargerPub()">
+            <i class="fa-solid fa-download"></i> Charger la pub
+          </button>
+          <button class="btn btn-green" id="btnMulti" onclick="testerMultiSlots()">
+            <i class="fa-solid fa-layer-group"></i> Tous les slots
+          </button>
+          <button class="btn btn-gray" onclick="viderLog()">
+            <i class="fa-solid fa-broom"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>📊 Statut</h2>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <span id="statusPill" class="status-pill pill-idle">En attente</span>
+          <span id="statusText" style="font-size:13px;color:#94a3b8">Prêt</span>
+        </div>
+        <div id="meta" style="font-size:12.5px;color:#94a3b8;line-height:1.7"></div>
+      </div>
+
+      <div class="card">
+        <h2>🖥️ Console</h2>
+        <pre class="console" id="console">> Prêt à tester. Cliquez sur "Charger la pub".</pre>
+      </div>
+
     </div>
-    <button class="btn-gray" style="margin-top:12px;" onclick="document.getElementById('statusBox').innerHTML=''">Effacer</button>
+
+    <!-- COLONNE DROITE : Aperçu pub -->
+    <div>
+      <div class="card">
+        <h2>👁️ Aperçu de la pub</h2>
+        <div id="adPreview">
+          <div class="empty-preview">
+            <div style="font-size:48px;margin-bottom:12px;opacity:.4">📢</div>
+            <div style="font-size:14px;font-weight:800">Aucune pub chargée</div>
+            <div style="font-size:12.5px;margin-top:6px">Cliquez sur "Charger la pub"</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>📋 JSON brut</h2>
+        <pre class="console" id="jsonRaw" style="max-height:300px">// En attente...</pre>
+      </div>
+    </div>
+
   </div>
 
-  <div class="info-note">
-    <strong>🎯 Observez :</strong><br>
-    1er clic → restez-vous sur cette page ou êtes-vous déplacé sur NeTubeX ?<br>
-    Si vous restez → ✅ succès<br>
-    Si vous êtes déplacé → le navigateur impose, aucune solution JS.
-  </div>
 </div>
 
 <script>
-var _ntxWindow = null;
-var _ntxLastUrl = null;
+// ============================================================
+// ÉTAT
+// ============================================================
+const CONFIG = {
+  apiKey: 'adc_pub_57c641c467730eb5526591814d999077',
+  placementId: 'dbff4456-fbb8-434c-8ca9-0568d1ca9867',
+  endpoint: 'https://api.adscod.com/api/v1/serve'
+};
+let _currentAd = null;
 
-function log(m, t) {
-  var b = document.getElementById('statusBox');
-  var time = new Date().toLocaleTimeString('fr-FR');
-  b.innerHTML += '<span class="label">['+time+']</span><span class="'+(t||'info')+'">'+m+'</span>\n';
-  b.scrollTop = b.scrollHeight;
+// ============================================================
+// UI HELPERS
+// ============================================================
+const $ = id => document.getElementById(id);
+const consoleEl = $('console');
+
+function log(msg, cls = '') {
+  const line = `<span class="${cls}">${escapeHtml(msg)}</span>`;
+  const cur = consoleEl.innerHTML;
+  consoleEl.innerHTML = (cur === '> Prêt à tester. Cliquez sur "Charger la pub".' ? '' : cur)
+    + `<div>${line}</div>`;
+  consoleEl.scrollTop = consoleEl.scrollHeight;
 }
+function viderLog() {
+  consoleEl.innerHTML = '';
+  $('jsonRaw').textContent = '// En attente...';
+  log('Log vidé', 'dim');
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+}
+function setStatus(pillText, pillClass, text) {
+  $('statusPill').textContent = pillText;
+  $('statusPill').className = 'status-pill ' + pillClass;
+  $('statusText').textContent = text || '';
+}
+function setMeta(html) { $('meta').innerHTML = html || ''; }
 
 // ============================================================
-// MÉTHODE 1 : about:blank + injection différée
+// APPEL API
 // ============================================================
-function ouvrirNeTubeX(url) {
+async function chargerPub() {
+  const apiKey = $('apiKey').value.trim();
+  const placementId = $('placementId').value.trim();
+  const slot = $('slot').value;
+  const endpoint = $('endpoint').value.trim();
+
+  if (!apiKey) { log('❌ API Key manquante', 'err'); return; }
+  if (!placementId) { log('❌ Placement ID manquant', 'err'); return; }
+
+  const params = new URLSearchParams({
+    source: 'publisher',
+    placementId: placementId,
+    slot: slot
+  });
+  const url = `${endpoint}?${params}`;
+
+  log('─────────────────────────────', 'dim');
+  log(`→ GET ${endpoint}`, 'dim');
+  log(`   source=publisher`, 'dim');
+  log(`   placementId=${placementId}`, 'dim');
+  log(`   slot=${slot}`, 'dim');
+  log(`   Header: X-Adscod-Key=${apiKey.slice(0, 12)}...`, 'key');
+
+  $('btnLoad').disabled = true;
+  $('btnLoad').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Requête…';
+  setStatus('Chargement', 'pill-warn', 'Requête en cours…');
+
+  const t0 = performance.now();
   try {
-    if (_ntxWindow && !_ntxWindow.closed) {
-      log('♻️ Onglet existant → réutilisation', 'ok');
-      _ntxWindow.location.href = url;
-      _ntxWindow.focus();
-      return true;
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { 'X-Adscod-Key': apiKey }
+    });
+    const dt = Math.round(performance.now() - t0);
+    log(`← HTTP ${res.status} ${res.statusText} (${dt}ms)`,
+        res.ok ? 'ok' : 'err');
+
+    const rawText = await res.text();
+    let data;
+    try { data = JSON.parse(rawText); }
+    catch (e) {
+      log(`❌ Réponse non-JSON : ${rawText.slice(0, 300)}`, 'err');
+      setStatus('Erreur', 'pill-err', 'Réponse non-JSON');
+      $('jsonRaw').textContent = rawText.slice(0, 2000);
+      return null;
     }
 
-    log('✨ Premier clic → création avec about:blank', 'info');
+    $('jsonRaw').textContent = JSON.stringify(data, null, 2);
 
-    // ⚠️ Clé : ouvrir un onglet VIDE
-    _ntxWindow = window.open('about:blank', '_blank');
-
-    if (!_ntxWindow) {
-      log('❌ Popup bloquée', 'err');
-      return false;
+    // Gestion erreurs API
+    if (!res.ok) {
+      log(`❌ API erreur : ${data.error || data.message || 'inconnue'}`, 'err');
+      setStatus('Erreur', 'pill-err', `HTTP ${res.status}`);
+      setMeta(`
+        <div><b style="color:#f87171">Erreur HTTP ${res.status}</b></div>
+        <div>Message : ${escapeHtml(data.error || data.message || '—')}</div>
+      `);
+      return null;
     }
 
-    // Ramener le focus sur cette page AVANT que l'URL ne se charge
-    setTimeout(function() {
-      try { _ntxWindow.blur(); } catch(e) {}
-      try { window.focus(); } catch(e) {}
-      log('🔙 Focus ramené sur cette page', 'info');
-    }, 30);
+    // No fill
+    if (!data.ads || data.ads.length === 0) {
+      log('⚠️ No fill — aucune campagne éligible pour ce slot', 'warn');
+      setStatus('No fill', 'pill-warn', 'Aucune pub retournée');
+      setMeta(`
+        <div><b style="color:#fbbf24">No fill</b></div>
+        <div>Le slot "${slot}" n'a aucune campagne active.</div>
+        <div style="color:#64748b;margin-top:6px">
+          Essayez un autre slot ou attendez qu'une campagne soit lancée.
+        </div>
+      `);
+      renderEmptyPreview('No fill pour le slot ' + slot);
+      return null;
+    }
 
-    // Injecter l'URL APRÈS un délai
-    setTimeout(function() {
-      try {
-        _ntxWindow.location.href = url;
-        log('✅ URL injectée dans l\'onglet NeTubeX', 'ok');
-      } catch(e) {
-        log('❌ Impossible d\'injecter l\'URL : ' + e.message, 'err');
-      }
-    }, 200);
+    // Succès
+    _currentAd = data.ads[0];
+    log(`✅ Pub reçue (${data.ads.length} au total)`, 'ok');
+    log(`   title      : ${_currentAd.title || '—'}`, 'ok');
+    log(`   body       : ${(_currentAd.body || '—').slice(0, 80)}`, 'ok');
+    log(`   ctaLabel   : ${_currentAd.ctaLabel || '—'}`, 'ok');
+    log(`   imageUrl   : ${_currentAd.imageUrl || '(aucune)'}`, 'ok');
+    log(`   clickUrl   : ${_currentAd.clickUrl || '—'}`, 'key');
 
-    _ntxLastUrl = url;
-    return true;
+    setStatus('Succès', 'pill-ok', `${data.ads.length} pub(s) — ${dt}ms`);
+    setMeta(`
+      <div><b style="color:#4ade80">✅ Succès</b> — HTTP 200, ${dt}ms</div>
+      <div>Ads retournées : <b>${data.ads.length}</b></div>
+      <div>Titre : <b>${escapeHtml(_currentAd.title || '—')}</b></div>
+      <div>CTA : <b>${escapeHtml(_currentAd.ctaLabel || '—')}</b></div>
+      ${_currentAd.imageUrl ? `<div>Image : <a href="${escapeHtml(_currentAd.imageUrl)}" target="_blank" style="color:#5cb3ff">${escapeHtml(_currentAd.imageUrl).slice(0,50)}…</a></div>` : ''}
+    `);
+
+    renderAdPreview(_currentAd);
+    return _currentAd;
 
   } catch (e) {
-    log('❌ Erreur : ' + e.message, 'err');
-    return false;
+    const dt = Math.round(performance.now() - t0);
+    log(`❌ Exception (${dt}ms) : ${e.message}`, 'err');
+    if (e.message.includes('Failed to fetch')) {
+      log('→ Cause probable : CORS bloqué ou pas de connexion', 'warn');
+      log('→ Vérifiez la console DevTools (onglet Network)', 'warn');
+    }
+    setStatus('Erreur', 'pill-err', e.message);
+    setMeta(`<div style="color:#f87171"><b>Exception :</b> ${escapeHtml(e.message)}</div>`);
+    return null;
+  } finally {
+    $('btnLoad').disabled = false;
+    $('btnLoad').innerHTML = '<i class="fa-solid fa-download"></i> Charger la pub';
   }
 }
 
-log('Page chargée.', 'ok');
-log('Cliquez sur le bouton vert.', 'info');
+// ============================================================
+// RENDU APERÇU PUB (style NeTubeX)
+// ============================================================
+function renderAdPreview(ad) {
+  if (!ad) { renderEmptyPreview(); return; }
+  const img = ad.imageUrl
+    ? `<img class="ad-img" src="${escapeHtml(ad.imageUrl)}" alt=""
+         onerror="this.style.display='none'">`
+    : '';
+
+  $('adPreview').innerHTML = `
+    <div class="ad-preview">
+      <div class="ad-preview-head">
+        <div class="ad-avatar">📢</div>
+        <div style="min-width:0;flex:1">
+          <div style="font-weight:900;font-size:14.5px">Sponsorisé</div>
+          <div style="font-size:12.5px;color:#64748b">Publicité NeTubeX · slot ${$('slot').value}</div>
+        </div>
+        <span style="background:#f59e0b;color:#fff;font-size:10px;font-weight:900;
+                     padding:4px 9px;border-radius:6px;letter-spacing:.5px">AD</span>
+      </div>
+      <div class="ad-body">
+        <h3 class="ad-title">${escapeHtml(ad.title || '')}</h3>
+        <p class="ad-text">${escapeHtml(ad.body || '')}</p>
+        ${img}
+        <a href="${escapeHtml(ad.clickUrl)}" target="_blank" rel="noopener"
+           class="ad-cta" onclick="trackerClic(event)">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i>
+          ${escapeHtml(ad.ctaLabel || 'En savoir plus')}
+        </a>
+      </div>
+    </div>
+  `;
+}
+
+function renderEmptyPreview(msg) {
+  $('adPreview').innerHTML = `
+    <div class="empty-preview">
+      <div style="font-size:48px;margin-bottom:12px;opacity:.4">📭</div>
+      <div style="font-size:14px;font-weight:800;color:#fbbf24">${escapeHtml(msg || 'Aucune pub')}</div>
+    </div>`;
+}
+
+function trackerClic(ev) {
+  log(`🖱️ CLIC sur CTA → facturation 65/35 + redirection 302`, 'ok');
+  // Laisser la navigation normale (target=_blank)
+}
+
+// ============================================================
+// TEST MULTI-SLOTS
+// ============================================================
+async function testerMultiSlots() {
+  const slots = ['feed', 'sidebar', 'banner', 'detail'];
+  const originalSlot = $('slot').value;
+  log('═════════════════════════════', 'dim');
+  log('🔁 Test séquentiel de tous les slots', 'dim');
+  $('btnMulti').disabled = true;
+
+  const results = [];
+  for (const slot of slots) {
+    $('slot').value = slot;
+    log(`\n▶️ Test slot "${slot}"`, 'dim');
+    const ad = await chargerPub();
+    results.push({ slot, ok: !!ad, title: ad ? ad.title : null });
+    await new Promise(r => setTimeout(r, 500));
+  }
+
+  $('slot').value = originalSlot;
+
+  log('\n═════════════════════════════', 'dim');
+  log('📊 RÉSUMÉ', 'ok');
+  results.forEach(r => {
+    const icon = r.ok ? '✅' : '❌';
+    const txt = r.ok ? `"${r.title}"` : 'no fill';
+    log(`  ${icon} ${r.slot.padEnd(10)} → ${txt}`, r.ok ? 'ok' : 'warn');
+  });
+
+  $('btnMulti').disabled = false;
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => {
+  // Pré-remplir depuis CONFIG
+  $('apiKey').value = CONFIG.apiKey;
+  $('placementId').value = CONFIG.placementId;
+  $('endpoint').value = CONFIG.endpoint;
+  log('✅ App test initialisée', 'ok');
+  log(`   Clé : ${CONFIG.apiKey.slice(0, 12)}...`, 'key');
+  log(`   Placement : ${CONFIG.placementId}`, 'dim');
+  log('→ Cliquez sur "Charger la pub" pour tester', 'dim');
+});
+
+window.chargerPub = chargerPub;
+window.testerMultiSlots = testerMultiSlots;
+window.viderLog = viderLog;
+window.trackerClic = trackerClic;
 </script>
 </body>
 </html>
