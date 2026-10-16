@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Test Native - Final</title>
+<title>Test Native - Hauteur fixe</title>
 <style>
   * { box-sizing: border-box; }
   body { font-family: system-ui, -apple-system, sans-serif; background:#f8fafc; margin:0; padding:16px; }
@@ -18,7 +18,6 @@
   .status.ok   { background:#d1fae5; color:#065f46; }
   .status.err  { background:#fee2e2; color:#991b1b; }
   .status.wait { background:#fef3c7; color:#78350f; }
-  .status.warn { background:#fef3c7; color:#92400e; }
 
   .fake-post {
     background:#fff; border:1px solid #e2e8f0; border-radius:14px;
@@ -70,10 +69,17 @@
   }
   .fb-post-ad-media a { display:block; width:100%; }
 
+  /* ⭐ LIMITATION DE HAUTEUR ⭐ */
+  #container-c8e9df92013d3020593ad443d2530ad4 {
+    max-height: 480px;
+    overflow: hidden;
+    position: relative;
+  }
+
   #logBox {
     background:#020617; color:#5cb3ff; padding:14px;
     border-radius:10px; font-family:ui-monospace,monospace;
-    font-size:11.5px; line-height:1.5; max-height:300px;
+    font-size:11.5px; line-height:1.5; max-height:250px;
     overflow-y:auto; margin-top:16px;
   }
   #logBox .err  { color:#f87171; }
@@ -94,8 +100,8 @@
 
 <div class="container">
 
-  <h1>🧪 Test Native - Final</h1>
-  <p class="sub">Key : c8e9df92013d3020593ad443d2530ad4</p>
+  <h1>🧪 Test Native - Hauteur fixe</h1>
+  <p class="sub">Key : c8e9df92013d3020593ad443d2530ad4 · max-height 480px</p>
 
   <div id="status" class="status wait">
     <span>⏳</span> <span id="statusText">Chargement…</span>
@@ -143,6 +149,7 @@
 
   var ADSTERRA_KEY = 'c8e9df92013d3020593ad443d2530ad4';
   var ADSTERRA_SCRIPT_URL = 'https://bluntutilities.com/c8e9df92013d3020593ad443d2530ad4/invoke.js';
+  var MAX_HEIGHT = 480;
 
   var logEl = document.getElementById('logBox');
   var statusEl = document.getElementById('status');
@@ -150,8 +157,6 @@
   var card = document.getElementById('adsterraCard');
   var slot = document.getElementById('adsterraSlot');
   var containerId = 'container-' + ADSTERRA_KEY;
-
-  var coupeEffectuee = false;
 
   function log(msg, cls) {
     cls = cls || '';
@@ -169,50 +174,15 @@
     statusEl.querySelector('span').textContent = icon;
   }
 
-  // Coupe UNE SEULE FOIS après mesure
-  function couperApresPremierePub() {
-    if (coupeEffectuee) return;
-    var c = document.getElementById(containerId);
-    if (!c) return;
-
-    var enfants = Array.from(c.children);
-    if (enfants.length < 2) {
-      log('ℹ️ Moins de 2 enfants — rien à couper', 'dim');
-      coupeEffectuee = true;
-      return;
-    }
-
-    // Mesure la hauteur de la 1ère pub AVANT de masquer
-    var premiere = enfants[0];
-    var h = premiere.getBoundingClientRect().height;
-
-    // Protection : la pub doit faire au moins 150px
-    if (h < 150) {
-      log('⚠️ 1ère pub trop petite (' + Math.round(h) + 'px) — attends', 'warn');
-      return; // Ne pas marquer comme fait, réessayer
-    }
-
-    // Masque les pubs 2, 3, 4...
-    for (var i = 1; i < enfants.length; i++) {
-      enfants[i].style.display = 'none';
-    }
-
-    // Fixe la hauteur exacte
-    c.style.maxHeight = Math.ceil(h) + 'px';
-    c.style.height = Math.ceil(h) + 'px';
-    c.style.overflow = 'hidden';
-
-    coupeEffectuee = true;
-    log('✅ ' + (enfants.length - 1) + ' pub(s) masquée(s) — container coupé à ' + Math.ceil(h) + 'px', 'ok');
-    setStatus('1 pub visible', 'ok', '✅');
-  }
-
   log('Script démarré', 'dim');
+  log('Méthode : hauteur fixe du container à ' + MAX_HEIGHT + 'px', 'dim');
 
   // Container + script
   if (!slot.querySelector('#' + containerId)) {
     var c = document.createElement('div');
     c.id = containerId;
+    c.style.maxHeight = MAX_HEIGHT + 'px';
+    c.style.height = MAX_HEIGHT + 'px';
     c.style.overflow = 'hidden';
     c.style.position = 'relative';
     slot.appendChild(c);
@@ -232,60 +202,39 @@
   };
   slot.appendChild(s);
 
-  // Une seule tentative de coupe, à 3 secondes (après chargement complet)
-  setTimeout(function() {
-    log('⏱ 3s écoulées — tentative de coupe', 'dim');
-    couperApresPremierePub();
-
-    // Si échec (pub trop petite), réessayer à 5s
-    if (!coupeEffectuee) {
-      setTimeout(function() {
-        log('⏱ 5s — nouvelle tentative', 'dim');
-        couperApresPremierePub();
-
-        if (!coupeEffectuee) {
-          setTimeout(function() {
-            log('⏱ 8s — dernière tentative', 'dim');
-            couperApresPremierePub();
-
-            if (!coupeEffectuee) {
-              var c = document.getElementById(containerId);
-              var enfants = c ? c.children.length : 0;
-              log('═══════════════════════════════', 'dim');
-              if (enfants === 0) {
-                setStatus('Aucune pub', 'err', '❌');
-                log('❌ Rate limit Adsterra — attends 5-10 min', 'err');
-              } else if (enfants === 1) {
-                setStatus('1 pub — rien à couper', 'ok', '✅');
-                log('ℹ️ Une seule pub reçue, pas besoin de couper', 'dim');
-              } else {
-                setStatus('Coupe non appliquée', 'warn', '⚠️');
-                log('⚠️ ' + enfants + ' enfants mais coupe échouée', 'warn');
-              }
-            }
-          }, 3000);
-        }
-      }, 2000);
-    }
-  }, 3000);
-
-  // Log périodique
+  // Diagnostic périodique
   var t0 = Date.now();
   var iv = setInterval(function() {
     var c = document.getElementById(containerId);
     if (!c) return;
     var enfants = c.children.length;
-    log('⏱ ' + Math.round((Date.now() - t0) / 1000) + 's — Enfants: ' + enfants + ' | HTML: ' + c.innerHTML.length + 'c', 'dim');
-    if (Date.now() - t0 > 10000) clearInterval(iv);
-  }, 1500);
+    var totalH = c.scrollHeight;
+    var visibleH = c.offsetHeight;
+    var imgs = c.querySelectorAll('img').length;
+    log('⏱ ' + Math.round((Date.now() - t0) / 1000) + 's — Enfants: ' + enfants + ' | Imgs: ' + imgs + ' | Total: ' + totalH + 'px | Visible: ' + visibleH + 'px', 'dim');
 
-  // Fallback : masquer la carte si rien n'est chargé
+    if (Date.now() - t0 > 8000) {
+      clearInterval(iv);
+      log('═══════════════════════════════', 'dim');
+      if (imgs === 0) {
+        setStatus('Aucune pub reçue', 'err', '❌');
+        log('❌ Rate limit ou AdBlock', 'err');
+      } else if (totalH > MAX_HEIGHT) {
+        setStatus('1 pub visible', 'ok', '✅');
+        log('✅ ' + (totalH - MAX_HEIGHT) + 'px masqués', 'ok');
+      } else {
+        setStatus('Contenu chargé', 'ok', '✅');
+      }
+    }
+  }, 1000);
+
+  // Fallback : masquer la carte si rien n'est chargé après 6s
   setTimeout(function() {
     var c = document.getElementById(containerId);
     if (c && c.innerHTML.length < 100 && card) {
       card.style.display = 'none';
     }
-  }, 8000);
+  }, 6000);
 })();
 </script>
 
