@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Test Native Banner Adsterra</title>
+<title>Test Native Banner - 1 pub</title>
 <style>
   * { box-sizing: border-box; }
   body { font-family: system-ui, -apple-system, sans-serif; background:#f8fafc; margin:0; padding:16px; }
@@ -69,6 +69,11 @@
   }
   .fb-post-ad-media a { display:block; width:100%; }
 
+  /* Masque tout sauf la 1ère pub dans le container Adsterra */
+  .fb-post-ad-media #container-c8e9df92013d3020593ad443d2530ad4 > *:nth-child(n+2) {
+    display:none!important;
+  }
+
   #logBox {
     background:#020617; color:#5cb3ff; padding:14px;
     border-radius:10px; font-family:ui-monospace,monospace;
@@ -87,14 +92,23 @@
     font-size:13px; background:#007fff; color:#fff; margin-right:8px;
   }
   .btn.gray { background:#334155; }
+
+  .counter-badge {
+    display:inline-block; padding:4px 10px; border-radius:6px;
+    background:#0f172a; color:#5cb3ff; font-size:11px;
+    font-weight:900; margin-left:8px;
+  }
 </style>
 </head>
 <body>
 
 <div class="container">
 
-  <h1>🧪 Test Native Banner</h1>
-  <p class="sub">Key : c8e9df92013d3020593ad443d2530ad4</p>
+  <h1>🧪 Test Native Banner - 1 pub</h1>
+  <p class="sub">
+    Key : c8e9df92013d3020593ad443d2530ad4
+    <span class="counter-badge" id="counter">0 pub visible</span>
+  </p>
 
   <div id="status" class="status wait">
     <span>⏳</span> <span id="statusText">Chargement du Native Banner…</span>
@@ -146,8 +160,10 @@
   var logEl = document.getElementById('logBox');
   var statusEl = document.getElementById('status');
   var statusTxt = document.getElementById('statusText');
+  var counterEl = document.getElementById('counter');
   var card = document.getElementById('adsterraCard');
   var slot = document.getElementById('adsterraSlot');
+  var containerId = 'container-' + ADSTERRA_KEY;
 
   function log(msg, cls) {
     cls = cls || '';
@@ -165,36 +181,53 @@
     statusEl.querySelector('span').textContent = icon;
   }
 
+  function updateCounter() {
+    var c = document.getElementById(containerId);
+    if (!c) { counterEl.textContent = '0 pub visible'; return; }
+    var visibles = Array.from(c.children).filter(function(el) {
+      return el.style.display !== 'none' && el.offsetHeight > 0;
+    });
+    counterEl.textContent = visibles.length + ' pub visible' + (visibles.length > 1 ? 's' : '');
+    counterEl.style.background = visibles.length === 1 ? '#065f46' : '#0f172a';
+    counterEl.style.color = visibles.length === 1 ? '#6ee7b7' : '#5cb3ff';
+  }
+
+  function garderUneSeulePub() {
+    var container = document.getElementById(containerId);
+    if (!container) return false;
+    var enfants = Array.from(container.children).filter(function(el) {
+      return el.style.display !== 'none' && el.offsetHeight > 0;
+    });
+    if (enfants.length <= 1) return false;
+    for (var i = 1; i < enfants.length; i++) {
+      enfants[i].style.display = 'none';
+    }
+    log('🧹 Masqué ' + (enfants.length - 1) + ' pub(s) en trop', 'ok');
+    updateCounter();
+    return true;
+  }
+
   log('Script démarré', 'dim');
   log('Key : ' + ADSTERRA_KEY, 'dim');
+  log('Objectif : garder UNE SEULE pub visible', 'dim');
 
   var t0 = Date.now();
   var loaded = false;
 
-  // MutationObserver pour détecter le contenu injecté
+  // Observer pour suivre l'évolution du container
   var obs = new MutationObserver(function() {
+    updateCounter();
     var content = slot.querySelector('img, iframe, a');
     if (content && !loaded) {
       loaded = true;
       var dt = Date.now() - t0;
       log('═══════════════════════════════════', 'dim');
       log('✅ Contenu détecté en ' + dt + 'ms', 'ok');
-      log('  Type : ' + content.tagName, 'ok');
-      if (content.tagName === 'IMG') {
-        log('  Image : ' + (content.naturalWidth || '?') + 'x' + (content.naturalHeight || '?'), 'ok');
-        log('  Src : ' + (content.src || '').slice(0, 80), 'dim');
-      }
-      if (content.tagName === 'IFRAME') {
-        log('  Iframe : ' + content.width + 'x' + content.height, 'ok');
-        log('  Src : ' + (content.src || '').slice(0, 80), 'dim');
-      }
-      setStatus('Native Banner chargé !', 'ok', '✅');
     }
   });
   obs.observe(slot, { childList: true, subtree: true });
 
-  // Injection du script Adsterra
-  var containerId = 'container-' + ADSTERRA_KEY;
+  // Injection du container + script Adsterra
   if (!slot.querySelector('#' + containerId)) {
     var c = document.createElement('div');
     c.id = containerId;
@@ -207,48 +240,56 @@
   s.setAttribute('data-cfasync', 'false');
   s.src = ADSTERRA_SCRIPT_URL;
   s.onerror = function() {
-    log('❌ Erreur chargement script', 'err');
+    log('❌ Erreur chargement script (AdBlock ?)', 'err');
     if (card) card.style.display = 'none';
-    setStatus('Script bloqué (AdBlock ?)', 'err', '❌');
+    setStatus('Script bloqué', 'err', '❌');
   };
   s.onload = function() {
     log('✅ Script invoke.js chargé', 'ok');
   };
   slot.appendChild(s);
 
-  // Vérifications périodiques
-  [1000, 2000, 3000, 5000, 8000].forEach(function(delay) {
-    setTimeout(function() {
-      if (loaded) return;
-      var content = slot.querySelector('img, iframe, a');
-      log('Check ' + delay + 'ms → ' + (content ? 'contenu présent' : 'vide'), 'dim');
-    }, delay);
-  });
+  // Boucle de nettoyage : garde 1 seule pub
+  var attempts = 0;
+  var iv = setInterval(function() {
+    attempts++;
+    garderUneSeulePub();
+    updateCounter();
+    if (attempts === 4 || attempts === 12 || attempts === 24) {
+      var container = document.getElementById(containerId);
+      var total = container ? container.children.length : 0;
+      log('Check ' + (attempts * 250) + 'ms → ' + total + ' élément(s) dans le container', 'dim');
+    }
+    if (attempts >= 40) {
+      clearInterval(iv);
+      garderUneSeulePub();
+      updateCounter();
+      log('🏁 Nettoyage terminé après 10s', 'dim');
+      var container = document.getElementById(containerId);
+      var visibles = container ? Array.from(container.children).filter(function(el) {
+        return el.style.display !== 'none' && el.offsetHeight > 0;
+      }).length : 0;
+      if (visibles === 1) {
+        setStatus('1 seule pub affichée', 'ok', '✅');
+      } else if (visibles > 1) {
+        setStatus(visibles + ' pubs affichées', 'warn', '⚠️');
+      } else {
+        setStatus('Aucune pub', 'err', '❌');
+      }
+    }
+  }, 250);
 
-  // Fallback final
+  // Fallback : si rien chargé après 6s
   setTimeout(function() {
-    if (loaded) return;
-    var content = slot.querySelector('img, iframe, a');
-    if (!content) {
-      log('═══════════════════════════════════', 'dim');
-      log('❌ Aucun contenu après 9s', 'err');
-      log('Causes possibles :', 'warn');
-      log('1. AdBlock actif → désactive-le', 'warn');
-      log('2. Native Banner pas encore validé côté Adsterra', 'warn');
-      log('3. Pas de campagne disponible pour ton audience', 'warn');
+    var hasContent = slot.innerHTML.trim().length > 0 && slot.querySelector('img, iframe, a');
+    if (!hasContent && card) {
+      card.classList.add('fb-post-ad-empty');
+      card.style.display = 'none';
       setStatus('Aucun contenu', 'err', '❌');
     }
-  }, 9000);
+  }, 6000);
 
-  // Capture erreurs globales
-  window.addEventListener('error', function(e) {
-    if (e.target && e.target.tagName === 'SCRIPT') {
-      log('❌ Script en erreur : ' + e.target.src, 'err');
-    }
-  }, true);
-
-  log('Attente du Native Banner…', 'dim');
-
+  updateCounter();
 })();
 </script>
 
