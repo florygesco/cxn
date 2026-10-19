@@ -377,6 +377,65 @@ async function renderDeblocagesDebloques(){var c=document.getElementById('debloc
 function demarrerChronoDeblocages(){if(_debloques_timer)clearInterval(_debloques_timer);_debloques_timer=setInterval(function(){var cs=document.querySelectorAll('.chrono-deblocage');if(cs.length===0)return;var exp=false;cs.forEach(function(el){var e=parseInt(el.getAttribute('data-expire'),10);if(isNaN(e))return;var r=e-Date.now();if(r<=0){el.textContent='00h 00m';exp=true;}else{el.textContent=formatCompteARebours(r);}});if(exp){clearInterval(_debloques_timer);_debloques_timer=null;setTimeout(function(){renderDeblocagesDebloques();},1200);}},5000);}
 function switchDeblocageSubTab(el,t){document.querySelectorAll('.deblocage-subtab').forEach(function(x){x.classList.remove('active');});el.classList.add('active');document.querySelectorAll('#deblocageSubPanelAttente, #deblocageSubPanelDebloques').forEach(function(p){p.style.display='none';});var tg=(t==='attente')?document.getElementById('deblocageSubPanelAttente'):document.getElementById('deblocageSubPanelDebloques');if(tg)tg.style.display='block';if(t==='attente')renderDeblocagesEnAttente();else if(t==='debloques')renderDeblocagesDebloques();}
 
+function afficherPopupWhatsApp(message, telephone) {
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.75);z-index:950;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;transition:opacity .25s ease;';
+    overlay.className = 'wa-popup-overlay';
+
+    var modal = document.createElement('div');
+    modal.style.cssText = 'background:var(--bg-card);border-radius:24px;padding:30px 24px;max-width:380px;width:100%;text-align:center;position:relative;transform:scale(.9);transition:transform .25s ease;box-shadow:0 10px 30px rgba(0,0,0,.2);';
+    modal.className = 'wa-popup-modal';
+
+    var safePhone = telephone ? telephone.replace(/[^\d]/g, '') : '';
+    var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    var appUrl = safePhone ? 'whatsapp://send?phone=' + safePhone + '&text=' + message : 'whatsapp://send?text=' + message;
+    var webUrl = safePhone ? 'https://wa.me/' + safePhone + '?text=' + message : 'https://wa.me/?text=' + message;
+    var finalUrl = isMobile ? appUrl : webUrl;
+
+    modal.innerHTML = `
+        <button onclick="fermerPopupWhatsApp(this)" style="position:absolute;top:14px;right:14px;width:40px;height:40px;border-radius:50%;background:var(--bg-card-soft);color:var(--text-secondary);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;"><i class="fa-solid fa-xmark"></i></button>
+        
+        <div style="width:80px;height:80px;border-radius:50%;background:#25D366;color:#fff;display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 20px;box-shadow:0 8px 20px rgba(37,211,102,.3);">
+            <i class="fa-brands fa-whatsapp"></i>
+        </div>
+        
+        <h3 style="font-size:20px;font-weight:900;color:var(--text-primary);margin:0 0 8px;">Ouvrir WhatsApp ?</h3>
+        <p style="font-size:14px;color:var(--text-muted);line-height:1.5;margin-bottom:24px;">Message pré-rempli. Il vous suffit d'envoyer.</p>
+        
+        <a href="${finalUrl}" target="_blank" onclick="setTimeout(()=>fermerPopupWhatsApp(document.querySelector('.wa-popup-overlay')), 500);" style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:16px;border-radius:14px;background:#25D366;color:#fff;text-decoration:none;font-size:16px;font-weight:900;box-shadow:0 4px 14px rgba(37,211,102,.3);">
+            <i class="fa-brands fa-whatsapp" style="font-size:20px;"></i> Ouvrir WhatsApp
+        </a>
+        
+        <button onclick="fermerPopupWhatsApp(this)" style="width:100%;padding:14px;margin-top:12px;border-radius:14px;background:transparent;color:var(--text-muted);border:none;font-size:14px;font-weight:800;cursor:pointer;">Annuler</button>
+    `;
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    setTimeout(function() {
+        overlay.style.opacity = '1';
+        modal.style.transform = 'scale(1)';
+    }, 10);
+
+    overlay.onclick = function(e) {
+        if (e.target === overlay) fermerPopupWhatsApp(overlay);
+    };
+}
+
+function fermerPopupWhatsApp(el) {
+    var overlay = el.closest ? el.closest('.wa-popup-overlay') : document.querySelector('.wa-popup-overlay');
+    if (!overlay) return;
+    var modal = overlay.querySelector('.wa-popup-modal');
+    overlay.style.opacity = '0';
+    if(modal) modal.style.transform = 'scale(.9)';
+    setTimeout(function() {
+        if(overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }, 250);
+}
+window.afficherPopupWhatsApp = afficherPopupWhatsApp;
+window.fermerPopupWhatsApp = fermerPopupWhatsApp;
+
 function estHotelOuHebergement(type){var t=String(type||'').toLowerCase();return t.indexOf('hôtel')!==-1||t.indexOf('hotel')!==-1||t.indexOf('hébergement')!==-1||t.indexOf('hebergement')!==-1;}
 
 function afficherSkeletonsFeed(nb){var feed=document.getElementById('mainFeed');if(!feed)return;var html='';for(var i=0;i<(nb||4);i++){html+='<div class="fb-post-skeleton"><div class="sk-row"><div class="sk-avatar"></div><div class="sk-col"><div class="sk-line w60"></div><div class="sk-line w40"></div></div></div><div class="sk-line sk-title w95"></div><div class="sk-line w85"></div><div class="sk-line w60"></div><div class="sk-price"></div><div class="sk-img"></div><div class="sk-actions"><div class="sk-action"></div><div class="sk-action"></div></div></div>';}feed.innerHTML=html;}
@@ -445,7 +504,18 @@ if(!typePostuler){articleOnclick=' onclick=\'openDetail('+JSON.stringify(p).repl
 return '<article class="fb-post" data-annonce-id="'+(p.annonceId||p.id||'')+'" data-cat="'+(p.cat||'autre')+'"'+articleOnclick+'><div class="fb-post-head">'+getAvatarHTML(p,52)+'<div style="min-width:0;overflow:hidden"><div class="fb-post-name">'+p.name+getVerifiedBadgeHTML(p)+getJobBadgeHTML(p)+'</div><div class="fb-post-sub">'+p.location+' · '+ta+'</div></div><span class="feed-badge '+(p.tagClass||'post-tag-autre')+'">'+(p.tag||'AUTRE')+'</span></div><div class="fb-post-body"><h3 class="fb-post-title">'+p.title+'</h3>'+dH+'</div>'+(p.price?'<div class="fb-post-body fb-post-price-row"><div class="fb-post-price '+p.priceClass+'" style="margin-top:0">'+p.price+'</div>'+cB+'</div>':'')+media+'<div class="fb-post-actions">'+actionBtn+'</div></article>';
 }
 
-function postulerJob(ref){if(ref.annonceId){incrementerVuesAnnonce(ref.annonceId,ref.proprietaireUid);}requireLogin('postuler',function(){var telPublieur=String(ref.phone||'').replace(/[^\d]/g,'');if(!telPublieur){showToast('Numéro du publieur indisponible');return;}var titre=ref.title||'Offre d\'emploi';var nomPostulant=CURRENT_ACCOUNT.name||CURRENT_ACCOUNT.nomComplet||'Utilisateur';var telPostulant=CURRENT_ACCOUNT.phone||'';var msg='*NeTubeX RDC*\n\nBonjour,\n\n👋 Je souhaite postuler à votre offre :\n\n💼 '+titre+'\n\n*Mes coordonnées :*\n• Nom : '+nomPostulant+'\n• WhatsApp : '+telPostulant+'\n\nPouvez-vous m\'indiquer les conditions à remplir pour ce poste ?\n\n✅ _Via NeTubeX RDC_';var waUrl='https://wa.me/'+telPublieur+'?text='+encodeURIComponent(msg);window.open(waUrl,'_blank');});}
+function postulerJob(ref){
+if(ref.annonceId){incrementerVuesAnnonce(ref.annonceId,ref.proprietaireUid);}
+requireLogin('postuler',function(){
+var telPublieur=String(ref.phone||'').replace(/[^\d]/g,'');
+if(!telPublieur){showToast('Numéro du publieur indisponible');return;}
+var titre=ref.title||'Offre d\'emploi';
+var nomPostulant=CURRENT_ACCOUNT.name||CURRENT_ACCOUNT.nomComplet||'Utilisateur';
+var telPostulant=CURRENT_ACCOUNT.phone||'';
+var msg='*NeTubeX RDC*%0A%0A👋 *CANDIDATURE*%0A%0A💼 *Offre :* '+encodeURIComponent(titre)+'%0A%0A*Mes coordonnées :*%0A• Nom : '+encodeURIComponent(nomPostulant)+'%0A• WhatsApp : '+encodeURIComponent(telPostulant)+'%0A%0A✅ _Via NeTubeX RDC_';
+afficherPopupWhatsApp(msg, telPublieur);
+});
+}
 function partagerJob(aId,pUid,ref){if(aId){incrementerVuesAnnonce(aId,pUid);}requireLogin('partager',function(){var titre=(ref&&ref.title)?String(ref.title):'Offre d\'emploi';var publieur=(ref&&ref.name)?String(ref.name):'';var msg='💼 *'+titre+'*\n\n';if(publieur){msg+='🏢 Publié par : '+publieur+'\n';}msg+='\n📱 Voir l\'offre sur *NeTubeX RDC* :\nhttps://www.netubex.com/rdc\n\n✅ _Partagé via NeTubeX RDC_';if(navigator.share){navigator.share({title:titre,text:msg,url:'https://www.netubex.com/rdc'}).catch(function(err){if(err&&err.name!=='AbortError'){}});}else{window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');}});}
 
 function renderFeedBatch(page){var feed=document.getElementById('mainFeed');if(!feed)return;if(_feedLoading)return;_feedLoading=true;if(_feedDebounceTimer){clearTimeout(_feedDebounceTimer);_feedDebounceTimer=null;}if(_feedCycleItems.length===0){_feedCycleItems=construireNouveauCycle(_feedSeenIds);_feedCycleIndex=0;}if(_feedCycleIndex>=_feedCycleItems.length){_feedLoopCount++;_feedSeenIds.clear();_feedCycleItems=construireNouveauCycle(null);_feedCycleIndex=0;}var start=_feedCycleIndex;var end=Math.min(start+FEED_PER_PAGE,_feedCycleItems.length);var lot=_feedCycleItems.slice(start,end);if(lot.length===0){_feedLoading=false;return;}if(page===0&&feed.children.length===0){feed.innerHTML='';_feedRenderedCount=0;}masquerSkeletonsFeed();var html='';lot.forEach(function(item){html+=renderOffreCard(item.data);var id=item.data.annonceId||item.data.commerceId||item.data.id;if(id)_feedSeenIds.add(id);});var temp=document.createElement('div');temp.innerHTML=html;var frag=document.createDocumentFragment();while(temp.firstChild){frag.appendChild(temp.firstChild);}feed.appendChild(frag);_feedCycleIndex=end;_feedRenderedCount+=lot.length;limiterTailleDOM(feed);requestAnimationFrame(function(){_feedLoading=false;setTimeout(verifierDescriptions,60);});}
@@ -612,9 +682,8 @@ msg+='%0A💰 *Estimation : '+encodeURIComponent(total.toLocaleString('fr-FR'))+
 }
 if(notes.trim())msg+='%0A📝 *Demandes :*%0A'+encodeURIComponent(notes.trim())+'%0A';
 msg+='%0A✅ Merci de me confirmer la disponibilité.%0A_NeTubeX RDC_';
-window.open('https://wa.me/'+tel+'?text='+msg,'_blank');
+afficherPopupWhatsApp(msg, tel);
 fermerReservation();
-showToast('Demande envoyée sur WhatsApp');
 }
 
 async function openDetail(oD){requireLogin('détails',async function(){if(oD&&CAT_JOB.indexOf(normCat(oD.cat))!==-1){return;}CURRENT_OFFRE=oD;if(oD&&(oD.annonceId||oD.id)){incrementerVuesAnnonce(oD.annonceId||oD.id,oD.publieurUid);}await renderDetail(oD);go('detail');});}
@@ -635,7 +704,38 @@ function appliquerConfigCommandes(){var btnRetrait=document.getElementById('orde
 function openCart(){requireLogin('panier',function(){appliquerConfigCommandes();if(!getBoutiqueOption('retrait')&&!getBoutiqueOption('livraison')){showToast('Commandes indisponibles pour ce commerce');return;}CART_PAGE=1;cartGoToPage(1);genererEtAfficherCodeCommande();document.getElementById('cart-drawer').classList.add('active');document.getElementById('cart-overlay').classList.add('active');document.body.style.overflow='hidden';});}
 function closeCart(){document.getElementById('cart-drawer').classList.remove('active');document.getElementById('cart-overlay').classList.remove('active');document.body.style.overflow='';}
 function selectOrderType(t){ORDER_TYPE=t;var br=document.getElementById('orderTypeRetrait');var bl=document.getElementById('orderTypeLivraison');var fl=document.getElementById('orderTypeFieldsLivraison');if(t==='retrait'){if(br)br.classList.add('selected');if(bl)bl.classList.remove('selected');if(fl)fl.classList.remove('visible');}else{if(bl)bl.classList.add('selected');if(br)br.classList.remove('selected');if(fl)fl.classList.add('visible');}}
-function submitOrder(){if(cart.length===0){showToast('Panier vide');return;}var retraitOk=getBoutiqueOption('retrait');var livraisonOk=getBoutiqueOption('livraison');if(!retraitOk&&!livraisonOk){showToast('Commandes indisponibles');return;}var n=(document.getElementById('client-nom')||{}).value?document.getElementById('client-nom').value.trim():'';var tRaw=(document.getElementById('client-tel')||{}).value?document.getElementById('client-tel').value.trim():'';var al=(document.getElementById('client-adresse-livraison')||{}).value?document.getElementById('client-adresse-livraison').value.trim():'';var ql=(document.getElementById('client-quartier-livraison')||{}).value?document.getElementById('client-quartier-livraison').value.trim():'';if(!n||!tRaw){showToast('Remplissez nom et téléphone');return;}if(!isValidePhone243(tRaw)){showToast('Numéro invalide');return;}if(ORDER_TYPE==='livraison'&&!livraisonOk){showToast('Livraison indisponible pour ce commerce');return;}if(ORDER_TYPE==='retrait'&&!retraitOk){showToast('Retrait indisponible pour ce commerce');return;}if(ORDER_TYPE==='livraison'&&(!al||!ql)){showToast('Remplissez adresse et quartier');return;}var t=formatPhone243(tRaw);requireLogin('commander',function(){var wc='243857525821';if(CURRENT_COMMERCE){var w=CURRENT_COMMERCE.whatsapp||CURRENT_COMMERCE.whatsappCommercial||CURRENT_COMMERCE.telephone||'';if(w)wc=w.replace(/[^\d]/g,'');}var cc=CURRENT_ORDER_CODE||genererCodeCommande(CURRENT_COMMERCE?CURRENT_COMMERCE.id:'X',t);var msg='*NeTubeX RDC*%0A%0A🛒 *NOUVELLE COMMANDE*%0A%0A🎫 *CODE : '+cc+'*%0A%0A🏪 *Commerçant :* '+(CURRENT_COMMERCE?(CURRENT_COMMERCE.nom||''):'—')+'%0A'+(ORDER_TYPE==='livraison'?'🚚 *LIVRAISON*':'🏪 *RETRAIT*')+'%0A%0A📋 *ARTICLES :*%0A%0A';cart.forEach(function(i,idx){msg+='*'+(idx+1)+'. '+i.name+'*%0A   • Qté : '+i.qty+'%0A   • PU : '+i.price.toLocaleString('fr-FR')+' FC%0A   • Sous-total : '+(i.price*i.qty).toLocaleString('fr-FR')+' FC%0A%0A';});var tot=cart.reduce(function(s,i){return s+i.price*i.qty;},0);msg+='💰 *TOTAL : '+tot.toLocaleString('fr-FR')+' FC*%0A%0A👤 *CLIENT :*%0A   • Nom : '+n+'%0A   • Téléphone : '+t+'%0A';if(ORDER_TYPE==='livraison'){msg+='%0A📍 *LIVRAISON :*%0A   • Adresse : '+al+'%0A   • Quartier : '+ql+'%0A';}msg+='%0A✅ Merci de confirmer.%0A_NeTubeX RDC_';window.open('https://wa.me/'+wc+'?text='+msg,'_blank');closeCart();cart=[];updateCart();refreshAddButtons();showToast('Commande '+cc+' envoyée');});}
+function submitOrder(){
+if(cart.length===0){showToast('Panier vide');return;}
+var retraitOk=getBoutiqueOption('retrait');
+var livraisonOk=getBoutiqueOption('livraison');
+if(!retraitOk&&!livraisonOk){showToast('Commandes indisponibles');return;}
+var n=(document.getElementById('client-nom')||{}).value?document.getElementById('client-nom').value.trim():'';
+var tRaw=(document.getElementById('client-tel')||{}).value?document.getElementById('client-tel').value.trim():'';
+var al=(document.getElementById('client-adresse-livraison')||{}).value?document.getElementById('client-adresse-livraison').value.trim():'';
+var ql=(document.getElementById('client-quartier-livraison')||{}).value?document.getElementById('client-quartier-livraison').value.trim():'';
+if(!n||!tRaw){showToast('Remplissez nom et téléphone');return;}
+if(!isValidePhone243(tRaw)){showToast('Numéro invalide');return;}
+if(ORDER_TYPE==='livraison'&&!livraisonOk){showToast('Livraison indisponible pour ce commerce');return;}
+if(ORDER_TYPE==='retrait'&&!retraitOk){showToast('Retrait indisponible pour ce commerce');return;}
+if(ORDER_TYPE==='livraison'&&(!al||!ql)){showToast('Remplissez adresse et quartier');return;}
+var t=formatPhone243(tRaw);
+requireLogin('commander',function(){
+var wc='243857525821';
+if(CURRENT_COMMERCE){var w=CURRENT_COMMERCE.whatsapp||CURRENT_COMMERCE.whatsappCommercial||CURRENT_COMMERCE.telephone||'';if(w)wc=w.replace(/[^\d]/g,'');}
+var cc=CURRENT_ORDER_CODE||genererCodeCommande(CURRENT_COMMERCE?CURRENT_COMMERCE.id:'X',t);
+var msg='*NeTubeX RDC*%0A%0A🛒 *NOUVELLE COMMANDE*%0A%0A🎫 *CODE : '+cc+'*%0A%0A🏪 *Commerçant :* '+(CURRENT_COMMERCE?(CURRENT_COMMERCE.nom||''):'—')+'%0A'+(ORDER_TYPE==='livraison'?'🚚 *LIVRAISON*':'🏪 *RETRAIT*')+'%0A%0A📋 *ARTICLES :*%0A%0A';
+cart.forEach(function(i,idx){msg+='*'+(idx+1)+'. '+i.name+'*%0A   • Qté : '+i.qty+'%0A   • PU : '+i.price.toLocaleString('fr-FR')+' FC%0A   • Sous-total : '+(i.price*i.qty).toLocaleString('fr-FR')+' FC%0A%0A';});
+var tot=cart.reduce(function(s,i){return s+i.price*i.qty;},0);
+msg+='💰 *TOTAL : '+tot.toLocaleString('fr-FR')+' FC*%0A%0A👤 *CLIENT :*%0A   • Nom : '+n+'%0A   • Téléphone : '+t+'%0A';
+if(ORDER_TYPE==='livraison'){msg+='%0A📍 *LIVRAISON :*%0A   • Adresse : '+al+'%0A   • Quartier : '+ql+'%0A';}
+msg+='%0A✅ Merci de confirmer.%0A_NeTubeX RDC_';
+afficherPopupWhatsApp(msg, wc);
+closeCart();
+cart=[];
+updateCart();
+refreshAddButtons();
+});
+}
 function openUnlock(){if(!CURRENT_OFFRE)return;var aId=CURRENT_OFFRE.annonceId||CURRENT_OFFRE.id;if(!aId){showToast('Annonce introuvable');return;}var ncu=normCat(CURRENT_OFFRE.cat);var f=CAT_IMMO.indexOf(ncu)!==-1?1000:400;var me=document.getElementById('unlockMontant');var mi=document.getElementById('unlockMontantInline');if(me)me.textContent=f.toLocaleString('fr-FR')+' FC';if(mi)mi.textContent=f.toLocaleString('fr-FR')+' FC';window._pendingDeblocageMontant=f;document.getElementById('unlock-modal').style.display='flex';attacherTousPhones();var de=DEBLOCAGES_MEMORY.find(function(d){return d.annonceId===aId&&(d.statut==='en_attente'||d.statut==='debloque');});if(de){document.getElementById('unlock-modal').style.display='none';if(de.statut==='en_attente'){showToast('Demande en cours');}else{showToast('Déjà débloqué');}}}
 function annulerDeblocage(){document.getElementById('unlock-modal').style.display='none';var t=document.getElementById('unlockTxId');var n=document.getElementById('unlockNumEnvoi');if(t)t.value='';if(n)n.value='';showToast('Annulé');}
 function fermerDeblocageModalSilencieux(){document.getElementById('unlock-modal').style.display='none';var t=document.getElementById('unlockTxId');var n=document.getElementById('unlockNumEnvoi');if(t)t.value='';if(n)n.value='';}
@@ -645,8 +745,49 @@ function fermerPaiementModalSilencieux(){document.getElementById('paiementModal'
 function closeDeblocagePending(){document.getElementById('deblocagePendingOverlay').classList.remove('active');document.getElementById('deblocagePendingModal').classList.remove('active');}
 function closeBoutiquePending(){document.getElementById('boutiquePendingOverlay').classList.remove('active');document.getElementById('boutiquePendingModal').classList.remove('active');var p=document.getElementById('page-inscription');if(p&&p.classList.contains('active')){go('index');}}
 function signalerOffre(){requireLogin('signaler',function(){var o=CURRENT_OFFRE;if(!o){showToast('Introuvable');return;}var re=document.getElementById('detailRefValue');var r=re?re.textContent:'NTX-GEN-0000';document.getElementById('supportRef').value=r;document.getElementById('supportSujet').value="Signaler : "+(o.title||'');document.getElementById('supportDesc').value="Référence : "+r+"\nTitre : "+(o.title||'');document.getElementById('supportRaison').value='';go('support');});}
-function submitSignalement(){var ra=(document.getElementById('supportRaison')||{}).value||'';var su=(document.getElementById('supportSujet')||{}).value||'';var re=(document.getElementById('supportRef')||{}).value||'—';if(!ra.trim()){showToast('Décrivez la raison');return;}var nu=CURRENT_ACCOUNT?(CURRENT_ACCOUNT.name||'Utilisateur'):'Utilisateur';var pu=CURRENT_ACCOUNT?(CURRENT_ACCOUNT.phone||'—'):'—';var ta=su.replace("Signaler : ","");var msg='*NeTubeX RDC*%0A%0A🚩 *SIGNALEMENT*%0A%0A*Référence :* '+re+'%0A*Titre :* '+ta+'%0A%0A*Par :* '+nu+'%0A*WhatsApp :* '+pu+'%0A%0A*Motif :*%0A'+ra;window.open('https://wa.me/243857525821?text='+msg,'_blank');showToast('Signalement envoyé');setTimeout(function(){go('index');},800);}
-async function submitInscriptionBoutique(){var n=(document.getElementById('inscNom')||{}).value?document.getElementById('inscNom').value.trim():'';var tRaw=(document.getElementById('inscTelephone')||{}).value?document.getElementById('inscTelephone').value.trim():'';var wcRaw=(document.getElementById('inscWhatsappCommercial')||{}).value?document.getElementById('inscWhatsappCommercial').value.trim():'';var nc=(document.getElementById('inscNomCommerce')||{}).value?document.getElementById('inscNomCommerce').value.trim():'';var ty=(document.getElementById('inscType')||{}).value||'';var v=getVilleValue('inscVille','inscVilleLibre');var q=(document.getElementById('inscQuartier')||{}).value?document.getElementById('inscQuartier').value.trim():'';var a=(document.getElementById('inscAdresse')||{}).value?document.getElementById('inscAdresse').value.trim():'';var h=(document.getElementById('inscHoraires')||{}).value?document.getElementById('inscHoraires').value.trim():'';var d=(document.getElementById('inscDescription')||{}).value?document.getElementById('inscDescription').value.trim():'';d=nettoyerTextePourSaisie(d);if(!n||!tRaw||!wcRaw||!nc||!ty||!v||!q){showToast('Remplissez les champs');return;}if(!isValidePhone243(tRaw)){showToast('Téléphone invalide');return;}if(!isValidePhone243(wcRaw)){showToast('WhatsApp invalide');return;}var t=formatPhone243(tRaw);var wc=formatPhone243(wcRaw);var b=document.getElementById('inscSubmitBtn');if(b){b.disabled=true;b.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Envoi…';}try{var da={nom:n,telephone:t,whatsappCommercial:wc,nomCommerce:nc,type:ty,ville:v,quartier:q,adresse:a,horaires:h,description:d,uid:CURRENT_ACCOUNT?CURRENT_ACCOUNT.id:null};await window.creerDemandeBoutique(da);var msg='*NeTubeX RDC*%0A%0A🏪 *DEMANDE COMMERCE*%0A%0A👤 *CONTACT*%0A• Nom : '+n+'%0A• Tél : '+t+'%0A• WhatsApp : '+wc+'%0A%0A🏬 *COMMERCE*%0A• Nom : '+nc+'%0A• Type : '+ty+'%0A• Ville : '+v+'%0A• Quartier : '+q+(a?'%0A• Adresse : '+a:'')+(h?'%0A• Horaires : '+h:'')+(d?'%0A%0A📝 '+d:'');window.open('https://wa.me/243857525821?text='+msg,'_blank');var f=document.getElementById('inscriptionForm');if(f)f.reset();inscShowStep(1);document.getElementById('boutiquePendingOverlay').classList.add('active');document.getElementById('boutiquePendingModal').classList.add('active');}catch(err){showToast('Erreur');}finally{if(b){b.disabled=false;b.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer';}}}
+function submitSignalement(){
+var ra=(document.getElementById('supportRaison')||{}).value||'';
+var su=(document.getElementById('supportSujet')||{}).value||'';
+var re=(document.getElementById('supportRef')||{}).value||'—';
+if(!ra.trim()){showToast('Décrivez la raison');return;}
+var nu=CURRENT_ACCOUNT?(CURRENT_ACCOUNT.name||'Utilisateur'):'Utilisateur';
+var pu=CURRENT_ACCOUNT?(CURRENT_ACCOUNT.phone||'—'):'—';
+var ta=su.replace("Signaler : ","");
+var msg='*NeTubeX RDC*%0A%0A🚩 *SIGNALEMENT*%0A%0A*Référence :* '+re+'%0A*Titre :* '+encodeURIComponent(ta)+'%0A%0A*Par :* '+encodeURIComponent(nu)+'%0A*WhatsApp :* '+encodeURIComponent(pu)+'%0A%0A*Motif :*%0A'+encodeURIComponent(ra);
+afficherPopupWhatsApp(msg, '243857525821');
+}
+async function submitInscriptionBoutique(){
+var n=(document.getElementById('inscNom')||{}).value?document.getElementById('inscNom').value.trim():'';
+var tRaw=(document.getElementById('inscTelephone')||{}).value?document.getElementById('inscTelephone').value.trim():'';
+var wcRaw=(document.getElementById('inscWhatsappCommercial')||{}).value?document.getElementById('inscWhatsappCommercial').value.trim():'';
+var nc=(document.getElementById('inscNomCommerce')||{}).value?document.getElementById('inscNomCommerce').value.trim():'';
+var ty=(document.getElementById('inscType')||{}).value||'';
+var v=getVilleValue('inscVille','inscVilleLibre');
+var q=(document.getElementById('inscQuartier')||{}).value?document.getElementById('inscQuartier').value.trim():'';
+var a=(document.getElementById('inscAdresse')||{}).value?document.getElementById('inscAdresse').value.trim():'';
+var h=(document.getElementById('inscHoraires')||{}).value?document.getElementById('inscHoraires').value.trim():'';
+var d=(document.getElementById('inscDescription')||{}).value?document.getElementById('inscDescription').value.trim():'';
+d=nettoyerTextePourSaisie(d);
+if(!n||!tRaw||!wcRaw||!nc||!ty||!v||!q){showToast('Remplissez les champs');return;}
+if(!isValidePhone243(tRaw)){showToast('Téléphone invalide');return;}
+if(!isValidePhone243(wcRaw)){showToast('WhatsApp invalide');return;}
+var t=formatPhone243(tRaw);
+var wc=formatPhone243(wcRaw);
+var b=document.getElementById('inscSubmitBtn');
+if(b){b.disabled=true;b.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Envoi…';}
+try{
+var da={nom:n,telephone:t,whatsappCommercial:wc,nomCommerce:nc,type:ty,ville:v,quartier:q,adresse:a,horaires:h,description:d,uid:CURRENT_ACCOUNT?CURRENT_ACCOUNT.id:null};
+await window.creerDemandeBoutique(da);
+var msg='*NeTubeX RDC*%0A%0A🏪 *DEMANDE COMMERCE*%0A%0A👤 *CONTACT*%0A• Nom : '+encodeURIComponent(n)+'%0A• Tél : '+encodeURIComponent(t)+'%0A• WhatsApp : '+encodeURIComponent(wc)+'%0A%0A🏬 *COMMERCE*%0A• Nom : '+encodeURIComponent(nc)+'%0A• Type : '+encodeURIComponent(ty)+'%0A• Ville : '+encodeURIComponent(v)+'%0A• Quartier : '+encodeURIComponent(q)+(a?'%0A• Adresse : '+encodeURIComponent(a):'')+(h?'%0A• Horaires : '+encodeURIComponent(h):'')+(d?'%0A%0A📝 '+encodeURIComponent(d):'');
+afficherPopupWhatsApp(msg, '243857525821');
+var f=document.getElementById('inscriptionForm');
+if(f)f.reset();
+inscShowStep(1);
+document.getElementById('boutiquePendingOverlay').classList.add('active');
+document.getElementById('boutiquePendingModal').classList.add('active');
+}catch(err){showToast('Erreur');}
+finally{if(b){b.disabled=false;b.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer';}}
+}
 function inscUpdateProgress(s){document.querySelectorAll('.insc-step-circle').forEach(function(d){var v=parseInt(d.getAttribute('data-circle'),10);if(v<s){d.classList.add('done');d.classList.remove('active');}else if(v===s){d.classList.add('active');d.classList.remove('done');}else{d.classList.remove('active');d.classList.remove('done');}});}
 function inscShowStep(s){document.querySelectorAll('.insc-step').forEach(function(e){e.style.display=(parseInt(e.getAttribute('data-step'),10)===s)?'block':'none';});inscUpdateProgress(s);window.scrollTo({top:0,behavior:'smooth'});}
 function inscNextStep(c){var e=[];if(c===1){if(!(document.getElementById('inscNom')||{}).value||!document.getElementById('inscNom').value.trim())e.push('Nom');if(!(document.getElementById('inscTelephone')||{}).value||!document.getElementById('inscTelephone').value.trim())e.push('Téléphone');if(!(document.getElementById('inscWhatsappCommercial')||{}).value||!document.getElementById('inscWhatsappCommercial').value.trim())e.push('WhatsApp');if(e.length){showToast('Remplissez : '+e.join(', '));return;}}if(c===2){if(!(document.getElementById('inscNomCommerce')||{}).value||!document.getElementById('inscNomCommerce').value.trim())e.push('Nom commerce');if(!(document.getElementById('inscType')||{}).value)e.push('Type');if(!(document.getElementById('inscVille')||{}).value)e.push('Ville');if(!(document.getElementById('inscQuartier')||{}).value||!document.getElementById('inscQuartier').value.trim())e.push('Quartier');if(e.length){showToast('Remplissez : '+e.join(', '));return;}}inscShowStep(c+1);}
@@ -691,8 +832,8 @@ async function validerSuppressionProduit(){if(_editProduitIndex<0){showToast('Er
 function toggleSearchCard(){requireLogin('rechercher',function(){var wrapper=document.getElementById('searchCardWrapper');var trigger=document.getElementById('besoinTrigger');if(!wrapper||!trigger)return;wrapper.classList.add('open');trigger.classList.add('hidden');setTimeout(function(){var input=document.getElementById('searchQuery');if(input)input.focus();},300);});}
 function fermerSearchCard(){var wrapper=document.getElementById('searchCardWrapper');var trigger=document.getElementById('besoinTrigger');if(!wrapper||!trigger)return;wrapper.classList.remove('open');trigger.classList.remove('hidden');}
 function ouvrirPublierJob(){requireLogin('publier',function(){go('publish','jobs');});}
-function recupererCodeParWhatsApp(){if(!CURRENT_ACCOUNT){showToast('Connectez-vous');return;}var nom=CURRENT_ACCOUNT.name||'Utilisateur';var phone=CURRENT_ACCOUNT.phone||'—';var msg='*NeTubeX RDC*%0A%0A🎧 *DEMANDE CODE*%0A%0A👤 '+nom+'%0A📱 '+phone+'%0A%0AJ\'ai oublié mon code.';window.open('https://wa.me/243857525821?text='+msg,'_blank');}
-function ouvrirMdpOublie(){var phone=CURRENT_ACCOUNT?CURRENT_ACCOUNT.phone:'';var msg='*NeTubeX RDC*%0A%0A🔑 *CODE OUBLIÉ*%0A%0A👤 '+(phone||'—')+'%0A%0AJe souhaite réinitialiser.';window.open('https://wa.me/243857525821?text='+msg,'_blank');}
+function recupererCodeParWhatsApp(){if(!CURRENT_ACCOUNT){showToast('Connectez-vous');return;}var nom=CURRENT_ACCOUNT.name||'Utilisateur';var phone=CURRENT_ACCOUNT.phone||'—';var msg='*NeTubeX RDC*%0A%0A🎧 *DEMANDE CODE*%0A%0A👤 '+encodeURIComponent(nom)+'%0A📱 '+encodeURIComponent(phone)+'%0A%0AJ\'ai oublié mon code.';afficherPopupWhatsApp(msg, '243857525821');}
+function ouvrirMdpOublie(){var phone=CURRENT_ACCOUNT?CURRENT_ACCOUNT.phone:'';var msg='*NeTubeX RDC*%0A%0A🔑 *CODE OUBLIÉ*%0A%0A👤 '+encodeURIComponent(phone||'—')+'%0A%0AJe souhaite réinitialiser.';afficherPopupWhatsApp(msg, '243857525821');}
 
 function updateHeaderOnScroll(){var cY=window.scrollY||document.documentElement.scrollTop;if(cY>lastScrollY&&cY>80)document.body.classList.add('hide-header');else document.body.classList.remove('hide-header');lastScrollY=cY;clearTimeout(headerTimer);headerTimer=setTimeout(function(){document.body.classList.remove('hide-header');},SCROLL_DELAY);}
 window.addEventListener('scroll',updateHeaderOnScroll,{passive:true});
