@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Test Quota Firestore RAPIDE - netubexmoney</title>
+<title>Test Quota Firestore — netubexmoney</title>
 <style>
   body{font-family:system-ui,sans-serif;background:#0f172a;color:#fff;padding:20px;max-width:900px;margin:0 auto}
   h1{color:#007fff;font-size:22px}
@@ -14,49 +14,83 @@
   button{padding:16px 32px;border:none;border-radius:10px;font-size:16px;font-weight:800;cursor:pointer;margin:5px}
   .start{background:#10b981;color:#fff}
   .stop{background:#ef4444;color:#fff}
+  .login{background:#007fff;color:#fff;width:100%}
+  .logout{background:#64748b;color:#fff;font-size:13px;padding:10px 20px}
   .warn{background:#fef3c7;color:#78350f;padding:14px;border-radius:10px;font-size:13px;line-height:1.6;margin:12px 0}
   .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0}
   .stat{background:#0f172a;padding:12px;border-radius:8px;text-align:center}
   .stat-v{font-size:22px;font-weight:900;color:#007fff}
   .stat-l{font-size:11px;color:#94a3b8;text-transform:uppercase}
   pre{background:#000;padding:10px;border-radius:8px;overflow-x:auto;font-size:11px;max-height:180px;line-height:1.5}
+  input{width:100%;padding:14px;border-radius:10px;border:2px solid #334155;background:#0f172a;color:#fff;font-size:15px;box-sizing:border-box;margin-bottom:10px;font-family:inherit}
+  input:focus{outline:none;border-color:#007fff}
+  label{display:block;font-size:12px;font-weight:800;color:#94a3b8;text-transform:uppercase;margin-bottom:6px}
+  #zoneTest{display:none}
+  #zoneLogin{display:block}
+  .user-badge{background:#065f46;color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;display:inline-block;margin-bottom:10px}
 </style>
 </head>
 <body>
-<h1>⚡ Test Quota Firestore — RAPIDE — netubexmoney</h1>
+<h1>⚡ Test Quota Firestore — netubexmoney</h1>
 
-<div class="warn">
-<strong>⚠️ RISQUE :</strong> Ce test va épuiser le quota Firestore (50 000 lectures/jour) du projet <strong>netubexmoney</strong> en quelques secondes.<br>
-Après quoi, <strong>toute l'app NeTubeX RDC sera hors service</strong> jusqu'à ~07h-08h (heure Kinshasa). À lancer uniquement si vous acceptez ce risque.
-</div>
-
-<div class="box">
-  <div class="big" id="counter">0</div>
-  <div class="sub">lectures Firestore effectuées</div>
-  <div id="status" style="text-align:center;color:#94a3b8;margin-top:10px">En attente…</div>
-</div>
-
-<div class="box">
-  <div class="stats">
-    <div class="stat"><div class="stat-v" id="sReq">0</div><div class="stat-l">Requêtes</div></div>
-    <div class="stat"><div class="stat-v" id="sDocs">0</div><div class="stat-l">Docs/req</div></div>
-    <div class="stat"><div class="stat-v" id="sSpeed">0</div><div class="stat-l">Lectures/s</div></div>
+<!-- ========== FORMULAIRE DE CONNEXION ========== -->
+<div id="zoneLogin">
+  <div class="box">
+    <div class="warn">
+      <strong>🔐 Connexion requise</strong><br>
+      Votre script de test doit être authentifié pour passer les règles Firestore.<br>
+      Connectez-vous avec le compte admin : <code>ngendaflory2@gmail.com</code>
+    </div>
+    <label>Adresse email</label>
+    <input type="email" id="loginEmail" value="ngendaflory2@gmail.com" placeholder="email@gmail.com" autocomplete="username">
+    <label>Mot de passe Firebase</label>
+    <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+    <div id="loginError" style="color:#ef4444;font-size:13px;min-height:20px;margin:8px 0;font-weight:700"></div>
+    <button class="login" id="btnLogin" onclick="seConnecter()">🔓 SE CONNECTER</button>
   </div>
 </div>
 
-<div class="box" style="text-align:center">
-  <button class="start" onclick="demarrer()">🚀 DÉMARRER (50 lectures parallèles)</button>
-  <button class="stop" onclick="arreter()">⏹ ARRÊTER</button>
-</div>
+<!-- ========== ZONE DE TEST (après connexion) ========== -->
+<div id="zoneTest">
+  <div class="box">
+    <span class="user-badge" id="userBadge">Connecté</span>
+    <button class="logout" onclick="seDeconnecter()">Se déconnecter</button>
+  </div>
 
-<div class="box">
-  <div style="margin-bottom:6px;font-weight:800;font-size:13px">Log :</div>
-  <pre id="log"></pre>
+  <div class="warn">
+    <strong>⚠️ RISQUE :</strong> Ce test va épuiser le quota Firestore (50 000 lectures/jour) du projet <strong>netubexmoney</strong>.<br>
+    Après quoi, <strong>toute l'app NeTubeX RDC sera hors service</strong> jusqu'à ~07h-08h (heure Kinshasa).
+  </div>
+
+  <div class="box">
+    <div class="big" id="counter">0</div>
+    <div class="sub">lectures Firestore effectuées</div>
+    <div id="status" style="text-align:center;color:#94a3b8;margin-top:10px">En attente…</div>
+  </div>
+
+  <div class="box">
+    <div class="stats">
+      <div class="stat"><div class="stat-v" id="sReq">0</div><div class="stat-l">Requêtes</div></div>
+      <div class="stat"><div class="stat-v" id="sDocs">0</div><div class="stat-l">Docs/req</div></div>
+      <div class="stat"><div class="stat-v" id="sSpeed">0</div><div class="stat-l">Lectures/s</div></div>
+    </div>
+  </div>
+
+  <div class="box" style="text-align:center">
+    <button class="start" onclick="demarrer()">🚀 DÉMARRER (50 lectures parallèles)</button>
+    <button class="stop" onclick="arreter()">⏹ ARRÊTER</button>
+  </div>
+
+  <div class="box">
+    <div style="margin-bottom:6px;font-weight:800;font-size:13px">Log :</div>
+    <pre id="log"></pre>
+  </div>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, collection, getDocs, query, limit } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB_GdmPBnWl3w6g99j1cGO7vxDdxmKr4QA",
@@ -70,11 +104,9 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
-// PARALLÉLISME : combien de getDocs simultanés
 const PARALLELE = 50;
-
-// Collections à lire (avec de préférence beaucoup de docs)
 const COLLECTIONS = ['annonces', 'commerces', 'netubers', 'deblocages', 'phone_index', 'demandes_boutiques'];
 
 let running = false;
@@ -83,7 +115,72 @@ let totalReq = 0;
 let docsParReq = 0;
 let derniereMesure = 0;
 let dernierTotal = 0;
-let erreur = null;
+
+// ============ AUTHENTIFICATION ============
+
+window.seConnecter = async function() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pwd = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  const btn = document.getElementById('btnLogin');
+  errEl.textContent = '';
+
+  if (!email || !pwd) {
+    errEl.textContent = 'Email et mot de passe requis';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Connexion…';
+
+  try {
+    const cred = await signInWithEmailAndPassword(auth, email, pwd);
+    document.getElementById('loginPassword').value = '';
+    afficherZoneTest(cred.user.email);
+  } catch (err) {
+    const messages = {
+      'auth/invalid-email': 'Email invalide',
+      'auth/user-not-found': 'Aucun compte avec cet email',
+      'auth/wrong-password': 'Mot de passe incorrect',
+      'auth/invalid-credential': 'Email ou mot de passe incorrect',
+      'auth/too-many-requests': 'Trop de tentatives. Réessayez plus tard.',
+      'auth/network-request-failed': 'Erreur réseau'
+    };
+    errEl.textContent = messages[err.code] || ('Erreur : ' + err.code);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔓 SE CONNECTER';
+  }
+};
+
+window.seDeconnecter = async function() {
+  if (running) {
+    if (!confirm('Un test est en cours. Arrêter et se déconnecter ?')) return;
+    running = false;
+  }
+  await signOut(auth);
+  document.getElementById('zoneLogin').style.display = 'block';
+  document.getElementById('zoneTest').style.display = 'none';
+  totalReads = 0; totalReq = 0; docsParReq = 0;
+  majUI();
+  document.getElementById('log').innerHTML = '';
+};
+
+function afficherZoneTest(email) {
+  document.getElementById('zoneLogin').style.display = 'none';
+  document.getElementById('zoneTest').style.display = 'block';
+  document.getElementById('userBadge').textContent = '✅ Connecté : ' + email;
+  log('✅ Authentifié en tant que ' + email, '#10b981');
+}
+
+// Reconnexion automatique si session Firebase déjà active
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    afficherZoneTest(user.email);
+  }
+});
+
+// ============ TEST DE QUOTA ============
 
 function log(msg, color) {
   const el = document.getElementById('log');
@@ -114,7 +211,6 @@ async function uneLecture(nomCollection) {
 }
 
 async function tirerUnCoup() {
-  // Lancer PARALLELE lectures simultanées
   const promesses = [];
   for (let i = 0; i < PARALLELE; i++) {
     const col = COLLECTIONS[i % COLLECTIONS.length];
@@ -126,10 +222,7 @@ async function tirerUnCoup() {
   }
   const resultats = await Promise.all(promesses);
   for (const r of resultats) {
-    if (!r.ok) {
-      erreur = r.err;
-      throw r.err;
-    }
+    if (!r.ok) throw r.err;
     totalReads += r.nb;
     totalReq++;
     if (r.nb > 0) docsParReq = r.nb;
@@ -148,30 +241,33 @@ async function boucle() {
       await tirerUnCoup();
 
       if (totalReads >= 50000 && totalReads - PARALLELE * docsParReq < 50000) {
-        log('🎯 50 000 lectures atteintes ! Le quota Spark est épuisé.', '#f59e0b');
+        log('🎯 50 000 lectures atteintes !', '#f59e0b');
         document.getElementById('status').innerHTML =
-          '<div class="ok">🎯 50 000 ATTEINTS — Continuez pour forcer l\'erreur RESOURCE_EXHAUSTED</div>';
+          '<div class="ok">🎯 50 000 ATTEINTS — Continuez pour voir l\'erreur RESOURCE_EXHAUSTED</div>';
       }
-
       if (totalReads >= 100000) {
-        log('🔥 100 000 lectures — si aucune erreur, le quota est réinitialisé ou plan Blaze actif.', '#ef4444');
+        log('🔥 100 000 lectures — si aucune erreur, plan Blaze actif ou quota réinitialisé.', '#ef4444');
       }
     } catch (err) {
       running = false;
       log('❌ ERREUR à ' + totalReads.toLocaleString('fr-FR') + ' lectures : ' + err.code, '#ef4444');
       log(err.message, '#fca5a5');
       document.getElementById('status').innerHTML =
-        '<div class="err">🚫 QUOTA ÉPUISÉ<br>Code : ' + (err.code || '?') + '<br><small>' + err.message + '</small></div>';
+        '<div class="err">🚫 ERREUR<br>Code : ' + (err.code || '?') + '<br><small>' + err.message + '</small></div>';
       break;
     }
   }
 }
 
 window.demarrer = async function() {
+  if (!auth.currentUser) {
+    alert('Connectez-vous d\'abord');
+    return;
+  }
   if (running) return;
   if (!confirm('⚠️ Ce test va épuiser le quota Firestore de netubexmoney.\nL\'app NeTubeX RDC sera HS jusqu\'à demain matin.\nContinuer ?')) return;
   running = true;
-  totalReads = 0; totalReq = 0; docsParReq = 0; erreur = null;
+  totalReads = 0; totalReq = 0; docsParReq = 0;
   majUI();
   document.getElementById('log').innerHTML = '';
   document.getElementById('status').textContent = 'Test en cours…';
