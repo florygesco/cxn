@@ -1,4 +1,3 @@
-```javascript
 window.CURRENT_ACCOUNT = window.CURRENT_ACCOUNT || null;
 window.CURRENT_ACCOUNT_REF = window.CURRENT_ACCOUNT_REF || null;
 function setCurrentAccount(acc){window.CURRENT_ACCOUNT=acc;window.CURRENT_ACCOUNT_REF=acc;}
