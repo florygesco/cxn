@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Test Quota Firestore - netubexmoney</title>
+<style>
+  body{font-family:system-ui,sans-serif;background:#0f172a;color:#fff;padding:30px;max-width:800px;margin:0 auto}
+  h1{color:#007fff}
+  .box{background:#1e293b;padding:20px;border-radius:12px;margin:15px 0}
+  .big{font-size:48px;font-weight:900;color:#10b981;text-align:center;margin:10px 0}
+  .err{color:#ef4444;font-weight:900;text-align:center;font-size:20px;padding:15px;background:#7f1d1d;border-radius:10px;margin:10px 0}
+  button{padding:14px 28px;border:none;border-radius:10px;font-size:16px;font-weight:800;cursor:pointer;margin:5px}
+  .start{background:#10b981;color:#fff}
+  .stop{background:#ef4444;color:#fff}
+  .warn{background:#fef3c7;color:#78350f;padding:14px;border-radius:10px;font-size:14px;line-height:1.6;margin:15px 0}
+  pre{background:#000;padding:12px;border-radius:8px;overflow-x:auto;font-size:12px;max-height:200px}
+</style>
+</head>
+<body>
+<h1>🧪 Test Quota Firestore — netubexmoney</h1>
+
+<div class="warn">
+<strong>⚠️ ATTENTION :</strong> Ce test va consommer massivement le quota Firestore du projet <strong>netubexmoney</strong>.<br>
+Si le quota (50 000 lectures/jour) est dépassé, <strong>toute votre app NeTubeX RDC en production sera bloquée</strong> jusqu'à minuit heure du Pacifique.<br>
+Ne lancez ce test que si vous acceptez ce risque, et de préférence en fin de journée.
+</div>
+
+<div class="box">
+  <div>Lectures effectuées :</div>
+  <div class="big" id="counter">0</div>
+  <div id="status" style="text-align:center;color:#94a3b8">En attente…</div>
+</div>
+
+<div class="box" style="text-align:center">
+  <button class="start" id="startBtn" onclick="demarrer()">▶ DÉMARRER LE TEST</button>
+  <button class="stop" onclick="arreter()">⏹ ARRÊTER</button>
+</div>
+
+<div class="box">
+  <div style="margin-bottom:8px;font-weight:800">Log :</div>
+  <pre id="log"></pre>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, getDocs, query, limit } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB_GdmPBnWl3w6g99j1cGO7vxDdxmKr4QA",
+  authDomain: "netubexmoney.firebaseapp.com",
+  databaseURL: "https://netubexmoney-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "netubexmoney",
+  storageBucket: "netubexmoney.firebasestorage.app",
+  messagingSenderId: "856592608176",
+  appId: "1:856592608176:web:69f9df9cfd4f8c28630475"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let totalReads = 0;
+let running = false;
+let erreurDetectee = null;
+
+function log(msg, color) {
+  const el = document.getElementById('log');
+  const line = document.createElement('div');
+  line.style.color = color || '#94a3b8';
+  line.textContent = '[' + new Date().toLocaleTimeString('fr-FR') + '] ' + msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+  // Garder max 300 lignes
+  while (el.children.length > 300) el.removeChild(el.firstChild);
+}
+
+function majCounter() {
+  document.getElementById('counter').textContent = totalReads.toLocaleString('fr-FR');
+}
+
+async function lireCollection(nomCollection) {
+  const colRef = collection(db, nomCollection);
+  const q = query(colRef, limit(500)); // 500 docs max par lecture
+  const snap = await getDocs(q);
+  return snap.size;
+}
+
+async function boucle() {
+  const collections = ['annonces', 'commerces', 'netubers', 'deblocages', 'phone_index'];
+  let i = 0;
+
+  while (running) {
+    const nom = collections[i % collections.length];
+    i++;
+    try {
+      const nb = await lireCollection(nom);
+      totalReads += nb;
+      majCounter();
+      log('✓ ' + nom + ' : ' + nb + ' lectures (total ' + totalReads.toLocaleString('fr-FR') + ')', '#10b981');
+      
+      if (totalReads >= 50000) {
+        document.getElementById('status').innerHTML =
+          '<span style="color:#f59e0b;font-weight:900">🎯 50 000 atteints ! Continuez pour voir si Firestore bloque…</span>';
+      }
+      if (totalReads >= 100000) {
+        log('🔥 100 000 lectures — le quota Spark est largement dépassé. Si aucune erreur, le quota est réinitialisé ou le cache intervient.', '#ef4444');
+      }
+    } catch (err) {
+      erreurDetectee = err;
+      running = false;
+      log('❌ ERREUR : ' + err.code + ' — ' + err.message, '#ef4444');
+      document.getElementById('status').innerHTML =
+        '<div class="err">QUOTA ÉPUISÉ — Code : ' + err.code + '<br><small>' + err.message + '</small></div>';
+      break;
+    }
+    // Petite pause pour ne pas saturer le réseau
+    await new Promise(r => setTimeout(r, 200));
+  }
+}
+
+window.demarrer = async function() {
+  if (running) return;
+  if (!confirm('Ce test va consommer le quota Firestore réel de netubexmoney. Continuer ?')) return;
+  running = true;
+  totalReads = 0;
+  erreurDetectee = null;
+  majCounter();
+  document.getElementById('log').innerHTML = '';
+  document.getElementById('status').textContent = 'Test en cours…';
+  log('▶ Démarrage du test sur le projet netubexmoney', '#007fff');
+  log('Collections ciblées : annonces, commerces, netubers, deblocages, phone_index', '#94a3b8');
+  await boucle();
+  log('⏹ Test terminé. Total : ' + totalReads.toLocaleString('fr-FR') + ' lectures', '#f59e0b');
+  document.getElementById('status').textContent = 'Terminé — ' + totalReads.toLocaleString('fr-FR') + ' lectures';
+};
+
+window.arreter = function() {
+  running = false;
+  document.getElementById('status').textContent = 'Arrêté manuellement à ' + totalReads.toLocaleString('fr-FR') + ' lectures';
+  log('⏹ Arrêt manuel', '#f59e0b');
+};
+</script>
+</body>
+</html>
