@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Test QR Code — NeTubeX</title>
+<title>Test QR Code — NeTubeX (corrigé)</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:system-ui,sans-serif;background:#f4f6f9;padding:20px;color:#0f172a}
@@ -17,19 +17,21 @@ input:focus{border-color:#06b6d4;background:#fff}
 .btn{width:100%;padding:14px;border-radius:10px;background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;font-weight:700;border:none;cursor:pointer;font-size:14px;font-family:inherit;margin-top:8px}
 .btn:hover{opacity:.9}
 .btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-green{background:linear-gradient(135deg,#10b981,#059669)}
 .preview{margin-top:20px;padding:20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;text-align:center;min-height:180px;display:flex;align-items:center;justify-content:center}
 .preview img{max-width:250px;border-radius:8px;background:#fff;padding:10px}
-.status{margin-top:12px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600}
+.status{margin-top:12px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600;word-break:break-word}
 .status.ok{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7}
 .status.err{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
 .status.info{background:#dbeafe;color:#1e40af;border:1px solid #93c5fd}
+.debug{margin-top:16px;padding:12px;background:#0f172a;color:#e2e8f0;border-radius:8px;font-family:monospace;font-size:11px;line-height:1.6;max-height:150px;overflow-y:auto}
 </style>
 </head>
 <body>
 
 <div class="card">
-  <h1>🧪 Test QR Code</h1>
-  <p class="sub">Ce test vérifie que la bibliothèque qrcode + jsPDF fonctionne.</p>
+  <h1>🧪 Test QR Code — Version corrigée</h1>
+  <p class="sub">Bibliothèque qrcode@1.5.1 (contient encore le fichier build/qrcode.min.js)</p>
 
   <div class="field">
     <label>URL à encoder</label>
@@ -45,76 +47,113 @@ input:focus{border-color:#06b6d4;background:#fff}
   </div>
 
   <button class="btn" id="btnTest1">📱 Test 1 — Afficher le QR Code</button>
-  <button class="btn" id="btnTest2" style="background:linear-gradient(135deg,#10b981,#059669)">📄 Test 2 — Générer le PDF</button>
+  <button class="btn btn-green" id="btnTest2">📄 Test 2 — Générer le PDF</button>
 
   <div class="preview" id="preview">
     <p style="color:#94a3b8;font-size:13px">Le QR code apparaîtra ici</p>
   </div>
 
   <div id="status"></div>
+  <div class="debug" id="debug"></div>
 </div>
 
-<!-- Bibliothèques -->
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<!-- ✅ VERSION CORRIGÉE : 1.5.1 contient encore le dossier build/ -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+
+<!-- Fallback automatique si jsDelivr échoue -->
+<script>
+if (typeof QRCode === 'undefined') {
+  document.write('<script src="https://unpkg.com/qrcode@1.5.1/build/qrcode.min.js"><\/script>');
+}
+</script>
+
+<!-- jsPDF -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
 <script>
 const preview = document.getElementById('preview');
-const status = document.getElementById('status');
+const statusEl = document.getElementById('status');
+const debugEl = document.getElementById('debug');
 
-function showStatus(msg, type) {
-  status.className = 'status ' + type;
-  status.textContent = msg;
+function log(msg) {
+  debugEl.innerHTML += msg + '<br>';
+  console.log(msg);
 }
 
+function showStatus(msg, type) {
+  statusEl.className = 'status ' + type;
+  statusEl.textContent = msg;
+}
+
+// Vérification au chargement
+window.addEventListener('load', function() {
+  debugEl.innerHTML = '';
+  log('=== VÉRIFICATION ===');
+  log('QRCode: ' + typeof QRCode);
+  if (typeof QRCode !== 'undefined') {
+    log('QRCode.toDataURL: ' + typeof QRCode.toDataURL);
+  }
+  log('jsPDF: ' + typeof window.jspdf);
+  if (window.jspdf) {
+    log('jsPDF.jsPDF: ' + typeof window.jspdf.jsPDF);
+  }
+
+  if (typeof QRCode === 'undefined') {
+    showStatus('❌ QRCode non chargé. Vérifiez votre connexion Internet.', 'err');
+  } else if (!window.jspdf) {
+    showStatus('❌ jsPDF non chargé. Vérifiez votre connexion Internet.', 'err');
+  } else {
+    showStatus('✅ Bibliothèques prêtes. Cliquez sur un bouton.', 'info');
+  }
+});
+
 // ============================================================
-// TEST 1 : Générer uniquement le QR code en image
-// ============================================================
-document.getElementById('btnTest1').onclick = async function() {
-  const url = document.getElementById('qrUrl').value.trim();
+// TEST 1 : Générer');
+ uniquement le QR code
+// =========================================================   ===
+document.getElementById('btnTest1 }').onclick = async function() {
+  const catch url = document.getElementById('qrUrl').value.trim();
   if (!url) { showStatus('URL vide', 'err'); return; }
-  
+
   const btn = this;
   btn.disabled = true;
   showStatus('⏳ Génération du QR code…', 'info');
-  
+  debugEl.innerHTML = '';
+
   try {
-    // Vérifier que QRCode existe
     if (typeof QRCode === 'undefined') {
-      throw new Error('QRCode non chargé (vérifiez la connexion)');
+      throw new Error('QRCode non chargé');
     }
-    console.log('QRCode version:', typeof QRCode, Object.keys(QRCode));
-    
-    // Méthode 1 : essayer toDataURL avec await (Promise)
+    log('QRCode.toDataURL type: ' + typeof QRCode.toDataURL);
+
     let dataUrl;
     try {
+      // Méthode Promise (moderne)
       dataUrl = await QRCode.toDataURL(url, {
         width: 400,
         margin: 2,
         color: { dark: '#007fff', light: '#ffffff' },
         errorCorrectionLevel: 'H'
       });
-      console.log('toDataURL (Promise) OK:', dataUrl.substring(0, 50));
-    } catch (e1) {
-      console.warn('toDataURL (Promise) échoué, essai callback:', e1.message);
-      // Méthode 2 : callback
+      log('Promise OK (e1) {
+      log('Promise échoué: ' + e1.message);
+      // Fallback callback (anciennes versions)
       dataUrl = await new Promise((resolve, reject) => {
-        QRCode.toDataURL(url, { width: 400, margin: 2 }, (err, url2) => {
-          if (err) reject(err);
-          else resolve(url2);
+        QRCode.toDataURL(url, { width: 400, margin: 2 }, (err, u) => {
+          if (err) reject(err); else resolve(u);
         });
       });
-      console.log('toDataURL (callback) OK:', dataUrl.substring(0, 50));
+      log('Callback OK');
     }
-    
+
     if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image')) {
       throw new Error('DataURL invalide: ' + typeof dataUrl);
     }
-    
+
     preview.innerHTML = '<img src="' + dataUrl + '" alt="QR Code">';
     showStatus('✅ QR code généré avec succès !', 'ok');
   } catch (err) {
-    console.error('Erreur test 1:', err);
+    log('ERREUR: ' + err.message);
     showStatus('❌ Erreur : ' + err.message, 'err');
     preview.innerHTML = '<p style="color:#ef4444;font-size:13px">Échec de génération</p>';
   } finally {
@@ -123,36 +162,33 @@ document.getElementById('btnTest1').onclick = async function() {
 };
 
 // ============================================================
-// TEST 2 : Générer le PDF complet avec QR code + texte
+// TEST 2 : Générer le PDF complet
 // ============================================================
 document.getElementById('btnTest2').onclick = async function() {
   const url = document.getElementById('qrUrl').value.trim();
   const nom = document.getElementById('qrNom').value.trim() || 'Boutique';
   const ville = document.getElementById('qrVille').value.trim();
-  
+
   if (!url) { showStatus('URL vide', 'err'); return; }
-  
+
   const btn = this;
   btn.disabled = true;
   showStatus('⏳ Génération du PDF…', 'info');
-  
+  debugEl.innerHTML = '';
+
   try {
-    // Vérifier jsPDF
     if (!window.jspdf || !window.jspdf.jsPDF) {
       throw new Error('jsPDF non chargé');
     }
-    
-    // Vérifier QRCode
     if (typeof QRCode === 'undefined') {
       throw new Error('QRCode non chargé');
     }
-    
-    // 1. Générer le QR en image
+
+    // 1. Générer le QR
     let qrDataUrl;
     try {
       qrDataUrl = await QRCode.toDataURL(url, {
-        width: 800,
-        margin: 2,
+        width: 800, margin: 2,
         color: { dark: '#007fff', light: '#ffffff' },
         errorCorrectionLevel: 'H'
       });
@@ -163,18 +199,18 @@ document.getElementById('btnTest2').onclick = async function() {
         });
       });
     }
-    
+
     if (!qrDataUrl) throw new Error('QR vide');
-    
-    // Afficher aperçu aussi
+
     preview.innerHTML = '<img src="' + qrDataUrl + '" alt="QR Code">';
-    
-    // 2. Créer le PDF (format A5)
+    log('QR OK');
+
+    // 2. Créer le PDF (A5)
     const JSPDF = window.jspdf.jsPDF;
     const pdf = new JSPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
     const W = 148, H = 210;
-    
-    // En-tête bleu
+
+    // En-tête
     pdf.setFillColor(0, 127, 255);
     pdf.rect(0, 0, W, 32, 'F');
     pdf.setTextColor(255, 255, 255);
@@ -184,21 +220,21 @@ document.getElementById('btnTest2').onclick = async function() {
     pdf.setFontSize(9);
     pdf.setFont('helvetica', 'normal');
     pdf.text('Commandez en 1 clic', W / 2, 21, { align: 'center' });
-    
-    // Nom du commerce
+
+    // Nom
     pdf.setTextColor(15, 23, 42);
     pdf.setFontSize(15);
     pdf.setFont('helvetica', 'bold');
     const nomAffiche = nom.length > 28 ? nom.slice(0, 26) + '…' : nom;
     pdf.text(nomAffiche, W / 2, 48, { align: 'center' });
-    
+
     // Ville
     pdf.setFontSize(10);
     pdf.setFont('helvetica', 'normal');
     pdf.setTextColor(100, 116, 139);
     pdf.text(ville, W / 2, 56, { align: 'center' });
-    
-    // QR code dans un cadre
+
+    // QR code
     const qrSize = 70;
     const qrX = (W - qrSize) / 2;
     const qrY = 65;
@@ -207,8 +243,8 @@ document.getElementById('btnTest2').onclick = async function() {
     pdf.setLineWidth(0.5);
     pdf.roundedRect(qrX - 3, qrY - 3, qrSize + 6, qrSize + 6, 3, 3, 'FD');
     pdf.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
-    
-    // Texte sous le QR
+
+    // Textes
     pdf.setTextColor(0, 127, 255);
     pdf.setFontSize(13);
     pdf.setFont('helvetica', 'bold');
@@ -216,57 +252,35 @@ document.getElementById('btnTest2').onclick = async function() {
     pdf.setTextColor(15, 23, 42);
     pdf.setFontSize(11);
     pdf.text('en 1 clic !', W / 2, 159, { align: 'center' });
-    
+
     // Avantages
     pdf.setFontSize(9);
     pdf.setFont('helvetica', 'normal');
     pdf.setTextColor(71, 85, 105);
-    const avantages = ['•  Produits vérifiés NeTubeX', '•  Livraison rapide à domicile', '•  Paiement à la livraison'];
-    avantages.forEach(function(txt, i) {
+    ['•  Produits vérifiés NeTubeX', '•  Livraison rapide à domicile', '•  Paiement à la livraison'].forEach(function(txt, i) {
       pdf.text(txt, W / 2, 172 + i * 6, { align: 'center' });
     });
-    
-    // Pied de page
+
+    // Pied
     pdf.setFillColor(241, 245, 249);
     pdf.rect(0, H - 12, W, 12, 'F');
     pdf.setTextColor(100, 116, 139);
     pdf.setFontSize(8);
     pdf.text('www.netubex.com/rdc', W / 2, H - 4.5, { align: 'center' });
-    
+
     // Télécharger
     const nomFichier = 'QR-' + nom.replace(/[^\w\-]/g, '_').slice(0, 30) + '.pdf';
     pdf.save(nomFichier);
-    
-    showStatus('✅ PDF généré et téléchargé : ' + nomFichier, 'ok');
+
+    showStatus('✅ PDF généré : ' + nomFichier, 'ok');
+    log('PDF sauvegardé');
   } catch (err) {
-    console.error('Erreur test 2:', err);
+    log('ERREUR PDF: ' + err.message);
     showStatus('❌ Erreur : ' + err.message, 'err');
   } finally {
     btn.disabled = false;
   }
 };
-
-// Vérification au chargement
-window.addEventListener('load', function() {
-  console.log('=== VÉRIFICATION DES BIBLIOTHÈQUES ===');
-  console.log('QRCode:', typeof QRCode);
-  if (typeof QRCode !== 'undefined') {
-    console.log('QRCode.toDataURL:', typeof QRCode.toDataURL);
-    console.log('QRCode.toCanvas:', typeof QRCode.toCanvas);
-  }
-  console.log('jsPDF:', typeof window.jspdf);
-  if (window.jspdf) {
-    console.log('jsPDF.jsPDF:', typeof window.jspdf.jsPDF);
-  }
-  
-  if (typeof QRCode === 'undefined') {
-    showStatus('⚠️ QRCode non chargé — vérifiez votre connexion Internet', 'err');
-  } else if (!window.jspdf) {
-    showStatus('⚠️ jsPDF non chargé — vérifiez votre connexion Internet', 'err');
-  } else {
-    showStatus('✅ Bibliothèques prêtes. Cliquez sur un bouton de test.', 'info');
-  }
-});
 </script>
 
 </body>
