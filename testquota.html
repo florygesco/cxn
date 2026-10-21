@@ -2,42 +2,55 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Test Quota Firestore - netubexmoney</title>
+<title>Test Quota Firestore RAPIDE - netubexmoney</title>
 <style>
-  body{font-family:system-ui,sans-serif;background:#0f172a;color:#fff;padding:30px;max-width:800px;margin:0 auto}
-  h1{color:#007fff}
-  .box{background:#1e293b;padding:20px;border-radius:12px;margin:15px 0}
-  .big{font-size:48px;font-weight:900;color:#10b981;text-align:center;margin:10px 0}
-  .err{color:#ef4444;font-weight:900;text-align:center;font-size:20px;padding:15px;background:#7f1d1d;border-radius:10px;margin:10px 0}
-  button{padding:14px 28px;border:none;border-radius:10px;font-size:16px;font-weight:800;cursor:pointer;margin:5px}
+  body{font-family:system-ui,sans-serif;background:#0f172a;color:#fff;padding:20px;max-width:900px;margin:0 auto}
+  h1{color:#007fff;font-size:22px}
+  .box{background:#1e293b;padding:20px;border-radius:12px;margin:12px 0}
+  .big{font-size:56px;font-weight:900;color:#10b981;text-align:center;margin:5px 0;font-variant-numeric:tabular-nums}
+  .sub{text-align:center;color:#94a3b8;font-size:13px}
+  .err{color:#fff;font-weight:900;text-align:center;font-size:18px;padding:15px;background:#7f1d1d;border-radius:10px;margin:10px 0}
+  .ok{background:#065f46;color:#fff;font-weight:900;text-align:center;font-size:18px;padding:15px;border-radius:10px;margin:10px 0}
+  button{padding:16px 32px;border:none;border-radius:10px;font-size:16px;font-weight:800;cursor:pointer;margin:5px}
   .start{background:#10b981;color:#fff}
   .stop{background:#ef4444;color:#fff}
-  .warn{background:#fef3c7;color:#78350f;padding:14px;border-radius:10px;font-size:14px;line-height:1.6;margin:15px 0}
-  pre{background:#000;padding:12px;border-radius:8px;overflow-x:auto;font-size:12px;max-height:200px}
+  .warn{background:#fef3c7;color:#78350f;padding:14px;border-radius:10px;font-size:13px;line-height:1.6;margin:12px 0}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0}
+  .stat{background:#0f172a;padding:12px;border-radius:8px;text-align:center}
+  .stat-v{font-size:22px;font-weight:900;color:#007fff}
+  .stat-l{font-size:11px;color:#94a3b8;text-transform:uppercase}
+  pre{background:#000;padding:10px;border-radius:8px;overflow-x:auto;font-size:11px;max-height:180px;line-height:1.5}
 </style>
 </head>
 <body>
-<h1>🧪 Test Quota Firestore — netubexmoney</h1>
+<h1>⚡ Test Quota Firestore — RAPIDE — netubexmoney</h1>
 
 <div class="warn">
-<strong>⚠️ ATTENTION :</strong> Ce test va consommer massivement le quota Firestore du projet <strong>netubexmoney</strong>.<br>
-Si le quota (50 000 lectures/jour) est dépassé, <strong>toute votre app NeTubeX RDC en production sera bloquée</strong> jusqu'à minuit heure du Pacifique.<br>
-Ne lancez ce test que si vous acceptez ce risque, et de préférence en fin de journée.
+<strong>⚠️ RISQUE :</strong> Ce test va épuiser le quota Firestore (50 000 lectures/jour) du projet <strong>netubexmoney</strong> en quelques secondes.<br>
+Après quoi, <strong>toute l'app NeTubeX RDC sera hors service</strong> jusqu'à ~07h-08h (heure Kinshasa). À lancer uniquement si vous acceptez ce risque.
 </div>
 
 <div class="box">
-  <div>Lectures effectuées :</div>
   <div class="big" id="counter">0</div>
-  <div id="status" style="text-align:center;color:#94a3b8">En attente…</div>
+  <div class="sub">lectures Firestore effectuées</div>
+  <div id="status" style="text-align:center;color:#94a3b8;margin-top:10px">En attente…</div>
+</div>
+
+<div class="box">
+  <div class="stats">
+    <div class="stat"><div class="stat-v" id="sReq">0</div><div class="stat-l">Requêtes</div></div>
+    <div class="stat"><div class="stat-v" id="sDocs">0</div><div class="stat-l">Docs/req</div></div>
+    <div class="stat"><div class="stat-v" id="sSpeed">0</div><div class="stat-l">Lectures/s</div></div>
+  </div>
 </div>
 
 <div class="box" style="text-align:center">
-  <button class="start" id="startBtn" onclick="demarrer()">▶ DÉMARRER LE TEST</button>
+  <button class="start" onclick="demarrer()">🚀 DÉMARRER (50 lectures parallèles)</button>
   <button class="stop" onclick="arreter()">⏹ ARRÊTER</button>
 </div>
 
 <div class="box">
-  <div style="margin-bottom:8px;font-weight:800">Log :</div>
+  <div style="margin-bottom:6px;font-weight:800;font-size:13px">Log :</div>
   <pre id="log"></pre>
 </div>
 
@@ -58,9 +71,19 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-let totalReads = 0;
+// PARALLÉLISME : combien de getDocs simultanés
+const PARALLELE = 50;
+
+// Collections à lire (avec de préférence beaucoup de docs)
+const COLLECTIONS = ['annonces', 'commerces', 'netubers', 'deblocages', 'phone_index', 'demandes_boutiques'];
+
 let running = false;
-let erreurDetectee = null;
+let totalReads = 0;
+let totalReq = 0;
+let docsParReq = 0;
+let derniereMesure = 0;
+let dernierTotal = 0;
+let erreur = null;
 
 function log(msg, color) {
   const el = document.getElementById('log');
@@ -69,73 +92,96 @@ function log(msg, color) {
   line.textContent = '[' + new Date().toLocaleTimeString('fr-FR') + '] ' + msg;
   el.appendChild(line);
   el.scrollTop = el.scrollHeight;
-  // Garder max 300 lignes
-  while (el.children.length > 300) el.removeChild(el.firstChild);
+  while (el.children.length > 200) el.removeChild(el.firstChild);
 }
 
-function majCounter() {
+function majUI() {
   document.getElementById('counter').textContent = totalReads.toLocaleString('fr-FR');
+  document.getElementById('sReq').textContent = totalReq.toLocaleString('fr-FR');
+  document.getElementById('sDocs').textContent = docsParReq;
+  const t = Date.now();
+  if (t - derniereMesure > 1000) {
+    const vitesse = Math.round((totalReads - dernierTotal) / ((t - derniereMesure) / 1000));
+    document.getElementById('sSpeed').textContent = vitesse.toLocaleString('fr-FR');
+    derniereMesure = t;
+    dernierTotal = totalReads;
+  }
 }
 
-async function lireCollection(nomCollection) {
-  const colRef = collection(db, nomCollection);
-  const q = query(colRef, limit(500)); // 500 docs max par lecture
-  const snap = await getDocs(q);
+async function uneLecture(nomCollection) {
+  const snap = await getDocs(query(collection(db, nomCollection), limit(500)));
   return snap.size;
 }
 
+async function tirerUnCoup() {
+  // Lancer PARALLELE lectures simultanées
+  const promesses = [];
+  for (let i = 0; i < PARALLELE; i++) {
+    const col = COLLECTIONS[i % COLLECTIONS.length];
+    promesses.push(
+      uneLecture(col)
+        .then(nb => ({ ok: true, nb, col }))
+        .catch(err => ({ ok: false, err, col }))
+    );
+  }
+  const resultats = await Promise.all(promesses);
+  for (const r of resultats) {
+    if (!r.ok) {
+      erreur = r.err;
+      throw r.err;
+    }
+    totalReads += r.nb;
+    totalReq++;
+    if (r.nb > 0) docsParReq = r.nb;
+  }
+  majUI();
+}
+
 async function boucle() {
-  const collections = ['annonces', 'commerces', 'netubers', 'deblocages', 'phone_index'];
-  let i = 0;
+  log('▶ Démarrage — ' + PARALLELE + ' requêtes parallèles par cycle', '#007fff');
+  log('Collections : ' + COLLECTIONS.join(', '), '#94a3b8');
+  derniereMesure = Date.now();
+  dernierTotal = 0;
 
   while (running) {
-    const nom = collections[i % collections.length];
-    i++;
     try {
-      const nb = await lireCollection(nom);
-      totalReads += nb;
-      majCounter();
-      log('✓ ' + nom + ' : ' + nb + ' lectures (total ' + totalReads.toLocaleString('fr-FR') + ')', '#10b981');
-      
-      if (totalReads >= 50000) {
+      await tirerUnCoup();
+
+      if (totalReads >= 50000 && totalReads - PARALLELE * docsParReq < 50000) {
+        log('🎯 50 000 lectures atteintes ! Le quota Spark est épuisé.', '#f59e0b');
         document.getElementById('status').innerHTML =
-          '<span style="color:#f59e0b;font-weight:900">🎯 50 000 atteints ! Continuez pour voir si Firestore bloque…</span>';
+          '<div class="ok">🎯 50 000 ATTEINTS — Continuez pour forcer l\'erreur RESOURCE_EXHAUSTED</div>';
       }
+
       if (totalReads >= 100000) {
-        log('🔥 100 000 lectures — le quota Spark est largement dépassé. Si aucune erreur, le quota est réinitialisé ou le cache intervient.', '#ef4444');
+        log('🔥 100 000 lectures — si aucune erreur, le quota est réinitialisé ou plan Blaze actif.', '#ef4444');
       }
     } catch (err) {
-      erreurDetectee = err;
       running = false;
-      log('❌ ERREUR : ' + err.code + ' — ' + err.message, '#ef4444');
+      log('❌ ERREUR à ' + totalReads.toLocaleString('fr-FR') + ' lectures : ' + err.code, '#ef4444');
+      log(err.message, '#fca5a5');
       document.getElementById('status').innerHTML =
-        '<div class="err">QUOTA ÉPUISÉ — Code : ' + err.code + '<br><small>' + err.message + '</small></div>';
+        '<div class="err">🚫 QUOTA ÉPUISÉ<br>Code : ' + (err.code || '?') + '<br><small>' + err.message + '</small></div>';
       break;
     }
-    // Petite pause pour ne pas saturer le réseau
-    await new Promise(r => setTimeout(r, 200));
   }
 }
 
 window.demarrer = async function() {
   if (running) return;
-  if (!confirm('Ce test va consommer le quota Firestore réel de netubexmoney. Continuer ?')) return;
+  if (!confirm('⚠️ Ce test va épuiser le quota Firestore de netubexmoney.\nL\'app NeTubeX RDC sera HS jusqu\'à demain matin.\nContinuer ?')) return;
   running = true;
-  totalReads = 0;
-  erreurDetectee = null;
-  majCounter();
+  totalReads = 0; totalReq = 0; docsParReq = 0; erreur = null;
+  majUI();
   document.getElementById('log').innerHTML = '';
   document.getElementById('status').textContent = 'Test en cours…';
-  log('▶ Démarrage du test sur le projet netubexmoney', '#007fff');
-  log('Collections ciblées : annonces, commerces, netubers, deblocages, phone_index', '#94a3b8');
   await boucle();
-  log('⏹ Test terminé. Total : ' + totalReads.toLocaleString('fr-FR') + ' lectures', '#f59e0b');
-  document.getElementById('status').textContent = 'Terminé — ' + totalReads.toLocaleString('fr-FR') + ' lectures';
+  log('⏹ Fin. Total : ' + totalReads.toLocaleString('fr-FR') + ' lectures sur ' + totalReq.toLocaleString('fr-FR') + ' requêtes', '#f59e0b');
 };
 
 window.arreter = function() {
   running = false;
-  document.getElementById('status').textContent = 'Arrêté manuellement à ' + totalReads.toLocaleString('fr-FR') + ' lectures';
+  document.getElementById('status').textContent = 'Arrêté à ' + totalReads.toLocaleString('fr-FR') + ' lectures';
   log('⏹ Arrêt manuel', '#f59e0b');
 };
 </script>
