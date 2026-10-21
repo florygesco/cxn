@@ -1,243 +1,106 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Générateur de QR Code</title>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      padding: 20px;
-      font-family: Arial, sans-serif;
-      background: #f1f5f9;
-      color: #1e293b;
-    }
-
-    .app {
-      max-width: 420px;
-      margin: 35px auto;
-      padding: 25px;
-      background: white;
-      border-radius: 18px;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.08);
-      text-align: center;
-    }
-
-    .logo {
-      width: 60px;
-      height: 60px;
-      margin: 0 auto 12px;
-      border-radius: 15px;
-      background: #e0f2fe;
-      color: #0369a1;
-      display: grid;
-      place-items: center;
-      font-size: 30px;
-    }
-
-    h1 {
-      font-size: 23px;
-      margin-bottom: 8px;
-    }
-
-    .description {
-      color: #64748b;
-      font-size: 14px;
-      line-height: 1.5;
-      margin-bottom: 24px;
-    }
-
-    textarea {
-      width: 100%;
-      height: 110px;
-      padding: 13px;
-      border: 1px solid #cbd5e1;
-      border-radius: 10px;
-      resize: vertical;
-      font-size: 15px;
-      outline: none;
-    }
-
-    textarea:focus {
-      border-color: #0284c7;
-    }
-
-    button {
-      width: 100%;
-      padding: 13px;
-      margin-top: 12px;
-      border: none;
-      border-radius: 10px;
-      font-size: 15px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    .generate {
-      background: #0284c7;
-      color: white;
-    }
-
-    .generate:hover {
-      background: #0369a1;
-    }
-
-    .download {
-      background: #16a34a;
-      color: white;
-      display: none;
-    }
-
-    .clear {
-      background: #e2e8f0;
-      color: #334155;
-    }
-
-    #qr-container {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 20px;
-      margin: 22px 0 10px;
-    }
-
-    #qr-container img,
-    #qr-container canvas {
-      max-width: 100%;
-      height: auto;
-    }
-
-    #message {
-      color: #dc2626;
-      font-size: 13px;
-      margin-top: 10px;
-    }
-
-    footer {
-      margin-top: 25px;
-      font-size: 12px;
-      color: #94a3b8;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Test QR — qrcodejs</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<style>
+body{font-family:system-ui;padding:20px;background:#f1f5f9}
+.card{max-width:500px;margin:auto;background:#fff;padding:24px;border-radius:14px;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+button{width:100%;padding:14px;margin-top:10px;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px}
+#btn1{background:#06b6d4;color:#fff}
+#btn2{background:#10b981;color:#fff}
+#qr{display:flex;justify-content:center;margin:20px 0;min-height:240px}
+#msg{margin-top:12px;padding:10px;border-radius:8px;font-size:13px;text-align:center}
+</style>
 </head>
-
 <body>
+<div class="card">
+  <h2>Test QR Code (qrcodejs)</h2>
+  <button id="btn1" onclick="testQR()">1️⃣ Afficher le QR</button>
+  <button id="btn2" onclick="testPDF()">2️⃣ Générer le PDF</button>
+  <div id="qr"></div>
+  <div id="msg"></div>
+</div>
 
-  <main class="app">
-    <div class="logo">▦</div>
+<script>
+const url = 'https://www.netubex.com/rdc?boutique=COM-TEST';
+const nom = 'Supermarché Test';
 
-    <h1>Générateur de QR Code</h1>
+function showMsg(txt, ok) {
+  const el = document.getElementById('msg');
+  el.textContent = txt;
+  el.style.background = ok ? '#d1fae5' : '#fee2e2';
+  el.style.color = ok ? '#065f46' : '#991b1b';
+}
 
-    <p class="description">
-      Transformez un texte, un lien ou une information
-      en QR code en quelques secondes.
-    </p>
+function testQR() {
+  const container = document.getElementById('qr');
+  container.innerHTML = '';
+  if (typeof QRCode === 'undefined') {
+    showMsg('❌ QRCode non chargé', false);
+    return;
+  }
+  new QRCode(container, {
+    text: url,
+    width: 240,
+    height: 240,
+    colorDark: '#007fff',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+  showMsg('✅ QR code affiché', true);
+}
 
-    <textarea
-      id="content"
-      placeholder="Entrez votre texte, lien ou numéro ici..."
-    ></textarea>
+async function testPDF() {
+  if (typeof QRCode === 'undefined') { showMsg('❌ QRCode non chargé', false); return; }
+  if (!window.jspdf || !window.jspdf.jsPDF) { showMsg('❌ jsPDF non chargé', false); return; }
 
-    <button class="generate" onclick="generateQR()">
-      Générer le QR Code
-    </button>
+  const tempDiv = document.createElement('div');
+  tempDiv.style.position = 'absolute';
+  tempDiv.style.left = '-9999px';
+  document.body.appendChild(tempDiv);
 
-    <div id="message"></div>
+  new QRCode(tempDiv, {
+    text: url, width: 800, height: 800,
+    colorDark: '#007fff', colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
 
-    <div id="qr-container"></div>
+  await new Promise(r => setTimeout(r, 150));
 
-    <button id="download" class="download" onclick="downloadQR()">
-      Télécharger en PNG
-    </button>
+  const canvas = tempDiv.querySelector('canvas');
+  const img = tempDiv.querySelector('img');
+  let qrDataUrl = canvas ? canvas.toDataURL('image/png') : (img ? img.src : '');
+  document.body.removeChild(tempDiv);
 
-    <button class="clear" onclick="clearQR()">
-      Effacer
-    </button>
+  if (!qrDataUrl) { showMsg('❌ QR vide', false); return; }
 
-    <footer>
-      Générateur de QR Code · Simple et gratuit
-    </footer>
-  </main>
+  const JSPDF = window.jspdf.jsPDF;
+  const pdf = new JSPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
+  const W = 148, H = 210;
 
-  <script>
-    const content = document.getElementById("content");
-    const container = document.getElementById("qr-container");
-    const message = document.getElementById("message");
-    const downloadButton = document.getElementById("download");
+  pdf.setFillColor(0, 127, 255); pdf.rect(0, 0, W, 32, 'F');
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFontSize(16); pdf.setFont('helvetica', 'bold');
+  pdf.text('NeTubeX RDC', W/2, 14, { align: 'center' });
+  pdf.setFontSize(9); pdf.setFont('helvetica', 'normal');
+  pdf.text('Commandez en 1 clic', W/2, 21, { align: 'center' });
 
-    let qrCode = null;
+  pdf.setTextColor(15, 23, 42); pdf.setFontSize(15); pdf.setFont('helvetica', 'bold');
+  pdf.text(nom, W/2, 48, { align: 'center' });
 
-    function generateQR() {
-      const text = content.value.trim();
+  pdf.setFillColor(255, 255, 255); pdf.setDrawColor(226, 232, 240);
+  pdf.roundedRect((W-70)/2-3, 62, 76, 76, 3, 3, 'FD');
+  pdf.addImage(qrDataUrl, 'PNG', (W-70)/2, 65, 70, 70);
 
-      container.innerHTML = "";
-      message.textContent = "";
-      downloadButton.style.display = "none";
+  pdf.setTextColor(0, 127, 255); pdf.setFontSize(13);
+  pdf.text('Scannez et commandez', W/2, 152, { align: 'center' });
 
-      if (!text) {
-        message.textContent = "Veuillez saisir une information.";
-        return;
-      }
-
-      if (typeof QRCode === "undefined") {
-        message.textContent =
-          "Impossible de charger la bibliothèque. Vérifiez votre connexion Internet.";
-        return;
-      }
-
-      qrCode = new QRCode(container, {
-        text: text,
-        width: 240,
-        height: 240,
-        colorDark: "#000000",
-        colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.H
-      });
-
-      downloadButton.style.display = "block";
-    }
-
-    function downloadQR() {
-      const canvas = container.querySelector("canvas");
-      const image = container.querySelector("img");
-
-      let dataURL = "";
-
-      if (canvas) {
-        dataURL = canvas.toDataURL("image/png");
-      } else if (image && image.src) {
-        dataURL = image.src;
-      }
-
-      if (!dataURL) {
-        message.textContent = "Générez d'abord un QR code.";
-        return;
-      }
-
-      const link = document.createElement("a");
-      link.href = dataURL;
-      link.download = "mon-qr-code.png";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    }
-
-    function clearQR() {
-      content.value = "";
-      container.innerHTML = "";
-      message.textContent = "";
-      downloadButton.style.display = "none";
-      qrCode = null;
-    }
-  </script>
-
+  pdf.save('test-qr.pdf');
+  showMsg('✅ PDF téléchargé', true);
+}
+</script>
 </body>
 </html>
