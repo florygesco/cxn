@@ -8,6 +8,8 @@
 <title>Console — Direction Stratégie & Innovation</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script>
 (function(){
 'use strict';
@@ -274,6 +276,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 .search-box{position:relative;margin-bottom:12px}
 .search-box input{padding-left:38px}
 .search-box i{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-3)}
+.badge-confiance{display:inline-flex;align-items:center;gap:3px;padding:2px 7px 2px 4px;border-radius:999px;background:linear-gradient(135deg,#007fff,#00c2ff);color:#fff;font-size:9px;font-weight:900;letter-spacing:.3px;text-transform:uppercase;box-shadow:0 2px 6px rgba(0,127,255,.35);border:1.5px solid rgba(255,255,255,.35);margin-left:4px;vertical-align:middle;white-space:nowrap;flex-shrink:0}
+.badge-confiance .ntx-seal{width:11px;height:11px;flex-shrink:0;color:#fff}
+.badge-livraison{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:6px;background:rgba(16,185,129,.12);color:#059669;font-size:9px;font-weight:900;text-transform:uppercase;margin-top:4px;white-space:nowrap;display:block}
+.badge-livraison.off{background:rgba(100,116,139,.12);color:#64748b}
 @media(max-width:1024px){.sidebar{position:fixed;top:0;bottom:0;left:0;transform:translateX(-100%)}.sidebar.show{transform:translateX(0)}.menu-toggle{display:inline-flex}.content{padding:18px}.kpi-grid{grid-template-columns:repeat(2,1fr);gap:10px}}
 @media(max-width:640px){.topbar{padding:8px 14px;gap:10px}.topbar-title{font-size:14px}.topbar-subtitle{font-size:10px}.content{padding:12px}.page-title{font-size:17px}.page-subtitle{font-size:11.5px}.kpi-grid{grid-template-columns:1fr;gap:10px}.grid-2{grid-template-columns:1fr}.modal-box{padding:20px}.table{min-width:640px;font-size:12px}.toolbar input{min-width:0;width:100%}.toast-container{top:auto;bottom:16px;left:12px;right:12px;max-width:none}.toast{min-width:0;max-width:none;width:100%}.form-actions{flex-direction:column-reverse}.form-actions .btn{width:100%}.login-card{padding:28px 22px}.login-title{font-size:17px}}
 </style>
@@ -600,7 +606,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 <p id="alertMessage" style="font-size:13px;color:var(--text-2);line-height:1.65;text-align:center;margin-bottom:22px"></p>
 <div class="form-actions"><button class="btn btn-primary" id="alertOk" style="width:100%">Compris</button></div>
 </div></div>
-<input type="file" id="gcBulkImageInput" accept="image/*" multiple style="display:none"> <script type="importmap">
+<input type="file" id="gcBulkImageInput" accept="image/*" multiple style="display:none">
+<script type="importmap">
 {"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"}}
 </script>
 <script type="module">
@@ -750,6 +757,36 @@ window.adminConfirm=adminConfirm;
 window.adminAlert=adminAlert;
 window.notifierChangement=notifierChangement;
 function updateBadge(id,n){const el=document.getElementById(id);if(!el)return;if(n>0){el.textContent=n;el.style.display='inline-block';}else el.style.display='none';}
+function getBadgeConfianceAdminHTML(b){
+if(!b||b.badgeConfiance!==true)return'';
+return'<span class="badge-confiance" title="Confiance NeTubeX"><svg class="ntx-seal" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 1.5 L21 6.5 L21 17.5 L12 22.5 L3 17.5 L3 6.5 Z" fill="currentColor" opacity="0.18"/><path d="M12 1.5 L21 6.5 L21 17.5 L12 22.5 L3 17.5 L3 6.5 Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 8 L16 16 M16 8 L8 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18.5" cy="18.5" r="4" fill="#10b981" stroke="#fff" stroke-width="1.3"/><path d="M16.5 18.5 L18 20 L20.5 17" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Confiance</span>';
+}
+function getBadgeLivraisonAdminHTML(b){
+if(!b)return'';
+if(b.livraisonActive===false)return'<span class="badge-livraison off">🚚 Livraison off</span>';
+var c=b.configLivraison||{};
+var f=c.frais||0;var mp=c.minProduits||0;var mpp=c.minPrixPanier||0;
+if(!f&&!mp&&!mpp)return'<span class="badge-livraison">🚚 Livraison libre</span>';
+var parts=[];
+if(f)parts.push(f.toLocaleString('fr-FR')+' FC');
+if(mp)parts.push('min '+mp+' art.');
+if(mpp)parts.push('min '+mpp.toLocaleString('fr-FR')+' FC');
+return'<span class="badge-livraison">🚚 '+parts.join(' · ')+'</span>';
+}
+function getConfigLivraisonHTML(b){
+var c=(b&&b.configLivraison)||{};
+return '<div style="margin-top:14px;padding:14px;background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.18);border-radius:11px"><div style="font-size:11px;font-weight:900;color:#0891b2;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px"><i class="fas fa-truck-fast"></i> Configuration livraison</div><div class="grid-2"><div class="field" style="margin-bottom:0"><label style="font-size:10px">Frais livraison (FC)</label><input type="number" id="cfgFrais" min="0" value="'+(c.frais||0)+'" step="1"></div><div class="field" style="margin-bottom:0"><label style="font-size:10px">Min. produits</label><input type="number" id="cfgMinProduits" min="0" value="'+(c.minProduits||0)+'" step="1"></div></div><div class="field" style="margin-top:10px;margin-bottom:0"><label style="font-size:10px">Prix min. panier (FC)</label><input type="number" id="cfgMinPrixPanier" min="0" value="'+(c.minPrixPanier||0)+'" step="1"></div><div style="font-size:10px;color:var(--text-3);margin-top:8px;line-height:1.4">ℹ️ Conditions cumulatives. 0 = pas de minimum.</div></div>';
+}
+function readConfigLivraisonFromModal(container){
+var f=container.querySelector('#cfgFrais');
+var mp=container.querySelector('#cfgMinProduits');
+var mpp=container.querySelector('#cfgMinPrixPanier');
+return {
+frais: f?parseInt(f.value,10)||0:0,
+minProduits: mp?parseInt(mp.value,10)||0:0,
+minPrixPanier: mpp?parseInt(mpp.value,10)||0:0
+};
+}
 function renderPagination(id,total,current,onChange){
 const el=document.getElementById(id);
 if(!el)return;
@@ -846,7 +883,7 @@ renderRecentActivity();
 async function loadBoutiques(force){
 try{
 const list=await loadCollection('demandes_boutiques',force);
-boutiques=list.map(d=>({id:d.id,nom:d.nom||'',nomCommerce:d.nomCommerce||'',type:d.type||'',ville:d.ville||'',quartier:d.quartier||'',adresse:d.adresse||'',horaires:d.horaires||'',description:d.description||'',telephone:d.telephone||'',whatsappCommercial:d.whatsappCommercial||'',uid:d.uid||null,statut:d.statut||'en_attente',dateCreation:d.dateCreation||'',dateApprobation:d.dateApprobation||'',img:d.img||'',retraitActif:d.retraitActif!==false,livraisonActive:d.livraisonActive!==false}));
+boutiques=list.map(d=>({id:d.id,nom:d.nom||'',nomCommerce:d.nomCommerce||'',type:d.type||'',ville:d.ville||'',quartier:d.quartier||'',adresse:d.adresse||'',horaires:d.horaires||'',description:d.description||'',telephone:d.telephone||'',whatsappCommercial:d.whatsappCommercial||'',uid:d.uid||null,statut:d.statut||'en_attente',dateCreation:d.dateCreation||'',dateApprobation:d.dateApprobation||'',img:d.img||'',retraitActif:d.retraitActif!==false,livraisonActive:d.livraisonActive!==false,badgeConfiance:d.badgeConfiance===true,configLivraison:d.configLivraison||{frais:0,minProduits:0,minPrixPanier:0}}));
 boutiques.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
 renderBoutiques();
 updateBadge('badgeBoutiques',boutiques.filter(b=>b.statut==='en_attente').length);
@@ -973,7 +1010,7 @@ const now=new Date().toISOString();
 batch.update(doc(db,'demandes_boutiques',id),{statut:'approuve',dateApprobation:now});
 let uid=b.uid||null;
 if(uid){
-const boutiqueData={uid,nom:b.nomCommerce,nomCommerce:b.nomCommerce,type:b.type,ville:b.ville,quartier:b.quartier,adresse:b.adresse||'',horaires:b.horaires||'08h - 20h',description:b.description||'Découvrez notre catalogue.',telephone:b.telephone,whatsapp:b.whatsappCommercial||b.telephone,whatsappCommercial:b.whatsappCommercial||b.telephone,img:b.img||'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80',emoji:'🏪',statut:'approuve',dateCreation:b.dateCreation||now,dateApprobation:now,retraitActif:true,livraisonActive:true};
+const boutiqueData={uid,nom:b.nomCommerce,nomCommerce:b.nomCommerce,type:b.type,ville:b.ville,quartier:b.quartier,adresse:b.adresse||'',horaires:b.horaires||'08h - 20h',description:b.description||'Découvrez notre catalogue.',telephone:b.telephone,whatsapp:b.whatsappCommercial||b.telephone,whatsappCommercial:b.whatsappCommercial||b.telephone,img:b.img||'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80',emoji:'🏪',statut:'approuve',dateCreation:b.dateCreation||now,dateApprobation:now,retraitActif:true,livraisonActive:true,badgeConfiance:b.badgeConfiance===true,configLivraison:b.configLivraison||{frais:0,minProduits:0,minPrixPanier:0}};
 batch.update(doc(db,'netubers',uid),{boutique:boutiqueData});
 const commerceId='COM-'+id.replace('DEM-','');
 batch.set(doc(db,'commerces',commerceId),{...boutiqueData,demandeId:id,produits:[],creeParDirection:false},{merge:true});
@@ -1568,9 +1605,10 @@ if(pageList.length===0){tbody.innerHTML=`<tr><td colspan="8"><div class="empty">
 const offset=(pagination.actives-1)*PER_PAGE;
 tbody.innerHTML=pageList.map((b,i)=>{
 const img=b.img?`<img src="${esc(b.img)}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;border:1px solid var(--border)">`:'<div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#06b6d4,#0891b2);display:flex;align-items:center;justify-content:center;font-size:20px">🏪</div>';
+const badgeConf=getBadgeConfianceAdminHTML(b);
+const badgeLivr=getBadgeLivraisonAdminHTML(b);
 const retraitBadge=b.retraitActif===false?'<span class="badge badge-err" style="font-size:9px">⛔ Retrait</span>':'<span class="badge badge-ok" style="font-size:9px">✅ Retrait</span>';
-const livraisonBadge=b.livraisonActive===false?'<span class="badge badge-err" style="font-size:9px">⛔ Livr.</span>':'<span class="badge badge-ok" style="font-size:9px">✅ Livr.</span>';
-return `<tr><td>${offset+i+1}</td><td>${img}</td><td><strong style="color:var(--text)">${esc(b.nom||'-')}</strong><div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">${retraitBadge}${livraisonBadge}</div></td><td><span class="badge badge-info">${esc(b.type||'-')}</span></td><td style="font-size:11.5px">${esc(b.ville||'')} · ${esc(b.quartier||'')}</td><td>${esc(b.nomComplet||'-')}</td><td style="font-size:11px;font-family:'JetBrains Mono',monospace">${esc(b.telephone||'-')}</td><td><div class="act"><button class="btn-ico info" data-act="view-catalogue" data-id="${esc(b.uid)}" title="Voir catalogue"><i class="fas fa-box"></i></button><button class="btn-ico warn" data-act="edit-active" data-id="${esc(b.uid)}" title="Modifier"><i class="fas fa-pen"></i></button><button class="btn-ico err" data-act="retirer-active" data-id="${esc(b.uid)}" title="Retirer"><i class="fas fa-ban"></i></button><button class="btn-ico err" data-act="delete-boutique" data-id="${esc(b.uid)}" title="Supprimer"><i class="fas fa-trash"></i></button></div></td></tr>`;
+return `<tr><td>${offset+i+1}</td><td>${img}</td><td><div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px"><strong style="color:var(--text)">${esc(b.nom||'-')}</strong>${badgeConf}</div><div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;align-items:center">${retraitBadge}</div>${badgeLivr}</td><td><span class="badge badge-info">${esc(b.type||'-')}</span></td><td style="font-size:11.5px">${esc(b.ville||'')} · ${esc(b.quartier||'')}</td><td>${esc(b.nomComplet||'-')}</td><td style="font-size:11px;font-family:'JetBrains Mono',monospace">${esc(b.telephone||'-')}</td><td><div class="act"><button class="btn-ico info" data-act="view-catalogue" data-id="${esc(b.uid)}" title="Voir catalogue"><i class="fas fa-box"></i></button><button class="btn-ico ok" data-act="qr-pdf" data-id="${esc(b.uid)}" title="QR Code PDF"><i class="fas fa-qrcode"></i></button><button class="btn-ico warn" data-act="edit-active" data-id="${esc(b.uid)}" title="Modifier"><i class="fas fa-pen"></i></button><button class="btn-ico err" data-act="retirer-active" data-id="${esc(b.uid)}" title="Retirer"><i class="fas fa-ban"></i></button><button class="btn-ico err" data-act="delete-boutique" data-id="${esc(b.uid)}" title="Supprimer"><i class="fas fa-trash"></i></button></div></td></tr>`;
 }).join('');
 }
 document.getElementById('searchActives').oninput=()=>{pagination.actives=1;renderActives();};
@@ -1632,9 +1670,11 @@ let commerceDocId=null;
 const commercesList=await getCommerces();
 commercesList.forEach(c=>{if(c.uid===uid)commerceDocId=c.id;});
 const usersOptions=netubers.length>0?netubers.map(n=>`<option value="${esc(n.id)}" data-phone="${esc(n.phone||'')}" ${n.id===uid?'selected':''}>${esc(n.nomComplet||n.nom||n.phone)} — ${esc(n.phone||'')}</option>`).join(''):'<option value="">- Aucun utilisateur inscrit -</option>';
+const badgeConfActif=commerce.badgeConfiance===true;
+const cfgLiv=commerce.configLivraison||{frais:0,minProduits:0,minPrixPanier:0};
 const d=document.createElement('div');
 d.className='modal show';
-d.innerHTML=`<div class="modal-box" style="max-width:620px"><h2><i class="fas fa-pen"></i>Modifier la boutique</h2><div class="field"><label>Gérant *</label><select id="editBoutiqueUid">${usersOptions}</select></div><div class="field"><label>Nom du commerce *</label><input type="text" id="editBoutiqueNom" value="${esc(commerce.nom||commerce.nomCommerce||'')}"></div><div class="field"><label>Type de commerce *</label><select id="editBoutiqueType"><option value="">— Choisir —</option>${['Supermarché / Alimentation','Restaurant / Traiteur','Hôtel / Hébergement','Pharmacie / Parapharmacie','Mode, Vêtements & Beauté','Cosmétiques','Salon de Coiffure','Services / Atelier','Boulangerie','Quincaillerie','Électronique','Concessionnaire (Auto)','Vivriers & Fruits','Matériaux de construction','Meubles & Décoration','Téléphones & Accessoires','Pâtisserie & Confiserie','Bijouterie & Accessoires','Salle de fête','Télécommunications'].map(t=>`<option value="${t}" ${commerce.type===t?'selected':''}>${t}</option>`).join('')}</select></div><div class="grid-2"><div class="field"><label>Ville *</label><select id="editBoutiqueVille"><option value="">— Choisir —</option>${['Kinshasa','Lubumbashi','Kasumbalesa'].map(v=>`<option value="${v}" ${commerce.ville===v?'selected':''}>${v}</option>`).join('')}</select></div><div class="field"><label>Quartier *</label><input type="text" id="editBoutiqueQuartier" value="${esc(commerce.quartier||'')}"></div></div><div class="grid-2"><div class="field"><label>Téléphone *</label><input type="tel" id="editBoutiqueTel" value="${esc(commerce.telephone||'')}"></div><div class="field"><label>WhatsApp *</label><input type="tel" id="editBoutiqueWhatsapp" value="${esc(commerce.whatsapp||commerce.whatsappCommercial||'')}"></div></div><div class="field"><label>Horaires</label><input type="text" id="editBoutiqueHoraires" value="${esc(commerce.horaires||'08h - 20h')}"></div><div style="margin-top:18px;padding:16px;background:var(--bg-soft);border:1px solid var(--border);border-radius:12px"><div style="font-size:12px;font-weight:900;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px"><i class="fas fa-truck-fast" style="color:var(--accent)"></i> Options de commande</div><div class="grid-2"><div class="field" style="margin-bottom:0"><label style="margin-bottom:8px">🏪 Retrait en boutique</label><button type="button" id="editBoutiqueRetraitBtn" data-state="${commerce.retraitActif===false?'off':'on'}" class="btn ${commerce.retraitActif===false?'btn-danger':'btn-success'}" style="width:100%;padding:14px;justify-content:center;font-size:13px"><i class="fas fa-${commerce.retraitActif===false?'times-circle':'check-circle'}"></i> ${commerce.retraitActif===false?'Désactivé':'Activé'}</button></div><div class="field" style="margin-bottom:0"><label style="margin-bottom:8px">🚚 Livraison à domicile</label><button type="button" id="editBoutiqueLivraisonBtn" data-state="${commerce.livraisonActive===false?'off':'on'}" class="btn ${commerce.livraisonActive===false?'btn-danger':'btn-success'}" style="width:100%;padding:14px;justify-content:center;font-size:13px"><i class="fas fa-${commerce.livraisonActive===false?'times-circle':'check-circle'}"></i> ${commerce.livraisonActive===false?'Désactivé':'Activé'}</button></div></div></div><div class="field"><label>Description</label><textarea id="editBoutiqueDesc" rows="3">${esc(commerce.description||'')}</textarea></div><div style="margin-bottom:16px"><div style="font-size:10.5px;font-weight:800;color:var(--text-3);text-transform:uppercase;margin-bottom:8px;text-align:center">Image</div><div class="media-preview" id="editBoutiqueImgPreview">${commerce.img?`<img src="${esc(commerce.img)}" alt="">`:''}</div><div class="media-actions"><label for="editBoutiqueImgFile" class="upload-label"><i class="fas fa-upload"></i>Uploader</label><button type="button" class="upload-label" id="editBoutiqueImgUrlBtn"><i class="fas fa-link"></i>URL</button></div><input type="file" id="editBoutiqueImgFile" accept="image/*" style="display:none"></div><div class="form-actions"><button class="btn btn-outline" data-cancel>ANNULER</button><button class="btn btn-success" data-save>ENREGISTRER</button></div></div>`;
+d.innerHTML=`<div class="modal-box" style="max-width:660px"><h2><i class="fas fa-pen"></i>Modifier la boutique</h2><div class="field"><label>Gérant *</label><select id="editBoutiqueUid">${usersOptions}</select></div><div class="field"><label>Nom du commerce *</label><input type="text" id="editBoutiqueNom" value="${esc(commerce.nom||commerce.nomCommerce||'')}"></div><div class="field"><label>Type de commerce *</label><select id="editBoutiqueType"><option value="">— Choisir —</option>${['Supermarché / Alimentation','Restaurant / Traiteur','Hôtel / Hébergement','Pharmacie / Parapharmacie','Mode, Vêtements & Beauté','Cosmétiques','Salon de Coiffure','Services / Atelier','Boulangerie','Quincaillerie','Électronique','Concessionnaire (Auto)','Vivriers & Fruits','Matériaux de construction','Meubles & Décoration','Téléphones & Accessoires','Pâtisserie & Confiserie','Bijouterie & Accessoires','Salle de fête','Télécommunications'].map(t=>`<option value="${t}" ${commerce.type===t?'selected':''}>${t}</option>`).join('')}</select></div><div class="grid-2"><div class="field"><label>Ville *</label><select id="editBoutiqueVille"><option value="">— Choisir —</option>${['Kinshasa','Lubumbashi','Kasumbalesa'].map(v=>`<option value="${v}" ${commerce.ville===v?'selected':''}>${v}</option>`).join('')}</select></div><div class="field"><label>Quartier *</label><input type="text" id="editBoutiqueQuartier" value="${esc(commerce.quartier||'')}"></div></div><div class="grid-2"><div class="field"><label>Téléphone *</label><input type="tel" id="editBoutiqueTel" value="${esc(commerce.telephone||'')}"></div><div class="field"><label>WhatsApp *</label><input type="tel" id="editBoutiqueWhatsapp" value="${esc(commerce.whatsapp||commerce.whatsappCommercial||'')}"></div></div><div class="field"><label>Horaires</label><input type="text" id="editBoutiqueHoraires" value="${esc(commerce.horaires||'08h - 20h')}"></div><div style="margin-top:18px;padding:16px;background:linear-gradient(135deg,rgba(0,127,255,.06),rgba(0,194,255,.04));border:1.5px solid rgba(0,127,255,.25);border-radius:12px"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:900;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px"><i class="fas fa-shield-halved" style="color:#007fff"></i> Badge Confiance</div><div style="font-size:10.5px;color:var(--text-3);margin-top:3px;line-height:1.4">Affiche le sceau ✓ Confiance NeTubeX sur la boutique</div></div><button type="button" id="editBoutiqueBadgeBtn" data-state="${badgeConfActif?'on':'off'}" class="btn ${badgeConfActif?'btn-success':'btn-danger'}" style="min-width:100px;padding:12px 14px;font-size:12px;justify-content:center"><i class="fas fa-${badgeConfActif?'check-circle':'times-circle'}"></i> ${badgeConfActif?'Activé':'Désactivé'}</button></div></div><div id="cfgLivraisonWrapper">${getConfigLivraisonHTML(commerce)}</div><div style="margin-top:18px;padding:16px;background:var(--bg-soft);border:1px solid var(--border);border-radius:12px"><div style="font-size:12px;font-weight:900;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px"><i class="fas fa-truck-fast" style="color:var(--accent)"></i> Options de commande</div><div class="grid-2"><div class="field" style="margin-bottom:0"><label style="margin-bottom:8px">🏪 Retrait en boutique</label><button type="button" id="editBoutiqueRetraitBtn" data-state="${commerce.retraitActif===false?'off':'on'}" class="btn ${commerce.retraitActif===false?'btn-danger':'btn-success'}" style="width:100%;padding:14px;justify-content:center;font-size:13px"><i class="fas fa-${commerce.retraitActif===false?'times-circle':'check-circle'}"></i> ${commerce.retraitActif===false?'Désactivé':'Activé'}</button></div><div class="field" style="margin-bottom:0"><label style="margin-bottom:8px">🚚 Livraison à domicile</label><button type="button" id="editBoutiqueLivraisonBtn" data-state="${commerce.livraisonActive===false?'off':'on'}" class="btn ${commerce.livraisonActive===false?'btn-danger':'btn-success'}" style="width:100%;padding:14px;justify-content:center;font-size:13px"><i class="fas fa-${commerce.livraisonActive===false?'times-circle':'check-circle'}"></i> ${commerce.livraisonActive===false?'Désactivé':'Activé'}</button></div></div></div><div class="field" style="margin-top:14px"><label>Description</label><textarea id="editBoutiqueDesc" rows="3">${esc(commerce.description||'')}</textarea></div><div style="margin-bottom:16px"><div style="font-size:10.5px;font-weight:800;color:var(--text-3);text-transform:uppercase;margin-bottom:8px;text-align:center">Image</div><div class="media-preview" id="editBoutiqueImgPreview">${commerce.img?`<img src="${esc(commerce.img)}" alt="">`:''}</div><div class="media-actions"><label for="editBoutiqueImgFile" class="upload-label"><i class="fas fa-upload"></i>Uploader</label><button type="button" class="upload-label" id="editBoutiqueImgUrlBtn"><i class="fas fa-link"></i>URL</button></div><input type="file" id="editBoutiqueImgFile" accept="image/*" style="display:none"></div><button type="button" id="editBoutiqueQrBtn" class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:10px;padding:12px"><i class="fas fa-qrcode"></i> Télécharger QR Code PDF</button><div class="form-actions"><button class="btn btn-outline" data-cancel>ANNULER</button><button class="btn btn-success" data-save>ENREGISTRER</button></div></div>`;
 document.body.appendChild(d);
 let imgBase64=null;
 const fileInput=d.querySelector('#editBoutiqueImgFile');
@@ -1658,6 +1698,16 @@ d.querySelector('#editBoutiqueImgUrlBtn').onclick=async()=>{
 const u=await adminPrompt('URL de l\'image','Collez l\'URL de l\'image','https://…',commerce.img&&!commerce.img.startsWith('data:')?commerce.img:'','fa-link','#3b82f6');
 if(u){imgBase64=u;preview.innerHTML=`<img src="${esc(imgBase64)}" alt="">`;toast('URL appliquée');}
 };
+const toggleBadgeConfiance=()=>{
+const btn=d.querySelector('#editBoutiqueBadgeBtn');
+const cur=btn.getAttribute('data-state')==='on';
+const next=!cur;
+btn.setAttribute('data-state',next?'on':'off');
+btn.className='btn '+(next?'btn-success':'btn-danger');
+btn.innerHTML='<i class="fas fa-'+(next?'check-circle':'times-circle')+'"></i> '+(next?'Activé':'Désactivé');
+btn.style.minWidth='100px';btn.style.padding='12px 14px';btn.style.fontSize='12px';btn.style.justifyContent='center';
+};
+d.querySelector('#editBoutiqueBadgeBtn').onclick=toggleBadgeConfiance;
 const toggleEditBoutiqueOption=function(type){
 const btnId=type==='retrait'?'editBoutiqueRetraitBtn':'editBoutiqueLivraisonBtn';
 const btn=d.querySelector('#'+btnId);
@@ -1671,6 +1721,7 @@ btn.style.width='100%';btn.style.padding='14px';btn.style.justifyContent='center
 };
 d.querySelector('#editBoutiqueRetraitBtn').onclick=()=>toggleEditBoutiqueOption('retrait');
 d.querySelector('#editBoutiqueLivraisonBtn').onclick=()=>toggleEditBoutiqueOption('livraison');
+d.querySelector('#editBoutiqueQrBtn').onclick=()=>{genererPDFQRCodeBoutique(uid);};
 d.querySelector('[data-cancel]').onclick=()=>d.remove();
 d.onclick=e=>{if(e.target===d)d.remove();};
 d.querySelector('[data-save]').onclick=async()=>{
@@ -1686,13 +1737,16 @@ const desc=d.querySelector('#editBoutiqueDesc').value.trim();
 const imgFinal=imgBase64||commerce.img||'';
 const retraitBtn=d.querySelector('#editBoutiqueRetraitBtn');
 const livraisonBtn=d.querySelector('#editBoutiqueLivraisonBtn');
+const badgeBtn=d.querySelector('#editBoutiqueBadgeBtn');
 const retraitActif=retraitBtn?retraitBtn.getAttribute('data-state')==='on':true;
 const livraisonActive=livraisonBtn?livraisonBtn.getAttribute('data-state')==='on':true;
+const badgeConfiance=badgeBtn?badgeBtn.getAttribute('data-state')==='on':false;
+const configLivraison=readConfigLivraisonFromModal(d);
 if(!nom||!type||!ville||!quartier||!tel||!whatsapp){toast('Remplissez tous les champs obligatoires','err');return;}
 setLoader(true);
 try{
 const now=new Date().toISOString();
-const boutiqueData={uid:newUid,nom,nomCommerce:nom,type,ville,quartier,adresse:commerce.adresse||'',horaires,description:desc||'Découvrez notre catalogue.',telephone:tel,whatsapp,whatsappCommercial:whatsapp,img:imgFinal,emoji:'🏪',statut:'approuve',dateCreation:commerce.dateCreation||now,dateApprobation:commerce.dateApprobation||now,retraitActif,livraisonActive};
+const boutiqueData={uid:newUid,nom,nomCommerce:nom,type,ville,quartier,adresse:commerce.adresse||'',horaires,description:desc||'Découvrez notre catalogue.',telephone:tel,whatsapp,whatsappCommercial:whatsapp,img:imgFinal,emoji:'🏪',statut:'approuve',dateCreation:commerce.dateCreation||now,dateApprobation:commerce.dateApprobation||now,retraitActif,livraisonActive,badgeConfiance,configLivraison};
 const batch=writeBatch(db);
 if(commerceDocId){batch.set(doc(db,'commerces',commerceDocId),{...boutiqueData,produits:commerce.produits||[]},{merge:true});}
 batch.update(doc(db,'netubers',uid),{boutique:boutiqueData});
@@ -1825,10 +1879,11 @@ const nomBoutique=commerceData.nom||commerceData.nomCommerce||'Boutique';
 const commerceId=commerceData.id;
 const modal=document.createElement('div');
 modal.className='modal show';
-modal.innerHTML=`<div class="modal-box" style="max-width:760px"><h2><i class="fas fa-box-open"></i>Catalogue — ${esc(nomBoutique)}</h2><div style="display:flex;gap:10px;flex-wrap:wrap;padding:12px 14px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:12px;margin-bottom:16px"><div style="flex:1;min-width:100px"><div style="font-size:10px;font-weight:800;color:#1e40af;text-transform:uppercase">Type</div><div style="font-size:13px;font-weight:800;color:#1e3a8a;margin-top:3px">${esc(commerceData.type||'—')}</div></div><div style="flex:1;min-width:100px"><div style="font-size:10px;font-weight:800;color:#1e40af;text-transform:uppercase">Ville</div><div style="font-size:13px;font-weight:800;color:#1e3a8a;margin-top:3px">${esc(commerceData.ville||'—')}</div></div><div style="flex:1;min-width:100px"><div style="font-size:10px;font-weight:800;color:#1e40af;text-transform:uppercase">Articles</div><div style="font-size:13px;font-weight:800;color:#1e3a8a;margin-top:3px" id="catalogueCount">${produits.length}</div></div></div><button class="btn btn-success btn-sm" id="btnAddArticleAdmin" style="width:100%;justify-content:center;margin-bottom:14px"><i class="fas fa-plus"></i>Ajouter un article</button><div id="catalogueGridAdmin" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;max-height:520px;overflow-y:auto;padding:4px">${rendreArticlesAdminHTML(produits)}</div><div class="form-actions"><button class="btn btn-outline" data-close>FERMER</button></div></div>`;
+modal.innerHTML=`<div class="modal-box" style="max-width:760px"><h2><i class="fas fa-box-open"></i>Catalogue — ${esc(nomBoutique)}</h2><div style="display:flex;gap:10px;flex-wrap:wrap;padding:12px 14px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:12px;margin-bottom:16px"><div style="flex:1;min-width:100px"><div style="font-size:10px;font-weight:800;color:#1e40af;text-transform:uppercase">Type</div><div style="font-size:13px;font-weight:800;color:#1e3a8a;margin-top:3px">${esc(commerceData.type||'—')}</div></div><div style="flex:1;min-width:100px"><div style="font-size:10px;font-weight:800;color:#1e40af;text-transform:uppercase">Ville</div><div style="font-size:13px;font-weight:800;color:#1e3a8a;margin-top:3px">${esc(commerceData.ville||'—')}</div></div><div style="flex:1;min-width:100px"><div style="font-size:10px;font-weight:800;color:#1e40af;text-transform:uppercase">Articles</div><div style="font-size:13px;font-weight:800;color:#1e3a8a;margin-top:3px" id="catalogueCount">${produits.length}</div></div></div><div style="display:flex;gap:8px;margin-bottom:14px"><button class="btn btn-success btn-sm" id="btnAddArticleAdmin" style="flex:1;justify-content:center"><i class="fas fa-plus"></i>Ajouter un article</button><button class="btn btn-primary btn-sm" id="btnQrCatalogue" style="flex:1;justify-content:center"><i class="fas fa-qrcode"></i>QR Code PDF</button></div><div id="catalogueGridAdmin" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;max-height:520px;overflow-y:auto;padding:4px">${rendreArticlesAdminHTML(produits)}</div><div class="form-actions"><button class="btn btn-outline" data-close>FERMER</button></div></div>`;
 document.body.appendChild(modal);
 modal.querySelector('[data-close]').onclick=()=>modal.remove();
 modal.onclick=e=>{if(e.target===modal)modal.remove();};
+modal.querySelector('#btnQrCatalogue').onclick=()=>{genererPDFQRCodeBoutique(uid);};
 modal.querySelector('#btnAddArticleAdmin').onclick=()=>{
 ouvrirModalEditArticleAdmin(uid,commerceId,null,-1,()=>rafraichirCatalogueAdmin(uid,commerceId));
 };
@@ -1972,7 +2027,7 @@ function ouvrirModalCreateBoutique(){
 const usersOptions=netubers.length>0?netubers.map(n=>`<option value="${esc(n.id)}" data-phone="${esc(n.phone||'')}">${esc(n.nomComplet||n.nom||n.phone)} — ${esc(n.phone||'')}</option>`).join(''):'<option value="">- Aucun utilisateur inscrit -</option>';
 const d=document.createElement('div');
 d.className='modal show';
-d.innerHTML=`<div class="modal-box" style="max-width:620px"><h2><i class="fas fa-store"></i>Créer une boutique</h2><div class="field"><label>Propriétaire *</label><select id="newBoutiqueUid"><option value="">— Choisir —</option>${usersOptions}</select></div><div class="field"><label>Nom du commerce *</label><input type="text" id="newBoutiqueNom"></div><div class="field"><label>Type *</label><select id="newBoutiqueType"><option value="">— Choisir —</option>${['Supermarché / Alimentation','Restaurant / Traiteur','Hôtel / Hébergement','Pharmacie / Parapharmacie','Mode, Vêtements & Beauté','Cosmétiques','Salon de Coiffure','Services / Atelier','Boulangerie','Quincaillerie','Électronique','Concessionnaire (Auto)','Vivriers & Fruits','Matériaux de construction','Meubles & Décoration','Téléphones & Accessoires','Pâtisserie & Confiserie','Bijouterie & Accessoires','Salle de fête','Télécommunications'].map(t=>`<option value="${t}">${t}</option>`).join('')}</select></div><div class="grid-2"><div class="field"><label>Ville *</label><select id="newBoutiqueVille"><option value="">— Choisir —</option>${['Kinshasa','Lubumbashi','Kasumbalesa'].map(v=>`<option value="${v}">${v}</option>`).join('')}</select></div><div class="field"><label>Quartier *</label><input type="text" id="newBoutiqueQuartier"></div></div><div class="grid-2"><div class="field"><label>Téléphone *</label><input type="tel" id="newBoutiqueTel"></div><div class="field"><label>WhatsApp *</label><input type="tel" id="newBoutiqueWhatsapp"></div></div><div class="field"><label>Horaires</label><input type="text" id="newBoutiqueHoraires" value="08h - 20h"></div><div style="margin-top:18px;padding:16px;background:var(--bg-soft);border:1px solid var(--border);border-radius:12px"><div style="font-size:12px;font-weight:900;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px"><i class="fas fa-truck-fast" style="color:var(--accent)"></i> Options de commande</div><div class="grid-2"><div class="field" style="margin-bottom:0"><label style="margin-bottom:8px">🏪 Retrait en boutique</label><button type="button" id="newBoutiqueRetraitBtn" data-state="on" class="btn btn-success" style="width:100%;padding:14px;justify-content:center;font-size:13px"><i class="fas fa-check-circle"></i> Activé</button></div><div class="field" style="margin-bottom:0"><label style="margin-bottom:8px">🚚 Livraison à domicile</label><button type="button" id="newBoutiqueLivraisonBtn" data-state="on" class="btn btn-success" style="width:100%;padding:14px;justify-content:center;font-size:13px"><i class="fas fa-check-circle"></i> Activé</button></div></div></div><div class="field"><label>Description</label><textarea id="newBoutiqueDesc" rows="3"></textarea></div><div style="margin-bottom:16px"><div style="font-size:10.5px;font-weight:800;color:var(--text-3);text-transform:uppercase;margin-bottom:8px;text-align:center">Image *</div><div class="media-preview" id="newBoutiqueImgPreview"></div><div class="media-actions"><label for="newBoutiqueImgFile" class="upload-label"><i class="fas fa-upload"></i>Uploader</label><button type="button" class="upload-label" id="newBoutiqueImgUrlBtn"><i class="fas fa-link"></i>URL</button></div><input type="file" id="newBoutiqueImgFile" accept="image/*" style="display:none"></div><div class="form-actions"><button class="btn btn-outline" data-cancel>ANNULER</button><button class="btn btn-success" data-save>CRÉER</button></div></div>`;
+d.innerHTML=`<div class="modal-box" style="max-width:660px"><h2><i class="fas fa-store"></i>Créer une boutique</h2><div class="field"><label>Propriétaire *</label><select id="newBoutiqueUid"><option value="">— Choisir —</option>${usersOptions}</select></div><div class="field"><label>Nom du commerce *</label><input type="text" id="newBoutiqueNom"></div><div class="field"><label>Type *</label><select id="newBoutiqueType"><option value="">— Choisir —</option>${['Supermarché / Alimentation','Restaurant / Traiteur','Hôtel / Hébergement','Pharmacie / Parapharmacie','Mode, Vêtements & Beauté','Cosmétiques','Salon de Coiffure','Services / Atelier','Boulangerie','Quincaillerie','Électronique','Concessionnaire (Auto)','Vivriers & Fruits','Matériaux de construction','Meubles & Décoration','Téléphones & Accessoires','Pâtisserie & Confiserie','Bijouterie & Accessoires','Salle de fête','Télécommunications'].map(t=>`<option value="${t}">${t}</option>`).join('')}</select></div><div class="grid-2"><div class="field"><label>Ville *</label><select id="newBoutiqueVille"><option value="">— Choisir —</option>${['Kinshasa','Lubumbashi','Kasumbalesa'].map(v=>`<option value="${v}">${v}</option>`).join('')}</select></div><div class="field"><label>Quartier *</label><input type="text" id="newBoutiqueQuartier"></div></div><div class="grid-2"><div class="field"><label>Téléphone *</label><input type="tel" id="newBoutiqueTel"></div><div class="field"><label>WhatsApp *</label><input type="tel" id="newBoutiqueWhatsapp"></div></div><div class="field"><label>Horaires</label><input type="text" id="newBoutiqueHoraires" value="08h - 20h"></div><div style="margin-top:18px;padding:16px;background:linear-gradient(135deg,rgba(0,127,255,.06),rgba(0,194,255,.04));border:1.5px solid rgba(0,127,255,.25);border-radius:12px"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px"><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:900;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px"><i class="fas fa-shield-halved" style="color:#007fff"></i> Badge Confiance</div><div style="font-size:10.5px;color:var(--text-3);margin-top:3px;line-height:1.4">Affiche le sceau ✓ Confiance NeTubeX sur la boutique</div></div><button type="button" id="newBoutiqueBadgeBtn" data-state="off" class="btn btn-danger" style="min-width:100px;padding:12px 14px;font-size:12px;justify-content:center"><i class="fas fa-times-circle"></i> Désactivé</button></div></div><div id="cfgLivraisonWrapper">${getConfigLivraisonHTML({configLivraison:{frais:0,minProduits:0,minPrixPanier:0}})}</div><div style="margin-top:18px;padding:16px;background:var(--bg-soft);border:1px solid var(--border);border-radius:12px"><div style="font-size:12px;font-weight:900;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px"><i class="fas fa-truck-fast" style="color:var(--accent)"></i> Options de commande</div><div class="grid-2"><div class="field" style="margin-bottom:0"><label style="margin-bottom:8px">🏪 Retrait en boutique</label><button type="button" id="newBoutiqueRetraitBtn" data-state="on" class="btn btn-success" style="width:100%;padding:14px;justify-content:center;font-size:13px"><i class="fas fa-check-circle"></i> Activé</button></div><div class="field" style="margin-bottom:0"><label style="margin-bottom:8px">🚚 Livraison à domicile</label><button type="button" id="newBoutiqueLivraisonBtn" data-state="on" class="btn btn-success" style="width:100%;padding:14px;justify-content:center;font-size:13px"><i class="fas fa-check-circle"></i> Activé</button></div></div></div><div class="field" style="margin-top:14px"><label>Description</label><textarea id="newBoutiqueDesc" rows="3"></textarea></div><div style="margin-bottom:16px"><div style="font-size:10.5px;font-weight:800;color:var(--text-3);text-transform:uppercase;margin-bottom:8px;text-align:center">Image *</div><div class="media-preview" id="newBoutiqueImgPreview"></div><div class="media-actions"><label for="newBoutiqueImgFile" class="upload-label"><i class="fas fa-upload"></i>Uploader</label><button type="button" class="upload-label" id="newBoutiqueImgUrlBtn"><i class="fas fa-link"></i>URL</button></div><input type="file" id="newBoutiqueImgFile" accept="image/*" style="display:none"></div><div class="form-actions"><button class="btn btn-outline" data-cancel>ANNULER</button><button class="btn btn-success" data-save>CRÉER</button></div></div>`;
 document.body.appendChild(d);
 let imgBase64=null;
 const fileInput=d.querySelector('#newBoutiqueImgFile');
@@ -1995,6 +2050,15 @@ finally{setLoader(false);fileInput.value='';}
 d.querySelector('#newBoutiqueImgUrlBtn').onclick=async()=>{
 const u=await adminPrompt('URL de l\'image','Collez l\'URL','https://…','','fa-link','#3b82f6');
 if(u){imgBase64=u;preview.innerHTML=`<img src="${esc(imgBase64)}" alt="">`;toast('URL appliquée');}
+};
+d.querySelector('#newBoutiqueBadgeBtn').onclick=()=>{
+const btn=d.querySelector('#newBoutiqueBadgeBtn');
+const cur=btn.getAttribute('data-state')==='on';
+const next=!cur;
+btn.setAttribute('data-state',next?'on':'off');
+btn.className='btn '+(next?'btn-success':'btn-danger');
+btn.innerHTML='<i class="fas fa-'+(next?'check-circle':'times-circle')+'"></i> '+(next?'Activé':'Désactivé');
+btn.style.minWidth='100px';btn.style.padding='12px 14px';btn.style.fontSize='12px';btn.style.justifyContent='center';
 };
 const toggleNewBoutiqueOption=function(type){
 const btnId=type==='retrait'?'newBoutiqueRetraitBtn':'newBoutiqueLivraisonBtn';
@@ -2030,14 +2094,17 @@ const desc=d.querySelector('#newBoutiqueDesc').value.trim();
 const imgFinal=imgBase64;
 const retraitBtn=d.querySelector('#newBoutiqueRetraitBtn');
 const livraisonBtn=d.querySelector('#newBoutiqueLivraisonBtn');
+const badgeBtn=d.querySelector('#newBoutiqueBadgeBtn');
 const retraitActif=retraitBtn?retraitBtn.getAttribute('data-state')==='on':true;
 const livraisonActive=livraisonBtn?livraisonBtn.getAttribute('data-state')==='on':true;
+const badgeConfiance=badgeBtn?badgeBtn.getAttribute('data-state')==='on':false;
+const configLivraison=readConfigLivraisonFromModal(d);
 if(!uid||!nom||!type||!ville||!quartier||!tel||!whatsapp||!imgFinal){toast('Remplissez tous les champs obligatoires','err');return;}
 setLoader(true);
 try{
 const now=new Date().toISOString();
 const commerceId='COM-'+Date.now();
-const boutiqueData={uid,nom,nomCommerce:nom,type,ville,quartier,adresse:'',horaires,description:desc||'Découvrez notre catalogue.',telephone:tel,whatsapp,whatsappCommercial:whatsapp,img:imgFinal,emoji:'🏪',statut:'approuve',dateCreation:now,dateApprobation:now,retraitActif,livraisonActive};
+const boutiqueData={uid,nom,nomCommerce:nom,type,ville,quartier,adresse:'',horaires,description:desc||'Découvrez notre catalogue.',telephone:tel,whatsapp,whatsappCommercial:whatsapp,img:imgFinal,emoji:'🏪',statut:'approuve',dateCreation:now,dateApprobation:now,retraitActif,livraisonActive,badgeConfiance,configLivraison};
 const batch=writeBatch(db);
 batch.set(doc(db,'commerces',commerceId),{...boutiqueData,produits:[],creeParDirection:true});
 batch.update(doc(db,'netubers',uid),{boutique:boutiqueData});
@@ -2121,6 +2188,56 @@ await reloadSome(['publications','actives']);
 finally{setLoader(false);}
 };
 }
+async function genererPDFQRCodeBoutique(uid){
+try{
+var commerce=boutiquesActives.find(function(b){return b.uid===uid;});
+if(!commerce){toast('Boutique introuvable','err');return;}
+var commerceId=commerce.id;
+if(!commerceId){
+var commercesList=await getCommerces();
+commercesList.forEach(function(c){if(c.uid===uid)commerceId=c.id;});
+}
+if(!commerceId){toast('ID commerce introuvable','err');return;}
+setLoader(true);
+var urlBoutique='https://www.netubex.com/rdc?boutique='+encodeURIComponent(commerceId);
+var qrDataUrl=await QRCode.toDataURL(urlBoutique,{width:800,margin:2,color:{dark:'#007fff',light:'#ffffff'},errorCorrectionLevel:'H'});
+var JSPDF=window.jspdf.jsPDF;
+var pdf=new JSPDF({orientation:'portrait',unit:'mm',format:'a5'});
+var W=148,H=210;
+pdf.setFillColor(0,127,255);pdf.rect(0,0,W,32,'F');
+pdf.setTextColor(255,255,255);
+pdf.setFontSize(16);pdf.setFont('helvetica','bold');pdf.text('NeTubeX RDC',W/2,14,{align:'center'});
+pdf.setFontSize(9);pdf.setFont('helvetica','normal');pdf.text('Commandez en 1 clic',W/2,21,{align:'center'});
+pdf.setTextColor(15,23,42);
+pdf.setFontSize(15);pdf.setFont('helvetica','bold');
+var nomAffiche=commerce.nom||commerce.nomCommerce||'Commerce';
+if(nomAffiche.length>28)nomAffiche=nomAffiche.slice(0,26)+'…';
+pdf.text(nomAffiche,W/2,48,{align:'center'});
+pdf.setFontSize(10);pdf.setFont('helvetica','normal');pdf.setTextColor(100,116,139);
+var villeTexte=(commerce.ville||'')+(commerce.quartier?' · '+commerce.quartier:'');
+pdf.text(villeTexte,W/2,56,{align:'center'});
+var qrSize=70;
+var qrX=(W-qrSize)/2;
+var qrY=65;
+pdf.setFillColor(255,255,255);pdf.setDrawColor(226,232,240);pdf.setLineWidth(0.5);
+pdf.roundedRect(qrX-3,qrY-3,qrSize+6,qrSize+6,3,3,'FD');
+pdf.addImage(qrDataUrl,'PNG',qrX,qrY,qrSize,qrSize);
+pdf.setTextColor(0,127,255);pdf.setFontSize(13);pdf.setFont('helvetica','bold');
+pdf.text('Scannez et commandez',W/2,152,{align:'center'});
+pdf.setTextColor(15,23,42);pdf.setFontSize(11);
+pdf.text('en 1 clic !',W/2,159,{align:'center'});
+pdf.setFontSize(9);pdf.setFont('helvetica','normal');pdf.setTextColor(71,85,105);
+var avantages=['•  Produits vérifiés NeTubeX','•  Livraison rapide à domicile','•  Paiement à la livraison'];
+avantages.forEach(function(txt,i){pdf.text(txt,W/2,172+i*6,{align:'center'});});
+pdf.setFillColor(241,245,249);pdf.rect(0,H-12,W,12,'F');
+pdf.setTextColor(100,116,139);pdf.setFontSize(8);
+pdf.text('www.netubex.com/rdc',W/2,H-4.5,{align:'center'});
+var nomFichier='QR-'+(commerce.nom||'boutique').replace(/[^\w\-]/g,'_').slice(0,30)+'.pdf';
+pdf.save(nomFichier);
+toast('✅ PDF généré');
+}catch(e){toast('Erreur: '+e.message,'err');}
+finally{setLoader(false);}
+}
 document.getElementById('addBoutiqueActivesBtn').onclick=()=>ouvrirModalCreateBoutique();
 document.getElementById('addBoutiqueBtn').onclick=()=>ouvrirModalCreateBoutique();
 document.getElementById('addPublicationBtn').onclick=()=>ouvrirModalCreatePublication();
@@ -2157,6 +2274,7 @@ if(act==='retirer-active')retirerActive(id);
 if(act==='edit-active')ouvrirModalEditBoutique(id);
 if(act==='delete-boutique')supprimerBoutique(id);
 if(act==='view-catalogue')voirCatalogueAdmin(id);
+if(act==='qr-pdf')genererPDFQRCodeBoutique(id);
 if(act==='detail-net')detailNetuber(id);
 if(act==='activer-user')toggleActifUser(id,true);
 if(act==='desactiver-user')toggleActifUser(id,false);
