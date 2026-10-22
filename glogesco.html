@@ -57,9 +57,7 @@ body{overscroll-behavior:none;}
 .btn-warning{background:#f7b928;color:#050505;}
 .btn-warning:hover{background:#e0a520;}
 
-/* =========================================================
-   DESIGN AMÉLIORÉ DE L'ONGLET FICHE DE COTATION
-   ========================================================= */
+/* DESIGN ONGLET COTATION */
 .table-wrapper{width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;display:block;border-radius:8px;border:1px solid #3a3b3c;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
 .student-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;min-width:800px;background:#242526;}
 .student-table th{background:#2a2b2c;padding:14px 8px;border-bottom:2px solid #25d366;font-size:12px;color:#e4e6eb;font-weight:700;text-align:center;position:sticky;top:0;z-index:10;}
@@ -73,14 +71,13 @@ body{overscroll-behavior:none;}
 .student-table input[type="number"].note-excellent{color:#25d366;background:rgba(37,211,102,0.1);}
 
 /* Cellules éditables */
-.cell-editable{cursor:pointer;border-bottom:1px dashed #3a3b3c;padding:2px 4px;border-radius:4px;transition:background 0.2s;}
-.cell-editable:hover{background:#3a3b3c;}
-.name-input{width:100%;padding:8px;border-radius:6px;background:#1c1e21;border:1px solid #25d366;color:#e4e6eb;font-family:inherit;font-size:13px;font-weight:600;text-align:left;}
-.name-input:focus{outline:none;box-shadow:0 0 0 2px rgba(37,211,102,0.3);}
+.name-edit-group { display: flex; gap: 4px; justify-content: center; width: 100%; }
+.name-edit-input { width: 30%; padding: 6px; border-radius: 4px; background: #1c1e21; border: 1px solid #25d366; color: #e4e6eb; font-family: inherit; font-size: 12px; font-weight: 600; text-align: left; }
+.name-edit-input::placeholder { color: #6a6c6f; font-weight: 400; }
+.name-edit-input:focus { outline: none; box-shadow: 0 0 0 2px rgba(37,211,102,0.3); }
 .sexe-select{padding:6px;border-radius:6px;background:#1c1e21;border:1px solid #25d366;color:#e4e6eb;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;}
 .total-cell{background:#2a2b2c;font-weight:800;font-size:14px;}
 
-/* Bouton d'édition dans le header */
 .edit-toggle-btn{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:8px 16px;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;font-family:inherit;}
 .edit-toggle-btn:hover{background:rgba(255,255,255,0.25);}
 .edit-toggle-btn.active{background:#fff;color:#128c7e;border-color:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.2);}
@@ -321,7 +318,6 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 </div></div>
 <div id="tabEpreuves" class="tab-content"><div class="card"><div class="card-header">EPREUVES PAR PERIODE</div><div class="fiche-selector"><select id="epreuveFicheSelector"></select></div><div id="epreuvesContainer" style="padding:20px;"></div><div class="btn-group" style="padding:0 20px 20px 20px;margin:0"><button class="btn btn-sm" id="addEpreuve1">+ P1</button><button class="btn btn-sm" id="addEpreuve2">+ P2</button><button class="btn btn-sm" id="addEpreuve3">+ P3</button><button class="btn btn-sm" id="addEpreuve4">+ P4</button></div></div></div>
 
-<!-- ONGLET COTATION AMÉLIORÉ -->
 <div id="tabCotation" class="tab-content">
 <div class="cotation-layout">
 <div class="cotation-main">
@@ -366,7 +362,6 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 </div>
 </div>
 </div>
-<!-- FIN ONGLET COTATION -->
 
 <div class="footer-note" id="footerNote">CHARGEMENT...</div>
 </div>
@@ -459,7 +454,7 @@ let triAlphabetiqueActif = false;
 let periodeFilterCotation = 'all';
 let modeMultiOptionsActif = false;
 let jsonImportData = null;
-let editModeCotation = false; // NOUVEAU : Mode d'édition des noms/sexes
+let editModeCotation = false;
 
 const OPTIONS_DISPONIBLES = ["SCIENCES", "PEDAGOGIE GENERALE", "COMMERCIALE ET GESTION", "ELECTRICITE", "MECANIQUE GENERALE", "COUPE ET COUTURE"];
 const CLASSES_VALIDES = ["7ème EB", "8ème EB", "1ère Année", "2ème Année", "3ème Année", "4ème Année"];
@@ -470,9 +465,6 @@ document.getElementById('schoolNameHeader').textContent = SCHOOL_DISPLAY_NAME;
 document.getElementById('schoolSubHeader').textContent = `Année scolaire 2026-2027`;
 document.getElementById('footerNote').textContent = `${SCHOOL_DISPLAY_NAME} | Année scolaire 2026-2027`;
 
-/* =========================================================
-   UTILITAIRES GÉNÉRAUX
-   ========================================================= */
 function toast(message, type = "success") {
     const container = document.getElementById("toastContainer");
     if (!container) return;
@@ -878,9 +870,6 @@ function getNoteClass(note, maxNote) {
     return 'note-insuffisant';
 }
 
-/* =========================================================
-   AFFICHAGE COTATION (AVEC ÉDITION DIRECTE NOM/SEXE)
-   ========================================================= */
 function afficherCotation() {
     if (!currentFiche) {
         document.getElementById('cotationHeader').innerHTML = '';
@@ -926,7 +915,12 @@ function afficherCotation() {
         let sexeHTML = e.sexe || 'M';
         
         if (editModeCotation) {
-            nomHTML = `<input type="text" class="name-input" value="${escapeHtml(getNomComplet(e))}" onchange="window.updNomEleve('${eid}', this.value)">`;
+            // 3 champs distincts pour Nom, Postnom, Prénom
+            nomHTML = `<div class="name-edit-group">
+                <input type="text" class="name-edit-input" placeholder="Nom" value="${escapeHtml(e.nom || '')}" onchange="window.updNomEleve('${eid}', 'nom', this.value)">
+                <input type="text" class="name-edit-input" placeholder="Postnom" value="${escapeHtml(e.postnom || '')}" onchange="window.updNomEleve('${eid}', 'postnom', this.value)">
+                <input type="text" class="name-edit-input" placeholder="Prénom" value="${escapeHtml(e.prenom || '')}" onchange="window.updNomEleve('${eid}', 'prenom', this.value)">
+            </div>`;
             sexeHTML = `<select class="sexe-select" onchange="window.updSexeEleve('${eid}', this.value)">
                 <option value="M" ${e.sexe === 'M' ? 'selected' : ''}>M</option>
                 <option value="F" ${e.sexe === 'F' ? 'selected' : ''}>F</option>
@@ -992,22 +986,15 @@ function afficherCotation() {
     }
 }
 
-// NOUVEAU : Mise à jour du nom complet
-window.updNomEleve = function(eleveId, nouveauNom) {
+// NOUVEAU : Mise à jour ciblée (nom, postnom ou prénom)
+window.updNomEleve = function(eleveId, field, valeur) {
     const eleve = trouverEleveParId(eleveId);
     if (!eleve) return;
-    // On découpe le nom complet en nom, postnom, prénom pour garder la structure
-    const parts = nouveauNom.trim().split(/\s+/);
-    if (parts.length > 0) eleve.nom = parts[0] || '';
-    if (parts.length > 1) eleve.postnom = parts[1] || '';
-    if (parts.length > 2) eleve.prenom = parts.slice(2).join(' ') || '';
-    // Mise à jour visuelle
+    eleve[field] = valeur.trim();
     afficherCotation();
-    // On sauvegarde en arrière-plan
     saveCurrentFiche();
 };
 
-// NOUVEAU : Mise à jour du sexe
 window.updSexeEleve = function(eleveId, nouveauSexe) {
     const eleve = trouverEleveParId(eleveId);
     if (!eleve) return;
@@ -1226,7 +1213,6 @@ document.querySelectorAll('#tabsProfesseur .tab').forEach(tab => {
     });
 });
 
-// ÉCOUTEUR DU BOUTON MODE ÉDITION (HEADER DE LA FICHE DE COTATION)
 document.getElementById('toggleEditModeBtn').addEventListener('click', function() {
     editModeCotation = !editModeCotation;
     this.classList.toggle('active', editModeCotation);
@@ -1655,13 +1641,13 @@ async function genererPDF(multiOpt, optionFiltre) {
                 const eleveRef = elevesExport.find(e => (e.option || '—') === opt);
                 const nm = getNotesMaxForEleve(eleveRef);
                 let rowFinal = ['MAX', opt.substring(0, 5), '', ''];
-                rowFinal = rowFinal.concat([nm, nm, nm * 2, nm * 4, nm, nm, nm * 2, nm * 4, nm * 8]);
+                rowFinal.push(nm, nm, nm * 2, nm * 4, nm, nm, nm * 2, nm * 4, nm * 8);
                 bd.push(rowFinal);
             }
         } else {
             const nm = elevesExport.length ? getNotesMaxForEleve(elevesExport[0]) : getPeriodeMax();
-            let rowFinal = ['MAX', '', '', ''];
-            rowFinal = rowFinal.concat([nm, nm, nm * 2, nm * 4, nm, nm, nm * 2, nm * 4, nm * 8]);
+            let rowFinal = ['MAX', '', ''];
+            rowFinal.push(nm, nm, nm * 2, nm * 4, nm, nm, nm * 2, nm * 4, nm * 8);
             bd.push(rowFinal);
         }
 
@@ -1673,7 +1659,7 @@ async function genererPDF(multiOpt, optionFiltre) {
             const ex1 = n.exam1 || 0, ex2 = n.exam2 || 0;
             let row = [(i + 1).toString(), getNomComplet(e).toUpperCase(), e.sexe === 'F' ? 'F' : 'M'];
             if (multiOpt) row.push((e.option || '—').substring(0, 5));
-            row = row.concat([p1, p2, ex1, p1 + p2 + ex1, p3, p4, ex2, p3 + p4 + ex2, p1 + p2 + ex1 + p3 + p4 + ex2]);
+            row.push(p1, p2, ex1, p1 + p2 + ex1, p3, p4, ex2, p3 + p4 + ex2, p1 + p2 + ex1 + p3 + p4 + ex2);
             bd.push(row);
         }
 
@@ -1710,30 +1696,46 @@ async function genererPDF(multiOpt, optionFiltre) {
             pdf.text('Option : ' + currentFiche.option, 14, 62);
         }
 
+        let colStyles = {
+            0: { cellWidth: 10, halign: 'center' },
+            1: { cellWidth: multiOpt ? 70 : 85, halign: 'left', fontStyle: 'bold' },
+            2: { cellWidth: 10, halign: 'center' }
+        };
+        
+        let startIndex = 3;
+        if (multiOpt) {
+            colStyles[3] = { cellWidth: 15, halign: 'center' };
+            startIndex = 4;
+        }
+        
+        for (let k = 0; k < 9; k++) {
+            colStyles[startIndex + k] = { cellWidth: 16, halign: 'center' };
+        }
+
         pdf.autoTable({
             head: [hd],
             body: bd,
             startY: 66,
             theme: 'grid',
             styles: {
-                fontSize: 9, cellPadding: 1.5, halign: 'center', valign: 'middle',
+                fontSize: 9, cellPadding: 2, halign: 'center', valign: 'middle',
                 textColor: [0, 0, 0], lineColor: [180, 180, 180], lineWidth: 0.1
             },
-            headStyles: { fillColor: [37, 211, 102], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+            headStyles: { 
+                fillColor: [37, 211, 102], 
+                textColor: [255, 255, 255], 
+                fontStyle: 'bold', 
+                fontSize: 9 
+            },
             didParseCell: function(data) {
                 if (data.section === 'body' && data.row.raw && data.row.raw[0] === 'MAX') {
                     data.cell.styles.fontStyle = 'bold';
-                    data.cell.styles.textColor = [0, 0, 0];
                     data.cell.styles.fillColor = [255, 235, 232];
                 }
             },
             alternateRowStyles: { fillColor: [245, 250, 245] },
-            columnStyles: {
-                0: { cellWidth: 10 },
-                1: { cellWidth: multiOpt ? 65 : 80, halign: 'left', fontStyle: 'bold' }
-            },
-            margin: { left: 8, right: 8, top: 8, bottom: 8 },
-            showHead: 'firstPage'
+            columnStyles: colStyles,
+            margin: { left: 8, right: 8, top: 8, bottom: 8 }
         });
 
         const suffix = multiOpt ? 'MultiOptions' : (optionFiltre || 'Unique').replace(/\s/g, '_');
