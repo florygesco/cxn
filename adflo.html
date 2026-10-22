@@ -700,13 +700,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 {"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"}}
 </script>
 <script type="module">
-import{initializeApp}from"firebase/app";
+import{initializeApp, deleteApp}from"firebase/app";
 import{getFirestore,collection,doc,getDoc,getDocs,setDoc,deleteDoc,writeBatch,query,where,limit}from"firebase/firestore";
-import{getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut}from"firebase/auth";
+import{getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut,createUserWithEmailAndPassword}from"firebase/auth";
 const firebaseConfig={apiKey:"AIzaSyB_GdmPBnWl3w6g99j1cGO7vxDdxmKr4QA",authDomain:"netubexmoney.firebaseapp.com",projectId:"netubexmoney",storageBucket:"netubexmoney.firebasestorage.app",messagingSenderId:"856592608176",appId:"1:856592608176:web:69f9df9cfd4f8c28630475"};
 const app=initializeApp(firebaseConfig);
 const db=getFirestore(app);
 const auth=getAuth(app);
+const secondaryApp = initializeApp(firebaseConfig, "Secondary");
+const secondaryAuth = getAuth(secondaryApp);
 document.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('dragstart',e=>{if(e.target.tagName==='IMG')e.preventDefault();});
 let currentUser=null;
@@ -1122,7 +1124,6 @@ return professeurs;
 }
 async function loadPrefects(){
 try{
-// S'assurer que les netubers sont chargés
 if(!cacheValid('netubers'))await loadNetubers();
 const prefects=netubers.filter(n=>n.role==='prefet'||n.role==='directeur');
 renderPrefects(prefects);
@@ -2883,6 +2884,15 @@ isExistingAccount=true;
 uid='PREF-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
 const nse=(nom||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
 const email=nse+telRaw+'@gmail.com';
+try {
+    await createUserWithEmailAndPassword(secondaryAuth, email, code);
+    await signOut(secondaryAuth);
+} catch (authError) {
+    console.log("Erreur Auth:", authError.message);
+    if(authError.code !== 'auth/email-already-in-use') {
+        toast('Erreur Auth: ' + authError.message, 'err');
+    }
+}
 const codeParrainage='NTX-'+uid.slice(0,6).toUpperCase();
 await setDoc(doc(db,'netubers',uid),{prenom:'',nom:nom,nomComplet:nom,sexe:sexe,phone:phone,emailAuth:email,code:code,ville:ecole?ecole.ville:'',quartier:'',actif:true,avatarUrl:'',role:role,ecoleId:ecoleId,dateCreation:new Date().toISOString(),creePar:currentUser?currentUser.email:'admin',creeParRole:'admin',motDePasseProvisoire:true,stats:{deblocages:0,commandes:0,parrainage:0,jetons:0,badges:[]},notifications:[],parrainage:{code:codeParrainage,count:0,palier:0,joursRestants:0,dateDernierePub:null}});
 try{await setDoc(doc(db,'phone_index',telRaw),{uid:uid,dateCreation:new Date().toISOString()});}catch(e){}
@@ -3049,6 +3059,15 @@ if(!netubersSnap.empty){
 uidNetuber=netubersSnap.docs[0].id;
 await setDoc(doc(db,'netubers',uidNetuber),{role:'professeur',ecoleId:ecoleId,professeurId:profId},{merge:true});
 }else{
+try {
+    await createUserWithEmailAndPassword(secondaryAuth, emailGen, motDePasse);
+    await signOut(secondaryAuth);
+} catch (authError) {
+    console.log("Erreur Auth:", authError.message);
+    if(authError.code !== 'auth/email-already-in-use') {
+        toast('Erreur Auth: ' + authError.message, 'err');
+    }
+}
 await setDoc(doc(db,'netubers',uidNetuber),{prenom:'',nom:nom,nomComplet:nom,sexe:'',phone:phoneNorm,emailAuth:emailGen,code:motDePasse,ville:ville||(ecole?ecole.ville:''),quartier:'',actif:true,avatarUrl:'',role:'professeur',ecoleId:ecoleId,professeurId:profId,dateCreation:new Date().toISOString(),creePar:currentUser?currentUser.uid:'admin',creeParRole:'admin',motDePasseProvisoire:true,stats:{deblocages:0,commandes:0,parrainage:0,jetons:0,badges:[]},notifications:[],parrainage:{code:'NTX-'+profId.slice(0,6).toUpperCase(),count:0,palier:0,joursRestants:0}});
 try{await setDoc(doc(db,'phone_index',telRaw),{uid:uidNetuber,dateCreation:new Date().toISOString()});}catch(e){}
 await setDoc(doc(db,'user_stats',uidNetuber),{totalVues:0,nbAnnonces:0,nbPubliees:0,nbEnAttente:0,nbRefusees:0,totalDeblocages:0,totalCommerceVues:0,nbProduitsCommerce:0,derniereMiseAJour:new Date().toISOString()});
@@ -3121,6 +3140,15 @@ uidNetuber=prof.id;
 const mdp=prof.motDePasseProvisoire||Math.random().toString(36).slice(2,8).toUpperCase();
 const nse=(prof.nom||'prof').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
 const emailGen=prof.emailGen||(nse+telDigits+'@gmail.com');
+try {
+    await createUserWithEmailAndPassword(secondaryAuth, emailGen, mdp);
+    await signOut(secondaryAuth);
+} catch (authError) {
+    console.log("Erreur Auth:", authError.message);
+    if(authError.code !== 'auth/email-already-in-use') {
+        toast('Erreur Auth: ' + authError.message, 'err');
+    }
+}
 await setDoc(doc(db,'netubers',uidNetuber),{prenom:'',nom:prof.nom||'',nomComplet:prof.nom||'',sexe:'',phone:phoneNorm,emailAuth:emailGen,code:mdp,ville:prof.ville||'',quartier:'',actif:true,avatarUrl:prof.avatarUrl||'',role:'professeur',ecoleId:Object.keys(prof.ecoles||{})[0]||null,professeurId:prof.id,dateCreation:new Date().toISOString(),creePar:'admin-repair',creeParRole:'admin',motDePasseProvisoire:true,stats:{deblocages:0,commandes:0,parrainage:0,jetons:0,badges:[]},notifications:[],parrainage:{code:'NTX-'+prof.id.slice(0,6).toUpperCase(),count:0,palier:0,joursRestants:0}});
 try{await setDoc(doc(db,'phone_index',telDigits),{uid:uidNetuber,dateCreation:new Date().toISOString()});}catch(e){}
 await setDoc(doc(db,'user_stats',uidNetuber),{totalVues:0,nbAnnonces:0,nbPubliees:0,nbEnAttente:0,nbRefusees:0,totalDeblocages:0,totalCommerceVues:0,nbProduitsCommerce:0,derniereMiseAJour:new Date().toISOString()});
