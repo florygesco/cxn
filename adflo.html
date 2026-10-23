@@ -757,6 +757,19 @@ c.appendChild(el);
 requestAnimationFrame(()=>el.classList.add('show'));
 setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),400);},3200);
 }
+async function genererCodeUnique6() {
+    let code;
+    let existe = true;
+    let tentatives = 0;
+    while (existe && tentatives < 50) {
+        code = String(Math.floor(100000 + Math.random() * 900000));
+        const q = query(collection(db, 'netubers'), where('code', '==', code), limit(1));
+        const snap = await getDocs(q);
+        existe = !snap.empty;
+        tentatives++;
+    }
+    return code;
+}
 function adminPrompt(titre,message,placeholder,valeurDefaut,iconName,iconColor){
 return new Promise(function(resolve){
 const modal=document.getElementById('modalPrompt');
@@ -2814,7 +2827,6 @@ return `<tr><td>${i+1}</td><td><strong style="color:var(--text)">${esc(p.nomComp
 }
 document.getElementById('searchPrefects').oninput=()=>loadPrefects();
 document.getElementById('filterPrefectRole').onchange=()=>loadPrefects();
-function genererCode4(){return String(Math.floor(1000+Math.random()*9000));}
 function ouvrirModalCreatePrefect(ecoleIdPreselected){
 if(ecoles.length===0){toast('Créez d\'abord une école','warn');return;}
 const ecoleOptions=ecoles.map(e=>`<option value="${esc(e.id)}" ${ecoleIdPreselected===e.id?'selected':''}>${esc(e.nom)} — ${esc(e.ville)}</option>`).join('');
@@ -2881,22 +2893,29 @@ if(!ok){toast('Opération annulée','warn');return;}
 await setDoc(doc(db,'netubers',uid),{nom:nom,nomComplet:nom,sexe:sexe||existData.sexe||'',role:role,ecoleId:ecoleId,code:code,actif:true,motDePasseProvisoire:true,datePromotion:new Date().toISOString(),promuPar:currentUser?currentUser.email:'admin',ancienRole:ancienRole},{merge:true});
 isExistingAccount=true;
 }else{
-uid='PREF-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
+const codeGenere = await genererCodeUnique6();
 const nse=(nom||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
 const email=nse+telRaw+'@gmail.com';
+let firebaseUid = null;
 try {
-    await createUserWithEmailAndPassword(secondaryAuth, email, code);
+    const cred = await createUserWithEmailAndPassword(secondaryAuth, email, codeGenere);
+    firebaseUid = cred.user.uid;
     await signOut(secondaryAuth);
 } catch (authError) {
     console.log("Erreur Auth:", authError.message);
-    if(authError.code !== 'auth/email-already-in-use') {
-        toast('Erreur Auth: ' + authError.message, 'err');
+    if (authError.code === 'auth/email-already-in-use') {
+        toast('Ce numéro possède déjà un compte. Utilisez un autre numéro.', 'err');
+        return;
     }
+    toast('Erreur Auth: ' + authError.message, 'err');
+    return;
 }
+uid = firebaseUid;
 const codeParrainage='NTX-'+uid.slice(0,6).toUpperCase();
-await setDoc(doc(db,'netubers',uid),{prenom:'',nom:nom,nomComplet:nom,sexe:sexe,phone:phone,emailAuth:email,code:code,ville:ecole?ecole.ville:'',quartier:'',actif:true,avatarUrl:'',role:role,ecoleId:ecoleId,dateCreation:new Date().toISOString(),creePar:currentUser?currentUser.email:'admin',creeParRole:'admin',motDePasseProvisoire:true,stats:{deblocages:0,commandes:0,parrainage:0,jetons:0,badges:[]},notifications:[],parrainage:{code:codeParrainage,count:0,palier:0,joursRestants:0,dateDernierePub:null}});
+await setDoc(doc(db,'netubers',uid),{prenom:'',nom:nom,nomComplet:nom,sexe:sexe,phone:phone,emailAuth:email,code:codeGenere,ville:ecole?ecole.ville:'',quartier:'',actif:true,avatarUrl:'',role:role,ecoleId:ecoleId,dateCreation:new Date().toISOString(),creePar:currentUser?currentUser.email:'admin',creeParRole:'admin',motDePasseProvisoire:true,stats:{deblocages:0,commandes:0,parrainage:0,jetons:0,badges:[]},notifications:[],parrainage:{code:codeParrainage,count:0,palier:0,joursRestants:0,dateDernierePub:null}});
 try{await setDoc(doc(db,'phone_index',telRaw),{uid:uid,dateCreation:new Date().toISOString()});}catch(e){}
 await setDoc(doc(db,'user_stats',uid),{totalVues:0,nbAnnonces:0,nbPubliees:0,nbEnAttente:0,nbRefusees:0,totalDeblocages:0,totalCommerceVues:0,nbProduitsCommerce:0,derniereMiseAJour:new Date().toISOString()});
+code = codeGenere;
 }
 if(ecole){
 const ecoleRef=doc(db,'ecoles',ecoleId);
@@ -3050,7 +3069,6 @@ toast('✅ Professeur rattaché à l\'école');
 const profId='PROF-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
 const nse=nom.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
 const emailGen=nse+telRaw+'@gmail.com';
-const motDePasse=Math.random().toString(36).slice(2,8).toUpperCase();
 const phoneNorm='+243'+telRaw;
 const netubersQ=query(collection(db,'netubers'),where('phone','==',phoneNorm),limit(1));
 const netubersSnap=await getDocs(netubersQ);
@@ -3059,24 +3077,31 @@ if(!netubersSnap.empty){
 uidNetuber=netubersSnap.docs[0].id;
 await setDoc(doc(db,'netubers',uidNetuber),{role:'professeur',ecoleId:ecoleId,professeurId:profId},{merge:true});
 }else{
+const codeGenere = await genererCodeUnique6();
+let firebaseUid = null;
 try {
-    await createUserWithEmailAndPassword(secondaryAuth, emailGen, motDePasse);
+    const cred = await createUserWithEmailAndPassword(secondaryAuth, emailGen, codeGenere);
+    firebaseUid = cred.user.uid;
     await signOut(secondaryAuth);
 } catch (authError) {
     console.log("Erreur Auth:", authError.message);
-    if(authError.code !== 'auth/email-already-in-use') {
-        toast('Erreur Auth: ' + authError.message, 'err');
+    if (authError.code === 'auth/email-already-in-use') {
+        toast('Cet email existe déjà. Utilisez un autre numéro.', 'err');
+        return;
     }
+    toast('Erreur Auth: ' + authError.message, 'err');
+    return;
 }
-await setDoc(doc(db,'netubers',uidNetuber),{prenom:'',nom:nom,nomComplet:nom,sexe:'',phone:phoneNorm,emailAuth:emailGen,code:motDePasse,ville:ville||(ecole?ecole.ville:''),quartier:'',actif:true,avatarUrl:'',role:'professeur',ecoleId:ecoleId,professeurId:profId,dateCreation:new Date().toISOString(),creePar:currentUser?currentUser.uid:'admin',creeParRole:'admin',motDePasseProvisoire:true,stats:{deblocages:0,commandes:0,parrainage:0,jetons:0,badges:[]},notifications:[],parrainage:{code:'NTX-'+profId.slice(0,6).toUpperCase(),count:0,palier:0,joursRestants:0}});
+uidNetuber = firebaseUid;
+await setDoc(doc(db,'netubers',uidNetuber),{prenom:'',nom:nom,nomComplet:nom,sexe:'',phone:phoneNorm,emailAuth:emailGen,code:codeGenere,ville:ville||(ecole?ecole.ville:''),quartier:'',actif:true,avatarUrl:'',role:'professeur',ecoleId:ecoleId,professeurId:profId,dateCreation:new Date().toISOString(),creePar:currentUser?currentUser.uid:'admin',creeParRole:'admin',motDePasseProvisoire:true,stats:{deblocages:0,commandes:0,parrainage:0,jetons:0,badges:[]},notifications:[],parrainage:{code:'NTX-'+profId.slice(0,6).toUpperCase(),count:0,palier:0,joursRestants:0}});
 try{await setDoc(doc(db,'phone_index',telRaw),{uid:uidNetuber,dateCreation:new Date().toISOString()});}catch(e){}
 await setDoc(doc(db,'user_stats',uidNetuber),{totalVues:0,nbAnnonces:0,nbPubliees:0,nbEnAttente:0,nbRefusees:0,totalDeblocages:0,totalCommerceVues:0,nbProduitsCommerce:0,derniereMiseAJour:new Date().toISOString()});
 }
 const ecolesObj={};
 ecolesObj[ecoleId]={ecoleNom:ecole.nom,dateAjout:new Date().toISOString(),dateDebut:dateDebut,statut:'approuve',ajoutePar:currentUser?currentUser.uid:'admin',ajouteParNom:'Direction',notes:{},moyenneEcole:0,nombreNotesEcole:0};
 const diplomes=diplomesStr?diplomesStr.split(',').map(s=>s.trim()).filter(Boolean):[];
-await setDoc(doc(db,'professeurs',profId),{uid:uidNetuber,nom,matiere,sections,ville:ville||(ecole?ecole.ville:''),anneesExperience:exp,diplomes,avatarUrl:'',bio:'',telephone:phoneNorm,contactActif:false,ecoles:ecolesObj,notesGlobales:{},moyenneGlobale:0,nombreNotesGlobal:0,responsables:[],emailGen,motDePasseProvisoire:motDePasse,dateCreation:new Date().toISOString(),actif:true,creePar:'Direction'});
-afficherRecapProf(nom,phoneNorm,emailGen,motDePasse,ecole?ecole.nom:'');
+await setDoc(doc(db,'professeurs',profId),{uid:uidNetuber,nom,matiere,sections,ville:ville||(ecole?ecole.ville:''),anneesExperience:exp,diplomes,avatarUrl:'',bio:'',telephone:phoneNorm,contactActif:false,ecoles:ecolesObj,notesGlobales:{},moyenneGlobale:0,nombreNotesGlobal:0,responsables:[],emailGen,motDePasseProvisoire:codeGenere,dateCreation:new Date().toISOString(),actif:true,creePar:'Direction'});
+afficherRecapProf(nom,phoneNorm,emailGen,codeGenere,ecole?ecole.nom:'');
 }
 await notifierChangement('createProf',null);
 d.remove();
