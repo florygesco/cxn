@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>NeTubeX RDC</title>
 <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
-<meta name="googlebot" content="noindex, nofollow">
 <meta name="theme-color" content="#007fff">
 <meta name="format-detection" content="telephone=no">
 <script src="https://cdn.tailwindcss.com"></script>
@@ -577,7 +576,6 @@ body.dark-mode .search-result-price{color:#5cb3ff}
 
 .reseau-ecoles-hero{background:linear-gradient(135deg,#007fff 0%,#0052cc 100%);color:#fff;padding:36px 24px 32px;position:relative;overflow:hidden}
 .reseau-ecoles-hero::before{content:'';position:absolute;top:-60%;right:-20%;width:500px;height:500px;background:radial-gradient(circle,rgba(255,255,255,.18) 0%,transparent 65%);pointer-events:none}
-.reseau-ecoles-hero::after{content:'';position:absolute;bottom:-40%;left:-10%;width:300px;height:300px;background:radial-gradient(circle,rgba(255,255,255,.1) 0%,transparent 70%);pointer-events:none}
 .reseau-hero-inner{max-width:1200px;margin:0 auto;text-align:center;position:relative;z-index:1}
 .reseau-hero-badge{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:800;padding:8px 18px;border-radius:999px;margin-bottom:16px;background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.35);backdrop-filter:blur(10px);letter-spacing:.4px;text-transform:uppercase}
 .reseau-ecoles-title{font-size:32px;font-weight:900;margin:0 0 10px;letter-spacing:-.8px;line-height:1.15}
@@ -1776,13 +1774,7 @@ return await getDownloadURL(sRef);
 window.creerAnnonce=async function(data,coordonnees,paiement){
 if(!window.CURRENT_ACCOUNT_REF)throw new Error('Non connecté');
 if(!paiement||(!paiement.gratuit&&(!paiement.transactionId||!paiement.numeroEnvoi))){throw new Error('Preuve obligatoire');}
-
-try {
-    await signInWithEmailAndPassword(secondaryAuth, window.CURRENT_ACCOUNT.emailAuth, window.CURRENT_ACCOUNT.code);
-} catch(e) {
-    console.log("Erreur auth secondaire (publication):", e);
-}
-
+try { await signInWithEmailAndPassword(secondaryAuth, window.CURRENT_ACCOUNT.emailAuth, window.CURRENT_ACCOUNT.code); } catch(e) {}
 var annonceId='ANN-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
 var annonceData={titre:data.titre||'',desc:data.desc||'',ville:data.ville||'',quartier:data.quartier||'',prix:data.prix||'',img:data.img||'',images:Array.isArray(data.images)?data.images:(data.img?[data.img]:[]),cat:data.cat||'autre',tag:data.tag||'',tagClass:data.tagClass||'',proprietaireUid:data.proprietaireUid||null,publieurNom:data.publieurNom||'',publieurAvatar:data.publieurAvatar||'',publieurType:data.publieurType||'user',publieurBoutique:data.publieurBoutique||null,publieurPhone:data.publieurPhone||'',publieurVille:data.publieurVille||'',publieurParrainage:data.publieurParrainage||null,publieurSexe:data.publieurSexe||'',jobType:data.jobType||null,sousTypeImmo:data.sousTypeImmo||null,badgeConfiance:data.badgeConfiance===true,dateCreation:new Date().toISOString(),actif:false,statut:'en_attente',vues:0};
 if(paiement.gratuit){annonceData.paiement={gratuit:true,montant:0};}else{annonceData.paiement={transactionId:paiement.transactionId,numeroEnvoi:paiement.numeroEnvoi,montant:paiement.montant||400,destinataire:'+243976953045',datePaiement:new Date().toISOString()};}
@@ -1870,13 +1862,7 @@ return{profId:pid,emailGen:emailGen,motDePasse:motDePasse,phone:phoneNorm};
 window.noterProfesseur=async function(profId,ecoleId,etoiles,commentaire){
 if(!window.CURRENT_ACCOUNT)throw new Error('Non connecté');
 if(!etoiles||etoiles<1||etoiles>5)throw new Error('Note entre 1 et 5');
-
-try {
-    await signInWithEmailAndPassword(secondaryAuth, window.CURRENT_ACCOUNT.emailAuth, window.CURRENT_ACCOUNT.code);
-} catch(e) {
-    console.log("Erreur auth secondaire (notation):", e);
-}
-
+try { await signInWithEmailAndPassword(secondaryAuth, window.CURRENT_ACCOUNT.emailAuth, window.CURRENT_ACCOUNT.code); } catch(e) {}
 var profRef=doc(db,'professeurs',profId);
 var snap=await getDoc(profRef);
 if(!snap.exists())throw new Error('Professeur introuvable');
@@ -1905,9 +1891,7 @@ Object.keys(prof.ecoles).forEach(function(eid){var n=prof.ecoles[eid].notes||{};
 var globalMoy=allCount>0?Math.round((allTotal/allCount)*10)/10:0;
 await setDoc(profRef,{ecoles:prof.ecoles,notesGlobales:allNotes,moyenneGlobale:globalMoy,nombreGlobal:allCount},{merge:true});
 await invaliderCache('cache_professeurs');
-
 try { await signOut(secondaryAuth); } catch(e) {}
-
 return{moyenneEcole:moy,moyenneGlobale:globalMoy};
 };
 
@@ -2269,18 +2253,7 @@ try{
 var user=await window.loginByPhoneCode(phone,code);
 if(user&&user.error==='compte_desactive'){showToast('Compte désactivé');if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-arrow-right-to-bracket"></i> Se connecter';}return;}
 if(user){
-try {
-    await window.signInWithEmailAndPasswordRef(auth, user.emailAuth, code);
-} catch (authError) {
-    console.log("Erreur Auth Firebase:", authError);
-    if(authError.code === 'auth/user-not-found') {
-       try {
-           await window.createUserWithEmailAndPasswordRef(auth, user.emailAuth, code);
-       } catch(createErr) {
-           console.log("Erreur création Firebase:", createErr);
-       }
-    }
-}
+try { await window.signInWithEmailAndPasswordRef(auth, user.emailAuth, code); } catch (authError) { if(authError.code === 'auth/user-not-found') { try { await window.createUserWithEmailAndPasswordRef(auth, user.emailAuth, code); } catch(createErr) {} } }
 try{await window.idbDelete(window.STORES.boutique,'current');await window.idbDelete(window.STORES.commerce,'current');}catch(e){}
 setCurrentAccount(user);
 CURRENT_COMMERCANT=user.boutique;
@@ -2771,7 +2744,7 @@ var sectionsHTML='';
 if(p.sections&&p.sections.length>0){
 sectionsHTML='<div class="reseau-prof-meta"><span><i class="fa-solid fa-book"></i> '+p.sections.map(function(s){return s.charAt(0).toUpperCase()+s.slice(1);}).join(', ')+'</span></div>';
 }
-return'<article class="reseau-prof-card" onclick="ouvrirFicheProf(\''+p.id+'\')"><div class="reseau-prof-header"><div class="reseau-prof-avatar">'+av+'</div><div class="reseau-prof-header-info"><div class="reseau-prof-name">'+esc(p.nom||'Sans nom')+'<span class="reseau-badge-anciennete '+badgeClass+'">'+badge.icone+' '+badge.label+'</span></div><div class="reseau-prof-matiere"><i class="fa-solid fa-book-open"></i> '+esc(p.matiere||'—')+'</div></div></div><div class="reseau-prof-body"><div class="reseau-prof-meta"><span><i class="fa-solid fa-location-dot"></i> '+esc(p.ville||'RDC')+'</span>'+(p.anneesExperience?'<span><i class="fa-solid fa-briefcase"></i> '+p.anneesExperience+' ans</span>':'')+'</div>'+sectionsHTML+'<div class="reseau-prof-stars" style="font-size:22px;gap:6px;margin:10px 0">'+stars+'<span class="reseau-prof-note-txt" style="font-size:14px">'+moy.toFixed(1)+' ('+(p.nombreNotesGlobal||0)+')</span></div><div class="reseau-prof-actions">'+actions+'</div></div></article>';
+return'<article class="reseau-prof-card" onclick="ouvrirFicheProf(\''+p.id+'\')"><div class="reseau-prof-header"><div class="reseau-prof-avatar">'+av+'</div><div class="reseau-prof-header-info"><div class="reseau-prof-name">'+esc(p.nom||'Sans nom')+'<span class="reseau-badge-anciennete '+badgeClass+'">'+badge.icone+' '+badge.label+'</span></div><div class="reseau-prof-matiere"><i class="fa-solid fa-book-open"></i> '+esc(p.matiere||'—')+'</div></div></div><div class="reseau-prof-body"><div class="reseau-prof-meta"><span><i class="fa-solid fa-location-dot"></i> '+esc(p.ville||'RDC')+'</span>'+(p.anneesExperience?'<span><i class="fa-solid fa-briefcase"></i> '+p.anneesExperience+' ans</span>':'')+'</div>'+sectionsHTML+'<div class="reseau-prof-stars" style="font-size:22px;gap:6px;margin:10px 0">'+stars+'<span class="reseau-prof-note-txt" style="font-size:14px">'+moy.toFixed(1)+'</span></div><div class="reseau-prof-actions">'+actions+'</div></div></article>';
 }).join('');
 }
 
