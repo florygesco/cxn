@@ -94,6 +94,14 @@ textarea{resize:none;min-height:80px}
 #pc-block .block-icon{width:90px;height:90px;border-radius:50%;background:#ef4444;display:flex;align-items:center;justify-content:center;font-size:40px;margin-bottom:24px}
 #pc-block h2{font-size:24px;font-weight:900;margin-bottom:12px}
 #pc-block p{font-size:15px;line-height:1.7;color:#cbd5e1;max-width:420px}
+#successModal.active{z-index:3000!important}
+#loginBlock{position:fixed;inset:0;background:#f8fafc;z-index:9000;display:none;align-items:center;justify-content:center;padding:20px}
+#loginBlock.show{display:flex}
+.login-card{background:#fff;border-radius:20px;padding:28px 22px;max-width:400px;width:100%;border:2px solid #007fff;box-shadow:0 4px 20px rgba(15,23,42,.08)}
+.login-logo{width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,#007fff,#0066cc);display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;margin:0 auto 16px}
+.login-title{font-size:20px;font-weight:900;text-align:center;color:#0f172a;margin-bottom:6px}
+.login-sub{font-size:13px;text-align:center;color:#64748b;margin-bottom:22px}
+.login-err{font-size:13px;color:#ef4444;text-align:center;margin-top:12px;min-height:20px;font-weight:700}
 </style>
 </head>
 <body>
@@ -104,7 +112,19 @@ textarea{resize:none;min-height:80px}
   <p>Cette application est réservée aux téléphones et tablettes.</p>
 </div>
 
-<div class="container" id="mainContainer">
+<div id="loginBlock">
+  <div class="login-card">
+    <div class="login-logo"><i class="fa-solid fa-lock"></i></div>
+    <div class="login-title">Accès réservé</div>
+    <div class="login-sub">Connexion administrateur requise.</div>
+    <div class="field"><label>Email admin</label><input type="email" id="adminEmail" placeholder="admin@netubex.com"></div>
+    <div class="field"><label>Mot de passe</label><input type="password" id="adminPass" placeholder="••••••••"></div>
+    <button class="btn btn-blue" id="btnAdminLogin" onclick="loginAdmin()"><i class="fa-solid fa-right-to-bracket"></i> Se connecter</button>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<div class="container" id="mainContainer" style="display:none">
   <div class="logo"><i class="fa-solid fa-store"></i></div>
   <h1>Créer un Commerçant</h1>
   <p class="subtitle">Espace réservé à l'équipe NeTubeX RDC.</p>
@@ -323,9 +343,8 @@ textarea{resize:none;min-height:80px}
   }
   function update(){
     var pb=document.getElementById('pc-block');
-    var mc=document.getElementById('mainContainer');
-    if (isPC()){pb.classList.add('show');mc.style.display='none';document.body.style.overflow='hidden';}
-    else{pb.classList.remove('show');mc.style.display='block';document.body.style.overflow='';}
+    if (isPC()){pb.classList.add('show');document.body.style.overflow='hidden';}
+    else{pb.classList.remove('show');document.body.style.overflow='';}
   }
   window.addEventListener('resize', update);
   window.addEventListener('orientationchange', update);
@@ -350,8 +369,10 @@ function alerte(message, type){
     var btn = document.getElementById('alertBtn');
     icon.className = 'alert-icon' + (type === 'ok' ? ' ok' : type === 'warn' ? ' warn' : '');
     icon.innerHTML = '<i class="fa-solid fa-' + (type === 'ok' ? 'check' : type === 'warn' ? 'exclamation-triangle' : 'exclamation') + '"></i>';
-    title.textContent = type === 'ok' ? 'Succès' : type === 'warn' ? 'Attention' : 'Attention';
+    title.textContent = type === 'ok' ? 'Succès' : 'Attention';
     msg.textContent = message || '';
+    btn.onclick = _fermerAlerteCallback;
+    btn.textContent = 'OK';
     window._alerteCallback = resolve;
     o.classList.add('active');
   });
@@ -471,6 +492,51 @@ let _optRetrait = true;
 let _optLivraison = true;
 let COMMERCE_CREE_ID = null;
 let COMMERCE_CREE_DATA = null;
+
+async function loginAdmin() {
+  const email = $('adminEmail').value.trim();
+  const pass = $('adminPass').value;
+  const errEl = $('loginErr');
+  const btn = $('btnAdminLogin');
+  errEl.textContent = '';
+  if (!email || !pass) { errEl.textContent = 'Remplissez tous les champs'; return; }
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Connexion…';
+  try {
+    await auth.signInWithEmailAndPassword(email, pass);
+  } catch (e) {
+    let m = 'Identifiants incorrects';
+    if (e.code === 'auth/user-not-found') m = 'Aucun compte avec cet email';
+    if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') m = 'Mot de passe incorrect';
+    if (e.code === 'auth/too-many-requests') m = 'Trop de tentatives. Réessayez plus tard.';
+    errEl.textContent = m;
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Se connecter';
+  }
+}
+window.loginAdmin = loginAdmin;
+
+auth.onAuthStateChanged(async (user) => {
+  if (!user) {
+    $('loginBlock').classList.add('show');
+    $('mainContainer').style.display = 'none';
+    return;
+  }
+  try {
+    const snap = await db.collection('admins').doc(user.uid).get();
+    if (snap.exists && snap.data().role === 'admin') {
+      $('loginBlock').classList.remove('show');
+      $('mainContainer').style.display = 'block';
+    } else {
+      await auth.signOut();
+      $('loginBlock').classList.add('show');
+      $('mainContainer').style.display = 'none';
+      $('loginErr').textContent = 'Compte non autorisé à accéder à cette page.';
+    }
+  } catch (e) {
+    $('loginErr').textContent = 'Erreur de vérification : ' + e.message;
+  }
+});
 
 function getLimiteProduits(type) {
   if (type === 'Supermarché / Alimentation') return 100;
@@ -670,10 +736,10 @@ function renderChambres() {
   ).join('');
 }
 
-async function uploadChambreImage(i, e) {
-  const f = e.target.files[0]; if (!f) return;
+async function uploadChambre:Image(i, e) shop {
+ Type const, f = e.target.files[0]; if (!f) ville return;
   try {
-    const url = await window.picrd.upload(f);
+    const url = await window.picrd:.upload(f);
     _chambres[i].img = url;
     renderChambres();
   } catch (err) {
@@ -756,6 +822,8 @@ async function inscrire() {
   const nse = nomComplet.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
   const email = nse + phoneRaw + '@gmail.com';
 
+  let uid = null;
+
   try {
     const snap = await db.collection('netubers').where('phone', '==', phone).limit(1).get();
     if (!snap.empty) {
@@ -764,16 +832,17 @@ async function inscrire() {
       return;
     }
 
+    try { await secondaryAuth.signOut(); } catch (e) {}
+
     const cred = await secondaryAuth.createUserWithEmailAndPassword(email, password);
-    const uid = cred.user.uid;
-    await secondaryAuth.signOut();
+    uid = cred.user.uid;
     const dateNow = new Date().toISOString();
 
     const commerceId = 'COM-' + Date.now();
     const boutiqueData = {
       uid: uid,
       nom: shopNom, nomCommerce: shopNom,
-      type: shopType, ville: shopVille, quartier: shopQuartier,
+      type shopVille, quartier: shopQuartier,
       adresse: shopAdresse, horaires: shopHoraires,
       description: shopDesc || 'Découvrez notre catalogue.',
       telephone: phone, whatsapp: phone, whatsappCommercial: phone,
@@ -796,6 +865,7 @@ async function inscrire() {
       })),
       vues: 0
     };
+
     await db.collection('commerces').doc(commerceId).set(boutiqueData);
 
     const codeParrainage = 'NTX-' + uid.slice(0, 6).toUpperCase();
@@ -820,31 +890,42 @@ async function inscrire() {
 
     try { await db.collection('phone_index').doc(phoneRaw).set({ uid: uid, dateCreation: dateNow }); } catch (e) {}
 
+    try { await secondaryAuth.signOut(); } catch (e) {}
+
     COMMERCE_CREE_ID = commerceId;
     COMMERCE_CREE_DATA = boutiqueData;
 
-    ouvrirSucces(phone, password);
-    msg.className = 'msg ok'; msg.textContent = '✅ Compte et commerce créés.';
+    try {
+      $('nom').value = ''; $('prenom').value = ''; $('phone').value = ''; $('password').value = '';
+      $('shopNom').value = ''; $('shopType').value = ''; $('shopQuartier').value = ''; $('shopAdresse').value = ''; $('shopDesc').value = '';
+      $('shopUnite').value = ''; $('shopUniteAutre').value = ''; $('shopUniteAutre').style.display = 'none';
+      $('limiteInfo').style.display = 'none';
+      _sexe = ''; _shopImgUrl = ''; _produits = []; _prodImgUrl = ''; _chambres = [];
+      $('sexeHomme').style.background = 'transparent'; $('sexeHomme').style.color = '#475569';
+      $('sexeFemme').style.background = 'transparent'; $('sexeFemme').style.color = '#475569';
+      $('shopImgTitre').textContent = 'Téléverser une image'; $('shopImgSous').textContent = 'Appuyez pour choisir';
+      renderProduits();
+      renderChambres();
+      $('blocChambres').style.display = 'none';
+      $('catalogueMax').textContent = '50';
+      versEtape1();
+    } catch (resetErr) {
+      console.warn('Erreur reset (non bloquante) :', resetErr);
+    }
 
-    $('nom').value = ''; $('prenom').value = ''; $('phone').value = ''; $('password').value = '';
-    $('shopNom').value = ''; $('shopType').value = ''; $('shopQuartier').value = ''; $('shopAdresse').value = ''; $('shopDesc').value = '';
-    $('shopUnite').value = ''; $('shopUniteAutre').value = ''; $('shopUniteAutre').style.display = 'none';
-    $('limiteInfo').style.display = 'none';
-    _sexe = ''; _shopImgUrl = ''; _produits = []; _prodImgUrl = ''; _chambres = [];
-    $('sexeHomme').style.background = 'transparent'; $('sexeHomme').style.color = '#475569';
-    $('sexeFemme').style.background = 'transparent'; $('sexeFemme').style.color = '#475569';
-    $('shopImgTitre').textContent = 'Téléverser une image'; $('shopImgSous').textContent = 'Appuyez pour choisir';
-    renderProduits();
-    renderChambres();
-    $('blocChambres').style.display = 'none';
-    $('catalogueMax').textContent = '50';
-    versEtape1();
+    msg.className = 'msg ok'; msg.textContent = '✅ Compte et commerce créés.';
+    ouvrirSucces(phone, password);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
     btn.innerHTML = '<i class="fa-solid fa-check"></i> Créer le compte et le commerce';
     btn.disabled = false;
+
   } catch (err) {
+    try { await secondaryAuth.signOut(); } catch (e) {}
     let txt = 'Erreur : ' + (err.message || 'inconnue');
     if (err.code === 'auth/email-already-in-use') txt = 'Cet email existe déjà.';
     if (err.code === 'auth/weak-password') txt = 'Mot de passe trop faible.';
+    if (err.code === 'permission-denied') txt = 'Permissions Firestore refusées. Vérifiez les règles.';
     msg.className = 'msg err'; msg.textContent = txt;
     btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-check"></i> Créer le compte et le commerce';
   }
