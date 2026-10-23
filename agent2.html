@@ -76,6 +76,15 @@ textarea{resize:none;min-height:80px}
 .modal-info-label{font-size:11px;font-weight:900;color:#5cb3ff;text-transform:uppercase;margin-bottom:4px}
 .modal-info-value{font-family:ui-monospace,monospace;font-size:14px;font-weight:900;color:#fff;margin-bottom:12px;word-break:break-all}
 .modal-btn{width:100%;padding:15px;border-radius:12px;font-size:15px;font-weight:900;border:none;cursor:pointer;font-family:inherit;background:#10b981;color:#fff}
+.alert-overlay{position:fixed;inset:0;background:rgba(15,23,42,.75);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px}
+.alert-overlay.active{display:flex}
+.alert-box{background:#fff;border-radius:20px;padding:26px 22px;max-width:380px;width:100%;text-align:center}
+.alert-icon{width:60px;height:60px;border-radius:50%;background:#ef4444;color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 14px}
+.alert-icon.ok{background:#10b981}
+.alert-icon.warn{background:#f59e0b}
+.alert-title{font-size:17px;font-weight:900;color:#0f172a;margin-bottom:6px}
+.alert-msg{font-size:14px;color:#64748b;line-height:1.55;margin-bottom:18px;white-space:pre-line}
+.alert-btn{width:100%;padding:14px;border-radius:12px;font-size:15px;font-weight:900;border:none;cursor:pointer;font-family:inherit;background:#007fff;color:#fff}
 #pc-block{position:fixed;inset:0;background:#0f172a;z-index:99999;display:none;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center;color:#fff}
 #pc-block.show{display:flex}
 #pc-block .block-icon{width:90px;height:90px;border-radius:50%;background:#ef4444;display:flex;align-items:center;justify-content:center;font-size:40px;margin-bottom:24px}
@@ -142,14 +151,24 @@ textarea{resize:none;min-height:80px}
         <label>Type *</label>
         <select id="shopType" onchange="updateTypeHint()">
           <option value="">— Choisir —</option>
-          <option value="Supermarché / Alimentation">Supermarché / Alimentation (max 100)</option>
-          <option value="Restaurant / Traiteur">Restaurant / Traiteur (max 50)</option>
-          <option value="Hôtel / Hébergement">Hôtel / Hébergement (max 50)</option>
-          <option value="Pharmacie / Parapharmacie">Pharmacie / Parapharmacie (max 50)</option>
-          <option value="Mode, Vêtements & Beauté">Mode, Vêtements & Beauté (max 50)</option>
-          <option value="Boulangerie">Boulangerie (max 50)</option>
-          <option value="Quincaillerie">Quincaillerie (max 50)</option>
-          <option value="Autres">Autres (max 50)</option>
+          <option value="Supermarché / Alimentation">Supermarché / Alimentation</option>
+          <option value="Restaurant / Traiteur">Restaurant / Traiteur</option>
+          <option value="Hôtel / Hébergement">Hôtel / Hébergement</option>
+          <option value="Pharmacie / Parapharmacie">Pharmacie / Parapharmacie</option>
+          <option value="Mode, Vêtements & Beauté">Mode, Vêtements & Beauté</option>
+          <option value="Boulangerie">Boulangerie</option>
+          <option value="Quincaillerie">Quincaillerie</option>
+          <option value="Autres">Autres</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Limite de produits (catalogue)</label>
+        <select id="shopLimiteProduits">
+          <option value="20">20 produits</option>
+          <option value="50" selected>50 produits</option>
+          <option value="100">100 produits</option>
+          <option value="200">200 produits</option>
+          <option value="500">500 produits</option>
         </select>
       </div>
       <div class="field"><label>Ville *</label><input type="text" id="shopVille" value="Kasumbalesa" readonly style="background:#f1f5f9;color:#64748b"></div>
@@ -272,6 +291,15 @@ textarea{resize:none;min-height:80px}
   </div>
 </div>
 
+<div class="alert-overlay" id="alertOverlay">
+  <div class="alert-box">
+    <div class="alert-icon" id="alertIcon"><i class="fa-solid fa-exclamation"></i></div>
+    <div class="alert-title" id="alertTitle">Attention</div>
+    <div class="alert-msg" id="alertMsg">—</div>
+    <button class="alert-btn" id="alertBtn" onclick="fermerAlerte()">OK</button>
+  </div>
+</div>
+
 <script>
 (function(){
   document.addEventListener('contextmenu', function(e){ e.preventDefault(); return false; }, {capture:true});
@@ -281,13 +309,15 @@ textarea{resize:none;min-height:80px}
     if (e.ctrlKey && e.shiftKey && (k==='i'||k==='j'||k==='c'||k==='k'||k==='e')){e.preventDefault();e.stopPropagation();return false;}
     if (e.ctrlKey && (k==='u'||k==='s'||k==='p')){e.preventDefault();e.stopPropagation();return false;}
   }, {capture:true});
+  document.addEventListener('dragstart', function(e){ if(e.target.tagName==='IMG') e.preventDefault(); });
 })();
+
 (function(){
   function isPC(){
     var m=/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|Tablet/i.test(navigator.userAgent);
     var t=('ontouchstart' in window)||(navigator.maxTouchPoints>0);
-    var s=window.innerWidth<=1024;
-    return !m && !(t && s);
+    var w=window.innerWidth<=1024;
+    return !m && !(t && w);
   }
   function update(){
     var pb=document.getElementById('pc-block');
@@ -296,8 +326,61 @@ textarea{resize:none;min-height:80px}
     else{pb.classList.remove('show');mc.style.display='block';document.body.style.overflow='';}
   }
   window.addEventListener('resize', update);
+  window.addEventListener('orientationchange', update);
+  document.addEventListener('DOMContentLoaded', update);
   update();
 })();
+
+function _fermerAlerteCallback(){
+  document.getElementById('alertOverlay').classList.remove('active');
+  var cb = window._alerteCallback;
+  window._alerteCallback = null;
+  if (typeof cb === 'function') cb();
+}
+window.fermerAlerte = _fermerAlerteCallback;
+
+function alerte(message, type){
+  return new Promise(function(resolve){
+    var o = document.getElementById('alertOverlay');
+    var icon = document.getElementById('alertIcon');
+    var title = document.getElementById('alertTitle');
+    var msg = document.getElementById('alertMsg');
+    var btn = document.getElementById('alertBtn');
+    icon.className = 'alert-icon' + (type === 'ok' ? ' ok' : type === 'warn' ? ' warn' : '');
+    icon.innerHTML = '<i class="fa-solid fa-' + (type === 'ok' ? 'check' : type === 'warn' ? 'exclamation-triangle' : 'exclamation') + '"></i>';
+    title.textContent = type === 'ok' ? 'Succès' : type === 'warn' ? 'Attention' : 'Attention';
+    msg.textContent = message || '';
+    window._alerteCallback = resolve;
+    o.classList.add('active');
+  });
+}
+window.alerte = alerte;
+
+function confirme(message){
+  return new Promise(function(resolve){
+    var o = document.getElementById('alertOverlay');
+    var icon = document.getElementById('alertIcon');
+    var title = document.getElementById('alertTitle');
+    var msg = document.getElementById('alertMsg');
+    var btn = document.getElementById('alertBtn');
+    icon.className = 'alert-icon warn';
+    icon.innerHTML = '<i class="fa-solid fa-question"></i>';
+    title.textContent = 'Confirmation';
+    msg.textContent = message || '';
+    btn.textContent = 'Oui';
+    btn.onclick = function(){
+      btn.onclick = _fermerAlerteCallback;
+      btn.textContent = 'OK';
+      o.classList.remove('active');
+      resolve(true);
+    };
+    var closeOnly = function(){ btn.onclick = _fermerAlerteCallback; btn.textContent = 'OK'; resolve(false); };
+    window._alerteCallback = closeOnly;
+    o.classList.add('active');
+    o.onclick = function(ev){ if (ev.target === o) { o.onclick = null; closeOnly(); } };
+  });
+}
+window.confirme = confirme;
 </script>
 
 <script>
@@ -401,13 +484,21 @@ window.choisirSexe = choisirSexe;
 
 function updateTypeHint() {
   const type = $('shopType').value;
-  const max = type === 'Supermarché / Alimentation' ? '100' : '50';
-  $('catalogueMax').textContent = max;
   const isHotel = type === 'Hôtel / Hébergement';
   $('blocChambres').style.display = isHotel ? 'block' : 'none';
   if (isHotel && _chambres.length === 0) ajouterChambre();
 }
 window.updateTypeHint = updateTypeHint;
+
+function updateLimiteProduits() {
+  const lim = parseInt($('shopLimiteProduits').value, 10) || 50;
+  $('catalogueMax').textContent = lim;
+}
+document.addEventListener('DOMContentLoaded', function(){
+  const sel = $('shopLimiteProduits');
+  if (sel) sel.addEventListener('change', updateLimiteProduits);
+  updateLimiteProduits();
+});
 
 function toggleOption(opt) {
   if (opt === 'retrait') {
@@ -459,7 +550,7 @@ async function uploadShopImage(e) {
     $('shopImgTitre').textContent = '✅ Image ajoutée';
     $('shopImgSous').textContent = 'Cliquez pour changer';
   } catch (err) {
-    alert('Erreur upload: ' + err.message);
+    await alerte('Erreur upload : ' + err.message, 'err');
     $('shopImgTitre').textContent = 'Erreur, réessayez';
   }
   e.target.value = '';
@@ -474,7 +565,7 @@ async function uploadProduitImage(e) {
     _prodImgUrl = url;
     $('prodImgTitre').textContent = '✅ Image prête';
   } catch (err) {
-    alert('Erreur upload: ' + err.message);
+    await alerte('Erreur upload : ' + err.message, 'err');
     $('prodImgTitre').textContent = 'Erreur, réessayez';
   }
   e.target.value = '';
@@ -485,9 +576,9 @@ function ajouterProduit() {
   const nom = $('prodNom').value.trim();
   const prix = parseInt($('prodPrix').value, 10) || 0;
   const unite = getUniteFinale('prodUnite', 'prodUniteAutre');
-  if (!nom || prix <= 0 || !_prodImgUrl) { alert('Nom, prix et image obligatoires'); return; }
-  const max = parseInt($('catalogueMax').textContent, 10);
-  if (_produits.length >= max) { alert('Limite de ' + max + ' produits atteinte'); return; }
+  if (!nom || prix <= 0 || !_prodImgUrl) { alerte('Nom, prix et image obligatoires'); return; }
+  const max = parseInt($('catalogueMax').textContent, 10) || 50;
+  if (_produits.length >= max) { alerte('Limite de ' + max + ' produits atteinte'); return; }
   _produits.push({ nom, prix, unite, img: _prodImgUrl });
   _prodImgUrl = '';
   $('prodNom').value = '';
@@ -522,8 +613,9 @@ function ajouterChambre() {
 }
 window.ajouterChambre = ajouterChambre;
 
-function supprimerChambre(i) {
-  if (!confirm('Supprimer cette chambre ?')) return;
+async function supprimerChambre(i) {
+  const ok = await confirme('Supprimer cette chambre ?');
+  if (!ok) return;
   _chambres.splice(i, 1);
   renderChambres();
 }
@@ -570,7 +662,7 @@ async function uploadChambreImage(i, e) {
     _chambres[i].img = url;
     renderChambres();
   } catch (err) {
-    alert('Erreur upload: ' + err.message);
+    await alerte('Erreur upload : ' + err.message, 'err');
   }
   e.target.value = '';
 }
@@ -578,9 +670,9 @@ window.uploadChambreImage = uploadChambreImage;
 
 function versEtape2() {
   const champs = ['nom', 'prenom', 'phone', 'password', 'shopNom', 'shopType', 'shopQuartier'];
-  for (const id of champs) { if (!$(id).value.trim()) { alert('Remplissez tous les champs obligatoires'); return; } }
-  if (!_sexe) { alert('Choisissez le sexe'); return; }
-  if (!_shopImgUrl) { alert('Ajoutez l\'image de la boutique'); return; }
+  for (const id of champs) { if (!$(id).value.trim()) { alerte('Remplissez tous les champs obligatoires'); return; } }
+  if (!_sexe) { alerte('Choisissez le sexe'); return; }
+  if (!_shopImgUrl) { alerte('Ajoutez l\'image de la boutique'); return; }
   $('etape1').style.display = 'none';
   $('etape2').style.display = 'block';
   $('stepCircle1').classList.add('done'); $('stepCircle1').classList.remove('active');
@@ -622,19 +714,20 @@ async function inscrire() {
   const shopHoraires = $('shopHoraires').value.trim() || '08h - 20h';
   const shopDesc = $('shopDesc').value.trim();
   const shopUnite = getUniteFinale('shopUnite', 'shopUniteAutre');
+  const shopLimite = parseInt($('shopLimiteProduits').value, 10) || 50;
   const frais = parseInt($('cfgFrais').value, 10) || 0;
   const minProduits = parseInt($('cfgMinProduits').value, 10) || 0;
   const minPrix = parseInt($('cfgMinPrix').value, 10) || 0;
 
-  if (phoneRaw.length !== 9) { alert('Numéro invalide'); return; }
+  if (phoneRaw.length !== 9) { alerte('Numéro invalide'); return; }
 
   const isHotel = shopType === 'Hôtel / Hébergement';
   if (isHotel) {
-    if (_chambres.length === 0) { alert('Ajoutez au moins une chambre.'); return; }
+    if (_chambres.length === 0) { alerte('Ajoutez au moins une chambre.'); return; }
     for (let i = 0; i < _chambres.length; i++) {
       const ch = _chambres[i];
       if (!ch.nom || !ch.prix || ch.prix <= 0) {
-        alert('Chambre ' + (i + 1) + ' : nom et prix obligatoires.');
+        alerte('Chambre ' + (i + 1) + ' : nom et prix obligatoires.');
         return;
       }
     }
@@ -675,6 +768,7 @@ async function inscrire() {
       retraitActif: _optRetrait, livraisonActive: _optLivraison,
       badgeConfiance: false,
       uniteParDefaut: shopUnite,
+      limiteProduits: shopLimite,
       configLivraison: { frais, minProduits, minPrixPanier: minPrix },
       chambres: isHotel ? _chambres.map(ch => ({
         id: ch.id, nom: ch.nom, desc: ch.desc || '',
@@ -753,7 +847,7 @@ async function telechargerQRDepuisSucces() {
     const img = tempDiv.querySelector('img');
     const qrDataUrl = canvas ? canvas.toDataURL('image/png') : (img ? img.src : '');
     document.body.removeChild(tempDiv);
-    if (!qrDataUrl) { alert('Erreur QR'); return; }
+    if (!qrDataUrl) { alerte('Erreur QR'); return; }
 
     const c = COMMERCE_CREE_DATA;
     const JSPDF = window.jspdf.jsPDF;
@@ -782,7 +876,7 @@ async function telechargerQRDepuisSucces() {
     pdf.text('www.netubex.com/rdc', W / 2, H - 6, { align: 'center' });
     pdf.save('QR-' + nomA.replace(/[^\w\-]/g, '_').slice(0, 30) + '.pdf');
   } catch (e) {
-    alert('Erreur QR PDF: ' + e.message);
+    alerte('Erreur QR PDF : ' + e.message);
   }
 }
 window.telechargerQRDepuisSucces = telechargerQRDepuisSucces;
