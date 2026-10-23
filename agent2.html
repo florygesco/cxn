@@ -26,9 +26,11 @@ h1{font-size:22px;font-weight:900;text-align:center;color:#0f172a;margin-bottom:
 .card{background:#fff;border-radius:20px;padding:22px;margin-bottom:16px;box-shadow:0 4px 20px rgba(15,23,42,.08)}
 .card.blue{border:2px solid #007fff;background:linear-gradient(180deg,rgba(0,127,255,.03),#fff)}
 .card.green{border:2px solid #10b981;background:linear-gradient(180deg,rgba(16,185,129,.03),#fff)}
+.card.amber{border:2px solid #f59e0b;background:linear-gradient(180deg,rgba(245,158,11,.03),#fff)}
 .card-title{font-size:15px;font-weight:900;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 .card.blue .card-title{color:#007fff}
 .card.green .card-title{color:#10b981}
+.card.amber .card-title{color:#b45309}
 .field{margin-bottom:14px}
 label{display:block;font-size:12px;font-weight:800;color:#475569;text-transform:uppercase;margin-bottom:6px;letter-spacing:.4px}
 input,select,textarea{width:100%;padding:14px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:15px;background:#f8fafc;color:#0f172a;outline:none;font-family:inherit}
@@ -57,6 +59,13 @@ textarea{resize:none;min-height:80px}
 .drop-zone .titre{font-size:14px;font-weight:900;color:#007fff}
 .drop-zone .sous{font-size:12px;color:#64748b;margin-top:4px}
 .produit-form{background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:12px}
+.chambre-card{background:#fff;border:1.5px solid #fcd34d;border-radius:12px;padding:12px;margin-bottom:10px}
+.chambre-card .header{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px}
+.chambre-thumb{width:80px;height:80px;border-radius:10px;overflow:hidden;background:#0b1220;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer}
+.chambre-thumb img{width:100%;height:100%;object-fit:cover}
+.chambre-thumb i{font-size:26px;color:#475569}
+.chambre-thumb .overlay{position:absolute;inset:0;background:rgba(0,0,0,.5);opacity:0;display:flex;align-items:center;justify-content:center;color:#fff;transition:opacity .15s}
+.chambre-thumb:hover .overlay{opacity:1}
 .modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.75);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
 .modal-overlay.active{display:flex}
 .modal-box{background:#fff;border-radius:24px;padding:28px 22px;max-width:420px;width:100%;text-align:center;max-height:90vh;overflow-y:auto}
@@ -135,6 +144,7 @@ textarea{resize:none;min-height:80px}
           <option value="">— Choisir —</option>
           <option value="Supermarché / Alimentation">Supermarché / Alimentation (max 100)</option>
           <option value="Restaurant / Traiteur">Restaurant / Traiteur (max 50)</option>
+          <option value="Hôtel / Hébergement">Hôtel / Hébergement (max 50)</option>
           <option value="Pharmacie / Parapharmacie">Pharmacie / Parapharmacie (max 50)</option>
           <option value="Mode, Vêtements & Beauté">Mode, Vêtements & Beauté (max 50)</option>
           <option value="Boulangerie">Boulangerie (max 50)</option>
@@ -156,6 +166,25 @@ textarea{resize:none;min-height:80px}
         <input type="file" id="shopImgInput" accept="image/*" style="display:none" onchange="uploadShopImage(event)">
       </div>
       <div class="field"><label>Description</label><textarea id="shopDesc" placeholder="Décrivez votre commerce…" maxlength="300"></textarea></div>
+      <div class="field">
+        <label>Unité de vente par défaut</label>
+        <select id="shopUnite" onchange="toggleAutreUnite()">
+          <option value="">- Sans unité -</option>
+          <option value="/ pièce">/ pièce</option>
+          <option value="/ kg">/ kg</option>
+          <option value="/ g">/ g</option>
+          <option value="/ L">/ L</option>
+          <option value="/ ml">/ ml</option>
+          <option value="/ sac">/ sac</option>
+          <option value="/ bidon">/ bidon</option>
+          <option value="/ bouteille">/ bouteille</option>
+          <option value="/ pack">/ pack</option>
+          <option value="/ lot">/ lot</option>
+          <option value="/ carton">/ carton</option>
+          <option value="autre">✏️ Autre unité…</option>
+        </select>
+        <input type="text" id="shopUniteAutre" placeholder="Ex : / litre, / mètre…" maxlength="20" style="display:none;margin-top:8px">
+      </div>
     </div>
 
     <button class="btn btn-blue" onclick="versEtape2()"><i class="fa-solid fa-arrow-right"></i> Continuer</button>
@@ -178,12 +207,37 @@ textarea{resize:none;min-height:80px}
       <div style="font-size:12px;color:#64748b;line-height:1.5"><i class="fa-solid fa-circle-info"></i> 0 = pas de minimum.</div>
     </div>
 
+    <div class="card green" id="blocChambres" style="display:none">
+      <div class="card-title"><i class="fa-solid fa-bed"></i> Chambres de l'hôtel (<span id="chambresCount">0</span>)</div>
+      <div id="listeChambres"></div>
+      <button type="button" class="btn btn-blue" style="padding:12px;font-size:14px" onclick="ajouterChambre()"><i class="fa-solid fa-plus"></i> Ajouter une chambre</button>
+    </div>
+
     <div class="card green">
       <div class="card-title"><i class="fa-solid fa-box"></i> Catalogue (<span id="catalogueCount">0</span>/<span id="catalogueMax">50</span>)</div>
       
       <div class="produit-form">
         <div class="field" style="margin-bottom:10px"><label>Nom du produit *</label><input type="text" id="prodNom" placeholder="Ex: Riz parfumé"></div>
         <div class="field" style="margin-bottom:10px"><label>Prix (FC) *</label><input type="number" id="prodPrix" min="0" placeholder="Ex: 2500"></div>
+        <div class="field" style="margin-bottom:10px">
+          <label>Unité</label>
+          <select id="prodUnite" onchange="toggleAutreUniteProd()">
+            <option value="">- Sans unité -</option>
+            <option value="/ pièce">/ pièce</option>
+            <option value="/ kg">/ kg</option>
+            <option value="/ g">/ g</option>
+            <option value="/ L">/ L</option>
+            <option value="/ ml">/ ml</option>
+            <option value="/ sac">/ sac</option>
+            <option value="/ bidon">/ bidon</option>
+            <option value="/ bouteille">/ bouteille</option>
+            <option value="/ pack">/ pack</option>
+            <option value="/ lot">/ lot</option>
+            <option value="/ carton">/ carton</option>
+            <option value="autre">✏️ Autre unité…</option>
+          </select>
+          <input type="text" id="prodUniteAutre" placeholder="Ex : / litre…" maxlength="20" style="display:none;margin-top:8px">
+        </div>
         <div class="field" style="margin-bottom:10px"><label>Image du produit *</label>
           <div class="drop-zone" onclick="document.getElementById('prodImgInput').click()" style="padding:14px">
             <i class="fa-solid fa-camera" style="font-size:22px"></i>
@@ -219,7 +273,6 @@ textarea{resize:none;min-height:80px}
 </div>
 
 <script>
-// ===== PROTECTIONS =====
 (function(){
   document.addEventListener('contextmenu', function(e){ e.preventDefault(); return false; }, {capture:true});
   document.addEventListener('keydown', function(e){
@@ -248,7 +301,6 @@ textarea{resize:none;min-height:80px}
 </script>
 
 <script>
-// ===== UPLOAD IMAGES (même méthode que NeTubeX RDC) =====
 (function(){
   var IMGBB_API_KEY='3c7603b68d243e8bbd5fe29e8e54c8ee';
   var MAX_SIZE=10*1024*1024;
@@ -321,12 +373,15 @@ const firebaseConfig = {
 const app = firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
+const secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary");
+const secondaryAuth = secondaryApp.auth();
 
 const $ = (id) => document.getElementById(id);
 let _sexe = '';
 let _shopImgUrl = '';
 let _prodImgUrl = '';
 let _produits = [];
+let _chambres = [];
 let _optRetrait = true;
 let _optLivraison = true;
 let COMMERCE_CREE_ID = null;
@@ -348,7 +403,11 @@ function updateTypeHint() {
   const type = $('shopType').value;
   const max = type === 'Supermarché / Alimentation' ? '100' : '50';
   $('catalogueMax').textContent = max;
+  const isHotel = type === 'Hôtel / Hébergement';
+  $('blocChambres').style.display = isHotel ? 'block' : 'none';
+  if (isHotel && _chambres.length === 0) ajouterChambre();
 }
+window.updateTypeHint = updateTypeHint;
 
 function toggleOption(opt) {
   if (opt === 'retrait') {
@@ -361,6 +420,34 @@ function toggleOption(opt) {
   }
 }
 window.toggleOption = toggleOption;
+
+function toggleAutreUnite() {
+  const sel = $('shopUnite');
+  const inp = $('shopUniteAutre');
+  if (sel.value === 'autre') { inp.style.display = 'block'; inp.focus(); }
+  else { inp.style.display = 'none'; inp.value = ''; }
+}
+window.toggleAutreUnite = toggleAutreUnite;
+
+function toggleAutreUniteProd() {
+  const sel = $('prodUnite');
+  const inp = $('prodUniteAutre');
+  if (sel.value === 'autre') { inp.style.display = 'block'; inp.focus(); }
+  else { inp.style.display = 'none'; inp.value = ''; }
+}
+window.toggleAutreUniteProd = toggleAutreUniteProd;
+
+function getUniteFinale(selectId, inputId) {
+  const sel = $(selectId);
+  const inp = $(inputId);
+  if (!sel) return '';
+  if (sel.value === 'autre') {
+    const v = inp ? inp.value.trim() : '';
+    if (!v) return '';
+    return v.charAt(0) === '/' ? v : ('/ ' + v);
+  }
+  return sel.value;
+}
 
 async function uploadShopImage(e) {
   const f = e.target.files[0]; if (!f) return;
@@ -397,13 +484,17 @@ window.uploadProduitImage = uploadProduitImage;
 function ajouterProduit() {
   const nom = $('prodNom').value.trim();
   const prix = parseInt($('prodPrix').value, 10) || 0;
+  const unite = getUniteFinale('prodUnite', 'prodUniteAutre');
   if (!nom || prix <= 0 || !_prodImgUrl) { alert('Nom, prix et image obligatoires'); return; }
   const max = parseInt($('catalogueMax').textContent, 10);
   if (_produits.length >= max) { alert('Limite de ' + max + ' produits atteinte'); return; }
-  _produits.push({ nom, prix, img: _prodImgUrl });
+  _produits.push({ nom, prix, unite, img: _prodImgUrl });
   _prodImgUrl = '';
   $('prodNom').value = '';
   $('prodPrix').value = '';
+  $('prodUnite').value = '';
+  $('prodUniteAutre').value = '';
+  $('prodUniteAutre').style.display = 'none';
   $('prodImgTitre').textContent = "Ajouter l'image";
   renderProduits();
 }
@@ -415,12 +506,75 @@ function renderProduits() {
     '<div class="produit-card">' +
     '<img src="' + p.img + '">' +
     '<button class="del" onclick="supprimerProduit(' + i + ')"><i class="fa-solid fa-xmark"></i></button>' +
-    '<div class="infos"><div class="nom">' + p.nom + '</div><div class="prix">' + p.prix.toLocaleString('fr-FR') + ' FC</div></div>' +
+    '<div class="infos"><div class="nom">' + p.nom + '</div><div class="prix">' + p.prix.toLocaleString('fr-FR') + ' FC ' + (p.unite || '') + '</div></div>' +
     '</div>'
   ).join('');
 }
 function supprimerProduit(i) { _produits.splice(i, 1); renderProduits(); }
 window.supprimerProduit = supprimerProduit;
+
+function ajouterChambre() {
+  _chambres.push({
+    id: 'CH-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+    nom: '', desc: '', prix: 0, capacite: 2, img: '', dispo: true
+  });
+  renderChambres();
+}
+window.ajouterChambre = ajouterChambre;
+
+function supprimerChambre(i) {
+  if (!confirm('Supprimer cette chambre ?')) return;
+  _chambres.splice(i, 1);
+  renderChambres();
+}
+window.supprimerChambre = supprimerChambre;
+
+function renderChambres() {
+  $('chambresCount').textContent = _chambres.length;
+  if (_chambres.length === 0) {
+    $('listeChambres').innerHTML = '<div style="text-align:center;padding:16px;color:#64748b;font-size:13px">Aucune chambre. Cliquez sur « Ajouter ».</div>';
+    return;
+  }
+  $('listeChambres').innerHTML = _chambres.map((ch, i) =>
+    '<div class="chambre-card">' +
+    '<div class="header">' +
+    '<div class="chambre-thumb" onclick="document.getElementById(\'chambreImg_' + i + '\').click()">' +
+    (ch.img ? '<img src="' + ch.img + '">' : '<i class="fa-solid fa-bed"></i>') +
+    '<div class="overlay"><i class="fa-solid fa-camera"></i></div>' +
+    '</div>' +
+    '<input type="file" id="chambreImg_' + i + '" accept="image/*" style="display:none" onchange="uploadChambreImage(' + i + ', event)">' +
+    '<div style="flex:1;min-width:0">' +
+    '<input type="text" placeholder="Nom (Ex: Chambre Deluxe) *" value="' + (ch.nom || '') + '" oninput="_chambres[' + i + '].nom = this.value" style="padding:8px 10px;border-radius:8px;font-size:13px;margin-bottom:6px">' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">' +
+    '<input type="number" placeholder="Prix (FC) *" min="0" value="' + (ch.prix || 0) + '" oninput="_chambres[' + i + '].prix = parseInt(this.value,10)||0" style="padding:8px 10px;border-radius:8px;font-size:13px">' +
+    '<input type="number" placeholder="Capacité" min="1" value="' + (ch.capacite || 2) + '" oninput="_chambres[' + i + '].capacite = parseInt(this.value,10)||1" style="padding:8px 10px;border-radius:8px;font-size:13px">' +
+    '</div>' +
+    '</div>' +
+    '</div>' +
+    '<textarea placeholder="Description (optionnel)" rows="2" oninput="_chambres[' + i + '].desc = this.value" style="padding:8px 10px;border-radius:8px;font-size:13px;margin-bottom:6px;min-height:auto">' + (ch.desc || '') + '</textarea>' +
+    '<div style="display:flex;gap:8px;align-items:center">' +
+    '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:700;color:#475569;text-transform:none;margin:0;letter-spacing:0">' +
+    '<input type="checkbox" ' + (ch.dispo ? 'checked' : '') + ' onchange="_chambres[' + i + '].dispo = this.checked" style="width:auto;margin:0;accent-color:#10b981">' +
+    'Disponible' +
+    '</label>' +
+    '<button type="button" onclick="supprimerChambre(' + i + ')" style="margin-left:auto;width:32px;height:32px;border-radius:8px;background:#ef4444;color:#fff;border:none;cursor:pointer"><i class="fa-solid fa-trash"></i></button>' +
+    '</div>' +
+    '</div>'
+  ).join('');
+}
+
+async function uploadChambreImage(i, e) {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const url = await window.picrd.upload(f);
+    _chambres[i].img = url;
+    renderChambres();
+  } catch (err) {
+    alert('Erreur upload: ' + err.message);
+  }
+  e.target.value = '';
+}
+window.uploadChambreImage = uploadChambreImage;
 
 function versEtape2() {
   const champs = ['nom', 'prenom', 'phone', 'password', 'shopNom', 'shopType', 'shopQuartier'];
@@ -467,11 +621,24 @@ async function inscrire() {
   const shopAdresse = $('shopAdresse').value.trim();
   const shopHoraires = $('shopHoraires').value.trim() || '08h - 20h';
   const shopDesc = $('shopDesc').value.trim();
+  const shopUnite = getUniteFinale('shopUnite', 'shopUniteAutre');
   const frais = parseInt($('cfgFrais').value, 10) || 0;
   const minProduits = parseInt($('cfgMinProduits').value, 10) || 0;
   const minPrix = parseInt($('cfgMinPrix').value, 10) || 0;
 
   if (phoneRaw.length !== 9) { alert('Numéro invalide'); return; }
+
+  const isHotel = shopType === 'Hôtel / Hébergement';
+  if (isHotel) {
+    if (_chambres.length === 0) { alert('Ajoutez au moins une chambre.'); return; }
+    for (let i = 0; i < _chambres.length; i++) {
+      const ch = _chambres[i];
+      if (!ch.nom || !ch.prix || ch.prix <= 0) {
+        alert('Chambre ' + (i + 1) + ' : nom et prix obligatoires.');
+        return;
+      }
+    }
+  }
 
   btn.disabled = true;
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Création…';
@@ -489,8 +656,9 @@ async function inscrire() {
       return;
     }
 
-    const cred = await auth.createUserWithEmailAndPassword(email, password);
+    const cred = await secondaryAuth.createUserWithEmailAndPassword(email, password);
     const uid = cred.user.uid;
+    await secondaryAuth.signOut();
     const dateNow = new Date().toISOString();
 
     const commerceId = 'COM-' + Date.now();
@@ -506,8 +674,17 @@ async function inscrire() {
       dateCreation: dateNow, dateApprobation: dateNow,
       retraitActif: _optRetrait, livraisonActive: _optLivraison,
       badgeConfiance: false,
+      uniteParDefaut: shopUnite,
       configLivraison: { frais, minProduits, minPrixPanier: minPrix },
-      produits: _produits.map(p => ({ nom: p.nom, prix: p.prix, img: p.img, categorie: '', prixLabel: '', statut: 'approuve', dateAjout: dateNow })),
+      chambres: isHotel ? _chambres.map(ch => ({
+        id: ch.id, nom: ch.nom, desc: ch.desc || '',
+        prix: Number(ch.prix) || 0, capacite: Number(ch.capacite) || 1,
+        img: ch.img || '', dispo: ch.dispo !== false
+      })) : [],
+      produits: _produits.map(p => ({
+        nom: p.nom, prix: p.prix, prixLabel: p.unite || shopUnite,
+        img: p.img, categorie: '', statut: 'approuve', dateAjout: dateNow
+      })),
       vues: 0
     };
     await db.collection('commerces').doc(commerceId).set(boutiqueData);
@@ -537,18 +714,19 @@ async function inscrire() {
     COMMERCE_CREE_ID = commerceId;
     COMMERCE_CREE_DATA = boutiqueData;
 
-    await auth.signOut();
     ouvrirSucces(phone, password);
     msg.className = 'msg ok'; msg.textContent = '✅ Compte et boutique créés.';
 
-    // Reset
     $('nom').value = ''; $('prenom').value = ''; $('phone').value = ''; $('password').value = '';
     $('shopNom').value = ''; $('shopType').value = ''; $('shopQuartier').value = ''; $('shopAdresse').value = ''; $('shopDesc').value = '';
-    _sexe = ''; _shopImgUrl = ''; _produits = []; _prodImgUrl = '';
+    $('shopUnite').value = ''; $('shopUniteAutre').value = ''; $('shopUniteAutre').style.display = 'none';
+    _sexe = ''; _shopImgUrl = ''; _produits = []; _prodImgUrl = ''; _chambres = [];
     $('sexeHomme').style.background = 'transparent'; $('sexeHomme').style.color = '#475569';
     $('sexeFemme').style.background = 'transparent'; $('sexeFemme').style.color = '#475569';
     $('shopImgTitre').textContent = 'Téléverser une image'; $('shopImgSous').textContent = 'Appuyez pour choisir';
     renderProduits();
+    renderChambres();
+    $('blocChambres').style.display = 'none';
     versEtape1();
     btn.innerHTML = '<i class="fa-solid fa-check"></i> Créer le compte et la boutique';
     btn.disabled = false;
