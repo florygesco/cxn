@@ -1560,6 +1560,8 @@ window.deleteDocRef=deleteDoc;window.storageRef=storageRef;window.uploadBytes=up
 window.getDownloadURL=getDownloadURL;window.writeBatch=writeBatch;
 window.onAuthStateChangedRef=onAuthStateChanged;
 window.signOutRef=signOut;
+window.signInWithEmailAndPasswordRef=signInWithEmailAndPassword;
+window.createUserWithEmailAndPasswordRef=createUserWithEmailAndPassword;
 
 function normCat(v){return String(v||'').toLowerCase().replace(/[\s_-]+/g,'').trim();}
 window.normCat=normCat;
@@ -1779,7 +1781,7 @@ var allNotes={};
 var allTotal=0,allCount=0;
 Object.keys(prof.ecoles).forEach(function(eid){var n=prof.ecoles[eid].notes||{};Object.keys(n).forEach(function(k){var key=eid+'_'+k;allNotes[key]=n[k];allTotal+=n[k].etoiles;allCount++;});});
 var globalMoy=allCount>0?Math.round((allTotal/allCount)*10)/10:0;
-await setDoc(profRef,{ecoles:prof.ecoles,notesGlobales:allNotes,moyenneGlobale:globalMoy,nombreNotesGlobal:allCount},{merge:true});
+await setDoc(profRef,{ecoles:prof.ecoles,notesGlobales:allNotes,moyenneGlobale:globalMoy,nombreGlobal:allCount},{merge:true});
 await invaliderCache('cache_professeurs');
 return{moyenneEcole:moy,moyenneGlobale:globalMoy};
 };
@@ -2089,6 +2091,18 @@ try{
 var user=await window.loginByPhoneCode(phone,code);
 if(user&&user.error==='compte_desactive'){showToast('Compte désactivé');if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-arrow-right-to-bracket"></i> Se connecter';}return;}
 if(user){
+try {
+    await window.signInWithEmailAndPasswordRef(auth, user.emailAuth, code);
+} catch (authError) {
+    console.log("Erreur Auth Firebase:", authError);
+    if(authError.code === 'auth/user-not-found') {
+       try {
+           await window.createUserWithEmailAndPasswordRef(auth, user.emailAuth, code);
+       } catch(createErr) {
+           console.log("Erreur création Firebase:", createErr);
+       }
+    }
+}
 try{await window.idbDelete(window.STORES.boutique,'current');await window.idbDelete(window.STORES.commerce,'current');}catch(e){}
 setCurrentAccount(user);
 CURRENT_COMMERCANT=user.boutique;
