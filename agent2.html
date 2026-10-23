@@ -58,6 +58,10 @@ textarea{resize:none;min-height:80px}
 .drop-zone i{font-size:32px;color:#007fff;margin-bottom:8px;display:block}
 .drop-zone .titre{font-size:14px;font-weight:900;color:#007fff}
 .drop-zone .sous{font-size:12px;color:#64748b;margin-top:4px}
+.conseil-photo{background:rgba(245,158,11,.08);border:1.5px solid #fcd34d;border-radius:10px;padding:10px 12px;font-size:12px;color:#92400e;line-height:1.5;margin-top:8px;display:flex;gap:8px;align-items:flex-start}
+.conseil-photo i{color:#f59e0b;font-size:14px;flex-shrink:0;margin-top:1px}
+.limite-info{background:rgba(0,127,255,.08);border:1.5px solid rgba(0,127,255,.25);border-radius:10px;padding:10px 12px;font-size:12px;color:#1e40af;line-height:1.5;margin-top:8px;display:flex;gap:8px;align-items:flex-start}
+.limite-info i{color:#007fff;font-size:14px;flex-shrink:0;margin-top:1px}
 .produit-form{background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:12px}
 .chambre-card{background:#fff;border:1.5px solid #fcd34d;border-radius:12px;padding:12px;margin-bottom:10px}
 .chambre-card .header{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px}
@@ -114,7 +118,7 @@ textarea{resize:none;min-height:80px}
     <div class="step-line"></div>
     <div class="step-item">
       <div class="step-circle" id="stepCircle2">2</div>
-      <div class="step-label" id="stepLabel2">Boutique</div>
+      <div class="step-label" id="stepLabel2">Commerce</div>
     </div>
   </div>
 
@@ -145,7 +149,7 @@ textarea{resize:none;min-height:80px}
     </div>
 
     <div class="card blue">
-      <div class="card-title"><i class="fa-solid fa-shop"></i> Informations boutique</div>
+      <div class="card-title"><i class="fa-solid fa-shop"></i> Informations commerce</div>
       <div class="field"><label>Nom du commerce *</label><input type="text" id="shopNom" placeholder="Ex: Supermarché Le Bon Prix"></div>
       <div class="field">
         <label>Type *</label>
@@ -160,29 +164,27 @@ textarea{resize:none;min-height:80px}
           <option value="Quincaillerie">Quincaillerie</option>
           <option value="Autres">Autres</option>
         </select>
-      </div>
-      <div class="field">
-        <label>Limite de produits (catalogue)</label>
-        <select id="shopLimiteProduits">
-          <option value="20">20 produits</option>
-          <option value="50" selected>50 produits</option>
-          <option value="100">100 produits</option>
-          <option value="200">200 produits</option>
-          <option value="500">500 produits</option>
-        </select>
+        <div class="limite-info" id="limiteInfo" style="display:none">
+          <i class="fa-solid fa-circle-info"></i>
+          <span id="limiteInfoText">—</span>
+        </div>
       </div>
       <div class="field"><label>Ville *</label><input type="text" id="shopVille" value="Kasumbalesa" readonly style="background:#f1f5f9;color:#64748b"></div>
       <div class="field"><label>Quartier *</label><input type="text" id="shopQuartier" placeholder="Ex: Gombe"></div>
       <div class="field"><label>Adresse</label><input type="text" id="shopAdresse" placeholder="Ex: Av. de la Paix N°45"></div>
       <div class="field"><label>Horaires</label><input type="text" id="shopHoraires" value="08h - 20h"></div>
       <div class="field">
-        <label>Image de la boutique *</label>
+        <label>Image du commerce *</label>
         <div class="drop-zone" onclick="document.getElementById('shopImgInput').click()">
           <i class="fa-solid fa-cloud-arrow-up"></i>
           <div class="titre" id="shopImgTitre">Téléverser une image</div>
           <div class="sous" id="shopImgSous">Appuyez pour choisir</div>
         </div>
         <input type="file" id="shopImgInput" accept="image/*" style="display:none" onchange="uploadShopImage(event)">
+        <div class="conseil-photo">
+          <i class="fa-solid fa-lightbulb"></i>
+          <span><strong>Conseil :</strong> Prenez la photo de l'entrée du commerce (façade, enseigne, porte d'entrée) pour que les clients le reconnaissent facilement.</span>
+        </div>
       </div>
       <div class="field"><label>Description</label><textarea id="shopDesc" placeholder="Décrivez votre commerce…" maxlength="300"></textarea></div>
       <div class="field">
@@ -270,7 +272,7 @@ textarea{resize:none;min-height:80px}
       <div class="produits-grid" id="listeProduits"></div>
     </div>
 
-    <button class="btn btn-green" id="btnSubmit" onclick="inscrire()"><i class="fa-solid fa-check"></i> Créer le compte et la boutique</button>
+    <button class="btn btn-green" id="btnSubmit" onclick="inscrire()"><i class="fa-solid fa-check"></i> Créer le compte et le commerce</button>
     <button class="btn btn-gray" onclick="versEtape1()"><i class="fa-solid fa-arrow-left"></i> Retour</button>
   </div>
 </div>
@@ -278,7 +280,7 @@ textarea{resize:none;min-height:80px}
 <div class="modal-overlay" id="successModal">
   <div class="modal-box">
     <div class="modal-icon"><i class="fa-solid fa-check"></i></div>
-    <div class="modal-title">Compte & Boutique créés !</div>
+    <div class="modal-title">Compte & Commerce créés !</div>
     <div class="modal-desc">Communiquez ces identifiants au commerçant.</div>
     <div class="modal-info">
       <div class="modal-info-label">📱 Numéro WhatsApp</div>
@@ -470,6 +472,11 @@ let _optLivraison = true;
 let COMMERCE_CREE_ID = null;
 let COMMERCE_CREE_DATA = null;
 
+function getLimiteProduits(type) {
+  if (type === 'Supermarché / Alimentation') return 100;
+  return 50;
+}
+
 function choisirSexe(s) {
   _sexe = s; $('sexe').value = s;
   if (s === 'homme') {
@@ -487,18 +494,26 @@ function updateTypeHint() {
   const isHotel = type === 'Hôtel / Hébergement';
   $('blocChambres').style.display = isHotel ? 'block' : 'none';
   if (isHotel && _chambres.length === 0) ajouterChambre();
+
+  const limite = getLimiteProduits(type);
+  $('catalogueMax').textContent = limite;
+
+  const infoBox = $('limiteInfo');
+  const infoText = $('limiteInfoText');
+  if (type) {
+    infoBox.style.display = 'flex';
+    if (type === 'Supermarché / Alimentation') {
+      infoText.innerHTML = 'Catalogue limité à <strong>100 produits</strong> pour ce type de commerce.';
+    } else if (isHotel) {
+      infoText.innerHTML = 'Catalogue limité à <strong>50 produits</strong>, et les chambres se configurent à l\'étape suivante.';
+    } else {
+      infoText.innerHTML = 'Catalogue limité à <strong>50 produits</strong> pour ce type de commerce.';
+    }
+  } else {
+    infoBox.style.display = 'none';
+  }
 }
 window.updateTypeHint = updateTypeHint;
-
-function updateLimiteProduits() {
-  const lim = parseInt($('shopLimiteProduits').value, 10) || 50;
-  $('catalogueMax').textContent = lim;
-}
-document.addEventListener('DOMContentLoaded', function(){
-  const sel = $('shopLimiteProduits');
-  if (sel) sel.addEventListener('change', updateLimiteProduits);
-  updateLimiteProduits();
-});
 
 function toggleOption(opt) {
   if (opt === 'retrait') {
@@ -578,7 +593,7 @@ function ajouterProduit() {
   const unite = getUniteFinale('prodUnite', 'prodUniteAutre');
   if (!nom || prix <= 0 || !_prodImgUrl) { alerte('Nom, prix et image obligatoires'); return; }
   const max = parseInt($('catalogueMax').textContent, 10) || 50;
-  if (_produits.length >= max) { alerte('Limite de ' + max + ' produits atteinte'); return; }
+  if (_produits.length >= max) { alerte('Limite de ' + max + ' produits atteinte pour ce type de commerce.'); return; }
   _produits.push({ nom, prix, unite, img: _prodImgUrl });
   _prodImgUrl = '';
   $('prodNom').value = '';
@@ -672,7 +687,7 @@ function versEtape2() {
   const champs = ['nom', 'prenom', 'phone', 'password', 'shopNom', 'shopType', 'shopQuartier'];
   for (const id of champs) { if (!$(id).value.trim()) { alerte('Remplissez tous les champs obligatoires'); return; } }
   if (!_sexe) { alerte('Choisissez le sexe'); return; }
-  if (!_shopImgUrl) { alerte('Ajoutez l\'image de la boutique'); return; }
+  if (!_shopImgUrl) { alerte('Ajoutez l\'image du commerce'); return; }
   $('etape1').style.display = 'none';
   $('etape2').style.display = 'block';
   $('stepCircle1').classList.add('done'); $('stepCircle1').classList.remove('active');
@@ -714,7 +729,7 @@ async function inscrire() {
   const shopHoraires = $('shopHoraires').value.trim() || '08h - 20h';
   const shopDesc = $('shopDesc').value.trim();
   const shopUnite = getUniteFinale('shopUnite', 'shopUniteAutre');
-  const shopLimite = parseInt($('shopLimiteProduits').value, 10) || 50;
+  const shopLimite = getLimiteProduits(shopType);
   const frais = parseInt($('cfgFrais').value, 10) || 0;
   const minProduits = parseInt($('cfgMinProduits').value, 10) || 0;
   const minPrix = parseInt($('cfgMinPrix').value, 10) || 0;
@@ -745,7 +760,7 @@ async function inscrire() {
     const snap = await db.collection('netubers').where('phone', '==', phone).limit(1).get();
     if (!snap.empty) {
       msg.className = 'msg err'; msg.textContent = '❌ Ce numéro est déjà utilisé.';
-      btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-check"></i> Créer le compte et la boutique';
+      btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-check"></i> Créer le compte et le commerce';
       return;
     }
 
@@ -809,11 +824,12 @@ async function inscrire() {
     COMMERCE_CREE_DATA = boutiqueData;
 
     ouvrirSucces(phone, password);
-    msg.className = 'msg ok'; msg.textContent = '✅ Compte et boutique créés.';
+    msg.className = 'msg ok'; msg.textContent = '✅ Compte et commerce créés.';
 
     $('nom').value = ''; $('prenom').value = ''; $('phone').value = ''; $('password').value = '';
     $('shopNom').value = ''; $('shopType').value = ''; $('shopQuartier').value = ''; $('shopAdresse').value = ''; $('shopDesc').value = '';
     $('shopUnite').value = ''; $('shopUniteAutre').value = ''; $('shopUniteAutre').style.display = 'none';
+    $('limiteInfo').style.display = 'none';
     _sexe = ''; _shopImgUrl = ''; _produits = []; _prodImgUrl = ''; _chambres = [];
     $('sexeHomme').style.background = 'transparent'; $('sexeHomme').style.color = '#475569';
     $('sexeFemme').style.background = 'transparent'; $('sexeFemme').style.color = '#475569';
@@ -821,15 +837,16 @@ async function inscrire() {
     renderProduits();
     renderChambres();
     $('blocChambres').style.display = 'none';
+    $('catalogueMax').textContent = '50';
     versEtape1();
-    btn.innerHTML = '<i class="fa-solid fa-check"></i> Créer le compte et la boutique';
+    btn.innerHTML = '<i class="fa-solid fa-check"></i> Créer le compte et le commerce';
     btn.disabled = false;
   } catch (err) {
     let txt = 'Erreur : ' + (err.message || 'inconnue');
     if (err.code === 'auth/email-already-in-use') txt = 'Cet email existe déjà.';
     if (err.code === 'auth/weak-password') txt = 'Mot de passe trop faible.';
     msg.className = 'msg err'; msg.textContent = txt;
-    btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-check"></i> Créer le compte et la boutique';
+    btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-check"></i> Créer le compte et le commerce';
   }
 }
 window.inscrire = inscrire;
