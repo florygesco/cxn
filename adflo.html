@@ -1104,9 +1104,32 @@ renderNetubers();
 }
 async function loadActives(force){
 try{
-const list=await loadCollection('netubers',force);
+const netubersList=await loadCollection('netubers',force);
+const mapUser={};
+netubersList.forEach(d=>{mapUser[d.id]=d;});
+const commercesList=await loadCollection('commerces',force);
 boutiquesActives=[];
-list.forEach(d=>{if(d.boutique&&d.boutique.statut==='approuve'){boutiquesActives.push({uid:d.id,nomComplet:d.nomComplet||d.nom||'-',phone:d.phone||'-',emailAuth:d.emailAuth||'-',...d.boutique});}});
+commercesList.forEach(c=>{
+if(c.statut!=='approuve')return;
+const user=mapUser[c.uid]||{};
+boutiquesActives.push({
+id:c.id,uid:c.uid,
+nom:c.nom||c.nomCommerce||'Boutique',
+nomCommerce:c.nomCommerce||c.nom,
+type:c.type||'',ville:c.ville||'',quartier:c.quartier||'',
+telephone:c.telephone||'',
+whatsapp:c.whatsapp||c.whatsappCommercial||'',
+img:c.img||'',emoji:c.emoji||'🏪',
+statut:c.statut,dateCreation:c.dateCreation||'',dateApprobation:c.dateApprobation||'',
+retraitActif:c.retraitActif!==false,livraisonActive:c.livraisonActive!==false,
+badgeConfiance:c.badgeConfiance===true,
+configLivraison:c.configLivraison||{frais:0,minProduits:0,minPrixPanier:0},
+produits:Array.isArray(c.produits)?c.produits:[],
+nomComplet:user.nomComplet||user.nom||'-',
+phone:user.phone||c.telephone||'-',
+emailAuth:user.emailAuth||'-'
+});
+});
 boutiquesActives.sort((a,b)=>(b.dateApprobation||'').localeCompare(a.dateApprobation||''));
 renderActives();
 }catch(e){console.warn(e.message);}
@@ -2688,7 +2711,6 @@ async function genererPDFQRCodeBoutique(uid){
     setLoader(false);
   }
 }
-// ========== ÉCOLES ==========
 function renderEcoles(){
 const tbody=document.getElementById('bodyEcoles');
 if(!tbody)return;
@@ -2805,7 +2827,6 @@ await loadEcoles(true);
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
 }
-// ========== PRÉFETS ==========
 function renderPrefects(prefects){
 const tbody=document.getElementById('bodyPrefects');
 if(!tbody)return;
@@ -2846,9 +2867,9 @@ d.innerHTML=`<div class="modal-box" style="max-width:560px">
 <div class="field"><label>École de rattachement *</label>
 <select id="newPrefEcole"><option value="">— Choisir —</option>${ecoleOptions}</select>
 </div>
-<div class="field"><label>Code de connexion *</label>
-<input type="text" id="newPrefCode" value="${genererCode4()}">
-<div style="font-size:10px;color:var(--text-3);margin-top:4px">Mot de passe du préfet (4 chiffres conseillé)</div>
+<div class="field"><label>Code de connexion (auto)</label>
+<input type="text" id="newPrefCode" readonly style="background:var(--bg-soft);color:var(--text-3);text-align:center;font-family:'JetBrains Mono',monospace;font-weight:900;font-size:20px;letter-spacing:4px" value="—">
+<div style="font-size:10px;color:var(--text-3);margin-top:4px">Généré automatiquement (6 chiffres)</div>
 </div>
 <div class="form-actions">
 <button class="btn btn-outline" data-cancel>ANNULER</button>
@@ -2866,12 +2887,12 @@ const sexe=d.querySelector('#newPrefSexe').value;
 const telRaw=d.querySelector('#newPrefTel').value.trim();
 const role=d.querySelector('#newPrefRole').value;
 const ecoleId=d.querySelector('#newPrefEcole').value;
-const code=d.querySelector('#newPrefCode').value.trim();
-if(!nom||!telRaw||!ecoleId||!code){toast('Remplissez tous les champs obligatoires','err');return;}
+if(!nom||!telRaw||!ecoleId){toast('Remplissez tous les champs obligatoires','err');return;}
 if(telRaw.length!==9){toast('Numéro invalide (9 chiffres)','err');return;}
-if(code.length<4){toast('Code trop court (min 4 caractères)','err');return;}
 const phone='+243'+telRaw;
 const ecole=ecoles.find(e=>e.id===ecoleId);
+const saveBtn=d.querySelector('[data-save]');
+if(saveBtn){saveBtn.disabled=true;saveBtn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Création…';}
 setLoader(true);
 try{
 const q=query(collection(db,'netubers'),where('phone','==',phone),limit(1));
@@ -2880,20 +2901,23 @@ let uid;
 let isExistingAccount=false;
 let ancienRole='user';
 let ancienneEcole=null;
+let codeFinal=null;
 if(!snap.empty){
 uid=snap.docs[0].id;
 const existData=snap.docs[0].data();
 ancienRole=existData.role||'user';
 ancienneEcole=existData.ecoleId||null;
+codeFinal=existData.code||'—';
 if(ancienRole!=='user'&&ancienneEcole&&ancienneEcole!==ecoleId){
 const ancienneEcoleNom=ecoles.find(e=>e.id===ancienneEcole)?.nom||'une autre école';
 const ok=await adminConfirm('Compte déjà rattaché',`Ce numéro est déjà <strong>${ancienRole}</strong> de <strong>${esc(ancienneEcoleNom)}</strong>.<br><br>Voulez-vous le <strong>déplacer</strong> vers <strong>${esc(ecole?ecole.nom:'')}</strong> ?`,'warning');
-if(!ok){toast('Opération annulée','warn');return;}
+if(!ok){toast('Opération annulée','warn');if(saveBtn){saveBtn.disabled=false;saveBtn.innerHTML='CRÉER LE COMPTE';}return;}
 }
-await setDoc(doc(db,'netubers',uid),{nom:nom,nomComplet:nom,sexe:sexe||existData.sexe||'',role:role,ecoleId:ecoleId,code:code,actif:true,motDePasseProvisoire:true,datePromotion:new Date().toISOString(),promuPar:currentUser?currentUser.email:'admin',ancienRole:ancienRole},{merge:true});
+await setDoc(doc(db,'netubers',uid),{nom:nom,nomComplet:nom,sexe:sexe||existData.sexe||'',role:role,ecoleId:ecoleId,actif:true,motDePasseProvisoire:true,datePromotion:new Date().toISOString(),promuPar:currentUser?currentUser.email:'admin',ancienRole:ancienRole},{merge:true});
 isExistingAccount=true;
 }else{
 const codeGenere = await genererCodeUnique6();
+codeFinal = codeGenere;
 const nse=(nom||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
 const email=nse+telRaw+'@gmail.com';
 let firebaseUid = null;
@@ -2905,9 +2929,11 @@ try {
     console.log("Erreur Auth:", authError.message);
     if (authError.code === 'auth/email-already-in-use') {
         toast('Ce numéro possède déjà un compte. Utilisez un autre numéro.', 'err');
+        if(saveBtn){saveBtn.disabled=false;saveBtn.innerHTML='CRÉER LE COMPTE';}
         return;
     }
     toast('Erreur Auth: ' + authError.message, 'err');
+    if(saveBtn){saveBtn.disabled=false;saveBtn.innerHTML='CRÉER LE COMPTE';}
     return;
 }
 uid = firebaseUid;
@@ -2915,7 +2941,6 @@ const codeParrainage='NTX-'+uid.slice(0,6).toUpperCase();
 await setDoc(doc(db,'netubers',uid),{prenom:'',nom:nom,nomComplet:nom,sexe:sexe,phone:phone,emailAuth:email,code:codeGenere,ville:ecole?ecole.ville:'',quartier:'',actif:true,avatarUrl:'',role:role,ecoleId:ecoleId,dateCreation:new Date().toISOString(),creePar:currentUser?currentUser.email:'admin',creeParRole:'admin',motDePasseProvisoire:true,stats:{deblocages:0,commandes:0,parrainage:0,jetons:0,badges:[]},notifications:[],parrainage:{code:codeParrainage,count:0,palier:0,joursRestants:0,dateDernierePub:null}});
 try{await setDoc(doc(db,'phone_index',telRaw),{uid:uid,dateCreation:new Date().toISOString()});}catch(e){}
 await setDoc(doc(db,'user_stats',uid),{totalVues:0,nbAnnonces:0,nbPubliees:0,nbEnAttente:0,nbRefusees:0,totalDeblocages:0,totalCommerceVues:0,nbProduitsCommerce:0,derniereMiseAJour:new Date().toISOString()});
-code = codeGenere;
 }
 if(ecole){
 const ecoleRef=doc(db,'ecoles',ecoleId);
@@ -2937,13 +2962,13 @@ await setDoc(ancienneRef,{prefets:nouveauxPrefets,prefetPrincipal:nouveauxPrefet
 }catch(e){}
 }
 await notifierChangement('createPrefect',uid);
-if(isExistingAccount){toast('✅ Compte promu '+role);}else{toast('✅ Compte créé — code : '+code);}
-afficherRecapPrefect(nom,phone,code,role,ecole?ecole.nom:'');
+if(isExistingAccount){toast('✅ Compte promu '+role);}else{toast('✅ Compte créé — code : '+codeFinal);}
+afficherRecapPrefect(nom,phone,codeFinal,role,ecole?ecole.nom:'');
 d.remove();
 cacheInvalidateAll();
 await Promise.all([loadNetubers(true),loadEcoles(true),loadPrefects()]);
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
+finally{setLoader(false);if(saveBtn){saveBtn.disabled=false;saveBtn.innerHTML='CRÉER LE COMPTE';}}
 };
 }
 function afficherRecapPrefect(nom,phone,code,role,ecoleNom){
@@ -2976,7 +3001,6 @@ const txt=`NeTubeX RDC — ${roleLabel}\n\nNom : ${nom}\nÉcole : ${ecoleNom}\nT
 navigator.clipboard.writeText(txt).then(()=>toast('Copié')).catch(()=>toast('Erreur copie','err'));
 };
 }
-// ========== PROFESSEURS ==========
 function renderFilterEcoleProfs(){
 const sel=document.getElementById('filterProfEcole');
 if(!sel)return;
@@ -3053,6 +3077,8 @@ const diplomesStr=d.querySelector('#newProfDiplomes').value.trim();
 if(!nom||!matiere||sections.length===0||!ecoleId||!dateDebut||telRaw.length!==9){toast('Remplissez tous les champs obligatoires','err');return;}
 const tel='+243'+telRaw;
 const ecole=ecoles.find(e=>e.id===ecoleId);
+const saveBtn=d.querySelector('[data-save]');
+if(saveBtn){saveBtn.disabled=true;saveBtn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Création…';}
 setLoader(true);
 try{
 const q=query(collection(db,'professeurs'),where('telephone','==',tel),limit(1));
@@ -3061,7 +3087,7 @@ if(!snap.empty){
 const profDoc=snap.docs[0];
 const profData=profDoc.data();
 const ecolesProf=profData.ecoles||{};
-if(ecolesProf[ecoleId]){toast('Déjà rattaché à cette école','warn');return;}
+if(ecolesProf[ecoleId]){toast('Déjà rattaché à cette école','warn');if(saveBtn){saveBtn.disabled=false;saveBtn.innerHTML='CRÉER';}return;}
 ecolesProf[ecoleId]={ecoleNom:ecole.nom,dateAjout:new Date().toISOString(),dateDebut:dateDebut,statut:'approuve',ajoutePar:currentUser?currentUser.uid:'admin',ajouteParNom:'Direction',notes:{},moyenneEcole:0,nombreNotesEcole:0};
 await setDoc(doc(db,'professeurs',profDoc.id),{ecoles:ecolesProf},{merge:true});
 toast('✅ Professeur rattaché à l\'école');
@@ -3087,9 +3113,11 @@ try {
     console.log("Erreur Auth:", authError.message);
     if (authError.code === 'auth/email-already-in-use') {
         toast('Cet email existe déjà. Utilisez un autre numéro.', 'err');
+        if(saveBtn){saveBtn.disabled=false;saveBtn.innerHTML='CRÉER';}
         return;
     }
     toast('Erreur Auth: ' + authError.message, 'err');
+    if(saveBtn){saveBtn.disabled=false;saveBtn.innerHTML='CRÉER';}
     return;
 }
 uidNetuber = firebaseUid;
@@ -3108,7 +3136,7 @@ d.remove();
 cacheInvalidateAll();
 await Promise.all([loadProfesseurs(true),loadEcoles(true)]);
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
+finally{setLoader(false);if(saveBtn){saveBtn.disabled=false;saveBtn.innerHTML='CRÉER';}}
 };
 }
 function afficherRecapProf(nom,phone,email,mdp,ecoleNom){
