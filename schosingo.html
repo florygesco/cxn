@@ -8,7 +8,7 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,sans-serif}
 body{background:#f8fafc;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
-.card{background:#fff;border-radius:20px;padding:30px 24px;max-width:460px;width:100%;box-shadow:0 10px 40px rgba(15,23,42,.1)}
+.card{background:#fff;border-radius:20px;padding:30px 24px;max-width:500px;width:100%;box-shadow:0 10px 40px rgba(15,23,42,.1)}
 .logo{width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,#007fff,#0066cc);display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;margin:0 auto 16px}
 h1{font-size:22px;font-weight:900;text-align:center;color:#0f172a;margin-bottom:6px}
 .subtitle{font-size:14px;text-align:center;color:#64748b;margin-bottom:22px}
@@ -27,6 +27,13 @@ input:focus,select:focus{border-color:#007fff;background:#fff}
 .msg.err{background:#fef2f2;border:1.5px solid #fca5a5;color:#991b1b;display:block}
 .msg.ok{background:#ecfdf5;border:1.5px solid #a7f3d0;color:#065f46;display:block}
 .info{font-size:12px;color:#64748b;text-align:center;margin-top:14px;line-height:1.5}
+.stats-box{background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:14px;padding:16px;margin-bottom:16px;display:none}
+.stats-box.show{display:block}
+.stats-title{font-size:13px;font-weight:900;color:#0f172a;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.stat-item{background:#fff;border-radius:10px;padding:12px 8px;text-align:center;border:1px solid #e2e8f0}
+.stat-value{font-size:22px;font-weight:900;color:#007fff;line-height:1}
+.stat-label{font-size:10px;font-weight:800;color:#64748b;text-transform:uppercase;margin-top:4px;letter-spacing:.3px}
 </style>
 </head>
 <body>
@@ -61,9 +68,19 @@ input:focus,select:focus{border-color:#007fff;background:#fff}
     <div class="field" id="ecoleField" style="display:none">
       <label>École de rattachement *</label>
       <select id="ecole">
-        <option value="">— Chargement… —</option>
+        <option value="">— Choisir une école —</option>
       </select>
     </div>
+
+    <div class="stats-box" id="statsBox">
+      <div class="stats-title"><i class="fa-solid fa-chart-simple" style="color:#007fff"></i> Statistiques de l'école</div>
+      <div class="stats-grid">
+        <div class="stat-item"><div class="stat-value" id="statPrefets">0</div><div class="stat-label">Préfets</div></div>
+        <div class="stat-item"><div class="stat-value" id="statProfs">0</div><div class="stat-label">Profs</div></div>
+        <div class="stat-item"><div class="stat-value" id="statNotes">0</div><div class="stat-label">Évals</div></div>
+      </div>
+    </div>
+
     <div class="field">
       <label>Mot de passe *</label>
       <input type="password" id="password" required minlength="6" maxlength="15" placeholder="6 à 15 caractères">
@@ -72,7 +89,7 @@ input:focus,select:focus{border-color:#007fff;background:#fff}
       <i class="fa-solid fa-user-plus"></i> Créer mon compte
     </button>
   </form>
-  <p class="info"><i class="fa-solid fa-lock"></i> Vos identifiants sont sécurisés. Utilisez un numéro que vous acceptez de partager.</p>
+  <p class="info"><i class="fa-solid fa-lock"></i> Vos identifiants sont sécurisés.</p>
 </div>
 
 <script type="module">
@@ -93,18 +110,38 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// Raccourcis
 const $ = (id) => document.getElementById(id);
 
-// 1. Charger les écoles
+// 📊 Charger toutes les écoles et les stats
 async function chargerEcoles() {
   const sel = $('ecole');
   try {
-    const snap = await getDocs(collection(db, 'ecoles'));
+    const ecolesSnap = await getDocs(collection(db, 'ecoles'));
+    const profsSnap = await getDocs(collection(db, 'professeurs'));
+    
+    const profsParEcole = {};
+    let totalNotesParEcole = {};
+    
+    profsSnap.forEach(d => {
+      const p = d.data();
+      Object.keys(p.ecoles || {}).forEach(eid => {
+        profsParEcole[eid] = (profsParEcole[eid] || 0) + 1;
+        const n = (p.ecoles[eid].notes ? Object.keys(p.ecoles[eid].notes).length : 0);
+        totalNotesParEcole[eid] = (totalNotesParEcole[eid] || 0) + n;
+      });
+    });
+    
     const ecoles = [];
-    snap.forEach(d => {
+    ecolesSnap.forEach(d => {
       const data = d.data();
-      ecoles.push({ id: d.id, nom: data.nom || 'Sans nom', ville: data.ville || '' });
+      ecoles.push({
+        id: d.id,
+        nom: data.nom || 'Sans nom',
+        ville: data.ville || '',
+        nbPrefets: (data.prefets || []).length,
+        nbProfs: profsParEcole[d.id] || 0,
+        nbNotes: totalNotesParEcole[d.id] || 0
+      });
     });
     ecoles.sort((a, b) => a.nom.localeCompare(b.nom));
     
@@ -114,23 +151,36 @@ async function chargerEcoles() {
     }
     
     sel.innerHTML = '<option value="">— Choisir une école —</option>' + 
-      ecoles.map(e => `<option value="${e.id}">${e.nom} — ${e.ville}</option>`).join('');
+      ecoles.map(e => `<option value="${e.id}" data-prefets="${e.nbPrefets}" data-profs="${e.nbProfs}" data-notes="${e.nbNotes}">${e.nom} — ${e.ville}</option>`).join('');
   } catch (e) {
     console.error(e);
     sel.innerHTML = '<option value="">— Erreur de chargement —</option>';
   }
 }
 
-// 2. Afficher le champ école quand le rôle est choisi
+// Afficher le champ école quand le rôle est choisi
 $('role').addEventListener('change', () => {
   const role = $('role').value;
   $('ecoleField').style.display = role ? 'block' : 'none';
+  if (!role) $('statsBox').classList.remove('show');
 });
 
-// 3. Fonction d'inscription
+// Afficher les stats quand une école est sélectionnée
+$('ecole').addEventListener('change', (e) => {
+  const opt = e.target.options[e.target.selectedIndex];
+  if (!opt || !opt.value) {
+    $('statsBox').classList.remove('show');
+    return;
+  }
+  $('statPrefets').textContent = opt.dataset.prefets || '0';
+  $('statProfs').textContent = opt.dataset.profs || '0';
+  $('statNotes').textContent = opt.dataset.notes || '0';
+  $('statsBox').classList.add('show');
+});
+
+// 🚀 Fonction d'inscription
 async function inscrire(e) {
   e.preventDefault();
-  console.log("Bouton cliqué, démarrage de l'inscription...");
   
   const msg = $('msg');
   const btn = $('btnSubmit');
@@ -162,7 +212,7 @@ async function inscrire(e) {
   const email = nse + phoneRaw + '@gmail.com';
 
   try {
-    // Vérifier que le téléphone n'est pas déjà utilisé
+    // Vérifier numéro déjà utilisé
     const q = query(collection(db, 'netubers'), where('phone', '==', phone), limit(1));
     const snap = await getDocs(q);
     if (!snap.empty) {
@@ -173,46 +223,36 @@ async function inscrire(e) {
       return;
     }
 
-    // Créer le compte Firebase Auth
+    // Créer compte Firebase
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     const uid = cred.user.uid;
     const dateNow = new Date().toISOString();
 
-    // Créer le profil dans netubers
+    // Créer profil netubers
     const codeParrainage = 'NTX-' + uid.slice(0, 6).toUpperCase();
     await setDoc(doc(db, 'netubers', uid), {
-      prenom: '',
-      nom: nom,
-      nomComplet: nom,
-      sexe: '',
-      phone: phone,
-      emailAuth: email,
-      code: password,
-      ville: '',
-      quartier: '',
-      actif: true,
-      avatarUrl: '',
-      role: role,
-      ecoleId: ecoleId,
+      prenom: '', nom: nom, nomComplet: nom, sexe: '',
+      phone: phone, emailAuth: email, code: password,
+      ville: '', quartier: '', actif: true, avatarUrl: '',
+      role: role, ecoleId: ecoleId,
       professeurId: role === 'professeur' ? uid : null,
-      dateCreation: dateNow,
-      motDePasseProvisoire: false,
+      dateCreation: dateNow, motDePasseProvisoire: false,
       stats: { deblocages: 0, commandes: 0, parrainage: 0, jetons: 0, badges: [] },
       notifications: [],
       parrainage: { code: codeParrainage, count: 0, palier: 0, joursRestants: 0, dateDernierePub: null }
     });
 
-    // Créer les stats
+    // Stats
     await setDoc(doc(db, 'user_stats', uid), {
       totalVues: 0, nbAnnonces: 0, nbPubliees: 0, nbEnAttente: 0, nbRefusees: 0,
       totalDeblocages: 0, totalCommerceVues: 0, nbProduitsCommerce: 0,
       derniereMiseAJour: dateNow
     });
 
-    // Indexer le téléphone
+    // Index téléphone
     try { await setDoc(doc(db, 'phone_index', phoneRaw), { uid: uid, dateCreation: dateNow }); } catch (e) {}
 
-    // Rattachement à l'école
+    // Rattachement école
     const ecoleSnap = await getDoc(doc(db, 'ecoles', ecoleId));
     const ecoleData = ecoleSnap.exists() ? ecoleSnap.data() : { nom: 'École', ville: '' };
 
@@ -229,50 +269,31 @@ async function inscrire(e) {
       const ecolesObj = {};
       ecolesObj[ecoleId] = {
         ecoleNom: ecoleData.nom || 'École',
-        dateAjout: dateNow,
-        dateDebut: dateNow,
-        statut: 'approuve',
-        ajoutePar: uid,
-        ajouteParNom: nom,
-        notes: {},
-        moyenneEcole: 0,
-        nombreNotesEcole: 0
+        dateAjout: dateNow, dateDebut: dateNow,
+        statut: 'approuve', ajoutePar: uid, ajouteParNom: nom,
+        notes: {}, moyenneEcole: 0, nombreNotesEcole: 0
       };
       await setDoc(doc(db, 'professeurs', uid), {
-        uid: uid,
-        nom: nom,
-        matiere: '',
-        sections: [],
-        ville: ecoleData.ville || '',
-        anneesExperience: 0,
-        diplomes: [],
-        avatarUrl: '',
-        bio: '',
-        telephone: phone,
-        contactActif: false,
-        ecoles: ecolesObj,
-        notesGlobales: {},
-        moyenneGlobale: 0,
-        nombreGlobal: 0,
-        responsables: [],
-        emailGen: email,
-        dateCreation: dateNow,
-        actif: true,
+        uid: uid, nom: nom, matiere: '', sections: [],
+        ville: ecoleData.ville || '', anneesExperience: 0,
+        diplomes: [], avatarUrl: '', bio: '', telephone: phone,
+        contactActif: false, ecoles: ecolesObj, notesGlobales: {},
+        moyenneGlobale: 0, nombreGlobal: 0, responsables: [],
+        emailGen: email, dateCreation: dateNow, actif: true,
         creePar: 'auto-inscription'
       });
     }
 
-    // Déconnexion
     await signOut(auth);
 
     msg.className = 'msg ok';
     msg.innerHTML = `✅ Compte <strong>${role}</strong> créé et rattaché à <strong>${ecoleData.nom}</strong> !<br><br>Connectez-vous sur l'app <strong>NeTubeX RDC</strong> avec :<br>📱 ${phone}<br>🔑 ${password}`;
     $('form').reset();
     $('ecoleField').style.display = 'none';
+    $('statsBox').classList.remove('show');
     btn.innerHTML = '<i class="fa-solid fa-check"></i> Compte créé';
     btn.disabled = true;
   } catch (err) {
-    console.error("Erreur détaillée:", err);
     let txt = 'Erreur inconnue.';
     if (err.code === 'auth/email-already-in-use') txt = 'Cet email existe déjà.';
     if (err.code === 'auth/invalid-email') txt = 'Email invalide.';
@@ -285,10 +306,10 @@ async function inscrire(e) {
   }
 }
 
-// 4. Attacher l'événement au formulaire
+// Attacher l'événement
 $('form').addEventListener('submit', inscrire);
 
-// 5. Charger les écoles au démarrage
+// Charger les écoles
 chargerEcoles();
 </script>
 </body>
