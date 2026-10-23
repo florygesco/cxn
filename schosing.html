@@ -23,7 +23,6 @@ input:focus,select:focus{border-color:#007fff;background:#fff}
 .phone-field input:focus{border:none;background:transparent}
 .btn{width:100%;padding:16px;border-radius:14px;font-size:15px;font-weight:900;border:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:#007fff;color:#fff;margin-top:8px}
 .btn:disabled{opacity:.6;cursor:not-allowed}
-.btn.green{background:#10b981}
 .msg{padding:12px 14px;border-radius:10px;font-size:13px;font-weight:700;text-align:center;margin-bottom:14px;display:none;line-height:1.5}
 .msg.err{background:#fef2f2;border:1.5px solid #fca5a5;color:#991b1b;display:block}
 .msg.ok{background:#ecfdf5;border:1.5px solid #a7f3d0;color:#065f46;display:block}
@@ -34,7 +33,7 @@ input:focus,select:focus{border-color:#007fff;background:#fff}
 <div class="card">
   <div class="logo"><i class="fa-solid fa-school"></i></div>
   <h1>Inscription Écoles</h1>
-  <p class="subtitle">Créez votre compte Professeur ou Préfet</p>
+  <p class="subtitle">Créez votre compte Professeur, Préfet ou Directeur</p>
 
   <div id="msg" class="msg"></div>
 
@@ -52,11 +51,17 @@ input:focus,select:focus{border-color:#007fff;background:#fff}
     </div>
     <div class="field">
       <label>Rôle *</label>
-      <select id="role" required>
+      <select id="role" required onchange="toggleEcoleField()">
         <option value="">— Choisir —</option>
         <option value="professeur">👨‍🏫 Professeur</option>
         <option value="prefet">👑 Préfet</option>
         <option value="directeur">🏫 Directeur</option>
+      </select>
+    </div>
+    <div class="field" id="ecoleField" style="display:none">
+      <label>École de rattachement *</label>
+      <select id="ecole" required>
+        <option value="">— Chargement… —</option>
       </select>
     </div>
     <div class="field">
@@ -72,7 +77,7 @@ input:focus,select:focus{border-color:#007fff;background:#fff}
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, doc, setDoc, getDoc, collection, query, where, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, limit } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
 const firebaseConfig = {
@@ -88,18 +93,52 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+// Charge la liste des écoles au démarrage
+window.addEventListener('load', chargerEcoles);
+
+async function chargerEcoles() {
+  const sel = document.getElementById('ecole');
+  try {
+    const snap = await getDocs(collection(db, 'ecoles'));
+    const ecoles = [];
+    snap.forEach(d => {
+      const data = d.data();
+      ecoles.push({ id: d.id, nom: data.nom || 'Sans nom', ville: data.ville || '' });
+    });
+    ecoles.sort((a, b) => a.nom.localeCompare(b.nom));
+    
+    if (ecoles.length === 0) {
+      sel.innerHTML = '<option value="">— Aucune école disponible —</option>';
+      return;
+    }
+    
+    sel.innerHTML = '<option value="">— Choisir une école —</option>' + 
+      ecoles.map(e => `<option value="${e.id}">${e.nom} — ${e.ville}</option>`).join('');
+  } catch (e) {
+    sel.innerHTML = '<option value="">— Erreur de chargement —</option>';
+    console.error(e);
+  }
+}
+
+window.toggleEcoleField = function() {
+  const role = document.getElementById('role').value;
+  const field = document.getElementById('ecoleField');
+  field.style.display = role ? 'block' : 'none';
+};
+
 window.inscrire = async function() {
   const msg = document.getElementById('msg');
   const btn = document.getElementById('btnSubmit');
   const nom = document.getElementById('nom').value.trim();
   const phoneRaw = document.getElementById('phone').value.replace(/[^\d]/g, '');
   const role = document.getElementById('role').value;
+  const ecoleId = document.getElementById('ecole').value;
   const password = document.getElementById('password').value;
 
   msg.className = 'msg';
   msg.style.display = 'none';
 
-  if (!nom || phoneRaw.length !== 9 || !role || !password) {
+  if (!nom || phoneRaw.length !== 9 || !role || !ecoleId || !password) {
     msg.className = 'msg err';
     msg.textContent = 'Remplissez tous les champs correctement.';
     return;
@@ -132,8 +171,9 @@ window.inscrire = async function() {
     // 2. Créer le compte Firebase Auth (comme un user normal)
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     const uid = cred.user.uid;
+    const dateNow = new Date().toISOString();
 
-    // 3. Créer le profil dans netubers avec le rôle
+    // 3. Créer le profil dans netubers avec le rôle ET l'école
     const codeParrainage = 'NTX-' + uid.slice(0, 6).toUpperCase();
     await setDoc(doc(db, 'netubers', uid), {
       prenom: '',
@@ -148,9 +188,9 @@ window.inscrire = async function() {
       actif: true,
       avatarUrl: '',
       role: role,
-      ecoleId: null,
-      professeurId: null,
-      dateCreation: new Date().toISOString(),
+      ecoleId: ecoleId,
+      professeurId: role === 'professeur' ? uid : null,
+      dateCreation: dateNow,
       motDePasseProvisoire: false,
       stats: { deblocages: 0, commandes: 0, parrainage: 0, jetons: 0, badges: [] },
       notifications: [],
@@ -161,19 +201,74 @@ window.inscrire = async function() {
     await setDoc(doc(db, 'user_stats', uid), {
       totalVues: 0, nbAnnonces: 0, nbPubliees: 0, nbEnAttente: 0, nbRefusees: 0,
       totalDeblocages: 0, totalCommerceVues: 0, nbProduitsCommerce: 0,
-      derniereMiseAJour: new Date().toISOString()
+      derniereMiseAJour: dateNow
     });
 
     // 5. Indexer le téléphone
-    try { await setDoc(doc(db, 'phone_index', phoneRaw), { uid: uid, dateCreation: new Date().toISOString() }); } catch (e) {}
+    try { await setDoc(doc(db, 'phone_index', phoneRaw), { uid: uid, dateCreation: dateNow }); } catch (e) {}
 
-    // 6. Déconnecter pour ne pas laisser de session ouverte
+    // 6. Rattacher à l'école selon le rôle
+    const ecoleSnap = await getDoc(doc(db, 'ecoles', ecoleId));
+    const ecoleData = ecoleSnap.exists() ? ecoleSnap.data() : { nom: 'École', ville: '' };
+
+    if (role === 'prefet' || role === 'directeur') {
+      // Ajouter l'UID dans le tableau des préfets de l'école
+      const prefets = ecoleData.prefets || [];
+      if (!prefets.includes(uid)) prefets.push(uid);
+      await setDoc(doc(db, 'ecoles', ecoleId), {
+        prefets: prefets,
+        prefetPrincipal: ecoleData.prefetPrincipal || uid
+      }, { merge: true });
+    }
+
+    if (role === 'professeur') {
+      // Créer la fiche professeur dans la collection "professeurs"
+      const profId = uid;
+      const ecolesObj = {};
+      ecolesObj[ecoleId] = {
+        ecoleNom: ecoleData.nom || 'École',
+        dateAjout: dateNow,
+        dateDebut: dateNow,
+        statut: 'approuve',
+        ajoutePar: uid,
+        ajouteParNom: nom,
+        notes: {},
+        moyenneEcole: 0,
+        nombreNotesEcole: 0
+      };
+      await setDoc(doc(db, 'professeurs', profId), {
+        uid: uid,
+        nom: nom,
+        matiere: '',
+        sections: [],
+        ville: ecoleData.ville || '',
+        anneesExperience: 0,
+        diplomes: [],
+        avatarUrl: '',
+        bio: '',
+        telephone: phone,
+        contactActif: false,
+        ecoles: ecolesObj,
+        notesGlobales: {},
+        moyenneGlobale: 0,
+        nombreGlobal: 0,
+        responsables: [],
+        emailGen: email,
+        dateCreation: dateNow,
+        actif: true,
+        creePar: 'auto-inscription'
+      });
+    }
+
+    // 7. Déconnecter pour ne pas laisser de session ouverte
     await signOut(auth);
 
     msg.className = 'msg ok';
-    msg.innerHTML = `✅ Compte ${role} créé avec succès !<br><br>Vous pouvez maintenant vous connecter sur l'application <strong>NeTubeX RDC</strong> avec :<br>📱 ${phone}<br>🔑 ${password}`;
+    msg.innerHTML = `✅ Compte <strong>${role}</strong> créé et rattaché à <strong>${ecoleData.nom}</strong> !<br><br>Connectez-vous sur l'app <strong>NeTubeX RDC</strong> avec :<br>📱 ${phone}<br>🔑 ${password}`;
     document.getElementById('form').reset();
+    document.getElementById('ecoleField').style.display = 'none';
     btn.innerHTML = '<i class="fa-solid fa-check"></i> Compte créé';
+    btn.disabled = true;
   } catch (err) {
     console.error(err);
     let txt = 'Erreur inconnue.';
