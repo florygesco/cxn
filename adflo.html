@@ -336,6 +336,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 <button class="nav-item" data-tab="tabModerationFeed"><i class="fas fa-broom"></i><span>Modération</span></button>
 <button class="nav-item" data-tab="tabActives"><i class="fas fa-shop"></i><span>Commerces actifs</span></button>
 <button class="nav-item" data-tab="tabNetubers"><i class="fas fa-users"></i><span>Utilisateurs</span></button>
+<button class="nav-item" data-tab="tabAbonnements"><i class="fas fa-crown"></i><span>Abonnements</span><span class="nav-badge" id="badgeAbonnements" style="display:none">0</span></button>
 </div>
 <div class="nav-group">
 <div class="nav-label">Réseau Écoles</div>
@@ -516,6 +517,35 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 <div class="card-body">
 <div class="toolbar"><select id="filterProfEcole"><option value="">Toutes les écoles</option></select><input type="text" id="searchProfs" placeholder="Rechercher…"></div>
 <div class="table-wrap"><table class="table"><thead><tr><th>#</th><th>Nom</th><th>Matière</th><th>Écoles</th><th>Moyenne</th><th>Compte</th><th>Actions</th></tr></thead><tbody id="bodyProfs"></tbody></table></div>
+</div>
+</div>
+</div>
+<div class="tab-content" id="tabAbonnements">
+<div class="page-header"><div class="page-title">Gestion des Abonnements</div><div class="page-subtitle">Recouvrement Commerçants & Écoles</div></div>
+<div class="card" style="border-left: 4px solid #f59e0b;">
+<div class="card-header"><div class="card-title"><i class="fas fa-cogs"></i>Mode de recouvrement actuel</div></div>
+<div class="card-body">
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px;">
+<button class="btn btn-outline" id="btnModeDesactive" onclick="changerModeAbonnement('desactive')"><i class="fas fa-power-off"></i> Désactivé</button>
+<button class="btn btn-primary" id="btnModeSimple" onclick="changerModeAbonnement('simple')"><i class="fas fa-bell"></i> Mode Simple (Rappel)</button>
+<button class="btn btn-danger" id="btnModeForce" onclick="changerModeAbonnement('force')"><i class="fas fa-lock"></i> Mode Forcé (Blocage)</button>
+</div>
+<div id="etatModeAbonnement" class="info-box"></div>
+</div>
+</div>
+<div class="card">
+<div class="card-header">
+<div class="card-title"><i class="fas fa-file-invoice-dollar"></i>Demandes en attente de validation</div>
+</div>
+<div class="card-body">
+<div class="table-wrap">
+<table class="table">
+<thead>
+<tr><th>Date</th><th>Nom</th><th>Type</th><th>Montant</th><th>ID Transaction</th><th>Statut</th><th>Actions</th></tr>
+</thead>
+<tbody id="bodyAbonnements"></tbody>
+</table>
+</div>
 </div>
 </div>
 </div>
@@ -722,11 +752,12 @@ let moderationAnnonces=[];
 let produitsAttente=[];
 let ecoles=[];
 let professeurs=[];
+let abonnements=[];
 const PER_PAGE=10;
-const pagination={boutiques:1,deblocages:1,publications:1,annonces:1,moderation:1,actives:1,netubers:1,ecoles:1,prefects:1,profs:1};
+const pagination={boutiques:1,deblocages:1,publications:1,annonces:1,moderation:1,actives:1,netubers:1,ecoles:1,prefects:1,profs:1,abonnements:1};
 const CAT_LABELS={jobs:'Jobs',ecole:'École',entreprise:'Entreprise',logement:'Logement',parcelle:'Parcelle',immobilier:'Immobilier',location:'Location',vehicule:'Véhicule',electronique:'Électronique',hopital:'Hôpital',autre:'Autre'};
 const CACHE_TTL=5*60*1000;
-const _cache={demandes_boutiques:{data:null,ts:0},deblocages:{data:null,ts:0},publications:{data:null,ts:0},netubers:{data:null,ts:0},actives:{data:null,ts:0},annonces:{data:null,ts:0},commerces:{data:null,ts:0},ecoles:{data:null,ts:0},professeurs:{data:null,ts:0}};
+const _cache={demandes_boutiques:{data:null,ts:0},deblocages:{data:null,ts:0},publications:{data:null,ts:0},netubers:{data:null,ts:0},actives:{data:null,ts:0},annonces:{data:null,ts:0},commerces:{data:null,ts:0},ecoles:{data:null,ts:0},professeurs:{data:null,ts:0},abonnements:{data:null,ts:0}};
 function cacheValid(k){return _cache[k]&&_cache[k].data&&(Date.now()-_cache[k].ts)<CACHE_TTL;}
 function cacheSet(k,d){if(_cache[k]){_cache[k].data=d;_cache[k].ts=Date.now();}updateCacheStats();}
 function cacheGet(k){return _cache[k]?_cache[k].data:null;}
@@ -978,7 +1009,7 @@ document.getElementById('loginScreen').style.display='flex';
 document.getElementById('app').style.display='none';
 }
 });
-const TAB_LABELS={tabDashboard:{t:'Tableau de bord',s:'Direction Stratégie & Innovation'},tabBoutiques:{t:'Boutiques',s:'Gérer les demandes d\'inscription'},tabDeblocages:{t:'Déblocages',s:'Valider les paiements'},tabPublications:{t:'Publications',s:'Catalogue produits'},tabProduitsAttente:{t:'Produits en attente',s:'Valider les articles ajoutés'},tabAnnonces:{t:'Annonces',s:'Toutes les annonces'},tabModerationFeed:{t:'Modération',s:'Gérer le contenu publié'},tabActives:{t:'Commerces actifs',s:'Boutiques visibles'},tabNetubers:{t:'Utilisateurs',s:'Comptes enregistrés'},tabEcoles:{t:'Écoles',s:'Établissements du réseau'},tabPrefects:{t:'Préfets & Directeurs',s:'Responsables d\'écoles'},tabProfesseurs:{t:'Professeurs',s:'Enseignants du réseau'},tabImportMultiple:{t:'Import Multiple',s:'Créer plusieurs produits en une fois'},tabGererCatalogue:{t:'Gérer Catalogue',s:'Modifier plusieurs articles en masse'}};
+const TAB_LABELS={tabDashboard:{t:'Tableau de bord',s:'Direction Stratégie & Innovation'},tabBoutiques:{t:'Boutiques',s:'Gérer les demandes d\'inscription'},tabDeblocages:{t:'Déblocages',s:'Valider les paiements'},tabPublications:{t:'Publications',s:'Catalogue produits'},tabProduitsAttente:{t:'Produits en attente',s:'Valider les articles ajoutés'},tabAnnonces:{t:'Annonces',s:'Toutes les annonces'},tabModerationFeed:{t:'Modération',s:'Gérer le contenu publié'},tabActives:{t:'Commerces actifs',s:'Boutiques visibles'},tabNetubers:{t:'Utilisateurs',s:'Comptes enregistrés'},tabAbonnements:{t:'Abonnements',s:'Gérer les recouvrements'},tabEcoles:{t:'Écoles',s:'Établissements du réseau'},tabPrefects:{t:'Préfets & Directeurs',s:'Responsables d\'écoles'},tabProfesseurs:{t:'Professeurs',s:'Enseignants du réseau'},tabImportMultiple:{t:'Import Multiple',s:'Créer plusieurs produits en une fois'},tabGererCatalogue:{t:'Gérer Catalogue',s:'Modifier plusieurs articles en masse'}};
 function switchTab(tab){
 document.querySelectorAll('.nav-item').forEach(x=>{if(x.dataset.tab===tab)x.classList.add('active');else x.classList.remove('active');});
 document.querySelectorAll('.tab-content').forEach(p=>p.classList.remove('active'));
@@ -996,6 +1027,7 @@ if(tab==='tabProduitsAttente')loadProduitsAttente();
 if(tab==='tabEcoles')loadEcoles(true);
 if(tab==='tabPrefects'){loadEcoles(true).then(()=>loadPrefects());}
 if(tab==='tabProfesseurs'){Promise.all([loadEcoles(true),loadProfesseurs(true)]);}
+if(tab==='tabAbonnements')loadAbonnements(true);
 }
 document.querySelectorAll('.nav-item').forEach(item=>{item.onclick=()=>switchTab(item.dataset.tab);});
 function openSidebar(){document.getElementById('sidebar').classList.add('show');document.getElementById('sidebarOverlay').classList.add('show');}
@@ -1009,8 +1041,8 @@ document.getElementById('btnReloadAll').onclick=async()=>{cacheInvalidateAll();a
 async function loadAll(){
 setLoader(true);
 try{
-await Promise.all([loadBoutiques(),loadDeblocages(),loadPublications(),loadNetubers(),loadActives(),loadAnnonces(),loadProduitsAttente(),loadEcoles(),loadProfesseurs()]);
-renderKPIs();
+await Promise.all([loadBoutiques(true),loadDeblocages(true),loadPublications(true),loadNetubers(true),loadActives(true),loadAnnonces(true),loadProduitsAttente(true),loadEcoles(true),loadProfesseurs(true),loadAbonnements(true)]);
+setTimeout(renderKPIs,100);
 }finally{setLoader(false);updateCacheStats();}
 }
 async function reloadSome(keys){
@@ -1025,6 +1057,7 @@ if(keys.includes('annonces'))tasks.push(loadAnnonces(true));
 if(keys.includes('produitsAttente'))tasks.push(loadProduitsAttente(true));
 if(keys.includes('ecoles'))tasks.push(loadEcoles(true));
 if(keys.includes('professeurs'))tasks.push(loadProfesseurs(true));
+if(keys.includes('abonnements'))tasks.push(loadAbonnements(true));
 if(tasks.length)await Promise.all(tasks);
 renderKPIs();
 }
@@ -1132,6 +1165,7 @@ emailAuth:user.emailAuth||'-'
 });
 boutiquesActives.sort((a,b)=>(b.dateApprobation||'').localeCompare(a.dateApprobation||''));
 renderActives();
+renderKPIs();
 }catch(e){console.warn(e.message);}
 }
 async function loadEcoles(force){
@@ -1165,6 +1199,26 @@ const prefects=netubers.filter(n=>n.role==='prefet'||n.role==='directeur');
 renderPrefects(prefects);
 updateBadge('badgePrefects',prefects.length);
 }catch(e){console.warn('Erreur prefects:',e.message);}
+}
+async function loadAbonnements(force){
+try{
+const configSnap=await getDoc(doc(db,'config','abonnements'));
+const currentMode=configSnap.exists()?configSnap.data().mode:'desactive';
+document.querySelectorAll('#tabAbonnements .btn').forEach(b=>{b.classList.remove('btn-primary','btn-danger','btn-success');b.classList.add('btn-outline');});
+const btnActive=document.getElementById('btnMode'+(currentMode==='desactive'?'Desactive':currentMode.charAt(0).toUpperCase()+currentMode.slice(1)));
+if(btnActive){btnActive.classList.remove('btn-outline');btnActive.classList.add(currentMode==='force'?'btn-danger':currentMode==='simple'?'btn-primary':'btn-success');}
+const etat=document.getElementById('etatModeAbonnement');
+if(etat){
+if(currentMode==='desactive')etat.innerHTML='<i class="fas fa-info-circle"></i> Aucun abonnement demandé. Les commerçants ne voient pas de popup.';
+else if(currentMode==='simple')etat.innerHTML='<i class="fas fa-bell"></i> <strong>Mode Simple :</strong> Un rappel s\'affiche à chaque navigation. La boutique reste visible.';
+else if(currentMode==='force')etat.innerHTML='<i class="fas fa-lock"></i> <strong>Mode Forcé :</strong> Blocage total. La boutique est masquée et le commerçant doit payer.';
+}
+const list=await loadCollection('abonnements',force);
+abonnements=list.map(d=>({id:d.id,uid:d.uid||'',nom:d.nom||'',telephone:d.telephone||'',type:d.type||'commerce',idEtablissement:d.idEtablissement||'',transactionId:d.transactionId||'',numeroEnvoi:d.numeroEnvoi||'',montantUsd:d.montantUsd||1,montantFc:d.montantFc||2800,statut:d.statut||'en_attente',dateDemande:d.dateDemande||'',dateValidation:d.dateValidation||'',dateRefus:d.dateRefus||''}));
+abonnements.sort((a,b)=>(b.dateDemande||'').localeCompare(a.dateDemande||''));
+renderAbonnements(abonnements);
+updateBadge('badgeAbonnements',abonnements.filter(a=>a.statut==='en_attente').length);
+}catch(e){console.warn('Erreur abonnements:',e.message);}
 }
 async function getCommerces(){return await loadCollection('commerces');}
 function renderKPIs(){
@@ -3223,7 +3277,7 @@ if(!p)return;
 const d=document.createElement('div');
 d.className='modal show';
 const ecoleNoms=Object.values(p.ecoles||{}).map(e=>`${esc(e.ecoleNom)} (${e.statut||'?'})`).join('<br>')||'—';
-d.innerHTML=`<div class="modal-box"><h2><i class="fas fa-chalkboard-user"></i>Détails du professeur</h2><div class="field"><label>Nom</label><input readonly value="${esc(p.nom||'')}"></div><div class="field"><label>Matière</label><input readonly value="${esc(p.matiere||'')}"></div><div class="field"><label>Téléphone</label><input readonly value="${esc(p.telephone||'')}"></div><div class="field"><label>Écoles</label><div style="padding:10px;background:var(--bg-soft);border:1px solid var(--border);border-radius:8px;font-size:12.5px;line-height:1.6">${ecoleNoms}</div></div><div class="field"><label>Moyenne</label><input readonly value="${(p.moyenneGlobale||0).toFixed(1)} / 5 (${p.nombreNotesGlobal||0} éval.)"></div><div class="field"><label>Compte de connexion</label><input readonly value="${p.uid?'✅ Compte actif (UID: '+esc(p.uid.slice(0,12))+'…)':'⚠️ Pas de compte'}"></div><div class="form-actions"><button class="btn btn-outline" data-close>FERMER</button></div></div>`;
+d.innerHTML=`<div class="modal-box"><h2><i class="fas fa-chalkboard-user"></i>Détails du professeur</h2><div class="field"><label>Nom</label><input readonly value="${esc(p.nom||'')}"></div><div class="field"><label>Matière</label><input readonly value="${esc(p.matiere||'')}"></div><div class="field"><label>Téléphone</label><input readonly value="${esc(p.telephone||'')}"></div><div class="field"><label>Écoles</label><div style="padding:10px;background:var(--bg-soft);border:1px solid var(--border);border-radius:8px;font-size:12.5px;line-height:1.6">${ecoleNoms}</div></div><div class="field"><label>Moyenne</label><input readonly value="${(p.moyenneGlobale||0).toFixed(1)} / 5 (${p.nombreGlobal||0} éval.)"></div><div class="field"><label>Compte de connexion</label><input readonly value="${p.uid?'✅ Compte actif (UID: '+esc(p.uid.slice(0,12))+'…)':'⚠️ Pas de compte'}"></div><div class="form-actions"><button class="btn btn-outline" data-close>FERMER</button></div></div>`;
 document.body.appendChild(d);
 d.querySelector('[data-close]').onclick=()=>d.remove();
 d.onclick=e=>{if(e.target===d)d.remove();};
@@ -3302,6 +3356,73 @@ if(act==='approve')approuverProduit(idx);
 if(act==='reject')rejeterProduit(idx);
 if(act==='delete')supprimerProduitAttente(idx);
 });
+async function changerModeAbonnement(mode){
+const ok=await adminConfirm('Changer le mode d\'abonnement ?', `Passer en mode <strong>${mode}</strong> ?`, mode === 'force' ? 'warning' : 'info');
+if(!ok)return;
+setLoader(true);
+try{
+await setDoc(doc(db,'config','abonnements'),{mode:mode,updatedAt:new Date().toISOString()},{merge:true});
+await notifierChangement('changeModeAbonnement',mode);
+toast('✅ Mode '+mode+' activé');
+await loadAbonnements(true);
+}catch(e){toast('Erreur: '+e.message,'err');}
+finally{setLoader(false);}
+}
+window.changerModeAbonnement=changerModeAbonnement;
+function renderAbonnements(list){
+const tbody=document.getElementById('bodyAbonnements');
+if(!tbody)return;
+if(!list||list.length===0){
+tbody.innerHTML='<tr><td colspan="7"><div class="empty"><div class="empty-ic"><i class="fas fa-crown"></i></div><div class="empty-t">Aucune demande d\'abonnement</div></div></td></tr>';
+return;
+}
+tbody.innerHTML=list.map((a,i)=>{
+const badge=a.statut==='valide'?'<span class="badge badge-ok">Validé</span>':a.statut==='refuse'?'<span class="badge badge-err">Refusé</span>':'<span class="badge badge-warn">En attente</span>';
+const actions=a.statut==='en_attente'?`<button class="btn-ico ok" onclick="validerAbonnement('${a.id}')"><i class="fas fa-check"></i></button><button class="btn-ico err" onclick="refuserAbonnement('${a.id}')"><i class="fas fa-times"></i></button>`:'';
+return `<tr>
+<td style="font-size:11px">${fmtDate(a.dateDemande)}</td>
+<td><strong style="color:var(--text)">${esc(a.nom||'-')}</strong><br><small style="color:var(--text-3);font-family:'JetBrains Mono',monospace">${esc(a.telephone||'')}</small></td>
+<td><span class="badge badge-info">${esc(a.type||'commerce')}</span></td>
+<td>${a.montantUsd||1} USD <small style="color:var(--text-3)">(${(a.montantFc||2800).toLocaleString('fr-FR')} FC)</small></td>
+<td style="font-family:'JetBrains Mono',monospace;font-size:11px">${esc(a.transactionId||'-')}</td>
+<td>${badge}</td>
+<td><div class="act">${actions}</div></td>
+</tr>`;
+}).join('');
+}
+async function validerAbonnement(id){
+const ok=await adminConfirm('Valider cet abonnement ?','Le commerçant aura le badge "En ordre".','info');
+if(!ok)return;
+setLoader(true);
+try{
+await setDoc(doc(db,'abonnements',id),{statut:'valide',dateValidation:new Date().toISOString()},{merge:true});
+const snap=await getDoc(doc(db,'abonnements',id));
+if(snap.exists()){
+const data=snap.data();
+if(data.uid){
+await setDoc(doc(db,'netubers',data.uid),{dernierAbonnement:new Date().toISOString(),statutAbonnement:'valide'},{merge:true});
+}
+}
+await notifierChangement('validerAbonnement',id);
+toast('✅ Abonnement validé');
+await loadAbonnements(true);
+}catch(e){toast('Erreur: '+e.message,'err');}
+finally{setLoader(false);}
+}
+window.validerAbonnement=validerAbonnement;
+async function refuserAbonnement(id){
+const ok=await adminConfirm('Refuser cet abonnement ?','Le commerçant devra payer.','danger');
+if(!ok)return;
+setLoader(true);
+try{
+await setDoc(doc(db,'abonnements',id),{statut:'refuse',dateRefus:new Date().toISOString()},{merge:true});
+await notifierChangement('refuserAbonnement',id);
+toast('Abonnement refusé','warn');
+await loadAbonnements(true);
+}catch(e){toast('Erreur: '+e.message,'err');}
+finally{setLoader(false);}
+}
+window.refuserAbonnement=refuserAbonnement;
 let impProduits=[];
 let impUploading=false;
 let impEditingIndex=-1;
