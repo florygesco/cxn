@@ -635,7 +635,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 <div class="bulk-actions">
 <button class="btn btn-outline" onclick="impRenommerSerie()"><i class="fas fa-i-cursor"></i>Renommer en série</button>
 <button class="btn btn-outline" onclick="impPrixLot()"><i class="fas fa-tag"></i>Prix par lot</button>
-<button class="btn btn-outline" onclick="impUniteLot()"><i class="fas fa-ruler"></i>Unitié par lot</button>
+<button class="btn btn-outline" onclick="impUniteLot()"><i class="fas fa-ruler"></i>Unité par lot</button>
 </div>
 <div id="impProductsList" class="products-list"></div>
 </div>
@@ -1082,7 +1082,7 @@ boutiques=list.map(d=>({id:d.id,nom:d.nom||'',nomCommerce:d.nomCommerce||'',type
 boutiques.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
 renderBoutiques();
 updateBadge('badgeBoutiques',boutiques.filter(b=>b.statut==='en_attente').length);
-}catch(e){console.warn(e.message);}
+}catch(e){}
 }
 async function loadDeblocages(force){
 try{
@@ -1091,7 +1091,7 @@ deblocages=list.map(d=>({id:d.id,uid:d.uid||'',annonceId:d.annonceId||'',transac
 deblocages.sort((a,b)=>(b.dateDemande||'').localeCompare(a.dateDemande||''));
 renderDeblocages();
 updateBadge('badgeDeblocages',deblocages.filter(d=>d.statut==='en_attente').length);
-}catch(e){console.warn(e.message);}
+}catch(e){}
 }
 async function loadPublications(force){
 try{
@@ -1099,7 +1099,7 @@ publications=await loadCollection('publications',force);
 publications.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
 renderPublications();
 updateBadge('badgePublications',publications.filter(p=>p.statut==='en_attente').length);
-}catch(e){console.warn(e.message);}
+}catch(e){}
 }
 async function loadProduitsAttente(force){
 try{
@@ -1128,7 +1128,7 @@ dateAjout:p.dateAjout||''
 });
 renderProduitsAttente();
 updateBadge('badgeProduitsAttente',produitsAttente.length);
-}catch(e){console.warn('Erreur chargement produits attente :',e.message);}
+}catch(e){}
 }
 async function loadAnnonces(force){
 try{
@@ -1139,7 +1139,7 @@ renderAnnonces();
 moderationAnnonces=annonces.slice();
 renderModerationFeed();
 updateBadge('badgeAnnonces',annonces.filter(a=>a.statut==='en_attente').length);
-}catch(e){console.warn(e.message);}
+}catch(e){}
 }
 async function loadNetubers(force){
 try{
@@ -1147,7 +1147,7 @@ const list=await loadCollection('netubers',force);
 netubers=list.map(d=>({id:d.id,nomComplet:d.nomComplet||d.nom||'-',nom:d.nom||'',prenom:d.prenom||'',phone:d.phone||'-',emailAuth:d.emailAuth||'-',code:d.code||'-',ville:d.ville||'-',role:d.role||'user',ecoleId:d.ecoleId||null,professeurId:d.professeurId||null,actif:d.actif!==false,dateCreation:d.dateCreation||'',boutique:d.boutique||null,motDePasseProvisoire:d.motDePasseProvisoire===true}));
 netubers.sort((a,b)=>(b.dateCreation||'').localeCompare(a.dateCreation||''));
 renderNetubers();
-}catch(e){console.warn(e.message);}
+}catch(e){}
 }
 async function loadActives(force){
 try{
@@ -1185,7 +1185,7 @@ ecoleId:c.ecoleId||null
 boutiquesActives.sort((a,b)=>(b.dateApprobation||'').localeCompare(a.dateApprobation||''));
 renderActives();
 renderKPIs();
-}catch(e){console.warn(e.message);}
+}catch(e){}
 }
 async function loadEcoles(force){
 try{
@@ -1197,7 +1197,7 @@ renderEcoles();
 renderFilterEcoleProfs();
 updateBadge('badgeEcoles',ecoles.length);
 return ecoles;
-}catch(e){console.warn('Erreur écoles:',e.message);return [];}
+}catch(e){return [];}
 }
 async function loadProfesseurs(force){
 try{
@@ -1209,7 +1209,7 @@ renderProfesseurs();
 const sansCompte=professeurs.filter(p=>!p.uid).length;
 updateBadge('badgeProfs',sansCompte);
 return professeurs;
-}catch(e){console.warn('Erreur profs:',e.message);return [];}
+}catch(e){return [];}
 }
 async function loadPrefects(){
 try{
@@ -1217,7 +1217,7 @@ if(!cacheValid('netubers'))await loadNetubers();
 const prefects=netubers.filter(n=>n.role==='prefet'||n.role==='directeur');
 renderPrefects(prefects);
 updateBadge('badgePrefects',prefects.length);
-}catch(e){console.warn('Erreur prefects:',e.message);}
+}catch(e){}
 }
 async function getCommerces(){return await loadCollection('commerces');}
 function renderKPIs(){
@@ -2798,7 +2798,6 @@ async function genererPDFQRCodeBoutique(uid){
     pdf.save(nomFichier);
     toast('✅ PDF généré');
   } catch(e) {
-    console.error('Erreur QR PDF:', e);
     toast('Erreur: ' + (e.message || 'inconnue'), 'err');
   } finally {
     setLoader(false);
@@ -3067,15 +3066,14 @@ isExistingAccount=true;
 }else{
 const codeGenere = await genererCodeUnique6();
 codeFinal = codeGenere;
-const nse=(nom||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
-const email=nse+telRaw+'@gmail.com';
+// ✅ CORRECTION : email basé UNIQUEMENT sur le numéro (format NeTubeX RDC)
+const email = telRaw + '@gmail.com';
 let firebaseUid = null;
 try {
     const cred = await createUserWithEmailAndPassword(secondaryAuth, email, codeGenere);
     firebaseUid = cred.user.uid;
     await signOut(secondaryAuth);
 } catch (authError) {
-    console.log("Erreur Auth:", authError.message);
     if (authError.code === 'auth/email-already-in-use') {
         toast('Ce numéro possède déjà un compte. Utilisez un autre numéro.', 'err');
         if(saveBtn){saveBtn.disabled=false;saveBtn.innerHTML='CRÉER LE COMPTE';}
@@ -3242,8 +3240,8 @@ await setDoc(doc(db,'professeurs',profDoc.id),{ecoles:ecolesProf},{merge:true});
 toast('✅ Professeur rattaché à l\'école');
 }else{
 const profId='PROF-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
-const nse=nom.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
-const emailGen=nse+telRaw+'@gmail.com';
+// ✅ CORRECTION : email basé UNIQUEMENT sur le numéro (format NeTubeX RDC)
+const emailGen = telRaw + '@gmail.com';
 const phoneNorm='+243'+telRaw;
 const netubersQ=query(collection(db,'netubers'),where('phone','==',phoneNorm),limit(1));
 const netubersSnap=await getDocs(netubersQ);
@@ -3259,7 +3257,6 @@ try {
     firebaseUid = cred.user.uid;
     await signOut(secondaryAuth);
 } catch (authError) {
-    console.log("Erreur Auth:", authError.message);
     if (authError.code === 'auth/email-already-in-use') {
         toast('Cet email existe déjà. Utilisez un autre numéro.', 'err');
         if(saveBtn){saveBtn.disabled=false;saveBtn.innerHTML='CRÉER';}
@@ -3340,13 +3337,12 @@ await setDoc(doc(db,'netubers',uidNetuber),{role:'professeur',ecoleId:Object.key
 }else{
 uidNetuber=prof.id;
 const mdp=prof.motDePasseProvisoire||Math.random().toString(36).slice(2,8).toUpperCase();
-const nse=(prof.nom||'prof').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]/g,'').toLowerCase();
-const emailGen=prof.emailGen||(nse+telDigits+'@gmail.com');
+// ✅ CORRECTION : email basé UNIQUEMENT sur le numéro (format NeTubeX RDC)
+const emailGen = prof.emailGen || (telDigits + '@gmail.com');
 try {
     await createUserWithEmailAndPassword(secondaryAuth, emailGen, mdp);
     await signOut(secondaryAuth);
 } catch (authError) {
-    console.log("Erreur Auth:", authError.message);
     if(authError.code !== 'auth/email-already-in-use') {
         toast('Erreur Auth: ' + authError.message, 'err');
     }
@@ -3357,7 +3353,7 @@ await setDoc(doc(db,'user_stats',uidNetuber),{totalVues:0,nbAnnonces:0,nbPubliee
 }
 await setDoc(doc(db,'professeurs',prof.id),{uid:uidNetuber},{merge:true});
 reparés++;
-}catch(err){erreurs++;console.warn('Erreur réparation',prof.id,err.message);}
+}catch(err){erreurs++;}
 }
 await notifierChangement('repairProfs',null);
 toast(`✅ ${reparés} réparé(s)${ignorés>0?`, ${ignorés} ignoré(s)`:''}${erreurs>0?`, ${erreurs} erreur(s)`:''}`);
@@ -3464,7 +3460,7 @@ aboConfig.tarifUsd=data.tarifUsd||1;
 aboConfig.tarifFc=data.tarifFc||2800;
 }
 afficherConfigAbonnement();
-}catch(e){console.warn('Erreur config abonnement:',e);}
+}catch(e){}
 }
 function afficherConfigAbonnement(){
 document.querySelectorAll('#tabAbonnements .btn[id^="btnMode"]').forEach(b=>{b.classList.remove('btn-primary','btn-danger','btn-success');b.classList.add('btn-outline');});
@@ -3751,11 +3747,8 @@ async function verifierAbonnementsExpires(){
         }
         cacheInvalidate('commerces');
         cacheInvalidate('actives');
-        console.log(`${boutiquesAUpdate.length} abonnement(s) expiré(s) passé(s) en mode Simple`);
         await reloadSome(['actives']);
-    } catch(e) {
-        console.warn('Erreur mise à jour abonnements:', e);
-    }
+    } catch(e) {}
 }
 window.verifierAbonnementsExpires=verifierAbonnementsExpires;
 
@@ -3772,8 +3765,7 @@ async function verifierAbonnementsEcolesExpires(){
             await setDoc(doc(db,'ecoles',e.id),{abonnementStatut:'simple',abonnementModeMisAJour:new Date().toISOString()},{merge:true});
         }
         cacheInvalidate('ecoles');
-        console.log(`🔄 ${ecolesAUpdate.length} école(s) passée(s) en mode Simple`);
-    }catch(err){console.warn('Erreur vérif abo écoles:',err);}
+    }catch(err){}
 }
 window.verifierAbonnementsEcolesExpires=verifierAbonnementsEcolesExpires;
 
