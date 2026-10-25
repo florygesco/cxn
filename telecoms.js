@@ -1,110 +1,214 @@
-<div id="page-telecom-detail" class="page">
-  <div style="position:relative; width:100%; height:80px; background:#1e3a8a; display:flex; align-items:center; padding:0 16px;">
-    <button onclick="go('ecoles')" style="background:transparent; border:none; color:#fff; font-size:20px; cursor:pointer;"><i class="fa-solid fa-arrow-left"></i></button>
-    <h1 id="telecomHeaderName" style="color:#fff; font-size:18px; font-weight:900; margin-left:16px;">Opérateur</h1>
-    <div style="margin-left:auto; display:flex; gap:16px;">
-      <button style="background:transparent; border:none; color:#fff; font-size:20px;"><i class="fa-regular fa-heart"></i></button>
-      <button style="background:transparent; border:none; color:#fff; font-size:20px;"><i class="fa-solid fa-share-nodes"></i></button>
-    </div>
-  </div>
+window.OPERATEURS_DATA = [];
+window.CURRENT_TELECOM_ID = null;
 
-  <div style="padding:16px; background:#f8fafc;">
-    <div style="background:#fff; border-radius:16px; padding:20px; box-shadow:0 4px 12px rgba(0,0,0,0.05); margin-bottom:16px;">
-      <div style="display:flex; gap:16px;">
-        <div id="telecomLogo" style="width:64px; height:64px; border-radius:12px; background:#f1f5f9; display:flex; align-items:center; justify-content:center; font-size:24px; font-weight:900; color:#e11d48; overflow:hidden;">Airtel</div>
-        <div style="flex:1;">
-          <h2 id="telecomName" style="font-size:20px; font-weight:900; color:#0f172a; margin:0 0 4px 0;">Airtel RDC</h2>
-          <div style="display:inline-flex; align-items:center; gap:6px; background:#ecfdf5; color:#065f46; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:800; margin-bottom:8px;">
-            <i class="fa-solid fa-circle-check"></i> Profil vérifié
-          </div>
-          <div style="display:flex; align-items:center; gap:8px;">
-            <span style="color:#fbbf24; font-size:16px;">★★★★★</span>
-            <span style="font-size:14px; font-weight:900; color:#0f172a;" id="telecomRating">4.3/5</span>
-            <span style="font-size:13px; color:#64748b;" id="telecomReviewsCount">(1 248 avis)</span>
-          </div>
-        </div>
-      </div>
-      <p id="telecomDesc" style="font-size:14px; color:#334155; line-height:1.6; margin-top:16px;"></p>
-    </div>
+window.chargerOperateursFirestore = async function(forceRefresh) {
+  if (!forceRefresh) {
+    var cached = await getCachedList('cache_operateurs');
+    if (cached && Array.isArray(cached)) return cached;
+  }
+  try {
+    var snap = await getDocs(collection(db, 'operateurs_telecoms'));
+    var ops = [];
+    snap.forEach(function(d) {
+      var v = d.data();
+      ops.push({
+        id: d.id,
+        nom: v.nom || '',
+        description: v.description || '',
+        telephone: v.telephone || '',
+        siteWeb: v.siteWeb || '',
+        ville: v.ville || 'RDC',
+        couverture: v.couverture || 'RDC',
+        nombreAgences: v.nombreAgences || 0,
+        nombreClients: v.nombreClients || '0',
+        logoUrl: v.logoUrl || '',
+        bannerUrl: v.bannerUrl || '',
+        horaires: v.horaires || '',
+        notesReseau: v.notesReseau || {},
+        services: v.services || [],
+        offres: v.offres || [],
+        contactActif: v.contactActif === true,
+        verifie: v.verifie === true
+      });
+    });
+    await setCachedList('cache_operateurs', ops);
+    return ops;
+  } catch (e) {
+    var cached = await getCachedList('cache_operateurs');
+    return cached || [];
+  }
+};
 
-    <div style="background:#1e3a8a; border-radius:16px; overflow:hidden; position:relative; margin-bottom:16px; height:160px;">
-      <img id="telecomBanner" src="" style="width:100%; height:100%; object-fit:cover; opacity:0.8;">
-    </div>
+window.chargerNotesTelecom = async function(operateurId) {
+  try {
+    var q = window.query(window.collection(window.db, 'notes_telecoms'), window.where('operateurId', '==', operateurId));
+    var snap = await window.getDocs(q);
+    var notes = [];
+    snap.forEach(function(d) { notes.push(Object.assign({ id: d.id }, d.data())); });
+    return notes;
+  } catch (e) { return []; }
+};
 
-    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px; text-align:center;">
-      <div style="background:#fff; padding:12px; border-radius:12px; border:1px solid #e2e8f0;">
-        <i class="fa-solid fa-tower-cell" style="color:#007fff; font-size:20px; margin-bottom:6px;"></i>
-        <div style="font-size:12px; color:#64748b; font-weight:700;">Agences</div>
-        <div id="telecomAgencies" style="font-size:14px; font-weight:900; color:#0f172a;">+250</div>
-      </div>
-      <div style="background:#fff; padding:12px; border-radius:12px; border:1px solid #e2e8f0;">
-        <i class="fa-solid fa-map" style="color:#007fff; font-size:20px; margin-bottom:6px;"></i>
-        <div style="font-size:12px; color:#64748b; font-weight:700;">Couverture</div>
-        <div id="telecomCoverage" style="font-size:14px; font-weight:900; color:#0f172a;">Toute la RDC</div>
-      </div>
-      <div style="background:#fff; padding:12px; border-radius:12px; border:1px solid #e2e8f0;">
-        <i class="fa-solid fa-users" style="color:#007fff; font-size:20px; margin-bottom:6px;"></i>
-        <div style="font-size:12px; color:#64748b; font-weight:700;">Clients</div>
-        <div id="telecomClients" style="font-size:14px; font-weight:900; color:#0f172a;">+10M</div>
-      </div>
-    </div>
+window.calculerMoyenneTelecom = function(notes) {
+  if (!notes || notes.length === 0) return { moyenne: 0, total: 0 };
+  var somme = 0;
+  notes.forEach(function(n) { somme += Number(n.etoiles) || 0; });
+  return { moyenne: Math.round((somme / notes.length) * 10) / 10, total: notes.length };
+};
 
-    <div style="display:flex; border-bottom:2px solid #e2e8f0; margin-bottom:16px;">
-      <button onclick="switchTelecomTab('services')" id="tabTelServices" style="flex:1; padding:12px; font-weight:800; color:#007fff; border-bottom:3px solid #007fff; background:transparent; border-top:none; border-left:none; border-right:none; cursor:pointer;">Services</button>
-      <button onclick="switchTelecomTab('reseau')" id="tabTelReseau" style="flex:1; padding:12px; font-weight:800; color:#94a3b8; border-bottom:3px solid transparent; background:transparent; border-top:none; border-left:none; border-right:none; cursor:pointer;">Qualité</button>
-      <button onclick="switchTelecomTab('infos')" id="tabTelInfos" style="flex:1; padding:12px; font-weight:800; color:#94a3b8; border-bottom:3px solid transparent; background:transparent; border-top:none; border-left:none; border-right:none; cursor:pointer;">Infos</button>
-    </div>
+window.aDejaNoteTelecom = async function(operateurId) {
+  if (!window.CURRENT_ACCOUNT) return null;
+  try {
+    var docId = operateurId + '_' + window.CURRENT_ACCOUNT.id;
+    var snap = await window.getDocRef(window.docRef(window.db, 'notes_telecoms', docId));
+    return snap.exists() ? Object.assign({ id: docId }, snap.data()) : null;
+  } catch (e) { return null; }
+};
 
-    <div id="telContentServices">
-      <h3 style="font-size:16px; font-weight:900; color:#0f172a; margin-bottom:12px;">Services proposés</h3>
-      <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; display:flex; align-items:center; gap:12px; margin-bottom:10px;">
-        <div style="width:40px; height:40px; border-radius:50%; background:#fee2e2; color:#e11d48; display:flex; align-items:center; justify-content:center;"><i class="fa-solid fa-phone"></i></div>
-        <div><div style="font-size:15px; font-weight:900; color:#0f172a;">Appels</div><div style="font-size:13px; color:#64748b;">Voix et appels internationaux</div></div>
-      </div>
-      <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; display:flex; align-items:center; gap:12px; margin-bottom:10px;">
-        <div style="width:40px; height:40px; border-radius:50%; background:#fef3c7; color:#d97706; display:flex; align-items:center; justify-content:center;"><i class="fa-solid fa-comment-dots"></i></div>
-        <div><div style="font-size:15px; font-weight:900; color:#0f172a;">SMS</div><div style="font-size:13px; color:#64748b;">SMS classiques et internationaux</div></div>
-      </div>
-      <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; display:flex; align-items:center; gap:12px; margin-bottom:10px;">
-        <div style="width:40px; height:40px; border-radius:50%; background:#e0f2fe; color:#0284c7; display:flex; align-items:center; justify-content:center;"><i class="fa-solid fa-wifi"></i></div>
-        <div><div style="font-size:15px; font-weight:900; color:#0f172a;">Internet mobile</div><div style="font-size:13px; color:#64748b;">4G/5G, internet haut débit</div></div>
-      </div>
-      <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; display:flex; align-items:center; gap:12px;">
-        <div style="width:40px; height:40px; border-radius:50%; background:#fce7f3; color:#db2777; display:flex; align-items:center; justify-content:center;"><i class="fa-solid fa-money-bill-transfer"></i></div>
-        <div><div style="font-size:15px; font-weight:900; color:#0f172a;">Mobile Money</div><div style="font-size:13px; color:#64748b;">Transferts et paiements</div></div>
-      </div>
-    </div>
+window.noterTelecom = async function(operateurId, etoiles) {
+  if (!window.CURRENT_ACCOUNT) throw new Error('Non connecté');
+  if (!etoiles || etoiles < 1 || etoiles > 5) throw new Error('Note entre 1 et 5');
+  
+  var docId = operateurId + '_' + window.CURRENT_ACCOUNT.id;
+  var existant = await aDejaNoteTelecom(operateurId);
+  
+  if (existant && existant.dateModification) {
+    var last = new Date(existant.dateModification).getTime();
+    var daysSince = (Date.now() - last) / (1000 * 60 * 60 * 24);
+    if (daysSince < 7) {
+      var reste = Math.ceil(7 - daysSince);
+      throw new Error('Modification possible dans ' + reste + ' jour' + (reste > 1 ? 's' : ''));
+    }
+  }
+  
+  await window.setDoc(window.docRef(window.db, 'notes_telecoms', docId), {
+    operateurId: operateurId, uid: window.CURRENT_ACCOUNT.id, etoiles: etoiles,
+    dateCreation: existant ? existant.dateCreation : new Date().toISOString(),
+    dateModification: new Date().toISOString()
+  });
+  
+  await window.invaliderCache('cache_operateurs');
+  return true;
+};
 
-    <div id="telContentReseau" style="display:none;">
-      <h3 style="font-size:16px; font-weight:900; color:#0f172a; margin-bottom:12px;">Qualité du réseau</h3>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px;">
-          <div style="font-size:13px; color:#64748b; font-weight:700; margin-bottom:4px;"><i class="fa-solid fa-phone"></i> Appels</div>
-          <div id="telNoteAppels" style="font-size:20px; font-weight:900; color:#0f172a;">0/5</div>
-        </div>
-        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px;">
-          <div style="font-size:13px; color:#64748b; font-weight:700; margin-bottom:4px;"><i class="fa-solid fa-wifi"></i> Internet</div>
-          <div id="telNoteInternet" style="font-size:20px; font-weight:900; color:#0f172a;">0/5</div>
-        </div>
-        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px;">
-          <div style="font-size:13px; color:#64748b; font-weight:700; margin-bottom:4px;"><i class="fa-solid fa-shield"></i> Stabilité</div>
-          <div id="telNoteStabilite" style="font-size:20px; font-weight:900; color:#0f172a;">0/5</div>
-        </div>
-        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px;">
-          <div style="font-size:13px; color:#64748b; font-weight:700; margin-bottom:4px;"><i class="fa-solid fa-clock"></i> Disponibilité</div>
-          <div id="telNoteDisponibilite" style="font-size:20px; font-weight:900; color:#0f172a;">0/5</div>
-        </div>
-      </div>
-    </div>
+window.ouvrirFicheTelecom = async function(operatorId) {
+  var op = window.OPERATEURS_DATA.find(function(o) { return o.id === operatorId; });
+  if (!op) { showToast('Opérateur introuvable'); return; }
+  
+  window.CURRENT_TELECOM_ID = operatorId;
+  var notes = await window.chargerNotesTelecom(operatorId);
+  var calc = window.calculerMoyenneTelecom(notes);
 
-    <div id="telContentInfos" style="display:none;">
-      <h3 style="font-size:16px; font-weight:900; color:#0f172a; margin-bottom:12px;">Informations pratiques</h3>
-      <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:12px;">
-        <div style="display:flex; align-items:center; gap:10px;"><i class="fa-solid fa-globe" style="color:#007fff; width:20px;"></i> <span id="telInfoSite" style="font-size:14px; font-weight:700; color:#334155;">—</span></div>
-        <div style="display:flex; align-items:center; gap:10px;"><i class="fa-solid fa-phone" style="color:#007fff; width:20px;"></i> <span id="telInfoTel" style="font-size:14px; font-weight:700; color:#334155;">—</span></div>
-        <div style="display:flex; align-items:center; gap:10px;"><i class="fa-solid fa-location-dot" style="color:#007fff; width:20px;"></i> <span id="telInfoVilles" style="font-size:14px; font-weight:700; color:#334155;">—</span></div>
-        <div style="display:flex; align-items:center; gap:10px;"><i class="fa-solid fa-clock" style="color:#007fff; width:20px;"></i> <span id="telInfoHoraires" style="font-size:14px; font-weight:700; color:#334155;">—</span></div>
-      </div>
-    </div>
-  </div>
-</div>
+  var elHeaderName = document.getElementById('telecomHeaderName');
+  var elLogo = document.getElementById('telecomLogo');
+  var elName = document.getElementById('telecomName');
+  var elRating = document.getElementById('telecomRating');
+  var elReviews = document.getElementById('telecomReviewsCount');
+  var elDesc = document.getElementById('telecomDesc');
+  var elBanner = document.getElementById('telecomBanner');
+  var elAgencies = document.getElementById('telecomAgencies');
+  var elCoverage = document.getElementById('telecomCoverage');
+  var elClients = document.getElementById('telecomClients');
+  var elStars = document.getElementById('telecomStarsDisplay');
+
+  if (elHeaderName) elHeaderName.textContent = op.nom;
+  if (elLogo) {
+    if (op.logoUrl) elLogo.innerHTML = '<img src="' + op.logoUrl + '" style="width:100%;height:100%;object-fit:contain;padding:8px;">';
+    else elLogo.textContent = (op.nom || '').substring(0, 6);
+  }
+  if (elName) elName.textContent = op.nom;
+  if (elRating) elRating.textContent = calc.moyenne.toFixed(1) + '/5';
+  if (elReviews) elReviews.textContent = '(' + calc.total + ' avis)';
+  if (elDesc) elDesc.textContent = op.description || '';
+  if (elBanner) elBanner.src = op.bannerUrl || 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?q=80&w=800&auto=format&fit=crop';
+  
+  if (elAgencies) elAgencies.textContent = '+' + (op.nombreAgences || 0);
+  if (elCoverage) elCoverage.textContent = op.couverture || 'RDC';
+  if (elClients) elClients.textContent = '+' + (op.nombreClients || '0');
+
+  if (elStars) {
+    var starsHtml = '';
+    for (var i = 1; i <= 5; i++) {
+      starsHtml += i <= Math.round(calc.moyenne) 
+        ? '<i class="fa-solid fa-star" style="color:#fbbf24;font-size:14px;"></i>' 
+        : '<i class="fa-regular fa-star" style="color:#cbd5e1;font-size:14px;"></i>';
+    }
+    elStars.innerHTML = starsHtml;
+  }
+
+  var elServices = document.getElementById('telListeServices');
+  if (elServices) {
+    var srv = op.services || [];
+    if (srv.length === 0) {
+      elServices.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b; font-size:14px; background:#fff; border-radius:12px; border:1px solid #e2e8f0;">Services non spécifiés.</div>';
+    } else {
+      elServices.innerHTML = srv.map(function(s) {
+        return '<div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; display:flex; align-items:center; gap:12px; margin-bottom:10px;">' +
+          '<div style="width:40px; height:40px; border-radius:50%; background:#fef2f2; color:#e11d48; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><i class="fa-solid fa-check"></i></div>' +
+          '<div style="font-size:15px; font-weight:800; color:#0f172a;">' + s + '</div></div>';
+      }).join('');
+    }
+  }
+
+  var elOffres = document.getElementById('telListeOffres');
+  if (elOffres) {
+    var off = op.offres || [];
+    if (off.length === 0) {
+      elOffres.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b; font-size:14px; background:#fff; border-radius:12px; border:1px solid #e2e8f0;">Aucune offre disponible.</div>';
+    } else {
+      elOffres.innerHTML = off.map(function(o) {
+        return '<div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">' +
+          '<div style="display:flex; gap:12px; align-items:center;">' +
+            '<div style="width:40px; height:40px; border-radius:50%; background:#eff6ff; color:#007fff; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><i class="fa-solid fa-tags"></i></div>' +
+            '<div><div style="font-size:15px; font-weight:900; color:#0f172a;">' + (o.titre || 'Offre') + '</div>' +
+            '<div style="font-size:13px; color:#64748b;">' + (o.description || '') + '</div></div></div>' +
+          '<i class="fa-solid fa-chevron-right" style="color:#cbd5e1;"></i></div>';
+      }).join('');
+    }
+  }
+
+  var notesRes = op.notesReseau || {};
+  var elAppels = document.getElementById('telNoteAppels');
+  var elInternet = document.getElementById('telNoteInternet');
+  var elStab = document.getElementById('telNoteStabilite');
+  var elDispo = document.getElementById('telNoteDisponibilite');
+  if (elAppels) elAppels.textContent = (notesRes.appels || 0) + '/5';
+  if (elInternet) elInternet.textContent = (notesRes.internet || 0) + '/5';
+  if (elStab) elStab.textContent = (notesRes.stabilite || 0) + '/5';
+  if (elDispo) elDispo.textContent = (notesRes.disponibilite || 0) + '/5';
+
+  var elSite = document.getElementById('telInfoSite');
+  var elTel = document.getElementById('telInfoTel');
+  var elVilles = document.getElementById('telInfoVilles');
+  var elHoraires = document.getElementById('telInfoHoraires');
+  if (elSite) elSite.textContent = op.siteWeb || '—';
+  if (elTel) elTel.textContent = op.telephone || '—';
+  if (elVilles) elVilles.textContent = op.ville || 'RDC';
+  if (elHoraires) elHoraires.textContent = op.horaires || '—';
+
+  if (typeof go === 'function') go('telecom-detail');
+};
+
+window.switchTelecomTab = function(tab) {
+  var tabs = ['services', 'offres', 'qualite', 'infos'];
+  var btns = {
+    services: document.getElementById('tabTelServices'),
+    offres: document.getElementById('tabTelOffres'),
+    qualite: document.getElementById('tabTelQualite'),
+    infos: document.getElementById('tabTelInfos')
+  };
+  var contents = {
+    services: document.getElementById('telContentServices'),
+    offres: document.getElementById('telContentOffres'),
+    qualite: document.getElementById('telContentQualite'),
+    infos: document.getElementById('telContentInfos')
+  };
+
+  tabs.forEach(function(t) {
+    if (contents[t]) contents[t].style.display = (t === tab) ? 'block' : 'none';
+    if (btns[t]) {
+      btns[t].style.color = (t === tab) ? '#007fff' : '#94a3b8';
+      btns[t].style.borderBottomColor = (t === tab) ? '#007fff' : 'transparent';
+    }
+  });
+};
