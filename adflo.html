@@ -293,6 +293,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 .role-tag.professeur{background:rgba(6,182,212,.15);color:#0891b2}
 .role-tag.user{background:rgba(100,116,139,.12);color:#475569}
 .role-tag.commerce{background:rgba(16,185,129,.12);color:#047857}
+.abo-btn-group{display:flex;gap:4px;margin-top:4px}
+.abo-btn{flex:1;padding:5px 8px;border-radius:6px;font-size:9.5px;font-weight:800;border:1.5px solid var(--border);cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;transition:all .15s}
+.abo-btn.simple{background:rgba(59,130,246,.1);color:#1d4ed8;border-color:rgba(59,130,246,.3)}
+.abo-btn.simple.active{background:var(--info);color:#fff;border-color:var(--info);box-shadow:0 2px 6px rgba(59,130,246,.3)}
+.abo-btn.force{background:rgba(239,68,68,.1);color:#dc2626;border-color:rgba(239,68,68,.3)}
+.abo-btn.force.active{background:var(--danger);color:#fff;border-color:var(--danger);box-shadow:0 2px 6px rgba(239,68,68,.3)}
 @media(max-width:1024px){.sidebar{position:fixed;top:0;bottom:0;left:0;transform:translateX(-100%)}.sidebar.show{transform:translateX(0)}.menu-toggle{display:inline-flex}.content{padding:18px}.kpi-grid{grid-template-columns:repeat(2,1fr);gap:10px}}
 @media(max-width:640px){.topbar{padding:8px 14px;gap:10px}.topbar-title{font-size:14px}.topbar-subtitle{font-size:10px}.content{padding:12px}.page-title{font-size:17px}.page-subtitle{font-size:11.5px}.kpi-grid{grid-template-columns:1fr;gap:10px}.grid-2{grid-template-columns:1fr}.modal-box{padding:20px}.table{min-width:640px;font-size:12px}.toolbar input{min-width:0;width:100%}.toast-container{top:auto;bottom:16px;left:12px;right:12px;max-width:none}.toast{min-width:0;max-width:none;width:100%}.form-actions{flex-direction:column-reverse}.form-actions .btn{width:100%}.login-card{padding:28px 22px}.login-title{font-size:17px}}
 </style>
@@ -496,7 +502,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 <div class="card-header"><div class="card-title"><i class="fas fa-school"></i>Liste des écoles</div><div class="card-actions"><button class="btn btn-primary btn-sm" id="addEcoleBtn"><i class="fas fa-plus"></i>Ajouter une école</button></div></div>
 <div class="card-body">
 <input type="text" id="searchEcoles" placeholder="Rechercher…" style="width:100%;padding:9px 13px;border-radius:8px;background:var(--bg-soft);border:1px solid var(--border);color:var(--text);font-size:12.5px;outline:none;font-family:inherit;margin-bottom:14px">
-<div class="table-wrap"><table class="table"><thead><tr><th>#</th><th>Nom</th><th>Ville</th><th>Préfets/Directeurs</th><th>Profs</th><th>Actions</th></tr></thead><tbody id="bodyEcoles"></tbody></table></div>
+<div class="table-wrap"><table class="table"><thead><tr><th>#</th><th>Nom</th><th>Ville</th><th>Préfets/Directeurs</th><th>Profs</th><th>Abonnement</th><th>Actions</th></tr></thead><tbody id="bodyEcoles"></tbody></table></div>
 </div>
 </div>
 </div>
@@ -523,26 +529,39 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 <div class="tab-content" id="tabAbonnements">
 <div class="page-header"><div class="page-title">Gestion des Abonnements</div><div class="page-subtitle">Recouvrement Commerçants & Écoles</div></div>
 <div class="card" style="border-left: 4px solid #f59e0b;">
-<div class="card-header"><div class="card-title"><i class="fas fa-cogs"></i>Mode de recouvrement actuel</div></div>
+<div class="card-header"><div class="card-title"><i class="fas fa-cogs"></i>Mode de recouvrement global</div></div>
 <div class="card-body">
 <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px;">
 <button class="btn btn-outline" id="btnModeDesactive" onclick="changerModeAbonnement('desactive')"><i class="fas fa-power-off"></i> Désactivé</button>
-<button class="btn btn-primary" id="btnModeSimple" onclick="changerModeAbonnement('simple')"><i class="fas fa-bell"></i> Mode Simple (Rappel)</button>
-<button class="btn btn-danger" id="btnModeForce" onclick="changerModeAbonnement('force')"><i class="fas fa-lock"></i> Mode Forcé (Blocage)</button>
+<button class="btn btn-primary" id="btnModeSimple" onclick="changerModeAbonnement('simple')"><i class="fas fa-bell"></i> Simple (Rappel)</button>
+<button class="btn btn-danger" id="btnModeForce" onclick="changerModeAbonnement('force')"><i class="fas fa-lock"></i> Forcé (Blocage)</button>
 </div>
 <div id="etatModeAbonnement" class="info-box"></div>
+<div class="grid-2" style="margin-top:16px;">
+<div class="field"><label>Durée abonnement (jours)</label><input type="number" id="aboDureeJours" value="30" min="1" max="365"></div>
+<div class="field"><label>Tarif (USD)</label><input type="number" id="aboTarifUsd" value="1" min="0" step="1"></div>
+</div>
+<button class="btn btn-primary" onclick="sauvegarderConfigAbonnement()" style="width:100%"><i class="fas fa-save"></i> Enregistrer la configuration</button>
 </div>
 </div>
+<div class="kpi-grid" id="aboStatsGrid"></div>
 <div class="card">
 <div class="card-header">
-<div class="card-title"><i class="fas fa-file-invoice-dollar"></i>Demandes en attente de validation</div>
+<div class="card-title"><i class="fas fa-store"></i>Abonnements par commerce</div>
+<div class="card-actions">
+<select id="filterAboStatut" onchange="renderAbonnementsParBoutique()" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-soft);color:var(--text);font-size:12px;">
+<option value="">Tous les statuts</option>
+<option value="actif">Actifs</option>
+<option value="expire">Expirés</option>
+<option value="en_attente">En attente</option>
+</select>
+<input type="text" id="searchAboBoutique" placeholder="Rechercher…" oninput="renderAbonnementsParBoutique()" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-soft);color:var(--text);font-size:12px;">
+</div>
 </div>
 <div class="card-body">
 <div class="table-wrap">
 <table class="table">
-<thead>
-<tr><th>Date</th><th>Nom</th><th>Type</th><th>Montant</th><th>ID Transaction</th><th>Statut</th><th>Actions</th></tr>
-</thead>
+<thead><tr><th>Commerce</th><th>Type</th><th>Statut</th><th>Début</th><th>Fin</th><th>Jours</th><th>Demande</th><th>Actions</th></tr></thead>
 <tbody id="bodyAbonnements"></tbody>
 </table>
 </div>
@@ -710,17 +729,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 <div class="form-actions"><button class="btn btn-outline" id="promptCancel">Annuler</button><button class="btn btn-primary" id="promptOk">Valider</button></div>
 </div></div>
 <div class="modal" id="modalConfirm"><div class="modal-box" style="max-width:440px">
-<div id="confirmIconWrap" style="width:56px;height:56px;border-radius:50%;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff">
-<i id="confirmIcon" class="fas fa-question"></i>
-</div>
+<div id="confirmIconWrap" style="width:56px;height:56px;border-radius:50%;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff"><i id="confirmIcon" class="fas fa-question"></i></div>
 <h2 style="justify-content:center;text-align:center" id="confirmTitle">Confirmation</h2>
 <p id="confirmMessage" style="font-size:13px;color:var(--text-2);line-height:1.65;text-align:center;margin-bottom:22px"></p>
 <div class="form-actions"><button class="btn btn-outline" id="confirmCancel">Annuler</button><button class="btn btn-primary" id="confirmOk">Confirmer</button></div>
 </div></div>
 <div class="modal" id="modalAlert"><div class="modal-box" style="max-width:420px">
-<div id="alertIconWrap" style="width:56px;height:56px;border-radius:50%;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff">
-<i id="alertIcon" class="fas fa-info"></i>
-</div>
+<div id="alertIconWrap" style="width:56px;height:56px;border-radius:50%;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff"><i id="alertIcon" class="fas fa-info"></i></div>
 <h2 style="justify-content:center;text-align:center" id="alertTitle">Information</h2>
 <p id="alertMessage" style="font-size:13px;color:var(--text-2);line-height:1.65;text-align:center;margin-bottom:22px"></p>
 <div class="form-actions"><button class="btn btn-primary" id="alertOk" style="width:100%">Compris</button></div>
@@ -1027,7 +1042,7 @@ if(tab==='tabProduitsAttente')loadProduitsAttente();
 if(tab==='tabEcoles')loadEcoles(true);
 if(tab==='tabPrefects'){loadEcoles(true).then(()=>loadPrefects());}
 if(tab==='tabProfesseurs'){Promise.all([loadEcoles(true),loadProfesseurs(true)]);}
-if(tab==='tabAbonnements')loadAbonnements(true);
+if(tab==='tabAbonnements'){chargerConfigAbonnement();renderAbonnementsParBoutique();}
 }
 document.querySelectorAll('.nav-item').forEach(item=>{item.onclick=()=>switchTab(item.dataset.tab);});
 function openSidebar(){document.getElementById('sidebar').classList.add('show');document.getElementById('sidebarOverlay').classList.add('show');}
@@ -1041,7 +1056,7 @@ document.getElementById('btnReloadAll').onclick=async()=>{cacheInvalidateAll();a
 async function loadAll(){
 setLoader(true);
 try{
-await Promise.all([loadBoutiques(true),loadDeblocages(true),loadPublications(true),loadNetubers(true),loadActives(true),loadAnnonces(true),loadProduitsAttente(true),loadEcoles(true),loadProfesseurs(true),loadAbonnements(true)]);
+await Promise.all([loadBoutiques(true),loadDeblocages(true),loadPublications(true),loadNetubers(true),loadActives(true),loadAnnonces(true),loadProduitsAttente(true),loadEcoles(true),loadProfesseurs(true)]);
 setTimeout(renderKPIs,100);
 }finally{setLoader(false);updateCacheStats();}
 }
@@ -1057,7 +1072,6 @@ if(keys.includes('annonces'))tasks.push(loadAnnonces(true));
 if(keys.includes('produitsAttente'))tasks.push(loadProduitsAttente(true));
 if(keys.includes('ecoles'))tasks.push(loadEcoles(true));
 if(keys.includes('professeurs'))tasks.push(loadProfesseurs(true));
-if(keys.includes('abonnements'))tasks.push(loadAbonnements(true));
 if(tasks.length)await Promise.all(tasks);
 renderKPIs();
 }
@@ -1160,7 +1174,12 @@ configLivraison:c.configLivraison||{frais:0,minProduits:0,minPrixPanier:0},
 produits:Array.isArray(c.produits)?c.produits:[],
 nomComplet:user.nomComplet||user.nom||'-',
 phone:user.phone||c.telephone||'-',
-emailAuth:user.emailAuth||'-'
+emailAuth:user.emailAuth||'-',
+abonnementStatut:c.abonnementStatut||'jamais',
+abonnementDateDebut:c.abonnementDateDebut||null,
+abonnementDateFin:c.abonnementDateFin||null,
+abonnementDemande:c.abonnementDemande||null,
+ecoleId:c.ecoleId||null
 });
 });
 boutiquesActives.sort((a,b)=>(b.dateApprobation||'').localeCompare(a.dateApprobation||''));
@@ -1171,7 +1190,7 @@ renderKPIs();
 async function loadEcoles(force){
 try{
 const list=await loadCollection('ecoles',force);
-ecoles=list.map(d=>({id:d.id,nom:d.nom||'',ville:d.ville||'',quartier:d.quartier||'',adresse:d.adresse||'',telephone:d.telephone||'',prefets:d.prefets||[],prefetPrincipal:d.prefetPrincipal||null,dateCreation:d.dateCreation||''}));
+ecoles=list.map(d=>({id:d.id,nom:d.nom||'',ville:d.ville||'',quartier:d.quartier||'',adresse:d.adresse||'',telephone:d.telephone||'',prefets:d.prefets||[],prefetPrincipal:d.prefetPrincipal||null,dateCreation:d.dateCreation||'',abonnementStatut:d.abonnementStatut||'jamais',abonnementDateDebut:d.abonnementDateDebut||null,abonnementDateFin:d.abonnementDateFin||null,abonnementDemande:d.abonnementDemande||null}));
 ecoles.sort((a,b)=>a.nom.localeCompare(b.nom));
 cacheSet('ecoles',list);
 renderEcoles();
@@ -1199,26 +1218,6 @@ const prefects=netubers.filter(n=>n.role==='prefet'||n.role==='directeur');
 renderPrefects(prefects);
 updateBadge('badgePrefects',prefects.length);
 }catch(e){console.warn('Erreur prefects:',e.message);}
-}
-async function loadAbonnements(force){
-try{
-const configSnap=await getDoc(doc(db,'config','abonnements'));
-const currentMode=configSnap.exists()?configSnap.data().mode:'desactive';
-document.querySelectorAll('#tabAbonnements .btn').forEach(b=>{b.classList.remove('btn-primary','btn-danger','btn-success');b.classList.add('btn-outline');});
-const btnActive=document.getElementById('btnMode'+(currentMode==='desactive'?'Desactive':currentMode.charAt(0).toUpperCase()+currentMode.slice(1)));
-if(btnActive){btnActive.classList.remove('btn-outline');btnActive.classList.add(currentMode==='force'?'btn-danger':currentMode==='simple'?'btn-primary':'btn-success');}
-const etat=document.getElementById('etatModeAbonnement');
-if(etat){
-if(currentMode==='desactive')etat.innerHTML='<i class="fas fa-info-circle"></i> Aucun abonnement demandé. Les commerçants ne voient pas de popup.';
-else if(currentMode==='simple')etat.innerHTML='<i class="fas fa-bell"></i> <strong>Mode Simple :</strong> Un rappel s\'affiche à chaque navigation. La boutique reste visible.';
-else if(currentMode==='force')etat.innerHTML='<i class="fas fa-lock"></i> <strong>Mode Forcé :</strong> Blocage total. La boutique est masquée et le commerçant doit payer.';
-}
-const list=await loadCollection('abonnements',force);
-abonnements=list.map(d=>({id:d.id,uid:d.uid||'',nom:d.nom||'',telephone:d.telephone||'',type:d.type||'commerce',idEtablissement:d.idEtablissement||'',transactionId:d.transactionId||'',numeroEnvoi:d.numeroEnvoi||'',montantUsd:d.montantUsd||1,montantFc:d.montantFc||2800,statut:d.statut||'en_attente',dateDemande:d.dateDemande||'',dateValidation:d.dateValidation||'',dateRefus:d.dateRefus||''}));
-abonnements.sort((a,b)=>(b.dateDemande||'').localeCompare(a.dateDemande||''));
-renderAbonnements(abonnements);
-updateBadge('badgeAbonnements',abonnements.filter(a=>a.statut==='en_attente').length);
-}catch(e){console.warn('Erreur abonnements:',e.message);}
 }
 async function getCommerces(){return await loadCollection('commerces');}
 function renderKPIs(){
@@ -2010,10 +2009,48 @@ const img=b.img?`<img src="${esc(b.img)}" style="width:44px;height:44px;object-f
 const badgeConf=getBadgeConfianceAdminHTML(b);
 const badgeLivr=getBadgeLivraisonAdminHTML(b);
 const retraitBadge=b.retraitActif===false?'<span class="badge badge-err" style="font-size:9px">⛔ Retrait</span>':'<span class="badge badge-ok" style="font-size:9px">✅ Retrait</span>';
-return `<tr><td>${offset+i+1}</td><td>${img}</td><td><div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px"><strong style="color:var(--text)">${esc(b.nom||'-')}</strong>${badgeConf}</div><div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;align-items:center">${retraitBadge}</div>${badgeLivr}</td><td><span class="badge badge-info">${esc(b.type||'-')}</span></td><td style="font-size:11.5px">${esc(b.ville||'')} · ${esc(b.quartier||'')}</td><td>${esc(b.nomComplet||'-')}</td><td style="font-size:11px;font-family:'JetBrains Mono',monospace">${esc(b.telephone||'-')}</td><td><div class="act"><button class="btn-ico info" data-act="view-catalogue" data-id="${esc(b.uid)}" title="Voir catalogue"><i class="fas fa-box"></i></button><button class="btn-ico ok" data-act="qr-pdf" data-id="${esc(b.uid)}" title="QR Code PDF"><i class="fas fa-qrcode"></i></button><button class="btn-ico warn" data-act="edit-active" data-id="${esc(b.uid)}" title="Modifier"><i class="fas fa-pen"></i></button><button class="btn-ico err" data-act="retirer-active" data-id="${esc(b.uid)}" title="Retirer"><i class="fas fa-ban"></i></button><button class="btn-ico err" data-act="delete-boutique" data-id="${esc(b.uid)}" title="Supprimer"><i class="fas fa-trash"></i></button></div></td></tr>`;
+const aboStatut=b.abonnementStatut||'jamais';
+const aboBadge=aboStatut==='actif'?'<span class="badge badge-ok" style="font-size:9px">🔓 Abo Actif</span>':aboStatut==='force'?'<span class="badge badge-err" style="font-size:9px">🔒 Abo Forcé</span>':aboStatut==='simple'?'<span class="badge badge-warn" style="font-size:9px">🔔 Abo Simple</span>':'<span class="badge badge-gray" style="font-size:9px">— Abo Inactif</span>';
+const btnSimpleClass=aboStatut==='simple'?'abo-btn simple active':'abo-btn simple';
+const btnForceClass=aboStatut==='force'?'abo-btn force active':'abo-btn force';
+return `<tr><td>${offset+i+1}</td><td>${img}</td><td><div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px"><strong style="color:var(--text)">${esc(b.nom||'-')}</strong>${badgeConf}</div><div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;align-items:center">${retraitBadge}${aboBadge}</div>${badgeLivr}</td><td><span class="badge badge-info">${esc(b.type||'-')}</span></td><td style="font-size:11.5px">${esc(b.ville||'')} · ${esc(b.quartier||'')}</td><td>${esc(b.nomComplet||'-')}</td><td style="font-size:11px;font-family:'JetBrains Mono',monospace">${esc(b.telephone||'-')}</td><td><div class="act" style="flex-direction:column;gap:4px"><div style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn-ico info" data-act="view-catalogue" data-id="${esc(b.uid)}" title="Catalogue"><i class="fas fa-box"></i></button><button class="btn-ico ok" data-act="qr-pdf" data-id="${esc(b.uid)}" title="QR PDF"><i class="fas fa-qrcode"></i></button><button class="btn-ico warn" data-act="edit-active" data-id="${esc(b.uid)}" title="Modifier"><i class="fas fa-pen"></i></button><button class="btn-ico err" data-act="delete-boutique" data-id="${esc(b.uid)}" title="Supprimer"><i class="fas fa-trash"></i></button></div><div class="abo-btn-group"><button class="${btnSimpleClass}" onclick="activerAboSimple('${esc(b.uid)}')" title="Rappel simple"><i class="fas fa-bell"></i> Simple</button><button class="${btnForceClass}" onclick="activerAboForce('${esc(b.uid)}')" title="Blocage"><i class="fas fa-lock"></i> Forcé</button></div></div></td></tr>`;
 }).join('');
 }
 document.getElementById('searchActives').oninput=()=>{pagination.actives=1;renderActives();};
+async function activerAboSimple(uid){
+const b=boutiquesActives.find(x=>x.uid===uid);
+if(!b)return;
+const dejaActif=b.abonnementStatut==='simple';
+const ok=await adminConfirm(dejaActif?'Désactiver le rappel simple ?':'Activer le rappel simple ?',`<strong>${esc(b.nom)}</strong> ${dejaActif?'ne verra plus le rappel.':'verra un rappel à chaque visite (boutique reste visible).'}`,'info');
+if(!ok)return;
+setLoader(true);
+try{
+await setDoc(doc(db,'commerces',b.id),{abonnementStatut:dejaActif?'jamais':'simple',abonnementModeMisAJour:new Date().toISOString()},{merge:true});
+cacheInvalidate('commerces');cacheInvalidate('actives');
+await notifierChangement('aboSimple',uid);
+toast(dejaActif?'Rappel désactivé':'✅ Rappel simple activé');
+await reloadSome(['actives']);
+}catch(e){toast('Erreur: '+e.message,'err');}
+finally{setLoader(false);}
+}
+window.activerAboSimple=activerAboSimple;
+async function activerAboForce(uid){
+const b=boutiquesActives.find(x=>x.uid===uid);
+if(!b)return;
+const dejaActif=b.abonnementStatut==='force';
+const ok=await adminConfirm(dejaActif?'Désactiver le blocage ?':'Activer le blocage forcé ?',`<strong>${esc(b.nom)}</strong> ${dejaActif?'sera à nouveau visible normalement.':'sera masquée pour les clients et le commerçant devra payer.'}`,'warning');
+if(!ok)return;
+setLoader(true);
+try{
+await setDoc(doc(db,'commerces',b.id),{abonnementStatut:dejaActif?'jamais':'force',abonnementModeMisAJour:new Date().toISOString()},{merge:true});
+cacheInvalidate('commerces');cacheInvalidate('actives');
+await notifierChangement('aboForce',uid);
+toast(dejaActif?'Blocage désactivé':'🔒 Blocage activé');
+await reloadSome(['actives']);
+}catch(e){toast('Erreur: '+e.message,'err');}
+finally{setLoader(false);}
+}
+window.activerAboForce=activerAboForce;
 async function retirerActive(uid){
 const ok=await adminConfirm('Retirer cette boutique ?','La boutique ne sera plus visible.','warning');
 if(!ok)return;
@@ -2775,15 +2812,53 @@ const t=((e.nom||'')+' '+(e.ville||'')+' '+(e.quartier||'')).toLowerCase();
 return t.includes(q);
 });
 const offset=0;
-if(list.length===0){tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-ic"><i class="fas fa-school"></i></div><div class="empty-t">Aucune école</div></div></td></tr>`;return;}
+if(list.length===0){tbody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-ic"><i class="fas fa-school"></i></div><div class="empty-t">Aucune école</div></div></td></tr>`;return;}
 tbody.innerHTML=list.map((e,i)=>{
 const nbPrefets=(e.prefets||[]).length;
 const nbProfs=professeurs.filter(p=>p.ecoles&&p.ecoles[e.id]).length;
 const prefetsNoms=(e.prefets||[]).map(uid=>{const n=netubers.find(x=>x.id===uid);return n?esc(n.nomComplet||n.phone):'?';}).join(', ')||'—';
-return `<tr><td>${offset+i+1}</td><td><strong style="color:var(--text)">${esc(e.nom||'-')}</strong></td><td>${esc(e.ville||'-')}${e.quartier?' · '+esc(e.quartier):''}</td><td style="font-size:11.5px">${prefetsNoms}${nbPrefets>0?` <span class="badge badge-info">${nbPrefets}</span>`:''}</td><td><span class="badge badge-purple">${nbProfs} prof${nbProfs>1?'s':''}</span></td><td><div class="act"><button class="btn-ico info" data-act="edit-ecole" data-id="${esc(e.id)}"><i class="fas fa-pen"></i></button><button class="btn-ico purple" data-act="add-pref-ecole" data-id="${esc(e.id)}"><i class="fas fa-user-tie"></i></button><button class="btn-ico err" data-act="delete-ecole" data-id="${esc(e.id)}"><i class="fas fa-trash"></i></button></div></td></tr>`;
+const aboStatut=e.abonnementStatut||'jamais';
+const aboBadge=aboStatut==='actif'?'<span class="badge badge-ok" style="font-size:9px">🔓 Actif</span>':aboStatut==='force'?'<span class="badge badge-err" style="font-size:9px">🔒 Forcé</span>':aboStatut==='simple'?'<span class="badge badge-warn" style="font-size:9px">🔔 Simple</span>':'<span class="badge badge-gray" style="font-size:9px">— Inactif</span>';
+const btnSimpleClass=aboStatut==='simple'?'abo-btn simple active':'abo-btn simple';
+const btnForceClass=aboStatut==='force'?'abo-btn force active':'abo-btn force';
+return `<tr><td>${offset+i+1}</td><td><strong style="color:var(--text)">${esc(e.nom||'-')}</strong></td><td>${esc(e.ville||'-')}${e.quartier?' · '+esc(e.quartier):''}</td><td style="font-size:11.5px">${prefetsNoms}${nbPrefets>0?` <span class="badge badge-info">${nbPrefets}</span>`:''}</td><td><span class="badge badge-purple">${nbProfs} prof${nbProfs>1?'s':''}</span></td><td>${aboBadge}<div class="abo-btn-group"><button class="${btnSimpleClass}" onclick="activerAboEcoleSimple('${esc(e.id)}')" title="Rappel"><i class="fas fa-bell"></i> Simple</button><button class="${btnForceClass}" onclick="activerAboEcoleForce('${esc(e.id)}')" title="Blocage"><i class="fas fa-lock"></i> Forcé</button></div></td><td><div class="act"><button class="btn-ico info" data-act="edit-ecole" data-id="${esc(e.id)}"><i class="fas fa-pen"></i></button><button class="btn-ico purple" data-act="add-pref-ecole" data-id="${esc(e.id)}"><i class="fas fa-user-tie"></i></button><button class="btn-ico err" data-act="delete-ecole" data-id="${esc(e.id)}"><i class="fas fa-trash"></i></button></div></td></tr>`;
 }).join('');
 }
 document.getElementById('searchEcoles').oninput=()=>{renderEcoles();};
+async function activerAboEcoleSimple(ecoleId){
+const e=ecoles.find(x=>x.id===ecoleId);
+if(!e)return;
+const dejaActif=e.abonnementStatut==='simple';
+const ok=await adminConfirm(dejaActif?'Désactiver le rappel simple ?':'Activer le rappel simple ?',`<strong>${esc(e.nom)}</strong> ${dejaActif?'ne verra plus le rappel.':'verra un rappel à chaque visite (école reste visible).'}`,'info');
+if(!ok)return;
+setLoader(true);
+try{
+await setDoc(doc(db,'ecoles',ecoleId),{abonnementStatut:dejaActif?'jamais':'simple',abonnementModeMisAJour:new Date().toISOString()},{merge:true});
+cacheInvalidate('ecoles');
+await notifierChangement('aboEcoleSimple',ecoleId);
+toast(dejaActif?'Rappel désactivé':'✅ Rappel simple activé');
+await loadEcoles(true);
+}catch(e){toast('Erreur: '+e.message,'err');}
+finally{setLoader(false);}
+}
+window.activerAboEcoleSimple=activerAboEcoleSimple;
+async function activerAboEcoleForce(ecoleId){
+const e=ecoles.find(x=>x.id===ecoleId);
+if(!e)return;
+const dejaActif=e.abonnementStatut==='force';
+const ok=await adminConfirm(dejaActif?'Désactiver le blocage ?':'Activer le blocage forcé ?',`<strong>${esc(e.nom)}</strong> ${dejaActif?'sera à nouveau visible normalement.':'sera bloquée et devra payer.'}`,'warning');
+if(!ok)return;
+setLoader(true);
+try{
+await setDoc(doc(db,'ecoles',ecoleId),{abonnementStatut:dejaActif?'jamais':'force',abonnementModeMisAJour:new Date().toISOString()},{merge:true});
+cacheInvalidate('ecoles');
+await notifierChangement('aboEcoleForce',ecoleId);
+toast(dejaActif?'Blocage désactivé':'🔒 Blocage activé');
+await loadEcoles(true);
+}catch(e){toast('Erreur: '+e.message,'err');}
+finally{setLoader(false);}
+}
+window.activerAboEcoleForce=activerAboEcoleForce;
 function ouvrirModalCreateEcole(){
 const d=document.createElement('div');
 d.className='modal show';
@@ -3356,73 +3431,162 @@ if(act==='approve')approuverProduit(idx);
 if(act==='reject')rejeterProduit(idx);
 if(act==='delete')supprimerProduitAttente(idx);
 });
+async function chargerConfigAbonnement(){
+try{
+const snap=await getDoc(doc(db,'config','abonnements'));
+if(snap.exists()){
+const data=snap.data();
+aboConfig.mode=data.mode||'desactive';
+aboConfig.dureeJours=data.dureeJours||30;
+aboConfig.tarifUsd=data.tarifUsd||1;
+aboConfig.tarifFc=data.tarifFc||2800;
+}
+afficherConfigAbonnement();
+}catch(e){console.warn('Erreur config abonnement:',e);}
+}
+var aboConfig={mode:'desactive',dureeJours:30,tarifUsd:1,tarifFc:2800};
+window.aboConfig=aboConfig;
+function afficherConfigAbonnement(){
+document.querySelectorAll('#tabAbonnements .btn[id^="btnMode"]').forEach(b=>{b.classList.remove('btn-primary','btn-danger','btn-success');b.classList.add('btn-outline');});
+const btnActive=document.getElementById('btnMode'+(aboConfig.mode==='desactive'?'Desactive':aboConfig.mode.charAt(0).toUpperCase()+aboConfig.mode.slice(1)));
+if(btnActive){btnActive.classList.remove('btn-outline');btnActive.classList.add(aboConfig.mode==='force'?'btn-danger':aboConfig.mode==='simple'?'btn-primary':'btn-success');}
+const etat=document.getElementById('etatModeAbonnement');
+if(etat){
+if(aboConfig.mode==='desactive')etat.innerHTML='<i class="fas fa-info-circle"></i> <strong>Aucun rappel.</strong> Les commerçants ne voient rien, la boutique reste visible.';
+else if(aboConfig.mode==='simple')etat.innerHTML='<i class="fas fa-bell"></i> <strong>Mode Simple.</strong> Chaque commerçant voit un rappel à chaque visite (mais peut reporter). La boutique reste visible.';
+else if(aboConfig.mode==='force')etat.innerHTML='<i class="fas fa-lock"></i> <strong>Mode Forcé.</strong> Les commerçants dont l\'abonnement est <strong>expiré</strong> voient une modale bloquante. Les autres restent visibles normalement.';
+}
+const duree=document.getElementById('aboDureeJours');
+const tarif=document.getElementById('aboTarifUsd');
+if(duree)duree.value=aboConfig.dureeJours;
+if(tarif)tarif.value=aboConfig.tarifUsd;
+}
+async function sauvegarderConfigAbonnement(){
+const duree=parseInt(document.getElementById('aboDureeJours').value,10)||30;
+const tarif=parseFloat(document.getElementById('aboTarifUsd').value)||1;
+setLoader(true);
+try{
+await setDoc(doc(db,'config','abonnements'),{mode:aboConfig.mode,dureeJours:duree,tarifUsd:tarif,tarifFc:tarif*2800,updatedAt:new Date().toISOString()},{merge:true});
+aboConfig.dureeJours=duree;
+aboConfig.tarifUsd=tarif;
+await notifierChangement('configAbonnement',null);
+toast('✅ Configuration enregistrée');
+}catch(e){toast('Erreur: '+e.message,'err');}
+finally{setLoader(false);}
+}
+window.sauvegarderConfigAbonnement=sauvegarderConfigAbonnement;
 async function changerModeAbonnement(mode){
-const ok=await adminConfirm('Changer le mode d\'abonnement ?', `Passer en mode <strong>${mode}</strong> ?`, mode === 'force' ? 'warning' : 'info');
+const messages={desactive:'Désactiver tous les rappels ?',simple:'Activer le rappel simple ? (boutique reste visible)',force:'Activer le mode forcé ? (boutiques expirées seront bloquées)'};
+const ok=await adminConfirm('Changer le mode ?',messages[mode],mode==='force'?'warning':'info');
 if(!ok)return;
 setLoader(true);
 try{
 await setDoc(doc(db,'config','abonnements'),{mode:mode,updatedAt:new Date().toISOString()},{merge:true});
+aboConfig.mode=mode;
+afficherConfigAbonnement();
 await notifierChangement('changeModeAbonnement',mode);
 toast('✅ Mode '+mode+' activé');
-await loadAbonnements(true);
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
 }
 window.changerModeAbonnement=changerModeAbonnement;
-function renderAbonnements(list){
+function renderAbonnementsParBoutique(){
 const tbody=document.getElementById('bodyAbonnements');
 if(!tbody)return;
-if(!list||list.length===0){
-tbody.innerHTML='<tr><td colspan="7"><div class="empty"><div class="empty-ic"><i class="fas fa-crown"></i></div><div class="empty-t">Aucune demande d\'abonnement</div></div></td></tr>';
+const filterStatut=document.getElementById('filterAboStatut').value;
+const search=(document.getElementById('searchAboBoutique').value||'').toLowerCase().trim();
+const liste=boutiquesActives.map(b=>({...b,statutAbo:b.abonnementStatut||'jamais'})).filter(b=>{
+if(filterStatut&&b.statutAbo!==filterStatut)return false;
+if(search&&!(b.nom||'').toLowerCase().includes(search))return false;
+return true;
+});
+const total=boutiquesActives.length;
+const actifs=boutiquesActives.filter(b=>(b.abonnementStatut||'jamais')==='actif').length;
+const expires=boutiquesActives.filter(b=>(b.abonnementStatut||'jamais')==='expire').length;
+const demandes=boutiquesActives.filter(b=>b.abonnementDemande&&b.abonnementDemande.statut==='en_attente').length;
+const statsGrid=document.getElementById('aboStatsGrid');
+if(statsGrid){
+statsGrid.innerHTML=`<div class="kpi kpi-blue"><div class="kpi-icon"><i class="fas fa-store"></i></div><div class="kpi-value">${total}</div><div class="kpi-label">Total boutiques</div></div><div class="kpi kpi-green"><div class="kpi-icon"><i class="fas fa-check-circle"></i></div><div class="kpi-value">${actifs}</div><div class="kpi-label">Abonnements actifs</div></div><div class="kpi kpi-amber"><div class="kpi-icon"><i class="fas fa-exclamation-triangle"></i></div><div class="kpi-value">${expires}</div><div class="kpi-label">Expirés</div></div><div class="kpi kpi-cyan"><div class="kpi-icon"><i class="fas fa-file-invoice"></i></div><div class="kpi-value">${demandes}</div><div class="kpi-label">Demandes en attente</div></div>`;
+}
+if(liste.length===0){
+tbody.innerHTML='<tr><td colspan="8"><div class="empty"><div class="empty-ic"><i class="fas fa-crown"></i></div><div class="empty-t">Aucune boutique</div></div></td></tr>';
 return;
 }
-tbody.innerHTML=list.map((a,i)=>{
-const badge=a.statut==='valide'?'<span class="badge badge-ok">Validé</span>':a.statut==='refuse'?'<span class="badge badge-err">Refusé</span>':'<span class="badge badge-warn">En attente</span>';
-const actions=a.statut==='en_attente'?`<button class="btn-ico ok" onclick="validerAbonnement('${a.id}')"><i class="fas fa-check"></i></button><button class="btn-ico err" onclick="refuserAbonnement('${a.id}')"><i class="fas fa-times"></i></button>`:'';
-return `<tr>
-<td style="font-size:11px">${fmtDate(a.dateDemande)}</td>
-<td><strong style="color:var(--text)">${esc(a.nom||'-')}</strong><br><small style="color:var(--text-3);font-family:'JetBrains Mono',monospace">${esc(a.telephone||'')}</small></td>
-<td><span class="badge badge-info">${esc(a.type||'commerce')}</span></td>
-<td>${a.montantUsd||1} USD <small style="color:var(--text-3)">(${(a.montantFc||2800).toLocaleString('fr-FR')} FC)</small></td>
-<td style="font-family:'JetBrains Mono',monospace;font-size:11px">${esc(a.transactionId||'-')}</td>
-<td>${badge}</td>
-<td><div class="act">${actions}</div></td>
-</tr>`;
+tbody.innerHTML=liste.map(b=>{
+const statutBadge=b.statutAbo==='actif'?`<span class="badge badge-ok">✅ Actif</span>`:b.statutAbo==='force'?`<span class="badge badge-err">🔒 Forcé</span>`:b.statutAbo==='simple'?`<span class="badge badge-warn">🔔 Simple</span>`:b.statutAbo==='expire'?`<span class="badge badge-err">❌ Expiré</span>`:`<span class="badge badge-gray">Jamais</span>`;
+const demande=b.abonnementDemande&&b.abonnementDemande.statut==='en_attente'?`<span class="badge badge-warn">⏳ En attente</span><br><small style="font-family:monospace;font-size:10px;color:var(--text-3)">${esc((b.abonnementDemande.transactionId||'').slice(0,15))}…</small>`:b.abonnementDemande&&b.abonnementDemande.statut==='valide'?`<span class="badge badge-ok">Validée</span>`:`<span class="badge badge-gray">Aucune</span>`;
+const actions=b.abonnementDemande&&b.abonnementDemande.statut==='en_attente'?`<button class="btn-ico ok" onclick="validerAbonnementBoutique('${b.id}')" title="Valider"><i class="fas fa-check"></i></button><button class="btn-ico err" onclick="refuserAbonnementBoutique('${b.id}')" title="Refuser"><i class="fas fa-times"></i></button>`:`<button class="btn-ico info" onclick="ouvrirModalAbonnementBoutique('${b.id}')" title="Gérer"><i class="fas fa-cog"></i></button>`;
+const joursRestants=b.abonnementDateFin?Math.max(0,Math.ceil((new Date(b.abonnementDateFin).getTime()-Date.now())/(1000*60*60*24))):0;
+return `<tr><td><strong style="color:var(--text)">${esc(b.nom||'-')}</strong></td><td><span class="badge badge-info">${esc(b.type||'-')}</span></td><td>${statutBadge}</td><td style="font-size:11px">${b.abonnementDateDebut?fmtDate(b.abonnementDateDebut):'—'}</td><td style="font-size:11px">${b.abonnementDateFin?fmtDate(b.abonnementDateFin):'—'}</td><td style="font-weight:800;color:${joursRestants<=0?'var(--danger)':joursRestants<=7?'var(--warning)':'var(--success)'}">${joursRestants}j</td><td>${demande}</td><td><div class="act">${actions}</div></td></tr>`;
 }).join('');
 }
-async function validerAbonnement(id){
-const ok=await adminConfirm('Valider cet abonnement ?','Le commerçant aura le badge "En ordre".','info');
+window.renderAbonnementsParBoutique=renderAbonnementsParBoutique;
+async function validerAbonnementBoutique(boutiqueId){
+const b=boutiquesActives.find(x=>x.id===boutiqueId);
+if(!b)return;
+const ok=await adminConfirm('Valider l\'abonnement ?',`<strong>${esc(b.nom)}</strong> sera abonné pour <strong>${aboConfig.dureeJours} jours</strong> à partir d'aujourd'hui.`,'info');
 if(!ok)return;
 setLoader(true);
 try{
-await setDoc(doc(db,'abonnements',id),{statut:'valide',dateValidation:new Date().toISOString()},{merge:true});
-const snap=await getDoc(doc(db,'abonnements',id));
-if(snap.exists()){
-const data=snap.data();
-if(data.uid){
-await setDoc(doc(db,'netubers',data.uid),{dernierAbonnement:new Date().toISOString(),statutAbonnement:'valide'},{merge:true});
-}
-}
-await notifierChangement('validerAbonnement',id);
-toast('✅ Abonnement validé');
-await loadAbonnements(true);
+const now=new Date();
+const dateFin=new Date(now.getTime()+aboConfig.dureeJours*24*60*60*1000);
+await setDoc(doc(db,'commerces',boutiqueId),{abonnementStatut:'actif',abonnementDateDebut:now.toISOString(),abonnementDateFin:dateFin.toISOString(),abonnementDemande:{statut:'valide',dateValidation:now.toISOString()}},{merge:true});
+if(b.uid){await setDoc(doc(db,'netubers',b.uid),{abonnementStatut:'actif',abonnementDateFin:dateFin.toISOString()},{merge:true});}
+cacheInvalidate('commerces');cacheInvalidate('actives');
+await notifierChangement('validerAbonnementBoutique',boutiqueId);
+toast('✅ Abonnement validé jusqu\'au '+dateFin.toLocaleDateString('fr-FR'));
+await reloadSome(['actives']);
+renderAbonnementsParBoutique();
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
 }
-window.validerAbonnement=validerAbonnement;
-async function refuserAbonnement(id){
-const ok=await adminConfirm('Refuser cet abonnement ?','Le commerçant devra payer.','danger');
+window.validerAbonnementBoutique=validerAbonnementBoutique;
+async function refuserAbonnementBoutique(boutiqueId){
+const b=boutiquesActives.find(x=>x.id===boutiqueId);
+if(!b)return;
+const ok=await adminConfirm('Refuser la demande ?','La demande sera marquée refusée.','danger');
 if(!ok)return;
 setLoader(true);
 try{
-await setDoc(doc(db,'abonnements',id),{statut:'refuse',dateRefus:new Date().toISOString()},{merge:true});
-await notifierChangement('refuserAbonnement',id);
-toast('Abonnement refusé','warn');
-await loadAbonnements(true);
+await setDoc(doc(db,'commerces',boutiqueId),{abonnementDemande:{...(b.abonnementDemande||{}),statut:'refuse',dateRefus:new Date().toISOString()}},{merge:true});
+cacheInvalidate('commerces');
+await notifierChangement('refuserAbonnementBoutique',boutiqueId);
+toast('Demande refusée','warn');
+await reloadSome(['actives']);
+renderAbonnementsParBoutique();
 }catch(e){toast('Erreur: '+e.message,'err');}
 finally{setLoader(false);}
 }
-window.refuserAbonnement=refuserAbonnement;
+window.refuserAbonnementBoutique=refuserAbonnementBoutique;
+async function ouvrirModalAbonnementBoutique(boutiqueId){
+const b=boutiquesActives.find(x=>x.id===boutiqueId);
+if(!b)return;
+const statutAbo=b.abonnementStatut||'jamais';
+const d=document.createElement('div');
+d.className='modal show';
+d.innerHTML=`<div class="modal-box" style="max-width:480px"><h2><i class="fas fa-crown"></i>Abonnement — ${esc(b.nom)}</h2><div class="info-box"><strong>Statut actuel :</strong> ${statutAbo}</div><div class="field"><label>Durée à accorder (jours)</label><input type="number" id="modalAboDuree" value="${aboConfig.dureeJours}" min="1" max="365"></div><div class="form-actions"><button class="btn btn-outline" data-close>FERMER</button><button class="btn btn-success" data-activer><i class="fas fa-check"></i> ACTIVER L'ABONNEMENT</button></div></div>`;
+document.body.appendChild(d);
+d.querySelector('[data-close]').onclick=()=>d.remove();
+d.onclick=e=>{if(e.target===d)d.remove();};
+d.querySelector('[data-activer]').onclick=async()=>{
+const duree=parseInt(d.querySelector('#modalAboDuree').value,10)||aboConfig.dureeJours;
+d.remove();
+setLoader(true);
+try{
+const now=new Date();
+const dateFin=new Date(now.getTime()+duree*24*60*60*1000);
+await setDoc(doc(db,'commerces',boutiqueId),{abonnementStatut:'actif',abonnementDateDebut:now.toISOString(),abonnementDateFin:dateFin.toISOString(),abonnementDemande:{statut:'valide',dateValidation:now.toISOString()}},{merge:true});
+if(b.uid){await setDoc(doc(db,'netubers',b.uid),{abonnementStatut:'actif',abonnementDateFin:dateFin.toISOString()},{merge:true});}
+cacheInvalidate('commerces');cacheInvalidate('actives');
+await notifierChangement('activerAbonnementBoutique',boutiqueId);
+toast('✅ Abonnement activé pour '+duree+' jours');
+await reloadSome(['actives']);
+renderAbonnementsParBoutique();
+}catch(e){toast('Erreur: '+e.message,'err');}
+finally{setLoader(false);}
+};
+}
+window.ouvrirModalAbonnementBoutique=ouvrirModalAbonnementBoutique;
 let impProduits=[];
 let impUploading=false;
 let impEditingIndex=-1;
