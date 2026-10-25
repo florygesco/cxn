@@ -635,7 +635,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 <div class="bulk-actions">
 <button class="btn btn-outline" onclick="impRenommerSerie()"><i class="fas fa-i-cursor"></i>Renommer en série</button>
 <button class="btn btn-outline" onclick="impPrixLot()"><i class="fas fa-tag"></i>Prix par lot</button>
-<button class="btn btn-outline" onclick="impUniteLot()"><i class="fas fa-ruler"></i>Unité par lot</button>
+<button class="btn btn-outline" onclick="impUniteLot()"><i class="fas fa-ruler"></i>Unitié par lot</button>
 </div>
 <div id="impProductsList" class="products-list"></div>
 </div>
@@ -1039,10 +1039,10 @@ if(content)content.scrollTop=0;
 if(tab==='tabImportMultiple')initImportMultiple();
 if(tab==='tabGererCatalogue')initGererCatalogue();
 if(tab==='tabProduitsAttente')loadProduitsAttente();
-if(tab==='tabEcoles')loadEcoles(true);
+if(tab==='tabEcoles'){loadEcoles(true).then(()=>verifierAbonnementsEcolesExpires());}
 if(tab==='tabPrefects'){loadEcoles(true).then(()=>loadPrefects());}
 if(tab==='tabProfesseurs'){Promise.all([loadEcoles(true),loadProfesseurs(true)]);}
-if(tab==='tabAbonnements'){chargerConfigAbonnement();renderAbonnementsParBoutique();}
+if(tab==='tabAbonnements'){chargerConfigAbonnement();renderAbonnementsParBoutique();verifierAbonnementsExpires();}
 }
 document.querySelectorAll('.nav-item').forEach(item=>{item.onclick=()=>switchTab(item.dataset.tab);});
 function openSidebar(){document.getElementById('sidebar').classList.add('show');document.getElementById('sidebarOverlay').classList.add('show');}
@@ -1399,17 +1399,18 @@ document.getElementById('filterBoutiqueStatut').onchange=()=>{pagination.boutiqu
 async function approveBoutique(id){
 const b=boutiques.find(x=>x.id===id);
 if(!b)return;
-const ok=await adminConfirm('Approuver cette boutique ?','Rendre <strong>'+esc(b.nomCommerce)+'</strong> visible ?','info');
+const ok=await adminConfirm('Approuver cette boutique ?','Rendre <strong>'+esc(b.nomCommerce)+'</strong> visible ? (30 jours d\'abonnement offerts)','info');
 if(!ok)return;
 setLoader(true);
 try{
 const batch=writeBatch(db);
 const now=new Date().toISOString();
+const dateFinAbo=new Date(Date.now()+30*24*60*60*1000).toISOString();
 batch.update(doc(db,'demandes_boutiques',id),{statut:'approuve',dateApprobation:now});
 let uid=b.uid||null;
 if(uid){
-const boutiqueData={uid,nom:b.nomCommerce,nomCommerce:b.nomCommerce,type:b.type,ville:b.ville,quartier:b.quartier,adresse:b.adresse||'',horaires:b.horaires||'08h - 20h',description:b.description||'Découvrez notre catalogue.',telephone:b.telephone,whatsapp:b.whatsappCommercial||b.telephone,whatsappCommercial:b.whatsappCommercial||b.telephone,img:b.img||'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80',emoji:'🏪',statut:'approuve',dateCreation:b.dateCreation||now,dateApprobation:now,retraitActif:true,livraisonActive:true,badgeConfiance:b.badgeConfiance===true,configLivraison:b.configLivraison||{frais:0,minProduits:0,minPrixPanier:0}};
-batch.update(doc(db,'netubers',uid),{boutique:boutiqueData});
+const boutiqueData={uid,nom:b.nomCommerce,nomCommerce:b.nomCommerce,type:b.type,ville:b.ville,quartier:b.quartier,adresse:b.adresse||'',horaires:b.horaires||'08h - 20h',description:b.description||'Découvrez notre catalogue.',telephone:b.telephone,whatsapp:b.whatsappCommercial||b.telephone,whatsappCommercial:b.whatsappCommercial||b.telephone,img:b.img||'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80',emoji:'🏪',statut:'approuve',dateCreation:b.dateCreation||now,dateApprobation:now,retraitActif:true,livraisonActive:true,badgeConfiance:b.badgeConfiance===true,configLivraison:b.configLivraison||{frais:0,minProduits:0,minPrixPanier:0},abonnementStatut:'actif',abonnementDateDebut:now,abonnementDateFin:dateFinAbo};
+batch.update(doc(db,'netubers',uid),{boutique:boutiqueData,abonnementStatut:'actif',abonnementDateFin:dateFinAbo});
 const commerceId='COM-'+id.replace('DEM-','');
 batch.set(doc(db,'commerces',commerceId),{...boutiqueData,demandeId:id,produits:[],creeParDirection:false},{merge:true});
 }
@@ -1419,7 +1420,7 @@ if(idx>=0){boutiques[idx].statut='approuve';boutiques[idx].dateApprobation=now;}
 renderBoutiques();
 updateBadge('badgeBoutiques',boutiques.filter(x=>x.statut==='en_attente').length);
 await notifierChangement('approveBoutique',id);
-toast('Boutique approuvée');
+toast('Boutique approuvée (30j offerts)');
 cacheInvalidate('netubers');cacheInvalidate('actives');cacheInvalidate('commerces');
 await reloadSome(['actives']);
 }catch(e){toast('Erreur: '+e.message,'err');}
@@ -2594,17 +2595,18 @@ if(!uid||!nom||!type||!ville||!quartier||!tel||!whatsapp||!imgFinal){toast('Remp
 setLoader(true);
 try{
 const now=new Date().toISOString();
+const dateFinAbo=new Date(Date.now()+30*24*60*60*1000).toISOString();
 const commerceId='COM-'+Date.now();
-const boutiqueData={uid,nom,nomCommerce:nom,type,ville,quartier,adresse:'',horaires,description:desc||'Découvrez notre catalogue.',telephone:tel,whatsapp,whatsappCommercial:whatsapp,img:imgFinal,emoji:'🏪',statut:'approuve',dateCreation:now,dateApprobation:now,retraitActif,livraisonActive,badgeConfiance,configLivraison};
+const boutiqueData={uid,nom,nomCommerce:nom,type,ville,quartier,adresse:'',horaires,description:desc||'Découvrez notre catalogue.',telephone:tel,whatsapp,whatsappCommercial:whatsapp,img:imgFinal,emoji:'🏪',statut:'approuve',dateCreation:now,dateApprobation:now,retraitActif,livraisonActive,badgeConfiance,configLivraison,abonnementStatut:'actif',abonnementDateDebut:now,abonnementDateFin:dateFinAbo};
 const batch=writeBatch(db);
 batch.set(doc(db,'commerces',commerceId),{...boutiqueData,produits:[],creeParDirection:true});
-batch.update(doc(db,'netubers',uid),{boutique:boutiqueData});
+batch.update(doc(db,'netubers',uid),{boutique:boutiqueData,abonnementStatut:'actif',abonnementDateFin:dateFinAbo});
 const demandeId='DEM-'+Date.now();
 batch.set(doc(db,'demandes_boutiques',demandeId),{...boutiqueData,statut:'approuve',creeParDirection:true});
 await batch.commit();
 cacheInvalidateAll();
 await notifierChangement('createBoutique',uid);
-toast('Boutique créée');
+toast('Boutique créée (30j offerts)');
 d.remove();
 await reloadSome(['boutiques','actives','netubers']);
 }catch(e){toast('Erreur: '+e.message,'err');}
@@ -2818,10 +2820,18 @@ const nbPrefets=(e.prefets||[]).length;
 const nbProfs=professeurs.filter(p=>p.ecoles&&p.ecoles[e.id]).length;
 const prefetsNoms=(e.prefets||[]).map(uid=>{const n=netubers.find(x=>x.id===uid);return n?esc(n.nomComplet||n.phone):'?';}).join(', ')||'—';
 const aboStatut=e.abonnementStatut||'jamais';
-const aboBadge=aboStatut==='actif'?'<span class="badge badge-ok" style="font-size:9px">🔓 Actif</span>':aboStatut==='force'?'<span class="badge badge-err" style="font-size:9px">🔒 Forcé</span>':aboStatut==='simple'?'<span class="badge badge-warn" style="font-size:9px">🔔 Simple</span>':'<span class="badge badge-gray" style="font-size:9px">— Inactif</span>';
+let aboBadge='<span class="badge badge-gray" style="font-size:9px">— Inactif</span>';
+if(aboStatut==='actif'){
+    const jours=e.abonnementDateFin?Math.max(0,Math.ceil((new Date(e.abonnementDateFin).getTime()-Date.now())/(1000*60*60*24))):0;
+    aboBadge=`<span class="badge badge-ok" style="font-size:9px">🔓 Actif (${jours}j)</span>`;
+}else if(aboStatut==='force'){
+    aboBadge='<span class="badge badge-err" style="font-size:9px">🔒 Forcé</span>';
+}else if(aboStatut==='simple'){
+    aboBadge='<span class="badge badge-warn" style="font-size:9px">🔔 Simple</span>';
+}
 const btnSimpleClass=aboStatut==='simple'?'abo-btn simple active':'abo-btn simple';
 const btnForceClass=aboStatut==='force'?'abo-btn force active':'abo-btn force';
-return `<tr><td>${offset+i+1}</td><td><strong style="color:var(--text)">${esc(e.nom||'-')}</strong></td><td>${esc(e.ville||'-')}${e.quartier?' · '+esc(e.quartier):''}</td><td style="font-size:11.5px">${prefetsNoms}${nbPrefets>0?` <span class="badge badge-info">${nbPrefets}</span>`:''}</td><td><span class="badge badge-purple">${nbProfs} prof${nbProfs>1?'s':''}</span></td><td>${aboBadge}<div class="abo-btn-group"><button class="${btnSimpleClass}" onclick="activerAboEcoleSimple('${esc(e.id)}')" title="Rappel"><i class="fas fa-bell"></i> Simple</button><button class="${btnForceClass}" onclick="activerAboEcoleForce('${esc(e.id)}')" title="Blocage"><i class="fas fa-lock"></i> Forcé</button></div></td><td><div class="act"><button class="btn-ico info" data-act="edit-ecole" data-id="${esc(e.id)}"><i class="fas fa-pen"></i></button><button class="btn-ico purple" data-act="add-pref-ecole" data-id="${esc(e.id)}"><i class="fas fa-user-tie"></i></button><button class="btn-ico err" data-act="delete-ecole" data-id="${esc(e.id)}"><i class="fas fa-trash"></i></button></div></td></tr>`;
+return `<tr><td>${offset+i+1}</td><td><strong style="color:var(--text)">${esc(e.nom||'-')}</strong></td><td>${esc(e.ville||'-')}${e.quartier?' · '+esc(e.quartier):''}</td><td style="font-size:11.5px">${prefetsNoms}${nbPrefets>0?` <span class="badge badge-info">${nbPrefets}</span>`:''}</td><td><span class="badge badge-purple">${nbProfs} prof${nbProfs>1?'s':''}</span></td><td>${aboBadge}<div class="abo-btn-group"><button class="${btnSimpleClass}" onclick="activerAboEcoleSimple('${esc(e.id)}')" title="Rappel"><i class="fas fa-bell"></i> Simple</button><button class="${btnForceClass}" onclick="activerAboEcoleForce('${esc(e.id)}')" title="Blocage"><i class="fas fa-lock"></i> Forcé</button></div></td><td><div class="act"><button class="btn-ico ok" onclick="ouvrirModalAbonnementEcole('${esc(e.id)}')" title="Gérer abonnement"><i class="fas fa-crown"></i></button><button class="btn-ico info" data-act="edit-ecole" data-id="${esc(e.id)}"><i class="fas fa-pen"></i></button><button class="btn-ico purple" data-act="add-pref-ecole" data-id="${esc(e.id)}"><i class="fas fa-user-tie"></i></button><button class="btn-ico err" data-act="delete-ecole" data-id="${esc(e.id)}"><i class="fas fa-trash"></i></button></div></td></tr>`;
 }).join('');
 }
 document.getElementById('searchEcoles').oninput=()=>{renderEcoles();};
@@ -2891,8 +2901,18 @@ if(!nom||!ville){toast('Nom et ville obligatoires','err');return;}
 setLoader(true);
 try{
 const ecoleId='ECOLE-'+Date.now();
-await setDoc(doc(db,'ecoles',ecoleId),{nom,ville,quartier,adresse,telephone:tel,prefets:[],prefetPrincipal:null,dateCreation:new Date().toISOString(),creePar:currentUser?currentUser.email:'admin'});
-toast('✅ École créée');
+const now=new Date().toISOString();
+const dateFinAbo=new Date(Date.now()+30*24*60*60*1000).toISOString();
+await setDoc(doc(db,'ecoles',ecoleId),{
+    nom,ville,quartier,adresse,telephone:tel,
+    prefets:[],prefetPrincipal:null,
+    dateCreation:now,
+    creePar:currentUser?currentUser.email:'admin',
+    abonnementStatut:'actif',
+    abonnementDateDebut:now,
+    abonnementDateFin:dateFinAbo
+});
+toast('✅ École créée (30 jours d\'abonnement offerts)');
 d.remove();
 await loadEcoles(true);
 }catch(e){toast('Erreur: '+e.message,'err');}
@@ -3431,6 +3451,8 @@ if(act==='approve')approuverProduit(idx);
 if(act==='reject')rejeterProduit(idx);
 if(act==='delete')supprimerProduitAttente(idx);
 });
+var aboConfig={mode:'desactive',dureeJours:30,tarifUsd:1,tarifFc:2800};
+window.aboConfig=aboConfig;
 async function chargerConfigAbonnement(){
 try{
 const snap=await getDoc(doc(db,'config','abonnements'));
@@ -3444,8 +3466,6 @@ aboConfig.tarifFc=data.tarifFc||2800;
 afficherConfigAbonnement();
 }catch(e){console.warn('Erreur config abonnement:',e);}
 }
-var aboConfig={mode:'desactive',dureeJours:30,tarifUsd:1,tarifFc:2800};
-window.aboConfig=aboConfig;
 function afficherConfigAbonnement(){
 document.querySelectorAll('#tabAbonnements .btn[id^="btnMode"]').forEach(b=>{b.classList.remove('btn-primary','btn-danger','btn-success');b.classList.add('btn-outline');});
 const btnActive=document.getElementById('btnMode'+(aboConfig.mode==='desactive'?'Desactive':aboConfig.mode.charAt(0).toUpperCase()+aboConfig.mode.slice(1)));
@@ -3562,31 +3582,201 @@ async function ouvrirModalAbonnementBoutique(boutiqueId){
 const b=boutiquesActives.find(x=>x.id===boutiqueId);
 if(!b)return;
 const statutAbo=b.abonnementStatut||'jamais';
+const dateFinActuelle=b.abonnementDateFin?new Date(b.abonnementDateFin):null;
+const dateFinStr=dateFinActuelle?dateFinActuelle.toLocaleDateString('fr-FR'):'—';
+
 const d=document.createElement('div');
 d.className='modal show';
-d.innerHTML=`<div class="modal-box" style="max-width:480px"><h2><i class="fas fa-crown"></i>Abonnement — ${esc(b.nom)}</h2><div class="info-box"><strong>Statut actuel :</strong> ${statutAbo}</div><div class="field"><label>Durée à accorder (jours)</label><input type="number" id="modalAboDuree" value="${aboConfig.dureeJours}" min="1" max="365"></div><div class="form-actions"><button class="btn btn-outline" data-close>FERMER</button><button class="btn btn-success" data-activer><i class="fas fa-check"></i> ACTIVER L'ABONNEMENT</button></div></div>`;
+d.innerHTML=`
+<div class="modal-box" style="max-width:480px">
+    <h2><i class="fas fa-crown"></i>Abonnement — ${esc(b.nom)}</h2>
+    <div class="info-box" style="background:${statutAbo === 'actif' ? '#d1fae5' : '#fee2e2'}; border-color:${statutAbo === 'actif' ? '#6ee7b7' : '#fca5a5'}; color:${statutAbo === 'actif' ? '#065f46' : '#991b1b'}">
+        <strong>Statut actuel :</strong> ${statutAbo}<br>
+        <strong>Date de fin :</strong> ${dateFinStr}
+    </div>
+    <div class="field">
+        <label>Nombre de mois à ajouter</label>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px">
+            <button type="button" class="btn btn-outline btnMonth" data-months="1" onclick="selectionnerMois(1,this)">1 Mois</button>
+            <button type="button" class="btn btn-outline btnMonth" data-months="3" onclick="selectionnerMois(3,this)">3 Mois</button>
+            <button type="button" class="btn btn-outline btnMonth" data-months="6" onclick="selectionnerMois(6,this)">6 Mois</button>
+            <button type="button" class="btn btn-outline btnMonth" data-months="12" onclick="selectionnerMois(12,this)">12 Mois</button>
+        </div>
+        <input type="number" id="modalAboMois" value="1" min="1" max="24" style="text-align:center;font-weight:800;font-size:16px">
+    </div>
+    <div class="form-actions">
+        <button class="btn btn-outline" data-close>FERMER</button>
+        <button class="btn btn-success" data-activer><i class="fas fa-check"></i> ACTIVER L'ABONNEMENT</button>
+    </div>
+</div>`;
 document.body.appendChild(d);
-d.querySelector('[data-close]').onclick=()=>d.remove();
-d.onclick=e=>{if(e.target===d)d.remove();};
-d.querySelector('[data-activer]').onclick=async()=>{
-const duree=parseInt(d.querySelector('#modalAboDuree').value,10)||aboConfig.dureeJours;
-d.remove();
-setLoader(true);
-try{
-const now=new Date();
-const dateFin=new Date(now.getTime()+duree*24*60*60*1000);
-await setDoc(doc(db,'commerces',boutiqueId),{abonnementStatut:'actif',abonnementDateDebut:now.toISOString(),abonnementDateFin:dateFin.toISOString(),abonnementDemande:{statut:'valide',dateValidation:now.toISOString()}},{merge:true});
-if(b.uid){await setDoc(doc(db,'netubers',b.uid),{abonnementStatut:'actif',abonnementDateFin:dateFin.toISOString()},{merge:true});}
-cacheInvalidate('commerces');cacheInvalidate('actives');
-await notifierChangement('activerAbonnementBoutique',boutiqueId);
-toast('✅ Abonnement activé pour '+duree+' jours');
-await reloadSome(['actives']);
-renderAbonnementsParBoutique();
-}catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
+
+window.selectionnerMois = function(mois, btn) {
+    d.querySelector('#modalAboMois').value = mois;
+    d.querySelectorAll('.btnMonth').forEach(b => {
+        b.classList.remove('btn-primary');
+        b.classList.add('btn-outline');
+    });
+    btn.classList.remove('btn-outline');
+    btn.classList.add('btn-primary');
+};
+
+d.querySelector('[data-close]').onclick = () => d.remove();
+d.onclick = e => { if (e.target === d) d.remove(); };
+d.querySelector('[data-activer]').onclick = async () => {
+    const nbMois = parseInt(d.querySelector('#modalAboMois').value, 10) || 1;
+    const joursAAjouter = nbMois * 30;
+    d.remove();
+
+    setLoader(true);
+    try {
+        let baseDate = new Date();
+        if (b.abonnementDateFin && new Date(b.abonnementDateFin) > baseDate) {
+            baseDate = new Date(b.abonnementDateFin);
+        }
+        const nouvelleDateFin = new Date(baseDate.getTime() + joursAAjouter * 24 * 60 * 60 * 1000);
+
+        await setDoc(doc(db,'commerces',boutiqueId),{
+            abonnementStatut:'actif',
+            abonnementDateDebut: new Date().toISOString(),
+            abonnementDateFin: nouvelleDateFin.toISOString(),
+            abonnementDemande: {statut:'valide', dateValidation: new Date().toISOString()}
+        }, {merge:true});
+
+        if(b.uid){
+            await setDoc(doc(db,'netubers',b.uid),{
+                abonnementStatut:'actif',
+                abonnementDateFin: nouvelleDateFin.toISOString()
+            }, {merge:true});
+        }
+
+        cacheInvalidate('commerces');
+        cacheInvalidate('actives');
+        await notifierChangement('activerAbonnementBoutique', boutiqueId);
+        
+        toast(`✅ Abonnement de ${nbMois} mois activé jusqu'au ${nouvelleDateFin.toLocaleDateString('fr-FR')}`);
+        await reloadSome(['actives']);
+        renderAbonnementsParBoutique();
+    } catch(e) {
+        toast('Erreur: ' + e.message, 'err');
+    } finally {
+        setLoader(false);
+    }
 };
 }
 window.ouvrirModalAbonnementBoutique=ouvrirModalAbonnementBoutique;
+
+async function ouvrirModalAbonnementEcole(ecoleId){
+const e=ecoles.find(x=>x.id===ecoleId);
+if(!e)return;
+const statutAbo=e.abonnementStatut||'jamais';
+const dateFinActuelle=e.abonnementDateFin?new Date(e.abonnementDateFin):null;
+const dateFinStr=dateFinActuelle?dateFinActuelle.toLocaleDateString('fr-FR'):'—';
+
+const d=document.createElement('div');
+d.className='modal show';
+d.innerHTML=`
+<div class="modal-box" style="max-width:480px">
+    <h2><i class="fas fa-school"></i>Abonnement École — ${esc(e.nom)}</h2>
+    <div class="info-box" style="background:${statutAbo==='actif'?'#d1fae5':'#fee2e2'};border-color:${statutAbo==='actif'?'#6ee7b7':'#fca5a5'};color:${statutAbo==='actif'?'#065f46':'#991b1b'}">
+        <strong>Statut actuel :</strong> ${statutAbo}<br>
+        <strong>Date de fin :</strong> ${dateFinStr}
+    </div>
+    <div class="field">
+        <label>Nombre de mois à ajouter</label>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px">
+            <button type="button" class="btn btn-outline btnMonthEcole" data-months="1" onclick="selectionnerMoisEcole(1,this)">1 Mois</button>
+            <button type="button" class="btn btn-outline btnMonthEcole" data-months="3" onclick="selectionnerMoisEcole(3,this)">3 Mois</button>
+            <button type="button" class="btn btn-outline btnMonthEcole" data-months="6" onclick="selectionnerMoisEcole(6,this)">6 Mois</button>
+            <button type="button" class="btn btn-outline btnMonthEcole" data-months="12" onclick="selectionnerMoisEcole(12,this)">12 Mois</button>
+        </div>
+        <input type="number" id="modalAboMoisEcole" value="1" min="1" max="24" style="text-align:center;font-weight:800;font-size:16px">
+    </div>
+    <div class="form-actions">
+        <button class="btn btn-outline" data-close>FERMER</button>
+        <button class="btn btn-success" data-activer><i class="fas fa-check"></i> ACTIVER L'ABONNEMENT</button>
+    </div>
+</div>`;
+document.body.appendChild(d);
+
+window.selectionnerMoisEcole=function(mois,btn){
+    d.querySelector('#modalAboMoisEcole').value=mois;
+    d.querySelectorAll('.btnMonthEcole').forEach(b=>{b.classList.remove('btn-primary');b.classList.add('btn-outline');});
+    btn.classList.remove('btn-outline');
+    btn.classList.add('btn-primary');
+};
+
+d.querySelector('[data-close]').onclick=()=>d.remove();
+d.onclick=ev=>{if(ev.target===d)d.remove();};
+d.querySelector('[data-activer]').onclick=async()=>{
+    const nbMois=parseInt(d.querySelector('#modalAboMoisEcole').value,10)||1;
+    const joursAAjouter=nbMois*30;
+    d.remove();
+    setLoader(true);
+    try{
+        let baseDate=new Date();
+        if(e.abonnementDateFin&&new Date(e.abonnementDateFin)>baseDate){baseDate=new Date(e.abonnementDateFin);}
+        const nouvelleDateFin=new Date(baseDate.getTime()+joursAAjouter*24*60*60*1000);
+        const now=new Date().toISOString();
+        await setDoc(doc(db,'ecoles',ecoleId),{
+            abonnementStatut:'actif',
+            abonnementDateDebut:now,
+            abonnementDateFin:nouvelleDateFin.toISOString(),
+            abonnementDemande:{statut:'valide',dateValidation:now}
+        },{merge:true});
+        cacheInvalidate('ecoles');
+        await notifierChangement('activerAbonnementEcole',ecoleId);
+        toast(`✅ Abonnement école de ${nbMois} mois activé jusqu'au ${nouvelleDateFin.toLocaleDateString('fr-FR')}`);
+        await loadEcoles(true);
+    }catch(err){toast('Erreur: '+err.message,'err');}
+    finally{setLoader(false);}
+};
+}
+window.ouvrirModalAbonnementEcole=ouvrirModalAbonnementEcole;
+
+async function verifierAbonnementsExpires(){
+    const boutiquesAUpdate = boutiquesActives.filter(b => {
+        if ((b.abonnementStatut === 'actif' || b.abonnementStatut === 'force') && b.abonnementDateFin) {
+            return new Date(b.abonnementDateFin) < new Date();
+        }
+        return false;
+    });
+    if (boutiquesAUpdate.length === 0) return;
+    try {
+        for (const b of boutiquesAUpdate) {
+            await setDoc(doc(db, 'commerces', b.id), {
+                abonnementStatut: 'simple',
+                abonnementModeMisAJour: new Date().toISOString()
+            }, { merge: true });
+        }
+        cacheInvalidate('commerces');
+        cacheInvalidate('actives');
+        console.log(`${boutiquesAUpdate.length} abonnement(s) expiré(s) passé(s) en mode Simple`);
+        await reloadSome(['actives']);
+    } catch(e) {
+        console.warn('Erreur mise à jour abonnements:', e);
+    }
+}
+window.verifierAbonnementsExpires=verifierAbonnementsExpires;
+
+async function verifierAbonnementsEcolesExpires(){
+    const ecolesAUpdate=ecoles.filter(e=>{
+        if((e.abonnementStatut==='actif'||e.abonnementStatut==='force')&&e.abonnementDateFin){
+            return new Date(e.abonnementDateFin)<new Date();
+        }
+        return false;
+    });
+    if(ecolesAUpdate.length===0)return;
+    try{
+        for(const e of ecolesAUpdate){
+            await setDoc(doc(db,'ecoles',e.id),{abonnementStatut:'simple',abonnementModeMisAJour:new Date().toISOString()},{merge:true});
+        }
+        cacheInvalidate('ecoles');
+        console.log(`🔄 ${ecolesAUpdate.length} école(s) passée(s) en mode Simple`);
+    }catch(err){console.warn('Erreur vérif abo écoles:',err);}
+}
+window.verifierAbonnementsEcolesExpires=verifierAbonnementsEcolesExpires;
+
 let impProduits=[];
 let impUploading=false;
 let impEditingIndex=-1;
