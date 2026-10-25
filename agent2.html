@@ -95,6 +95,20 @@ textarea{resize:none;min-height:80px}
 #pc-block h2{font-size:24px;font-weight:900;margin-bottom:12px}
 #pc-block p{font-size:15px;line-height:1.7;color:#cbd5e1;max-width:420px}
 #successModal.active{z-index:3000!important}
+#loginScreen{display:none;position:fixed;inset:0;background:linear-gradient(135deg,#0b1220 0%,#101a2e 50%,#0b1220 100%);z-index:5000;align-items:center;justify-content:center;padding:20px}
+#loginScreen.show{display:flex}
+.login-card{background:linear-gradient(180deg,#101a2e,#0b1220);border:1px solid #1e293b;border-radius:20px;padding:38px 32px;width:100%;max-width:430px;text-align:center}
+.login-logo{width:66px;height:66px;background:linear-gradient(135deg,#10b981,#059669);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 18px;color:#fff}
+.login-title{font-size:19px;color:#fff;font-weight:800;margin-bottom:6px}
+.login-subtitle{font-size:12px;color:#94a3b8;margin-bottom:26px}
+.login-card input{width:100%;padding:14px 18px;border-radius:10px;background:#0b1220;border:1.5px solid #1e293b;color:#fff;font-size:14px;outline:none;box-sizing:border-box;font-family:inherit;margin-bottom:12px}
+.login-btn{width:100%;padding:15px;border-radius:10px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-weight:700;border:none;cursor:pointer;font-size:14px;font-family:inherit}
+.login-error{color:#f87171;font-size:12.5px;margin-top:14px;min-height:18px;font-weight:500}
+.login-footer{font-size:10px;color:#64748b;margin-top:22px;font-weight:600;text-transform:uppercase}
+.logout-bar{position:fixed;top:14px;right:14px;z-index:100;display:none;gap:8px;align-items:center}
+.logout-bar.show{display:flex}
+.logout-bar button{padding:10px 14px;border-radius:10px;background:#ef4444;color:#fff;border:none;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px}
+.badge-admin{padding:8px 12px;border-radius:10px;background:rgba(16,185,129,.15);color:#059669;font-weight:800;font-size:12px;display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(16,185,129,.3)}
 </style>
 </head>
 <body>
@@ -105,7 +119,25 @@ textarea{resize:none;min-height:80px}
   <p>Cette application est réservée aux téléphones et tablettes.</p>
 </div>
 
-<div class="container" id="mainContainer">
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo"><i class="fa-solid fa-store"></i></div>
+    <h2 class="login-title">Accès réservé</h2>
+    <div class="login-subtitle">Direction Stratégie & Innovation · NeTubeX RDC</div>
+    <input type="email" id="loginEmail" placeholder="Email équipe" autocomplete="email">
+    <input type="password" id="loginPassword" placeholder="Mot de passe" autocomplete="current-password">
+    <button class="login-btn" id="loginSubmitBtn">SE CONNECTER</button>
+    <div class="login-error" id="loginError"></div>
+    <div class="login-footer">Accès sécurisé · NeTubeX</div>
+  </div>
+</div>
+
+<div class="logout-bar" id="logoutBar">
+  <span class="badge-admin"><i class="fa-solid fa-shield-halved"></i> <span id="adminEmailSpan">—</span></span>
+  <button onclick="deconnexion()"><i class="fa-solid fa-right-from-bracket"></i> Sortir</button>
+</div>
+
+<div class="container" id="mainContainer" style="display:none">
   <div class="logo"><i class="fa-solid fa-store"></i></div>
   <h1>Créer un Commerçant</h1>
   <p class="subtitle">Espace réservé à l'équipe NeTubeX RDC.</p>
@@ -237,7 +269,7 @@ textarea{resize:none;min-height:80px}
 
     <div class="card green">
       <div class="card-title"><i class="fa-solid fa-box"></i> Catalogue (<span id="catalogueCount">0</span>/<span id="catalogueMax">50</span>)</div>
-      
+
       <div class="produit-form">
         <div class="field" style="margin-bottom:10px"><label>Nom du produit *</label><input type="text" id="prodNom" placeholder="Ex: Riz parfumé"></div>
         <div class="field" style="margin-bottom:10px"><label>Prix (FC) *</label><input type="number" id="prodPrix" min="0" placeholder="Ex: 2500"></div>
@@ -325,8 +357,9 @@ textarea{resize:none;min-height:80px}
   function update(){
     var pb=document.getElementById('pc-block');
     var mc=document.getElementById('mainContainer');
-    if (isPC()){pb.classList.add('show');mc.style.display='none';document.body.style.overflow='hidden';}
-    else{pb.classList.remove('show');mc.style.display='block';document.body.style.overflow='';}
+    var ls=document.getElementById('loginScreen');
+    if (isPC()){pb.classList.add('show');mc.style.display='none';ls.classList.remove('show');document.body.style.overflow='hidden';}
+    else{pb.classList.remove('show');document.body.style.overflow='';}
   }
   window.addEventListener('resize', update);
   window.addEventListener('orientationchange', update);
@@ -463,9 +496,9 @@ try {
   db = firebase.firestore();
   auth = firebase.auth();
   try {
-    secondaryApp = firebase.app("Secondary");
+    secondaryApp = firebase.app("SecondaryCommerce");
   } catch (e) {
-    secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary");
+    secondaryApp = firebase.initializeApp(firebaseConfig, "SecondaryCommerce");
   }
   secondaryAuth = secondaryApp.auth();
 } catch (e) {
@@ -473,6 +506,7 @@ try {
   throw e;
 }
 
+const ADMIN_EMAILS = ['equipe@gmail.com', 'ngendaflory2@gmail.com'];
 const $ = (id) => document.getElementById(id);
 let _sexe = '';
 let _shopImgUrl = '';
@@ -483,6 +517,10 @@ let _optRetrait = true;
 let _optLivraison = true;
 let COMMERCE_CREE_ID = null;
 let COMMERCE_CREE_DATA = null;
+
+function estAdminEmail(email) {
+  return ADMIN_EMAILS.map(e => e.toLowerCase()).indexOf(String(email || '').toLowerCase()) !== -1;
+}
 
 function getLimiteProduits(type) {
   if (type === 'Supermarché / Alimentation') return 100;
@@ -506,10 +544,8 @@ function updateTypeHint() {
   const isHotel = type === 'Hôtel / Hébergement';
   $('blocChambres').style.display = isHotel ? 'block' : 'none';
   if (isHotel && _chambres.length === 0) ajouterChambre();
-
   const limite = getLimiteProduits(type);
   $('catalogueMax').textContent = limite;
-
   const infoBox = $('limiteInfo');
   const infoText = $('limiteInfoText');
   if (type) {
@@ -724,10 +760,92 @@ function ouvrirSucces(phone, pwd) {
 function fermerSucces() { $('successModal').classList.remove('active'); }
 window.fermerSucces = fermerSucces;
 
+function resetFormulaire() {
+  $('nom').value = ''; $('prenom').value = ''; $('phone').value = ''; $('password').value = '';
+  $('shopNom').value = ''; $('shopType').value = ''; $('shopQuartier').value = ''; $('shopAdresse').value = ''; $('shopDesc').value = '';
+  $('shopUnite').value = ''; $('shopUniteAutre').value = ''; $('shopUniteAutre').style.display = 'none';
+  $('limiteInfo').style.display = 'none';
+  _sexe = ''; _shopImgUrl = ''; _produits = []; _prodImgUrl = ''; _chambres = [];
+  $('sexeHomme').style.background = 'transparent'; $('sexeHomme').style.color = '#475569';
+  $('sexeFemme').style.background = 'transparent'; $('sexeFemme').style.color = '#475569';
+  $('shopImgTitre').textContent = 'Téléverser une image'; $('shopImgSous').textContent = 'Appuyez pour choisir';
+  renderProduits();
+  renderChambres();
+  $('blocChambres').style.display = 'none';
+  $('catalogueMax').textContent = '50';
+  $('msg').className = 'msg'; $('msg').style.display = 'none';
+  versEtape1();
+}
+
+auth.onAuthStateChanged(function(user) {
+  const loginScreen = $('loginScreen');
+  const mainContainer = $('mainContainer');
+  const logoutBar = $('logoutBar');
+  const pcBlock = $('pc-block').classList.contains('show');
+  if (pcBlock) return;
+  if (user && estAdminEmail(user.email)) {
+    loginScreen.classList.remove('show');
+    mainContainer.style.display = 'block';
+    logoutBar.classList.add('show');
+    $('adminEmailSpan').textContent = user.email;
+  } else if (user && !estAdminEmail(user.email)) {
+    auth.signOut();
+    loginScreen.classList.add('show');
+    mainContainer.style.display = 'none';
+    logoutBar.classList.remove('show');
+  } else {
+    loginScreen.classList.add('show');
+    mainContainer.style.display = 'none';
+    logoutBar.classList.remove('show');
+  }
+});
+
+async function doLogin() {
+  const email = $('loginEmail').value.trim();
+  const pw = $('loginPassword').value;
+  const err = $('loginError');
+  const btn = $('loginSubmitBtn');
+  err.textContent = '';
+  if (!email || !pw) { err.textContent = 'Remplissez tous les champs'; return; }
+  if (!estAdminEmail(email)) { err.textContent = 'Accès réservé à l\'équipe NeTubeX.'; return; }
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> CONNEXION…';
+  try {
+    const cred = await auth.signInWithEmailAndPassword(email, pw);
+    if (!estAdminEmail(cred.user.email)) {
+      await auth.signOut();
+      err.textContent = 'Accès refusé.';
+    }
+  } catch (e) {
+    let msg = 'Email ou mot de passe incorrect';
+    if (e.code === 'auth/user-not-found') msg = 'Aucun compte avec cet email';
+    if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') msg = 'Mot de passe incorrect';
+    if (e.code === 'auth/invalid-email') msg = 'Email invalide';
+    if (e.code === 'auth/too-many-requests') msg = 'Trop de tentatives.';
+    err.textContent = msg;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'SE CONNECTER';
+  }
+}
+window.doLogin = doLogin;
+$('loginSubmitBtn').addEventListener('click', doLogin);
+$('loginPassword').addEventListener('keypress', e => { if (e.key === 'Enter') doLogin(); });
+
+async function deconnexion() {
+  await auth.signOut();
+}
+window.deconnexion = deconnexion;
+
 async function inscrire() {
   const btn = $('btnSubmit');
   const msg = $('msg');
   msg.className = 'msg'; msg.style.display = 'none';
+
+  if (!auth.currentUser || !estAdminEmail(auth.currentUser.email)) {
+    msg.className = 'msg err'; msg.textContent = 'Session équipe requise.';
+    return;
+  }
 
   const nom = $('nom').value.trim();
   const prenom = $('prenom').value.trim();
@@ -765,8 +883,7 @@ async function inscrire() {
 
   const phone = '+243' + phoneRaw;
   const nomComplet = nom + ' ' + prenom;
-  const nse = nomComplet.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-  const email = nse + phoneRaw + '@gmail.com';
+  const email = phoneRaw + '@gmail.com';
 
   try {
     const snap = await db.collection('netubers').where('phone', '==', phone).limit(1).get();
@@ -775,6 +892,15 @@ async function inscrire() {
       btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-check"></i> Créer le compte et le commerce';
       return;
     }
+
+    try {
+      const idxSnap = await db.collection('phone_index').doc(phoneRaw).get();
+      if (idxSnap.exists) {
+        msg.className = 'msg err'; msg.textContent = '❌ Ce numéro existe déjà dans le système.';
+        btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-check"></i> Créer le compte et le commerce';
+        return;
+      }
+    } catch (e) {}
 
     try { await secondaryAuth.signOut(); } catch (e) {}
     const cred = await secondaryAuth.createUserWithEmailAndPassword(email, password);
@@ -820,6 +946,7 @@ async function inscrire() {
       role: 'commerce',
       boutique: boutiqueData,
       dateCreation: dateNow, motDePasseProvisoire: true,
+      creePar: auth.currentUser.email,
       stats: { deblocages: 0, commandes: 0, parrainage: 0, jetons: 0, badges: [] },
       notifications: [],
       parrainage: { code: codeParrainage, count: 0, palier: 0, joursRestants: 0, dateDernierePub: null }
@@ -836,23 +963,7 @@ async function inscrire() {
     COMMERCE_CREE_ID = commerceId;
     COMMERCE_CREE_DATA = boutiqueData;
 
-    try {
-      $('nom').value = ''; $('prenom').value = ''; $('phone').value = ''; $('password').value = '';
-      $('shopNom').value = ''; $('shopType').value = ''; $('shopQuartier').value = ''; $('shopAdresse').value = ''; $('shopDesc').value = '';
-      $('shopUnite').value = ''; $('shopUniteAutre').value = ''; $('shopUniteAutre').style.display = 'none';
-      $('limiteInfo').style.display = 'none';
-      _sexe = ''; _shopImgUrl = ''; _produits = []; _prodImgUrl = ''; _chambres = [];
-      $('sexeHomme').style.background = 'transparent'; $('sexeHomme').style.color = '#475569';
-      $('sexeFemme').style.background = 'transparent'; $('sexeFemme').style.color = '#475569';
-      $('shopImgTitre').textContent = 'Téléverser une image'; $('shopImgSous').textContent = 'Appuyez pour choisir';
-      renderProduits();
-      renderChambres();
-      $('blocChambres').style.display = 'none';
-      $('catalogueMax').textContent = '50';
-      versEtape1();
-    } catch (resetErr) {
-      console.warn('Erreur reset (non bloquante) :', resetErr);
-    }
+    try { resetFormulaire(); } catch (resetErr) {}
 
     msg.className = 'msg ok'; msg.textContent = '✅ Compte et commerce créés.';
     ouvrirSucces(phone, password);
@@ -864,9 +975,9 @@ async function inscrire() {
   } catch (err) {
     try { await secondaryAuth.signOut(); } catch (e) {}
     let txt = 'Erreur : ' + (err.message || 'inconnue');
-    if (err.code === 'auth/email-already-in-use') txt = 'Cet email existe déjà.';
+    if (err.code === 'auth/email-already-in-use') txt = 'Ce numéro possède déjà un compte Auth.';
     if (err.code === 'auth/weak-password') txt = 'Mot de passe trop faible.';
-    if (err.code === 'permission-denied') txt = 'Permissions Firestore refusées. Vérifiez les règles.';
+    if (err.code === 'permission-denied') txt = 'Permission refusée. Vérifiez que vous êtes bien connecté.';
     msg.className = 'msg err'; msg.textContent = txt;
     btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-check"></i> Créer le compte et le commerce';
   }
