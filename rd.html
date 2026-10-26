@@ -1832,8 +1832,24 @@ async function getStored(store,key,fallback){if(fallback===undefined)fallback=nu
 async function setStored(store,key,value){return idbSet(store,key,value);}
 async function setCachedList(k,l){try{await idbSet('config',k,{data:l,dateCache:Date.now()});}catch(e){}}
 async function getCachedList(k){try{var e=await idbGet('config',k);if(!e||!e.data)return null;if((Date.now()-(e.dateCache||0))>CACHE_TTL_MS){await idbDelete('config',k);return null;}return e.data;}catch(e){return null;}}
+async function setCachedListAvecTs(key, liste){
+    try{
+        await idbSet('config',key,{data:liste,dateCache:Date.now()});
+        await idbSet('config',key+'_ts',{ts:Date.now()});
+    }catch(e){}
+}
+async function getCachedListAvecTs(key, ttlMs){
+    try{
+        var ts=await idbGet('config',key+'_ts');
+        if(!ts||!ts.ts||(Date.now()-ts.ts)>=ttlMs)return null;
+        var e=await idbGet('config',key);
+        if(!e||!e.data)return null;
+        return e.data;
+    }catch(e){return null;}
+}
 async function invaliderCache(cle){try{if(cle){await idbDelete('config',cle);}else{await idbDelete('config','cache_annonces');await idbDelete('config','cache_commerces');await idbDelete('config','cache_ecoles');await idbDelete('config','cache_professeurs');}}catch(e){}}
 window.setCachedList=setCachedList;window.getCachedList=getCachedList;window.invaliderCache=invaliderCache;
+window.setCachedListAvecTs=setCachedListAvecTs;window.getCachedListAvecTs=getCachedListAvecTs;
 window.idbGet=idbGet;window.idbSet=idbSet;window.idbDelete=idbDelete;
 window.getStored=getStored;window.setStored=setStored;window.STORES=STORES;
 
@@ -1876,7 +1892,10 @@ window.logoutUser=async function(){try{await signOut(auth);}catch(e){}await inva
 window.mesDeblocages=async function(uid){var cached=await getCachedList('cache_deblocages_'+uid);if(cached&&Array.isArray(cached))return cached;try{var q=query(collection(db,'deblocages'),where('uid','==',uid));var snap=await getDocs(q);var list=[];snap.forEach(function(d){list.push(Object.assign({id:d.id},d.data()));});await setCachedList('cache_deblocages_'+uid,list);return list;}catch(e){return[];}};
 
 window.chargerCommercesFirestore=async function(forceRefresh){
-if(!forceRefresh){var cached=await getCachedList('cache_commerces');if(cached&&Array.isArray(cached)&&cached.length>0)return cached;}
+if(!forceRefresh){
+    var cached=await getCachedListAvecTs('cache_commerces',60*60*1000);
+    if(cached && Array.isArray(cached) && cached.length>0) return cached;
+}
 try{
 var snap=await getDocs(collection(db,'commerces'));
 var commerces=[];
@@ -1893,7 +1912,7 @@ commerces.push({id:d.id,uid:data.uid||null,nom:data.nom||data.nomCommerce||'',ty
 }
 });
 commerces.sort(function(a,b){return(b.dateCreation||'').localeCompare(a.dateCreation||'');});
-await setCachedList('cache_commerces',commerces);
+await setCachedListAvecTs('cache_commerces',commerces);
 return commerces;
 }catch(e){
 var cached=await getCachedList('cache_commerces');
@@ -1902,7 +1921,10 @@ return cached||[];
 };
 
 window.chargerAnnoncesFirestore=async function(forceRefresh){
-if(!forceRefresh){var cached=await getCachedList('cache_annonces');if(cached&&Array.isArray(cached)&&cached.length>0)return cached;}
+if(!forceRefresh){
+    var cached=await getCachedListAvecTs('cache_annonces',30*60*1000);
+    if(cached && Array.isArray(cached) && cached.length>0) return cached;
+}
 try{
 var snap=await getDocs(collection(db,'annonces'));
 var annonces=[];
@@ -1919,7 +1941,7 @@ var imgPrincipale=imagesArr[0]||data.img||'';
 annonces.push({id:d.id,annonceId:d.id,title:data.titre||'',name:nomPublieur,initials:nomPublieur.substring(0,2).toUpperCase(),avatar:data.publieurAvatar||'',location:data.ville||'',dateCreation:data.dateCreation||'',time:data.dateCreation?new Date(data.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}):'Récemment',price:data.prix||'',priceClass:data.tagClass||'post-tag-autre',desc:data.desc||'',img:imgPrincipale,images:imagesArr,cat:normCat(data.cat||'autre'),catRaw:data.cat||'',tag:data.tag||'',tagClass:data.tagClass||'post-tag-autre',unlock:true,urgence:false,publieurType:typePublieur,publieurUid:data.proprietaireUid||null,publieurBoutique:data.publieurBoutique||null,publieurPhone:data.publieurPhone||'',isCommerce:typePublieur==='commerce',vues:data.vues||0,publieurParrainage:data.publieurParrainage||null,publieurSexe:data.publieurSexe||'',jobType:data.jobType||null,sousTypeImmo:data.sousTypeImmo||null,badgeConfiance:data.badgeConfiance===true});
 });
 annonces.sort(function(a,b){return(b.dateCreation||'').localeCompare(a.dateCreation||'');});
-await setCachedList('cache_annonces',annonces);
+await setCachedListAvecTs('cache_annonces',annonces);
 return annonces;
 }catch(e){
 var cached=await getCachedList('cache_annonces');
@@ -1994,12 +2016,18 @@ try{await updateDoc(doc(db,'commerces',commerceId),{vues:increment(1)});return t
 };
 
 window.chargerEcolesFirestore=async function(forceRefresh){
-if(!forceRefresh){var cached=await getCachedList('cache_ecoles');if(cached&&Array.isArray(cached))return cached;}
-try{var snap=await getDocs(collection(db,'ecoles'));var ecoles=[];snap.forEach(function(d){ecoles.push(Object.assign({id:d.id},d.data()));});await setCachedList('cache_ecoles',ecoles);return ecoles;}catch(e){var cached=await getCachedList('cache_ecoles');return cached||[];}
+if(!forceRefresh){
+    var cached=await getCachedListAvecTs('cache_ecoles',2*60*60*1000);
+    if(cached && Array.isArray(cached)) return cached;
+}
+try{var snap=await getDocs(collection(db,'ecoles'));var ecoles=[];snap.forEach(function(d){ecoles.push(Object.assign({id:d.id},d.data()));});await setCachedListAvecTs('cache_ecoles',ecoles);return ecoles;}catch(e){var cached=await getCachedList('cache_ecoles');return cached||[];}
 };
 
 window.chargerProfesseursFirestore=async function(forceRefresh){
-if(!forceRefresh){var cached=await getCachedList('cache_professeurs');if(cached&&Array.isArray(cached))return cached;}
+if(!forceRefresh){
+    var cached=await getCachedListAvecTs('cache_professeurs',2*60*60*1000);
+    if(cached && Array.isArray(cached)) return cached;
+}
 try{
 var snap=await getDocs(collection(db,'professeurs'));
 var profs=[];
@@ -2008,7 +2036,7 @@ var v=d.data();
 profs.push({id:d.id,uid:v.uid||'',nom:v.nom||'',matiere:v.matiere||'',sections:v.sections||[],ville:v.ville||'',anneesExperience:v.anneesExperience||0,diplomes:v.diplomes||[],avatarUrl:v.avatarUrl||'',bio:v.bio||'',telephone:v.telephone||'',contactActif:v.contactActif===true,ecoles:v.ecoles||{},notesGlobales:v.notesGlobales||{},moyenneGlobale:v.moyenneGlobale||0,nombreNotesGlobal:v.nombreNotesGlobal||0,responsables:v.responsables||[],emailGen:v.emailGen||'',dateCreation:v.dateCreation||'',actif:v.actif!==false});
 });
 profs.sort(function(a,b){return(b.moyenneGlobale||0)-(a.moyenneGlobale||0);});
-await setCachedList('cache_professeurs',profs);
+await setCachedListAvecTs('cache_professeurs',profs);
 return profs;
 }catch(e){var cached=await getCachedList('cache_professeurs');return cached||[];}
 };
@@ -2176,7 +2204,7 @@ var _reseauDerniersIdentifiants=null;
 var DEBLOCAGES_MEMORY=[];
 var DEBLOCAGES_LAST_FETCH=0;
 var DEBLOCAGES_DIRTY=true;
-var DEBLOCAGES_FETCH_COOLDOWN=30000;
+var DEBLOCAGES_FETCH_COOLDOWN=15*60*1000;
 var DEBLOCAGES_POLL_TIMER=null;
 var DEBLOCAGE_DUREE_MS=12*60*60*1000;
 var _debloques_timer=null;
@@ -2439,6 +2467,7 @@ var result=await window.createUser({nom:nom,prenom:prenom,nomComplet:nc,sexe:sex
 setCurrentAccount({id:result.uid,nom:nom,prenom:prenom,nomComplet:nc,name:nc,sexe:sexe,phone:phone,code:password,emailAuth:ef,avatarUrl:_accAvatarUrl,dateCreation:new Date().toISOString(),role:'user',ecoleId:null,boutique:null});
 try{await window.setStored(window.STORES.account,'current',window.CURRENT_ACCOUNT);}catch(e){}
 try{localStorage.setItem('ntx_account_backup',JSON.stringify(window.CURRENT_ACCOUNT));}catch(e){}
+setTimeout(function(){if(window.verifierInvalidationUtilisateur)window.verifierInvalidationUtilisateur();},1000);
 var box=document.querySelector('#account-modal > div');
 if(box){box.innerHTML='<button onclick="closeAccountModal()" style="position:absolute;top:14px;right:14px;width:44px;height:44px;border-radius:50%;background:#ef4444;border:3px solid #fff;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;z-index:20;box-shadow:0 4px 12px rgba(220,38,38,.4)"><i class="fa-solid fa-xmark"></i></button><div style="text-align:center;padding:20px 4px"><div style="width:72px;height:72px;border-radius:50%;background:#d1fae5;color:#047857;display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 16px"><i class="fa-solid fa-check"></i></div><h3 style="font-size:20px;font-weight:900;color:var(--text-primary);margin-bottom:6px">Compte créé !</h3><p style="font-size:14px;color:var(--text-muted);margin-bottom:18px">Conservez votre mot de passe :</p><div style="font-family:ui-monospace,Menlo,monospace;font-size:22px;font-weight:900;color:#007fff;letter-spacing:2px;padding:18px;background:rgba(0,127,255,.08);border-radius:14px;border:2px dashed #007fff;margin-bottom:18px;word-break:break-all">'+password+'</div><button onclick="copyText(\''+password+'\')" class="btn-3d gray" style="width:100%;padding:14px;margin-bottom:10px;justify-content:center"><i class="fa-solid fa-copy"></i> Copier</button><button onclick="closeAccountModal();var cb=window._pendingCallback;window._pendingCallback=null;if(cb)cb();" class="btn-3d green" style="width:100%;padding:14px;justify-content:center"><i class="fa-solid fa-check"></i> Continuer</button></div>';}
 }catch(err){if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-check"></i> Créer mon compte';}if(err.code==='auth/email-already-in-use'){showToast('Ce numéro est déjà inscrit');}else{showToast('Erreur: '+(err.message||''));}}
@@ -2493,6 +2522,7 @@ try{await window.setStored(window.STORES.boutique,'current',CURRENT_COMMERCANT);
 DEBLOCAGES_MEMORY=[];DEBLOCAGES_DIRTY=true;DEBLOCAGES_LAST_FETCH=0;
 appliquerVisibiliteRole();
 if(user.motDePasseProvisoire){setTimeout(function(){showToast('💡 Changez votre mot de passe dans Profil');},1500);}
+setTimeout(function(){if(window.verifierInvalidationUtilisateur)window.verifierInvalidationUtilisateur();},1000);
 var box=document.querySelector('#account-modal > div');
 if(box){box.innerHTML='<div style="width:80px;height:80px;border-radius:50%;background:#10b981;color:#fff;display:flex;align-items:center;justify-content:center;font-size:40px;margin:20px auto"><i class="fa-solid fa-check"></i></div><h3 style="font-size:22px;font-weight:900;color:var(--text-primary);text-align:center;margin:16px 0 8px">Bienvenue !</h3><p style="font-size:15px;color:var(--text-muted);text-align:center;line-height:1.5">Vous êtes connecté à NeTubeX RDC.</p>';}
 setTimeout(function(){showToast('Connecté');var cb=window._pendingCallback;window._pendingCallback=null;closeAccountModal();if(cb)setTimeout(cb,200);else if(CURRENT_COMMERCE){location.reload();}},1200);
@@ -2533,7 +2563,7 @@ function toggleThemeProfil(){var iD=document.body.classList.contains('dark-mode'
 
 function ouvrirChangerNumero(){if(!window.CURRENT_ACCOUNT){showToast('Connectez-vous');return;}var m=document.getElementById('changePhoneModal');if(!m)return;document.getElementById('newPhoneInput').value='';document.getElementById('confirmPhoneInput').value='';m.classList.add('active');attacherTousPhones();}
 function fermerChangerNumero(){var m=document.getElementById('changePhoneModal');if(m)m.classList.remove('active');}
-async function validerChangerNumero(){var npRaw=(document.getElementById('newPhoneInput')||{}).value||'';var cpRaw=(document.getElementById('confirmPhoneInput')||{}).value||'';if(!npRaw||!cpRaw){showToast('Remplissez les 2 champs');return;}var np=formatPhone243(npRaw),cp=formatPhone243(cpRaw);if(np!==cp){showToast('Numéros différents');return;}if(!isValidePhone243(npRaw)){showToast('Numéro invalide');return;}if(!window.CURRENT_ACCOUNT){showToast('Session expirée');return;}try{await window.updatePhone(window.CURRENT_ACCOUNT.id,np);window.CURRENT_ACCOUNT.phone=np;setCurrentAccount(window.CURRENT_ACCOUNT);await window.setStored(window.STORES.account,'current',window.CURRENT_ACCOUNT);try{localStorage.setItem('ntx_account_backup',JSON.stringify(window.CURRENT_ACCOUNT));}catch(e){}var pe=document.getElementById('profilPhone');var pd=document.getElementById('profilPhoneDisplay');if(pe)pe.textContent=np;if(pd)pd.textContent=np;fermerChangerNumero();showToast('Numéro modifié');}catch(err){showToast('Erreur');}}
+async function validerChangerNumero(){var npRaw=(document.getElementById('newPhoneInput')||{}).value||'';var cpRaw=(document.getElementById('confirmPhoneInput')||{}).value||'';if(!npRaw||!cpRaw){showToast('Remplissez les 2 champs');return;}var np=formatPhone243(npRaw),cp=formatPhone243(cpRaw);if(np!==cp){showToast('Numéros différents');return;}if(!isValidePhone243(npRaw)){showToast('Numéro invalide');return;}if(!window.CURRENT_ACCOUNT){showToast('Session expirée');return;}try{await window.updatePhone(window.CURRENT_ACCOUNT.id,np);window.CURRENT_ACCOUNT.phone=np;setCurrentAccount(window.CURRENT_ACCOUNT);await window.setStored(window.STORES.account,'current',window.CURRENT_ACCOUNT);try{localStorage.setItem('ntx_account_backup',JSON.stringify(window.CURRENT_ACCOUNT));}catch(e){}try{await window.idbDelete('stats','stats_user_'+window.CURRENT_ACCOUNT.id);}catch(e){}try{await window.idbDelete('stats','pubs_user_'+window.CURRENT_ACCOUNT.id);}catch(e){}var pe=document.getElementById('profilPhone');var pd=document.getElementById('profilPhoneDisplay');if(pe)pe.textContent=np;if(pd)pd.textContent=np;fermerChangerNumero();showToast('Numéro modifié');}catch(err){showToast('Erreur');}}
 
 function ouvrirChangerAvatar(){if(!window.CURRENT_ACCOUNT){showToast('Connectez-vous');return;}_changeAvatarUrl=window.CURRENT_ACCOUNT.avatarUrl||'';var m=document.getElementById('changeAvatarModal');var o=document.getElementById('changeAvatarOverlay');var p=document.getElementById('changeAvatarPreview');var rb=document.getElementById('changeAvatarRemoveBtn');if(p){if(_changeAvatarUrl){p.innerHTML='<img src="'+_changeAvatarUrl+'" alt="" style="width:100%;height:100%;object-fit:cover">';}else{p.innerHTML='<i class="fa-solid fa-user"></i>';}}if(rb)rb.style.display=_changeAvatarUrl?'inline-flex':'none';if(o)o.classList.add('active');if(m)m.classList.add('active');}
 function fermerChangerAvatar(){var m=document.getElementById('changeAvatarModal');var o=document.getElementById('changeAvatarOverlay');if(o)o.classList.remove('active');if(m)m.classList.remove('active');}
@@ -2566,6 +2596,9 @@ if(p)p.innerHTML='<img src="'+url+'" alt="" style="width:100%;height:100%;object
 var rb=document.getElementById('changeAvatarRemoveBtn');
 if(rb)rb.style.display='inline-flex';
 mettreAJourAvatarProfilUI();
+try{await window.idbDelete('config','cache_professeurs');}catch(e){}
+try{await window.idbDelete('config','cache_professeurs_ts');}catch(e){}
+try{await window.idbDelete('stats','stats_user_'+window.CURRENT_ACCOUNT.id);}catch(e){}
 showToast('✅ Photo mise à jour');
 setTimeout(fermerChangerAvatar,700);
 }catch(err){
@@ -2574,7 +2607,7 @@ var p=document.getElementById('changeAvatarPreview');
 if(p){if(_changeAvatarUrl)p.innerHTML='<img src="'+_changeAvatarUrl+'" alt="" style="width:100%;height:100%;object-fit:cover">';else p.innerHTML='<i class="fa-solid fa-user"></i>';}
 }finally{e.target.value='';}
 }
-async function retirerAvatarProfil(){if(!window.CURRENT_ACCOUNT){showToast('Connectez-vous');return;}try{await window.updateAvatar(window.CURRENT_ACCOUNT.id,'');window.CURRENT_ACCOUNT.avatarUrl='';setCurrentAccount(window.CURRENT_ACCOUNT);try{await window.setStored(window.STORES.account,'current',window.CURRENT_ACCOUNT);}catch(e){}try{localStorage.setItem('ntx_account_backup',JSON.stringify(window.CURRENT_ACCOUNT));}catch(e){}_changeAvatarUrl='';var p=document.getElementById('changeAvatarPreview');if(p)p.innerHTML='<i class="fa-solid fa-user"></i>';var rb=document.getElementById('changeAvatarRemoveBtn');if(rb)rb.style.display='none';mettreAJourAvatarProfilUI();showToast('Photo retirée');}catch(err){showToast('Erreur: '+err.message);}}
+async function retirerAvatarProfil(){if(!window.CURRENT_ACCOUNT){showToast('Connectez-vous');return;}try{await window.updateAvatar(window.CURRENT_ACCOUNT.id,'');window.CURRENT_ACCOUNT.avatarUrl='';setCurrentAccount(window.CURRENT_ACCOUNT);try{await window.setStored(window.STORES.account,'current',window.CURRENT_ACCOUNT);}catch(e){}try{localStorage.setItem('ntx_account_backup',JSON.stringify(window.CURRENT_ACCOUNT));}catch(e){}_changeAvatarUrl='';var p=document.getElementById('changeAvatarPreview');if(p)p.innerHTML='<i class="fa-solid fa-user"></i>';var rb=document.getElementById('changeAvatarRemoveBtn');if(rb)rb.style.display='none';mettreAJourAvatarProfilUI();try{await window.idbDelete('config','cache_professeurs');}catch(e){}try{await window.idbDelete('config','cache_professeurs_ts');}catch(e){}try{await window.idbDelete('stats','stats_user_'+window.CURRENT_ACCOUNT.id);}catch(e){}showToast('Photo retirée');}catch(err){showToast('Erreur: '+err.message);}}
 function mettreAJourAvatarProfilUI(){var el=document.getElementById('profilAvatar');if(!el)return;if(window.CURRENT_ACCOUNT&&window.CURRENT_ACCOUNT.avatarUrl){el.innerHTML='<img src="'+window.CURRENT_ACCOUNT.avatarUrl+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">';}else{el.innerHTML='👤';}}
 
 async function promptChangerMdp(){
@@ -2824,6 +2857,9 @@ function appliquerTabsSelonRole(){var acc=window.CURRENT_ACCOUNT;if(!acc)return;
 function appliquerTabDefaut(){var acc=window.CURRENT_ACCOUNT;if(!acc)return;var role=acc.role||'user';var aBoutique=acc.boutique&&acc.boutique.statut==='approuve';var estPro=(role==='prefet'||role==='directeur'||role==='professeur');var tab;if(estPro)tab='ecole';else if(aBoutique)tab='catalogue';else tab='pubs';var el=document.querySelector('.dash-tab[data-tab="'+tab+'"]');if(el)switchDashTab(el,tab);}
 
 function go(page,param){
+if(window.verifierInvalidationUtilisateur){
+    window.verifierInvalidationUtilisateur();
+}
 var pagesPubliques=['index','commerces','jobs','immobilier','comment','inscription'];
 if(pagesPubliques.indexOf(page)===-1&&!window.CURRENT_ACCOUNT){requireLogin('accéder',function(){go(page,param);});return;}
 if(page==='ecoles'){
@@ -2966,7 +3002,7 @@ PROFESSEURS_DATA=await window.chargerProfesseursFirestore(false);
 renderStatsReseau();
 renderContexteReseau();
 filtrerProfsReseau();
-}catch(e){console.error(e);}
+}catch(e){}
 }
 
 function renderStatsReseau(){
@@ -3192,6 +3228,7 @@ try{
 await window.noterProfesseur(_reseauNotationProfId,_reseauNotationEcoleId,_reseauNotationEtoiles,commentaire.trim());
 showToast('✅ Note enregistrée');
 await window.invaliderCache('cache_professeurs');
+try{await window.idbDelete('config','cache_professeurs_ts');}catch(e){}
 fermerNotationReseau();
 PROFESSEURS_DATA=await window.chargerProfesseursFirestore(true);
 renderStatsReseau();
@@ -3292,6 +3329,11 @@ try{var blob=await fetch(_reseauAjoutPhoto).then(function(r){return r.blob();});
 }
 var diplomes=diplomesStr?diplomesStr.split(',').map(function(s){return s.trim();}).filter(Boolean):[];
 var result=await window.ajouterProfesseurFirestore({nom:nom,matiere:matiere,sections:_reseauAjoutSections,ville:ville,anneesExperience:exp,dateDebut:dateDebut,telephone:formatPhone243(telRaw),diplomes:diplomes,bio:bio,avatarUrl:avatarUrl});
+try{await window.idbDelete('config','cache_professeurs');}catch(e){}
+try{await window.idbDelete('config','cache_professeurs_ts');}catch(e){}
+try{await window.idbDelete('config','cache_ecoles');}catch(e){}
+try{await window.idbDelete('config','cache_ecoles_ts');}catch(e){}
+try{await window.idbDelete('stats','demandes_ecole_'+window.CURRENT_ACCOUNT.id);}catch(e){}
 if(result.fusion){
 showToast('📩 Demande envoyée (fiche existante)');
 fermerAjouterProfReseau();
@@ -3349,11 +3391,19 @@ if (btnElement) { btnElement.disabled = false; btnElement.innerHTML = '<i class=
 }
 }
 
-async function chargerDemandesProfRattachement(){
-var c=document.getElementById('dashEcoleContent');
-if(!c)return;
-if(!window.CURRENT_ACCOUNT){c.innerHTML='';return;}
-if(window.CURRENT_ACCOUNT.role==='professeur'){
+async function chargerDemandesProfRattachement(force){
+    var c=document.getElementById('dashEcoleContent');
+    if(!c)return;
+    if(!window.CURRENT_ACCOUNT){c.innerHTML='';return;}
+    
+    var cacheKey='demandes_ecole_'+window.CURRENT_ACCOUNT.id;
+    var cached=await idbGet('stats',cacheKey);
+    if(!force && cached && cached.data && (Date.now()-cached.ts)<60*60*1000){
+        c.innerHTML=cached.data;
+        return;
+    }
+    
+    if(window.CURRENT_ACCOUNT.role==='professeur'){
 var demandes=[];
 try{demandes=await window.chargerDemandesProf(window.CURRENT_ACCOUNT.id);}catch(e){}
 var monProfil=PROFESSEURS_DATA.find(function(p){return p.uid===window.CURRENT_ACCOUNT.id||p.id===window.CURRENT_ACCOUNT.professeurId;});
@@ -3410,23 +3460,31 @@ c.innerHTML=html;
 }else{
 c.innerHTML='<div class="section-card-3d" style="padding:20px;text-align:center;color:var(--text-muted);font-size:14px">Section réservée aux professeurs et préfets/directeurs.</div>';
 }
+
+try{await idbSet('stats',cacheKey,{data:c.innerHTML,ts:Date.now()});}catch(e){}
 }
 
 async function accepterDemandeRattachementUI(demId){
-try{
-await window.accepterDemandeRattachement(demId);
-showToast('✅ Demande acceptée');
-PROFESSEURS_DATA=await window.chargerProfesseursFirestore(true);
-chargerDemandesProfRattachement();
-}catch(e){showToast('Erreur');}
+    try{
+        await window.accepterDemandeRattachement(demId);
+        try{await window.idbDelete('stats','demandes_ecole_'+window.CURRENT_ACCOUNT.id);}catch(e){}
+        try{await window.idbDelete('config','cache_professeurs');}catch(e){}
+        try{await window.idbDelete('config','cache_professeurs_ts');}catch(e){}
+        showToast('✅ Demande acceptée');
+        PROFESSEURS_DATA=await window.chargerProfesseursFirestore(true);
+        chargerDemandesProfRattachement(true);
+    }catch(e){showToast('Erreur');}
 }
 
 async function refuserDemandeRattachementUI(demId){
-try{
-await window.refuserDemandeRattachement(demId);
-showToast('Demande refusée');
-chargerDemandesProfRattachement();
-}catch(e){showToast('Erreur');}
+    try{
+        await window.refuserDemandeRattachement(demId);
+        try{await window.idbDelete('stats','demandes_ecole_'+window.CURRENT_ACCOUNT.id);}catch(e){}
+        try{await window.idbDelete('config','cache_professeurs');}catch(e){}
+        try{await window.idbDelete('config','cache_professeurs_ts');}catch(e){}
+        showToast('Demande refusée');
+        chargerDemandesProfRattachement(true);
+    }catch(e){showToast('Erreur');}
 }
 
 function ouvrirReservation(commerceId){var c=null;for(var i=0;i<COMMERCES_DATA.length;i++){if(COMMERCES_DATA[i].id===commerceId){c=COMMERCES_DATA[i];break;}}if(!c){showToast('Commerce introuvable');return;}requireLogin('réserver',function(){_resaCommerceId=commerceId;_resaChambreSelectionnee=null;var nomEl=document.getElementById('reservationCommerceName');if(nomEl)nomEl.textContent=c.nom||'Hôtel';var nEl=document.getElementById('resaNom');var pEl=document.getElementById('resaPhone');if(nEl)nEl.value=(window.CURRENT_ACCOUNT&&window.CURRENT_ACCOUNT.name)?window.CURRENT_ACCOUNT.name:'';if(pEl&&window.CURRENT_ACCOUNT&&window.CURRENT_ACCOUNT.phone){var digits=String(window.CURRENT_ACCOUNT.phone).replace(/[^\d]/g,'');if(digits.length>9&&digits.indexOf('243')===0)digits=digits.substring(3);while(digits.length>0&&digits.charAt(0)==='0')digits=digits.substring(1);pEl.value=digits.slice(0,9);}var today=new Date();var tomorrow=new Date(Date.now()+86400000);var dArr=document.getElementById('resaDateArrivee');var dDep=document.getElementById('resaDateDepart');if(dArr)dArr.value=today.toISOString().split('T')[0];if(dDep)dDep.value=tomorrow.toISOString().split('T')[0];var ch=document.getElementById('resaChambres');if(ch)ch.value='1';var pe=document.getElementById('resaPersonnes');if(pe)pe.value='2';var nu=document.getElementById('resaNuits');if(nu)nu.value='1';var no=document.getElementById('resaNotes');if(no)no.value='';renderChambresResa(c);var o=document.getElementById('reservationOverlay');var m=document.getElementById('reservationModal');if(o){o.style.opacity='1';o.style.pointerEvents='auto';}if(m){m.style.transform='translateY(0)';m.classList.add('active');}document.body.style.overflow='hidden';});}
@@ -3489,7 +3547,7 @@ refreshAddButtons();
 function openUnlock(){if(!CURRENT_OFFRE)return;var aId=CURRENT_OFFRE.annonceId||CURRENT_OFFRE.id;if(!aId){showToast('Annonce introuvable');return;}var ncu=normCat(CURRENT_OFFRE.cat);var f=CAT_IMMO.indexOf(ncu)!==-1?1000:400;var me=document.getElementById('unlockMontant');var mi=document.getElementById('unlockMontantInline');if(me)me.textContent=f.toLocaleString('fr-FR')+' FC';if(mi)mi.textContent=f.toLocaleString('fr-FR')+' FC';window._pendingDeblocageMontant=f;document.getElementById('unlock-modal').style.display='flex';attacherTousPhones();var de=DEBLOCAGES_MEMORY.find(function(d){return d.annonceId===aId&&(d.statut==='en_attente'||d.statut==='debloque');});if(de){document.getElementById('unlock-modal').style.display='none';if(de.statut==='en_attente'){showToast('Demande en cours');}else{showToast('Déjà débloqué');}}}
 function annulerDeblocage(){document.getElementById('unlock-modal').style.display='none';var t=document.getElementById('unlockTxId');var n=document.getElementById('unlockNumEnvoi');if(t)t.value='';if(n)n.value='';showToast('Annulé');}
 function fermerDeblocageModalSilencieux(){document.getElementById('unlock-modal').style.display='none';var t=document.getElementById('unlockTxId');var n=document.getElementById('unlockNumEnvoi');if(t)t.value='';if(n)n.value='';}
-async function validerDeblocage(){if(!CURRENT_OFFRE){showToast('Introuvable');return;}if(!window.CURRENT_ACCOUNT){showToast('Connectez-vous');return;}var aId=CURRENT_OFFRE.annonceId||CURRENT_OFFRE.id||('LOCAL-'+Date.now());var tx=(document.getElementById('unlockTxId')||{}).value?document.getElementById('unlockTxId').value.trim():'';var neRaw=(document.getElementById('unlockNumEnvoi')||{}).value?document.getElementById('unlockNumEnvoi').value.trim():'';if(!tx||tx.length<6){showToast('ID Transaction invalide');return;}if(!isValidePhone243(neRaw)){showToast('Numéro invalide');return;}var ne=formatPhone243(neRaw);var f=window._pendingDeblocageMontant||400;var sb=document.querySelector('#unlock-modal button[type="submit"]');if(sb){sb.disabled=true;sb.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Envoi…';}try{await window.creerDeblocage(window.CURRENT_ACCOUNT.id,aId,tx,f,ne);DEBLOCAGES_DIRTY=true;fermerDeblocageModalSilencieux();document.getElementById('deblocagePendingOverlay').classList.add('active');document.getElementById('deblocagePendingModal').classList.add('active');await rafraichirTousDeblocages();majVisibiliteSectionDeblocages();}catch(err){showToast('Erreur');}finally{if(sb){sb.disabled=false;sb.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer';}}}
+async function validerDeblocage(){if(!CURRENT_OFFRE){showToast('Introuvable');return;}if(!window.CURRENT_ACCOUNT){showToast('Connectez-vous');return;}var aId=CURRENT_OFFRE.annonceId||CURRENT_OFFRE.id||('LOCAL-'+Date.now());var tx=(document.getElementById('unlockTxId')||{}).value?document.getElementById('unlockTxId').value.trim():'';var neRaw=(document.getElementById('unlockNumEnvoi')||{}).value?document.getElementById('unlockNumEnvoi').value.trim():'';if(!tx||tx.length<6){showToast('ID Transaction invalide');return;}if(!isValidePhone243(neRaw)){showToast('Numéro invalide');return;}var ne=formatPhone243(neRaw);var f=window._pendingDeblocageMontant||400;var sb=document.querySelector('#unlock-modal button[type="submit"]');if(sb){sb.disabled=true;sb.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Envoi…';}try{await window.creerDeblocage(window.CURRENT_ACCOUNT.id,aId,tx,f,ne);DEBLOCAGES_DIRTY=true;fermerDeblocageModalSilencieux();document.getElementById('deblocagePendingOverlay').classList.add('active');document.getElementById('deblocagePendingModal').classList.add('active');await rafraichirTousDeblocages();majVisibiliteSectionDeblocages();try{await window.idbDelete('stats','abo_badge_'+window.CURRENT_ACCOUNT.id);}catch(e){}}catch(err){showToast('Erreur');}finally{if(sb){sb.disabled=false;sb.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer';}}}
 function annulerPaiementPublication(){document.getElementById('paiementModal').style.display='none';window._pendingPublishData=null;showToast('Annulé');}
 function fermerPaiementModalSilencieux(){document.getElementById('paiementModal').style.display='none';}
 function closeDeblocagePending(){document.getElementById('deblocagePendingOverlay').classList.remove('active');document.getElementById('deblocagePendingModal').classList.remove('active');}
@@ -3561,6 +3619,8 @@ async function submitInscriptionBoutique(){
             uid: window.CURRENT_ACCOUNT.id
         };
         await window.creerDemandeBoutique(da);
+        try{await window.idbDelete('stats','commerce_user_'+window.CURRENT_ACCOUNT.id);}catch(e){}
+        try{await window.idbDelete('stats','stats_user_'+window.CURRENT_ACCOUNT.id);}catch(e){}
         var msg = '*NeTubeX RDC*%0A%0A🏪 *DEMANDE COMMERCE*%0A%0A👤 *CONTACT*%0A• Nom : ' + encodeURIComponent(n) + '%0A• Tél : ' + encodeURIComponent(t) + '%0A• WhatsApp : ' + encodeURIComponent(wc) + '%0A%0A🏬 *COMMERCE*%0A• Nom : ' + encodeURIComponent(nc) + '%0A• Type : ' + encodeURIComponent(ty) + '%0A• Ville : ' + encodeURIComponent(v) + '%0A• Quartier : ' + encodeURIComponent(q) + (a ? '%0A• Adresse : ' + encodeURIComponent(a) : '') + (h ? '%0A• Horaires : ' + encodeURIComponent(h) : '') + (d ? '%0A%0A📝 ' + encodeURIComponent(d) : '');
         afficherPopupWhatsApp(msg, '243845048412');
         var f = document.getElementById('inscriptionForm');
@@ -3569,7 +3629,6 @@ async function submitInscriptionBoutique(){
         document.getElementById('boutiquePendingOverlay').classList.add('active');
         document.getElementById('boutiquePendingModal').classList.add('active');
     } catch (err) {
-        console.error(err);
         showToast('❌ Erreur lors de l\'envoi : ' + (err.message || 'Veuillez réessayer.'));
     } finally {
         if (b) {
@@ -3634,6 +3693,8 @@ async function validerPaiementEtPublier(){
     );
     try{await idbDelete('stats','stats_user_'+window.CURRENT_ACCOUNT.id);}catch(e){}
     try{await idbDelete('stats','pubs_user_'+window.CURRENT_ACCOUNT.id);}catch(e){}
+    try{await idbDelete('config','cache_annonces');}catch(e){}
+    try{await idbDelete('config','cache_annonces_ts');}catch(e){}
     fermerPaiementModalSilencieux();
     document.getElementById('publishPendingOverlay').classList.add('active');
     document.getElementById('publishPendingModal').classList.add('active');
@@ -3648,8 +3709,9 @@ async function validerPaiementEtPublier(){
 }
 function closePublishPending(){document.getElementById('publishPendingOverlay').classList.remove('active');document.getElementById('publishPendingModal').classList.remove('active');showToast('Publication enregistrée');setTimeout(function(){go('index');},400);}
 
-async function renderMesStats(){var t=document.getElementById('statTotalVues');var s=document.getElementById('statTotalVuesSub');if(!t)return;if(!window.CURRENT_ACCOUNT||!window.CURRENT_ACCOUNT.id){t.textContent='—';if(s)s.textContent='Connectez-vous';return;}t.textContent='…';if(s)s.textContent='Chargement…';try{var cacheKey='stats_user_'+window.CURRENT_ACCOUNT.id;var cached=await idbGet('stats',cacheKey);var stats;if(cached&&(Date.now()-cached.ts)<30*60*1000){stats=cached.data;}else{if(!peutLireFirebase())return;var snap=await window.getDocRef(window.docRef(window.db,'user_stats',window.CURRENT_ACCOUNT.id));if(!snap.exists()){stats={totalVues:0,nbAnnonces:0};try{await window.setDoc(window.docRef(window.db,'user_stats',window.CURRENT_ACCOUNT.id),{totalVues:0,nbAnnonces:0,nbPubliees:0,nbEnAttente:0,nbRefusees:0,totalDeblocages:0,totalCommerceVues:0,nbProduitsCommerce:0,derniereMiseAJour:new Date().toISOString()});}catch(e){}}else{stats=snap.data();}await idbSet('stats',cacheKey,{data:stats,ts:Date.now()});}t.textContent=(stats.totalVues||0).toLocaleString('fr-FR');if(s){if((stats.nbAnnonces||0)===0)s.textContent='Aucune annonce publiée';else s.textContent='Vues sur '+stats.nbAnnonces+' annonce'+(stats.nbAnnonces>1?'s':'');}var c=await chargerCommerceCommercant();if(c){var st=document.getElementById('statVuesBoutique');var sp=document.getElementById('statNbProduits');var sec=document.getElementById('statsBoutiqueSection');if(sec)sec.style.display='block';if(st)st.textContent=(c.vues||0).toLocaleString('fr-FR');var prods=(c.produits||[]).filter(function(p){return!p.statut||p.statut==='approuve';});if(sp)sp.textContent=prods.length;}}catch(e){t.textContent='0';if(s)s.textContent='Aucune donnée';}}
-async function chargerCommerceCommercant(){if(!window.CURRENT_ACCOUNT||!window.CURRENT_ACCOUNT.id)return null;var cacheKey='commerce_user_'+window.CURRENT_ACCOUNT.id;var cached=await idbGet('stats',cacheKey);if(cached&&(Date.now()-cached.ts)<60*60*1000){return cached.data;}if(!peutLireFirebase())return null;try{var q=window.query(window.collection(window.db,'commerces'),window.where('uid','==',window.CURRENT_ACCOUNT.id));var snap=await window.getDocs(q);var c=null;snap.forEach(function(d){c=Object.assign({id:d.id},d.data());});await idbSet('stats',cacheKey,{data:c,ts:Date.now()});return c;}catch(e){return null;}}
+async function renderMesStats(){var t=document.getElementById('statTotalVues');var s=document.getElementById('statTotalVuesSub');if(!t)return;if(!window.CURRENT_ACCOUNT||!window.CURRENT_ACCOUNT.id){t.textContent='—';if(s)s.textContent='Connectez-vous';return;}t.textContent='…';if(s)s.textContent='Chargement…';try{var cacheKey='stats_user_'+window.CURRENT_ACCOUNT.id;var cached=await idbGet('stats',cacheKey);var stats;if(cached&&(Date.now()-cached.ts)<6*60*60*1000){stats=cached.data;}else{if(!peutLireFirebase())return;var snap=await window.getDocRef(window.docRef(window.db,'user_stats',window.CURRENT_ACCOUNT.id));if(!snap.exists()){stats={totalVues:0,nbAnnonces:0};try{await window.setDoc(window.docRef(window.db,'user_stats',window.CURRENT_ACCOUNT.id),{totalVues:0,nbAnnonces:0,nbPubliees:0,nbEnAttente:0,nbRefusees:0,totalDeblocages:0,totalCommerceVues:0,nbProduitsCommerce:0,derniereMiseAJour:new Date().toISOString()});}catch(e){}}else{stats=snap.data();}await idbSet('stats',cacheKey,{data:stats,ts:Date.now()});}t.textContent=(stats.totalVues||0).toLocaleString('fr-FR');if(s){if((stats.nbAnnonces||0)===0)s.textContent='Aucune annonce publiée';else s.textContent='Vues sur '+stats.nbAnnonces+' annonce'+(stats.nbAnnonces>1?'s':'');}var c=await chargerCommerceCommercant();if(c){var st=document.getElementById('statVuesBoutique');var sp=document.getElementById('statNbProduits');var sec=document.getElementById('statsBoutiqueSection');if(sec)sec.style.display='block';if(st)st.textContent=(c.vues||0).toLocaleString('fr-FR');var prods=(c.produits||[]).filter(function(p){return!p.statut||p.statut==='approuve';});if(sp)sp.textContent=prods.length;}}catch(e){t.textContent='0';if(s)s.textContent='Aucune donnée';}}
+async function chargerCommerceCommercant(){if(!window.CURRENT_ACCOUNT||!window.CURRENT_ACCOUNT.id)return null;var cacheKey='commerce_user_'+window.CURRENT_ACCOUNT.id;var cached=await idbGet('stats',cacheKey);if(cached&&(Date.now()-cached.ts)<6*60*60*1000){return cached.data;}if(!peutLireFirebase())return null;try{var q=window.query(window.collection(window.db,'commerces'),window.where('uid','==',window.CURRENT_ACCOUNT.id));var snap=await window.getDocs(q);var c=null;snap.forEach(function(d){c=Object.assign({id:d.id},d.data());});await idbSet('stats',cacheKey,{data:c,ts:Date.now()});return c;}catch(e){return null;}}
+
 async function renderMesPublications(){
     var c=document.getElementById('mesPublicationsListe');
     if(!c)return;
@@ -3657,40 +3719,52 @@ async function renderMesPublications(){
         c.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:14px">Connectez-vous.</div>';
         return;
     }
+    var cacheKey='pubs_user_'+window.CURRENT_ACCOUNT.id;
+    var cached=await idbGet('stats',cacheKey);
+    if(cached && cached.data && (Date.now()-cached.ts)<30*60*1000){
+        afficherPublicationsListe(cached.data);
+        return;
+    }
     c.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:14px"><i class="fa-solid fa-spinner fa-spin"></i> Chargement…</div>';
     try{
         if(!peutLireFirebase()) return;
-        var q = window.query(window.collection(window.db,'annonces'), window.where('proprietaireUid','==',window.CURRENT_ACCOUNT.id), window.limit(20));
+        var q = window.query(window.collection(window.db,'annonces'), window.where('proprietaireUid','==',window.CURRENT_ACCOUNT.id), window.limit(10));
         var snap = await window.getDocs(q);
         var ma = [];
-        snap.forEach(function(d){
-            ma.push(Object.assign({id:d.id},d.data()));
-        });
-        ma.sort(function(a,b){
-            return (b.dateCreation||'').localeCompare(a.dateCreation||'');
-        });
-        try { await idbSet('stats','pubs_user_'+window.CURRENT_ACCOUNT.id,{data:ma,ts:Date.now()}); } catch(e){}
-        if(ma.length===0){
-            c.innerHTML='<div style="text-align:center;padding:24px 12px;color:var(--text-muted);font-size:14px">Aucune publication.</div>';
-            return;
-        }
-        c.innerHTML = ma.map(function(a){
-            var sb='';
-            if(a.statut==='en_attente') sb='<span style="font-size:11px;font-weight:900;padding:4px 9px;border-radius:6px;background:#fef3c7;color:#92400e;text-transform:uppercase">⏳ En attente</span>';
-            else if(a.statut==='approuve') sb='<span style="font-size:11px;font-weight:900;padding:4px 9px;border-radius:6px;background:#d1fae5;color:#065f46;text-transform:uppercase">✅ Publié</span>';
-            else if(a.statut==='refuse') sb='<span style="font-size:11px;font-weight:900;padding:4px 9px;border-radius:6px;background:#fee2e2;color:#991b1b;text-transform:uppercase">❌ Refusé</span>';
-            return '<div class="pub-item">'+
-                (a.img?'<img src="'+esc(a.img)+'" onerror="this.style.display=\'none\'">':'<div style="width:52px;height:52px;background:var(--bg-card);border:1px solid var(--border-primary);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">📄</div>')+
-                '<div class="pub-item-info"><div class="pub-item-titre">'+esc(a.titre||'Sans titre')+'</div><div class="pub-item-ville">'+esc(a.ville||'')+'</div><div style="margin-top:6px">'+sb+'</div></div>'+
-            '</div>';
-        }).join('');
+        snap.forEach(function(d){ ma.push(Object.assign({id:d.id},d.data())); });
+        ma.sort(function(a,b){ return (b.dateCreation||'').localeCompare(a.dateCreation||''); });
+        try{ await idbSet('stats',cacheKey,{data:ma,ts:Date.now()}); }catch(e){}
+        afficherPublicationsListe(ma);
     } catch(e) {
         c.innerHTML='<div style="text-align:center;padding:20px;color:#dc2626;font-size:14px">Erreur de chargement. Veuillez réessayer.</div>';
     }
 }
+
+function afficherPublicationsListe(ma){
+    var c=document.getElementById('mesPublicationsListe');
+    if(!c)return;
+    if(ma.length===0){
+        c.innerHTML='<div style="text-align:center;padding:24px 12px;color:var(--text-muted);font-size:14px">Aucune publication.</div>';
+        return;
+    }
+    c.innerHTML = ma.map(function(a){
+        var sb='';
+        if(a.statut==='en_attente') sb='<span style="font-size:11px;font-weight:900;padding:4px 9px;border-radius:6px;background:#fef3c7;color:#92400e;text-transform:uppercase">⏳ En attente</span>';
+        else if(a.statut==='approuve') sb='<span style="font-size:11px;font-weight:900;padding:4px 9px;border-radius:6px;background:#d1fae5;color:#065f46;text-transform:uppercase">✅ Publié</span>';
+        else if(a.statut==='refuse') sb='<span style="font-size:11px;font-weight:900;padding:4px 9px;border-radius:6px;background:#fee2e2;color:#991b1b;text-transform:uppercase">❌ Refusé</span>';
+        return '<div class="pub-item">'+
+            (a.img?'<img src="'+esc(a.img)+'" onerror="this.style.display=\'none\'">':'<div style="width:52px;height:52px;background:var(--bg-card);border:1px solid var(--border-primary);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">📄</div>')+
+            '<div class="pub-item-info"><div class="pub-item-titre">'+esc(a.titre||'Sans titre')+'</div><div class="pub-item-ville">'+esc(a.ville||'')+'</div><div style="margin-top:6px">'+sb+'</div></div>'+
+        '</div>';
+    }).join('');
+}
+
 async function verifierBoutiqueEtAfficher(){var ti=document.getElementById('dashTabInfos');var tc=document.getElementById('dashTabCatalogue');var sb=document.getElementById('shopStatusBadge');var bandeau=document.getElementById('bandeauStatutBoutique');var statsBoutique=document.getElementById('statsBoutiqueSection');if(!window.CURRENT_ACCOUNT){if(ti)ti.style.display='none';if(tc)tc.style.display='none';if(sb)sb.style.display='none';if(statsBoutique)statsBoutique.style.display='none';return;}var b=window.CURRENT_ACCOUNT.boutique;if(!b){var c=await chargerCommerceCommercant();if(c){b={uid:c.uid,nom:c.nom,type:c.type,ville:c.ville,quartier:c.quartier,adresse:c.adresse,horaires:c.horaires,telephone:c.telephone,whatsappCommercial:c.whatsappCommercial||c.whatsapp,statut:c.statut,img:c.img,emoji:c.emoji,description:c.description,retraitActif:c.retraitActif,livraisonActive:c.livraisonActive};}if(!b){if(ti)ti.style.display='none';if(tc)tc.style.display='none';if(sb)sb.style.display='none';if(bandeau)bandeau.style.display='none';if(statsBoutique)statsBoutique.style.display='none';return;}}if(b.statut==='approuve'){if(bandeau)bandeau.style.display='none';afficherInfosBoutique(b);}else if(b.statut==='en_attente'){if(bandeau){bandeau.style.display='block';bandeau.innerHTML='<div class="bandeau-statut attente"><i class="fa-solid fa-hourglass-half"></i><div><strong>Commerce en attente</strong><br>Vous serez appelé sous 30 min.</div></div>';}}else if(b.statut==='refuse'){if(bandeau){bandeau.style.display='block';bandeau.innerHTML='<div class="bandeau-statut refuse"><i class="fa-solid fa-circle-xmark"></i><div><strong>Commerce refusé</strong><br>Contactez le support.</div></div>';}}}
 function afficherInfosBoutique(b){var av=document.getElementById('shopHeroAvatar');var nm=document.getElementById('shopHeroName');var ty=document.getElementById('shopHeroType');var sb=document.getElementById('shopStatusBadge');var list=document.getElementById('shopInfoList');if(av){if(b.img||b.emoji){if(b.img){av.innerHTML='<img src="'+esc(b.img)+'" alt="">';}else{av.textContent=b.emoji||'🏪';}}else{av.textContent='🏪';}}if(nm)nm.textContent=b.nom||'Mon commerce';if(ty)ty.textContent=(b.type||'Commerce')+' · '+(b.ville||'RDC')+(b.quartier?' · '+b.quartier:'');if(sb){if(b.statut==='approuve'){sb.className='shop-status-badge approuve';sb.innerHTML='<i class="fa-solid fa-circle-check"></i> Commerce approuvé';}else if(b.statut==='en_attente'){sb.className='shop-status-badge en_attente';sb.innerHTML='<i class="fa-solid fa-hourglass-half"></i> En attente';}else{sb.className='shop-status-badge refuse';sb.innerHTML='<i class="fa-solid fa-circle-xmark"></i> Refusé';}}if(list){var items=[];if(b.telephone)items.push({icon:'fa-phone',color:'#007fff',label:'Téléphone',value:b.telephone});if(b.whatsappCommercial||b.whatsapp)items.push({icon:'fa-brands fa-whatsapp',color:'#10b981',label:'WhatsApp',value:b.whatsappCommercial||b.whatsapp});if(b.adresse)items.push({icon:'fa-location-dot',color:'#ef4444',label:'Adresse',value:b.adresse});if(b.horaires)items.push({icon:'fa-clock',color:'#f59e0b',label:'Horaires',value:b.horaires});list.innerHTML=items.map(function(it){return'<div class="shop-info-item"><div class="shop-info-icon" style="background:'+it.color+'"><i class="fa-solid '+it.icon+'"></i></div><div class="shop-info-content"><div class="shop-info-label">'+it.label+'</div><div class="shop-info-value">'+esc(it.value)+'</div></div></div>';}).join('');}}
 async function switchDashTab(el,tab){
+    if(window.verifierInvalidationUtilisateur){
+        window.verifierInvalidationUtilisateur();
+    }
     document.querySelectorAll('#page-dashboard-utilisateur .dash-tab').forEach(function(x){x.classList.remove('active');});
     el.classList.add('active');
     document.querySelectorAll('#page-dashboard-utilisateur .dash-panel').forEach(function(p){p.style.display='none';});
@@ -3743,6 +3817,8 @@ produits.push({nom:nom,prix:prix,prixLabel:unit,categorie:cat,img:imgUrl,statut:
 await window.setDoc(ref,{produits:produits},{merge:true});
 await window.invaliderCache('cache_commerces');
 try{await idbDelete('stats','commerce_user_'+window.CURRENT_ACCOUNT.id);}catch(e){}
+try{await idbDelete('config','cache_commerces');}catch(e){}
+try{await idbDelete('config','cache_commerces_ts');}catch(e){}
 fermerAjouterProduit();
 showToast('✅ Produit envoyé');
 document.getElementById('produitPendingModal').classList.add('active');
@@ -3752,10 +3828,10 @@ setTimeout(function(){ouvrirCatalogueCommercant();},500);
 function fermerProduitPending(){document.getElementById('produitPendingModal').classList.remove('active');}
 function ouvrirChangerPrix(nom,index){if(SUPPRESSIONS_JOUR>=SUPPRESSIONS_MAX){showToast('Limite atteinte');return;}var p=CATALOGUE_FULL[index];if(!p)return;_editProduitIndex=index;_editProduitNom=nom;_editProduitCommerceId=CATALOGUE_COMMERCE_ID;document.getElementById('changerPrixNom').textContent=nom;document.getElementById('nouveauPrix').value=p.prix||'';var selUnit=document.getElementById('nouveauPrixLabel');var inputAutre=document.getElementById('nouveauPrixLabelAutre');var existingUnit=p.prixLabel||'';var knownUnits=['','/ pièce','/ kg','/ sac','/ bouteille','/ pack','/ lot','/ carton'];if(knownUnits.indexOf(existingUnit)!==-1){selUnit.value=existingUnit;inputAutre.style.display='none';inputAutre.value='';}else if(existingUnit){selUnit.value='autre';inputAutre.style.display='block';inputAutre.value=existingUnit.replace(/^\/\s*/,'');}else{selUnit.value='';inputAutre.style.display='none';inputAutre.value='';}document.getElementById('changerPrixModal').classList.add('active');}
 function fermerChangerPrix(){document.getElementById('changerPrixModal').classList.remove('active');_editProduitIndex=-1;}
-async function validerChangerPrix(){var np=parseInt(document.getElementById('nouveauPrix').value,10);var nu=getUniteValue('nouveauPrixLabel','nouveauPrixLabelAutre');if(document.getElementById('nouveauPrixLabel').value==='autre'&&!nu){showToast('Précisez l\'unité');return;}if(!np||np<=0){showToast('Prix invalide');return;}if(_editProduitIndex<0){showToast('Erreur');return;}try{var ref=window.docRef(window.db,'commerces',_editProduitCommerceId);var snap=await window.getDocRef(ref);if(!snap.exists()){showToast('Erreur');return;}var data=snap.data();var produits=data.produits||[];if(!produits[_editProduitIndex]){showToast('Introuvable');return;}produits[_editProduitIndex].prix=np;produits[_editProduitIndex].prixLabel=nu;await window.setDoc(ref,{produits:produits},{merge:true});await window.invaliderCache('cache_commerces');try{await idbDelete('stats','commerce_user_'+window.CURRENT_ACCOUNT.id);}catch(e){}fermerChangerPrix();showToast('✅ Prix mis à jour');await ouvrirCatalogueCommercant();}catch(err){showToast('Erreur');}}
+async function validerChangerPrix(){var np=parseInt(document.getElementById('nouveauPrix').value,10);var nu=getUniteValue('nouveauPrixLabel','nouveauPrixLabelAutre');if(document.getElementById('nouveauPrixLabel').value==='autre'&&!nu){showToast('Précisez l\'unité');return;}if(!np||np<=0){showToast('Prix invalide');return;}if(_editProduitIndex<0){showToast('Erreur');return;}try{var ref=window.docRef(window.db,'commerces',_editProduitCommerceId);var snap=await window.getDocRef(ref);if(!snap.exists()){showToast('Erreur');return;}var data=snap.data();var produits=data.produits||[];if(!produits[_editProduitIndex]){showToast('Introuvable');return;}produits[_editProduitIndex].prix=np;produits[_editProduitIndex].prixLabel=nu;await window.setDoc(ref,{produits:produits},{merge:true});await window.invaliderCache('cache_commerces');try{await idbDelete('stats','commerce_user_'+window.CURRENT_ACCOUNT.id);}catch(e){}try{await idbDelete('config','cache_commerces');}catch(e){}try{await idbDelete('config','cache_commerces_ts');}catch(e){}fermerChangerPrix();showToast('✅ Prix mis à jour');await ouvrirCatalogueCommercant();}catch(err){showToast('Erreur');}}
 function ouvrirSupprimerProduit(nom,index){if(SUPPRESSIONS_JOUR>=SUPPRESSIONS_MAX){showToast('⚠️ Limite atteinte');return;}var p=CATALOGUE_FULL[index];if(!p)return;_editProduitIndex=index;_editProduitNom=nom;_editProduitCommerceId=CATALOGUE_COMMERCE_ID;document.getElementById('supprimerProduitNom').textContent=nom;document.getElementById('supprimerProduitModal').classList.add('active');}
 function fermerSupprimerProduit(){document.getElementById('supprimerProduitModal').classList.remove('active');_editProduitIndex=-1;}
-async function validerSuppressionProduit(){if(_editProduitIndex<0){showToast('Erreur');return;}if(SUPPRESSIONS_JOUR>=SUPPRESSIONS_MAX){showToast('Limite atteinte');fermerSupprimerProduit();return;}try{var ref=window.docRef(window.db,'commerces',_editProduitCommerceId);var snap=await window.getDocRef(ref);if(!snap.exists()){showToast('Erreur');return;}var data=snap.data();var produits=data.produits||[];produits.splice(_editProduitIndex,1);await window.setDoc(ref,{produits:produits},{merge:true});await window.invaliderCache('cache_commerces');try{await idbDelete('stats','commerce_user_'+window.CURRENT_ACCOUNT.id);}catch(e){}await incrementerSuppressions();fermerSupprimerProduit();showToast('✅ Produit supprimé');await ouvrirCatalogueCommercant();}catch(err){showToast('Erreur');}}
+async function validerSuppressionProduit(){if(_editProduitIndex<0){showToast('Erreur');return;}if(SUPPRESSIONS_JOUR>=SUPPRESSIONS_MAX){showToast('Limite atteinte');fermerSupprimerProduit();return;}try{var ref=window.docRef(window.db,'commerces',_editProduitCommerceId);var snap=await window.getDocRef(ref);if(!snap.exists()){showToast('Erreur');return;}var data=snap.data();var produits=data.produits||[];produits.splice(_editProduitIndex,1);await window.setDoc(ref,{produits:produits},{merge:true});await window.invaliderCache('cache_commerces');try{await idbDelete('stats','commerce_user_'+window.CURRENT_ACCOUNT.id);}catch(e){}try{await idbDelete('config','cache_commerces');}catch(e){}try{await idbDelete('config','cache_commerces_ts');}catch(e){}await incrementerSuppressions();fermerSupprimerProduit();showToast('✅ Produit supprimé');await ouvrirCatalogueCommercant();}catch(err){showToast('Erreur');}}
 function toggleSearchCard(){requireLogin('rechercher',function(){var wrapper=document.getElementById('searchCardWrapper');var trigger=document.getElementById('besoinTrigger');if(!wrapper||!trigger)return;wrapper.classList.add('open');trigger.classList.add('hidden');setTimeout(function(){var input=document.getElementById('searchQuery');if(input)input.focus();},300);});}
 function fermerSearchCard(){var wrapper=document.getElementById('searchCardWrapper');var trigger=document.getElementById('besoinTrigger');if(!wrapper||!trigger)return;wrapper.classList.remove('open');trigger.classList.remove('hidden');}
 function ouvrirPublierJob(){requireLogin('publier',function(){go('publish','jobs');});}
@@ -3771,17 +3847,20 @@ function demarrerPolling(){
 if(_pollingTimer)return;
 if(!peutLireFirebase())return;
 if(currentTab==='index')return;
+var role=window.CURRENT_ACCOUNT?window.CURRENT_ACCOUNT.role:'user';
+var aBoutique=window.CURRENT_ACCOUNT && window.CURRENT_ACCOUNT.boutique && window.CURRENT_ACCOUNT.boutique.statut==='approuve';
+if(role==='user' && !aBoutique) return;
 _pollingTimer=setInterval(function(){
-if(!peutLireFirebase())return;
-rafraichirDonneesSilencieusement();
-},600000);
+    if(!peutLireFirebase())return;
+    rafraichirDonneesSilencieusement();
+},30*60*1000);
 }
 function arreterPolling(){if(_pollingTimer){clearInterval(_pollingTimer);_pollingTimer=null;}}
 async function rafraichirDonneesSilencieusement(){if(!peutLireFirebase())return;if(currentTab==='index'||currentTab==='catalogue')return;try{var annonces=await window.chargerAnnoncesFirestore(false);var commerces=await window.chargerCommercesFirestore(false);ANNONCES_DATA=annonces;COMMERCES_DATA=commerces;if(currentTab==='category'){renderCategoryFeed(CURRENT_CATEGORY||'autre');}if(currentTab==='commerces'){renderCommercesGrid();}if(currentTab==='jobs'){renderJobsFeed();}if(currentTab==='immobilier'){var sub=document.querySelector('.immobilier-subtab.active');renderImmobilierFeed(sub?sub.getAttribute('data-sub')||'all':'all');}if(currentTab==='ecoles'){chargerEcolesEtProfs();}}catch(e){}}
 document.addEventListener('visibilitychange',function(){if(document.hidden){_appEstActive=false;arreterPolling();}else{_appEstActive=true;if(peutLireFirebase())demarrerPolling();}});
 window.addEventListener('online',function(){if(peutLireFirebase())rafraichirDonneesSilencieusement();});
 window.addEventListener('offline',function(){arreterPolling();});
-async function verifierCompteLocal(){if(!window.CURRENT_ACCOUNT||!window.CURRENT_ACCOUNT.id)return;if(!peutLireFirebase())return;var lastCheck=sessionStorage.getItem('ntx_last_verify');if(lastCheck&&(Date.now()-parseInt(lastCheck,10))<3600000)return;try{var s=await window.getDocRef(window.docRef(window.db,'netubers',window.CURRENT_ACCOUNT.id));if(s.exists()){var d=s.data();if(d.actif===false){showToast('Compte désactivé');setCurrentAccount(null);CURRENT_COMMERCANT=null;appliquerVisibiliteRole();}else{var acc=Object.assign({},window.CURRENT_ACCOUNT,{boutique:d.boutique||null,code:d.code||window.CURRENT_ACCOUNT.code,phone:d.phone||window.CURRENT_ACCOUNT.phone,nomComplet:d.nomComplet||window.CURRENT_ACCOUNT.nomComplet,sexe:d.sexe||window.CURRENT_ACCOUNT.sexe||'',avatarUrl:d.avatarUrl||window.CURRENT_ACCOUNT.avatarUrl||'',role:d.role||window.CURRENT_ACCOUNT.role||'user',ecoleId:d.ecoleId||window.CURRENT_ACCOUNT.ecoleId||null,professeurId:d.professeurId||window.CURRENT_ACCOUNT.professeurId||null});acc.name=acc.nomComplet;setCurrentAccount(acc);appliquerVisibiliteRole();}}sessionStorage.setItem('ntx_last_verify',Date.now().toString());}catch(e){}}
+async function verifierCompteLocal(){if(!window.CURRENT_ACCOUNT||!window.CURRENT_ACCOUNT.id)return;if(!peutLireFirebase())return;var lastCheck=sessionStorage.getItem('ntx_last_verify');if(lastCheck&&(Date.now()-parseInt(lastCheck,10))<24*60*60*1000)return;try{var s=await window.getDocRef(window.docRef(window.db,'netubers',window.CURRENT_ACCOUNT.id));if(s.exists()){var d=s.data();if(d.actif===false){showToast('Compte désactivé');setCurrentAccount(null);CURRENT_COMMERCANT=null;appliquerVisibiliteRole();}else{var acc=Object.assign({},window.CURRENT_ACCOUNT,{boutique:d.boutique||null,code:d.code||window.CURRENT_ACCOUNT.code,phone:d.phone||window.CURRENT_ACCOUNT.phone,nomComplet:d.nomComplet||window.CURRENT_ACCOUNT.nomComplet,sexe:d.sexe||window.CURRENT_ACCOUNT.sexe||'',avatarUrl:d.avatarUrl||window.CURRENT_ACCOUNT.avatarUrl||'',role:d.role||window.CURRENT_ACCOUNT.role||'user',ecoleId:d.ecoleId||window.CURRENT_ACCOUNT.ecoleId||null,professeurId:d.professeurId||window.CURRENT_ACCOUNT.professeurId||null});acc.name=acc.nomComplet;setCurrentAccount(acc);appliquerVisibiliteRole();}}sessionStorage.setItem('ntx_last_verify',Date.now().toString());}catch(e){}}
 async function restaurerSession(){
 try{
 var stored=await window.getStored(window.STORES.account,'current',null);
@@ -3857,6 +3936,9 @@ var redirige = await ouvrirBoutiqueDepuisURL();
 if (!redirige) {
   go('index');
 }
+if(window.CURRENT_ACCOUNT && window.verifierInvalidationUtilisateur){
+  setTimeout(window.verifierInvalidationUtilisateur,1000);
+}
 }catch(err){
 masquerSkeletonsFeed();
 terminerBarreProgression();
@@ -3879,47 +3961,122 @@ var _resaNuitsBind=document.getElementById('resaNuits');
 if(_resaNuitsBind){_resaNuitsBind.addEventListener('input',mettreAJourTotalResa);}
 
 (function surveillerInvalidation(){
-var _lastInvalidation=null;
-var _invalidationActive=false;
-var _enCours=false;
-var POLL_MS=60000;
-var AGE_RECENT_MS=5*60*1000;
-async function verifierInvalidation(){
-if(!peutLireFirebase())return;
-if(_enCours)return;
-_enCours=true;
-try{
-var snap=await window.getDocRef(window.docRef(window.db,'config','app'));
-if(!snap.exists())return;
-var d=snap.data();
-var inv=d.invalidationDirecte||{active:false};
-_invalidationActive=inv.active===true;
-if(!_invalidationActive){_lastInvalidation=d.invalidationForcee||0;return;}
-var forcee=d.invalidationForcee||0;
-if(!forcee)return;
-if(_lastInvalidation===null){_lastInvalidation=forcee;var lastChange=inv.lastChangeAt?new Date(inv.lastChangeAt).getTime():0;var age=Date.now()-lastChange;if(age>=0&&age<AGE_RECENT_MS){await rafraichirToutSilencieux();}return;}
-if(forcee!==_lastInvalidation){_lastInvalidation=forcee;await rafraichirToutSilencieux();}
-}catch(e){}
-finally{_enCours=false;}
+var _lastInvalidationVu=null;
+
+async function verifierInvalidationUtilisateur(){
+    if(!peutLireFirebase()) return;
+    if(!window.CURRENT_ACCOUNT || !window.CURRENT_ACCOUNT.id) return;
+    try{
+        var snap=await window.getDocRef(window.docRef(window.db,'invalidation_uid',window.CURRENT_ACCOUNT.id));
+        if(!snap.exists()) return;
+        var d=snap.data();
+        var forcee=d.invalidationForcee||0;
+        if(!forcee) return;
+        if(_lastInvalidationVu===forcee) return;
+        _lastInvalidationVu=forcee;
+        await invaliderSelonAction(d.lastAction||'',d.lastCible||null);
+    }catch(e){}
 }
+
+async function invaliderSelonAction(action,cible){
+    var uid=window.CURRENT_ACCOUNT?window.CURRENT_ACCOUNT.id:null;
+    try{
+        if(action==='approveAnnonce'||action==='refuseAnnonce'||action==='editAnnonce'||action==='supprimerAnnonce'||action==='viderFeed'){
+            if(uid){
+                await window.idbDelete('stats','pubs_user_'+uid);
+                await window.idbDelete('stats','stats_user_'+uid);
+            }
+            await window.idbDelete('config','cache_annonces');
+            await window.idbDelete('config','cache_annonces_ts');
+        }
+        else if(action==='approveProduit'||action==='rejectProduit'||action==='deleteProduitAttente'||action==='ajouterArticle'||action==='editArticle'||action==='supprimerArticle'){
+            if(uid) await window.idbDelete('stats','commerce_user_'+uid);
+            await window.idbDelete('config','cache_commerces');
+            await window.idbDelete('config','cache_commerces_ts');
+        }
+        else if(action==='validerAbonnementBoutique'||action==='activerAbonnementBoutique'||action==='refuserAbonnementBoutique'){
+            if(uid) await window.idbDelete('stats','abo_badge_'+uid);
+        }
+        else if(action==='validerDeblocage'||action==='rejeterDeblocage'||action==='deleteDeblocage'){
+            if(uid){
+                DEBLOCAGES_DIRTY=true;
+                await window.invaliderCache('cache_deblocages_'+uid);
+            }
+        }
+        else if(action==='editBoutique'||action==='supprimerBoutique'||action==='approveBoutique'||action==='refuseBoutique'||action==='createBoutique'){
+            if(uid){
+                await window.idbDelete('stats','commerce_user_'+uid);
+                await window.idbDelete('stats','stats_user_'+uid);
+            }
+            await window.idbDelete('config','cache_commerces');
+            await window.idbDelete('config','cache_commerces_ts');
+        }
+        else if(action==='createProf'||action==='createPrefect'||action==='repairProfs'||action==='deleteEcole'){
+            if(uid) await window.idbDelete('stats','demandes_ecole_'+uid);
+            await window.idbDelete('config','cache_professeurs');
+            await window.idbDelete('config','cache_professeurs_ts');
+            await window.idbDelete('config','cache_ecoles');
+            await window.idbDelete('config','cache_ecoles_ts');
+        }
+        else {
+            if(uid){
+                await window.idbDelete('stats','pubs_user_'+uid);
+                await window.idbDelete('stats','stats_user_'+uid);
+            }
+        }
+    }catch(e){}
+    await rafraichirToutSilencieux();
+}
+
 async function rafraichirToutSilencieux(){
-if(!peutLireFirebase())return;
-try{await window.invaliderCache();}catch(e){}
-try{
-var results=await Promise.all([window.chargerAnnoncesFirestore(false),window.chargerCommercesFirestore(false),window.chargerEcolesFirestore(false),window.chargerProfesseursFirestore(false)]);
-ANNONCES_DATA=results[0];COMMERCES_DATA=results[1];ECOLES_DATA=results[2];PROFESSEURS_DATA=results[3];
-if(currentTab==='index'){_nextFeedOrder=null;_feedCycleItems=[];_feedCycleIndex=0;_feedSeenIds.clear();initFeed();}
-else if(currentTab==='commerces'){renderCommercesGrid();}
-else if(currentTab==='jobs'){renderJobsFeed();}
-else if(currentTab==='immobilier'){var sub=document.querySelector('.immobilier-subtab.active');renderImmobilierFeed(sub?sub.getAttribute('data-sub')||'all':'all');}
-else if(currentTab==='category'){renderCategoryFeed(CURRENT_CATEGORY||'autre');}
-else if(currentTab==='ecoles'){renderStatsReseau();renderContexteReseau();filtrerProfsReseau();}
-else if(currentTab==='dashboard-utilisateur'){renderMesStats();renderMesPublications();try{DEBLOCAGES_DIRTY=true;await rafraichirTousDeblocages();majVisibiliteSectionDeblocages();}catch(e){if(window.CURRENT_ACCOUNT&&window.CURRENT_ACCOUNT.role==='professeur')chargerDemandesProfRattachement();}}
-else if(currentTab==='catalogue'&&CURRENT_COMMERCE){var refreshed=COMMERCES_DATA.find(function(c){return c.id===CURRENT_COMMERCE.id;});if(refreshed){CURRENT_COMMERCE=refreshed;renderCatalogue(refreshed);if(document.getElementById('cart-drawer').classList.contains('active')){appliquerConfigCommandes();}}}
-}catch(e){}
+    if(!peutLireFirebase())return;
+    try{
+        var results=await Promise.all([
+            window.chargerAnnoncesFirestore(true),
+            window.chargerCommercesFirestore(true),
+            window.chargerEcolesFirestore(false),
+            window.chargerProfesseursFirestore(false)
+        ]);
+        ANNONCES_DATA=results[0];COMMERCES_DATA=results[1];ECOLES_DATA=results[2];PROFESSEURS_DATA=results[3];
+        if(currentTab==='index'){_nextFeedOrder=null;_feedCycleItems=[];_feedCycleIndex=0;_feedSeenIds.clear();initFeed();}
+        else if(currentTab==='commerces'){renderCommercesGrid();}
+        else if(currentTab==='jobs'){renderJobsFeed();}
+        else if(currentTab==='immobilier'){var sub=document.querySelector('.immobilier-subtab.active');renderImmobilierFeed(sub?sub.getAttribute('data-sub')||'all':'all');}
+        else if(currentTab==='category'){renderCategoryFeed(CURRENT_CATEGORY||'autre');}
+        else if(currentTab==='ecoles'){renderStatsReseau();renderContexteReseau();filtrerProfsReseau();}
+        else if(currentTab==='dashboard-utilisateur'){
+            if(!document.querySelector('#dashPanelPubs').offsetParent) renderMesPublications();
+            if(!document.querySelector('#dashPanelStats').offsetParent) renderMesStats();
+            verifierEtAfficherBadgeAbonnement();
+            try{DEBLOCAGES_DIRTY=true;await rafraichirTousDeblocages();majVisibiliteSectionDeblocages();}catch(e){}
+            if(window.CURRENT_ACCOUNT&&window.CURRENT_ACCOUNT.role==='professeur')chargerDemandesProfRattachement(true);
+        }
+        else if(currentTab==='catalogue'&&CURRENT_COMMERCE){
+            var refreshed=COMMERCES_DATA.find(function(c){return c.id===CURRENT_COMMERCE.id;});
+            if(refreshed){CURRENT_COMMERCE=refreshed;renderCatalogue(refreshed);if(document.getElementById('cart-drawer').classList.contains('active')){appliquerConfigCommandes();}}
+        }
+    }catch(e){}
 }
-setInterval(verifierInvalidation,POLL_MS);
-verifierInvalidation();
+
+window.verifierInvalidationUtilisateur=verifierInvalidationUtilisateur;
+window.invaliderSelonAction=invaliderSelonAction;
+window.rafraichirToutSilencieux=rafraichirToutSilencieux;
+
+window.addEventListener('focus',function(){
+    if(window.CURRENT_ACCOUNT && peutLireFirebase()){
+        setTimeout(verifierInvalidationUtilisateur,500);
+    }
+});
+window.addEventListener('online',function(){
+    if(window.CURRENT_ACCOUNT && peutLireFirebase()){
+        setTimeout(verifierInvalidationUtilisateur,500);
+    }
+});
+document.addEventListener('visibilitychange',function(){
+    if(!document.hidden && window.CURRENT_ACCOUNT && peutLireFirebase()){
+        setTimeout(verifierInvalidationUtilisateur,500);
+    }
+});
 })();
 
 function ouvrirCustomSelect(type) {
@@ -4125,6 +4282,7 @@ async function soumettreAbonnement() {
             dateDemande: new Date().toISOString()
         };
         await window.setDoc(window.docRef(window.db, 'abonnements', aboId), dataAbo);
+        try{await window.idbDelete('stats','abo_badge_'+window.CURRENT_ACCOUNT.id);}catch(e){}
         document.getElementById('abonnementOverlay').classList.remove('active');
         document.getElementById('abonnementModal').classList.remove('active');
         document.getElementById('aboVerifOverlay').classList.add('active');
@@ -4223,13 +4381,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function verifierEtAfficherBadgeAbonnement() {
     if (!window.CURRENT_ACCOUNT) return;
-    const role = window.CURRENT_ACCOUNT.role;
-    const aBoutique = window.CURRENT_ACCOUNT.boutique && window.CURRENT_ACCOUNT.boutique.statut === 'approuve';
-    const estEcole = (role === 'prefet' || role === 'directeur');
+    var role = window.CURRENT_ACCOUNT.role;
+    var aBoutique = window.CURRENT_ACCOUNT.boutique && window.CURRENT_ACCOUNT.boutique.statut === 'approuve';
+    var estEcole = (role === 'prefet' || role === 'directeur');
     if (!aBoutique && !estEcole) return;
-    let badgeContainer = document.getElementById('badgeAbonnementProfil');
+    var badgeContainer = document.getElementById('badgeAbonnementProfil');
     if (!badgeContainer) {
-        const profilHero = document.querySelector('.profil-hero');
+        var profilHero = document.querySelector('.profil-hero');
         if (profilHero) {
             badgeContainer = document.createElement('div');
             badgeContainer.id = 'badgeAbonnementProfil';
@@ -4238,43 +4396,36 @@ async function verifierEtAfficherBadgeAbonnement() {
         }
     }
     if (!badgeContainer) return;
+    var cacheKey='abo_badge_'+window.CURRENT_ACCOUNT.id;
+    var cached=await idbGet('stats',cacheKey);
+    if(cached && cached.data && (Date.now()-cached.ts)<7*24*60*60*1000){
+        afficherBadgeAbo(badgeContainer, cached.data);
+        return;
+    }
     try {
-        const q = window.query(
-            window.collection(window.db, 'abonnements'),
-            window.where('uid', '==', window.CURRENT_ACCOUNT.id),
-            window.where('statut', '==', 'valide'),
-            window.limit(1)
-        );
-        const snap = await window.getDocs(q);
-        if (!snap.empty) {
-            badgeContainer.innerHTML = `
-                <div style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 999px; background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-weight: 900; font-size: 14px; box-shadow: 0 4px 14px rgba(16,185,129,0.4); border: 2px solid rgba(255,255,255,0.3);">
-                    <i class="fa-solid fa-circle-check" style="font-size: 18px;"></i>
-                    <span>Abonnement en ordre</span>
-                </div>
-            `;
-        } else {
-            const qAttente = window.query(
-                window.collection(window.db, 'abonnements'),
-                window.where('uid', '==', window.CURRENT_ACCOUNT.id),
-                window.where('statut', '==', 'en_attente'),
-                window.limit(1)
-            );
-            const snapAttente = await window.getDocs(qAttente);
-            if (!snapAttente.empty) {
-                badgeContainer.innerHTML = `
-                    <div style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 999px; background: #fef3c7; color: #92400e; font-weight: 900; font-size: 13.5px; border: 2px solid #fcd34d;">
-                        <i class="fa-solid fa-hourglass-half fa-spin" style="font-size: 16px;"></i>
-                        <span>Vérification en cours</span>
-                    </div>
-                `;
-            } else {
-                badgeContainer.innerHTML = '';
-            }
-        }
-    } catch (e) {
+        var q = window.query(window.collection(window.db, 'abonnements'), window.where('uid', '==', window.CURRENT_ACCOUNT.id), window.limit(3));
+        var snap = await window.getDocs(q);
+        var statut='aucun';
+        snap.forEach(function(d){
+            var s=d.data().statut;
+            if(s==='valide') statut='valide';
+            else if(s==='en_attente' && statut!=='valide') statut='en_attente';
+        });
+        try{await idbSet('stats',cacheKey,{data:{statut:statut},ts:Date.now()});}catch(e){}
+        afficherBadgeAbo(badgeContainer, {statut:statut});
+    } catch (e) {}
+}
+
+function afficherBadgeAbo(badgeContainer, data){
+    if(data.statut==='valide'){
+        badgeContainer.innerHTML='<div style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:999px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-weight:900;font-size:14px;box-shadow:0 4px 14px rgba(16,185,129,0.4);border:2px solid rgba(255,255,255,0.3);"><i class="fa-solid fa-circle-check" style="font-size:18px;"></i><span>Abonnement en ordre</span></div>';
+    }else if(data.statut==='en_attente'){
+        badgeContainer.innerHTML='<div style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:999px;background:#fef3c7;color:#92400e;font-weight:900;font-size:13.5px;border:2px solid #fcd34d;"><i class="fa-solid fa-hourglass-half fa-spin" style="font-size:16px;"></i><span>Vérification en cours</span></div>';
+    }else{
+        badgeContainer.innerHTML='';
     }
 }
+
 window.promptChangerMdp = promptChangerMdp;
 </script>
 </body>
