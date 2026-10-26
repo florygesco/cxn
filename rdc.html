@@ -3605,29 +3605,45 @@ function handlePublishImages(e){var fs=Array.from(e.target.files||[]);var r=MAX_
 function renderPublishImages(){var p=document.getElementById('publishImagesPreview');var c=document.getElementById('publishImagesCounter');if(!p)return;p.innerHTML='';publishImages.forEach(function(img,idx){var it=document.createElement('div');it.className='publish-image-item';it.innerHTML='<img src="'+img.dataUrl+'" alt=""><button type="button" class="publish-image-remove" onclick="removePublishImage('+idx+')">✕</button>';p.appendChild(it);});if(c){c.textContent=publishImages.length+' photo'+(publishImages.length>1?'s':'');}}
 function removePublishImage(i){publishImages.splice(i,1);renderPublishImages();}
 async function submitPublish(){if(!publishCat){showToast('Sélectionnez un type');return;}var t=(document.getElementById('publishTitre')||{}).value?document.getElementById('publishTitre').value.trim():'';var v=getVilleValue('publishVille','publishVilleLibre');var p=(document.getElementById('publishPrix')||{}).value?document.getElementById('publishPrix').value.trim():'';var a=(document.getElementById('publishAdresse')||{}).value?document.getElementById('publishAdresse').value.trim():'';var d=(document.getElementById('publishDescription')||{}).value?document.getElementById('publishDescription').value.trim():'';d=nettoyerTextePourSaisie(d);if(!t||!v||!p||!d||!a){showToast('Remplissez tous les champs');return;}var ei=(publishCat==='parcelle'||publishCat==='location');var m=ei?1000:400;var jt=null;if(publishCat==='job'){if(!jobContract){showToast('Choisissez CDI ou CDD');return;}jt=jobContract;}window._pendingMontant=m;window._pendingPublishData={titre:t,desc:d,ville:v,prix:p,adresse:a,cat:publishCat,images:publishImages.slice(),jobType:jt,sousTypeImmo:SOUS_TYPE_IMMO};var me=document.getElementById('paiementMontant');if(me)me.textContent=m.toLocaleString('fr-FR')+' FC';document.getElementById('paiementModal').style.display='flex';attacherTousPhones();}
+
 async function validerPaiementEtPublier(){
   var tx=(document.getElementById('publishTxId')||{}).value?document.getElementById('publishTxId').value.trim():'';
   var neRaw=(document.getElementById('publishNumEnvoi')||{}).value?document.getElementById('publishNumEnvoi').value.trim():'';
-  if(!tx||tx.length<6){showToast('ID Transaction invalide');return;}
-  if(!isValidePhone243(neRaw)){showToast('Numéro invalide');return;}
+  
+  if(!tx||tx.length<6){showToast('ID Transaction invalide (min. 6 caractères)');return;}
+  if(!isValidePhone243(neRaw)){showToast('Numéro d\'envoi invalide');return;}
+  
   var ne=formatPhone243(neRaw);
   var d=window._pendingPublishData;
-  if(!d){showToast('Données perdues');return;}
+  if(!d){showToast('Données perdues. Veuillez recommencer.');return;}
+  
+  if(!window.auth.currentUser || !window.CURRENT_ACCOUNT || window.auth.currentUser.uid !== window.CURRENT_ACCOUNT.id){
+      showToast('⚠️ Session expirée. Veuillez vous reconnecter.');
+      document.getElementById('paiementModal').style.display='none';
+      setTimeout(function(){ doLogout(); }, 1500);
+      return;
+  }
+
   var submitBtn=document.querySelector('#paiementModal button[type="submit"]');
   if(submitBtn){submitBtn.disabled=true;submitBtn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Publication…';}
+  
   try{
     var pn=window.CURRENT_ACCOUNT.name||window.CURRENT_ACCOUNT.nomComplet||'Utilisateur';
     var tagL='post-tag-'+d.cat;
     if(d.cat==='job'){tagL='post-tag-job';}
     var imagesUrl=[];
+    
     if(d.images&&d.images.length>0){
       for(var i=0;i<d.images.length;i++){
         try{
           var url=await window.uploadImageAnnonce(d.images[i].file);
           if(url)imagesUrl.push(url);
-        }catch(imgErr){}
+        }catch(imgErr){
+          console.warn("Erreur upload image:", imgErr);
+        }
       }
     }
+    
     var payload={
       titre:d.titre,desc:d.desc,ville:d.ville,quartier:'',prix:d.prix,
       img:imagesUrl.length>0?imagesUrl[0]:'',images:imagesUrl,cat:d.cat,
@@ -3636,27 +3652,41 @@ async function validerPaiementEtPublier(){
       publieurAvatar:window.CURRENT_ACCOUNT.avatarUrl||'',publieurType:'user',
       publieurPhone:window.CURRENT_ACCOUNT.phone||'',publieurSexe:window.CURRENT_ACCOUNT.sexe||''
     };
+    
     if(d.cat==='job'&&d.jobType){payload.jobType=d.jobType;}
     if((d.cat==='parcelle'||d.cat==='location')&&d.sousTypeImmo){payload.sousTypeImmo=d.sousTypeImmo;}
+    
     await window.creerAnnonce(
       payload,
       {nom:pn,adresse:d.adresse,telephone:window.CURRENT_ACCOUNT.phone||'',email:window.CURRENT_ACCOUNT.emailAuth||''},
       {transactionId:tx,numeroEnvoi:ne,montant:window._pendingMontant||400,destinataire:'+243976953045'}
     );
+    
     try{await idbDelete('stats','stats_user_'+window.CURRENT_ACCOUNT.id);}catch(e){}
     try{await idbDelete('stats','pubs_user_'+window.CURRENT_ACCOUNT.id);}catch(e){}
+    
     fermerPaiementModalSilencieux();
     document.getElementById('publishPendingOverlay').classList.add('active');
     document.getElementById('publishPendingModal').classList.add('active');
+    
+    document.getElementById('publishForm').reset();
+    publishImages = [];
+    renderPublishImages();
+    
   }catch(e){
+    console.error("Erreur publication:", e);
     var msg='Erreur: '+(e.message||'inconnue');
-    if(e.code==='permission-denied')msg='Session expirée. Reconnectez-vous.';
-    if(e.code==='storage/unauthorized')msg='Upload refusé. Reconnectez-vous.';
+    if(e.code==='permission-denied') msg='Accès refusé. Reconnectez-vous.';
+    if(e.code==='storage/unauthorized') msg='Accès stockage refusé. Reconnectez-vous.';
     showToast(msg);
   }finally{
-    if(submitBtn){submitBtn.disabled=false;submitBtn.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer';}
+    if(submitBtn){
+        submitBtn.disabled=false;
+        submitBtn.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer';
+    }
   }
 }
+
 function closePublishPending(){document.getElementById('publishPendingOverlay').classList.remove('active');document.getElementById('publishPendingModal').classList.remove('active');showToast('Publication enregistrée');setTimeout(function(){go('index');},400);}
 
 async function renderMesStats(){var t=document.getElementById('statTotalVues');var s=document.getElementById('statTotalVuesSub');if(!t)return;if(!window.CURRENT_ACCOUNT||!window.CURRENT_ACCOUNT.id){t.textContent='—';if(s)s.textContent='Connectez-vous';return;}t.textContent='…';if(s)s.textContent='Chargement…';try{var cacheKey='stats_user_'+window.CURRENT_ACCOUNT.id;var cached=await idbGet('stats',cacheKey);var stats;if(cached&&(Date.now()-cached.ts)<30*60*1000){stats=cached.data;}else{if(!peutLireFirebase())return;var snap=await window.getDocRef(window.docRef(window.db,'user_stats',window.CURRENT_ACCOUNT.id));if(!snap.exists()){stats={totalVues:0,nbAnnonces:0};try{await window.setDoc(window.docRef(window.db,'user_stats',window.CURRENT_ACCOUNT.id),{totalVues:0,nbAnnonces:0,nbPubliees:0,nbEnAttente:0,nbRefusees:0,totalDeblocages:0,totalCommerceVues:0,nbProduitsCommerce:0,derniereMiseAJour:new Date().toISOString()});}catch(e){}}else{stats=snap.data();}await idbSet('stats',cacheKey,{data:stats,ts:Date.now()});}t.textContent=(stats.totalVues||0).toLocaleString('fr-FR');if(s){if((stats.nbAnnonces||0)===0)s.textContent='Aucune annonce publiée';else s.textContent='Vues sur '+stats.nbAnnonces+' annonce'+(stats.nbAnnonces>1?'s':'');}var c=await chargerCommerceCommercant();if(c){var st=document.getElementById('statVuesBoutique');var sp=document.getElementById('statNbProduits');var sec=document.getElementById('statsBoutiqueSection');if(sec)sec.style.display='block';if(st)st.textContent=(c.vues||0).toLocaleString('fr-FR');var prods=(c.produits||[]).filter(function(p){return!p.statut||p.statut==='approuve';});if(sp)sp.textContent=prods.length;}}catch(e){t.textContent='0';if(s)s.textContent='Aucune donnée';}}
