@@ -145,9 +145,6 @@ body.dark-mode .fb-post-views{background:rgba(59,158,255,.15) !important;color:#
 .badge-confiance.lg{font-size:12px;padding:5px 12px 5px 8px;gap:6px}
 .badge-confiance.lg .ntx-seal{width:17px;height:17px}
 body.dark-mode .badge-confiance{box-shadow:0 2px 12px rgba(0,194,255,.5);border-color:rgba(255,255,255,.5)}
-.order-type-opt.disabled{opacity:.45;cursor:not-allowed;pointer-events:none;position:relative}
-.order-type-opt-sub-cond{font-size:10.5px;font-weight:700;color:#ef4444;margin-top:3px;line-height:1.3;display:block}
-.order-type-opt.selected .order-type-opt-sub-cond{color:rgba(255,255,255,.95)}
 .post-tag-urgence{background:#dc2626;color:#fff}
 .post-tag-school,.post-tag-vehicule,.post-tag-entreprise{background:rgba(0,127,255,.15);color:var(--accent-blue)}
 .post-tag-property{background:rgba(245,158,11,.18);color:#b45309}
@@ -1782,9 +1779,6 @@ const auth=getAuth(app);
 const storage=getStorage(app);
 setPersistence(auth,browserLocalPersistence).catch(function(){});
 
-const secondaryApp = initializeApp(firebaseConfig, "AppPublication");
-const secondaryAuth = getAuth(secondaryApp);
-
 window.db=db;window.auth=auth;window.storage=storage;
 window.getDocRef=getDoc;window.docRef=doc;window.setDoc=setDoc;window.updateDoc=updateDoc;
 window.increment=increment;window.getDocs=getDocs;window.collection=collection;
@@ -1796,7 +1790,6 @@ window.signOutRef=signOut;
 window.signInWithEmailAndPasswordRef=signInWithEmailAndPassword;
 window.createUserWithEmailAndPasswordRef=createUserWithEmailAndPassword;
 
-// ✅ FONCTION DE CHANGEMENT DE MOT DE PASSE (ÉTAPE 5 du guide)
 window.changerMonMotDePasse = async function(nouveauMdp) {
   try {
     var user = auth.currentUser;
@@ -1804,11 +1797,8 @@ window.changerMonMotDePasse = async function(nouveauMdp) {
     if (!nouveauMdp || nouveauMdp.length < 6 || nouveauMdp.length > 15) {
       throw new Error('6 à 15 caractères requis');
     }
-    // 1. Changer dans Firebase Auth
     await updatePassword(user, nouveauMdp);
-    // 2. Mettre à jour dans Firestore (champ code, lisible par admin)
     await updateDoc(doc(db, 'netubers', user.uid), { code: nouveauMdp });
-    // 3. Mettre à jour la session locale
     if (window.CURRENT_ACCOUNT) {
       window.CURRENT_ACCOUNT.code = nouveauMdp;
       window.setCurrentAccount(window.CURRENT_ACCOUNT);
@@ -1817,34 +1807,6 @@ window.changerMonMotDePasse = async function(nouveauMdp) {
     }
     return { success: true };
   } catch (e) { throw e; }
-};
-
-// ✅ FONCTION ADMIN POUR RÉCUPÉRER UN MOT DE PASSE (ÉTAPE 4 du guide)
-window.adminRecupererMotDePasse = async function(phoneRaw) {
-  if (!window.CURRENT_ACCOUNT || window.CURRENT_ACCOUNT.emailAuth !== 'ngendaflory2@gmail.com') {
-    if (typeof showToast === 'function') showToast('Accès refusé');
-    return;
-  }
-  try {
-    var cleanPhone = String(phoneRaw).replace(/[^\d]/g, '');
-    // 1. Chercher l'UID dans phone_index
-    var idxSnap = await getDoc(doc(db, 'phone_index', cleanPhone));
-    if (!idxSnap.exists()) { if (typeof showToast === 'function') showToast('Numéro introuvable'); return; }
-    var uid = idxSnap.data().uid;
-    // 2. Lire le profil avec le mot de passe
-    var uSnap = await getDoc(doc(db, 'netubers', uid));
-    if (!uSnap.exists()) { if (typeof showToast === 'function') showToast('Profil introuvable'); return; }
-    var data = uSnap.data();
-    // 3. Afficher à l'admin
-    alert(
-      'Informations du compte :\n\n' +
-      'Nom : ' + (data.nomComplet || '—') + '\n' +
-      'Numéro : ' + (data.phone || '—') + '\n' +
-      'Mot de passe : ' + (data.code || '—')
-    );
-  } catch (e) {
-    if (typeof showToast === 'function') showToast('Erreur : ' + e.message);
-  }
 };
 
 function normCat(v){return String(v||'').toLowerCase().replace(/[\s_-]+/g,'').trim();}
@@ -1878,31 +1840,20 @@ window.getStored=getStored;window.setStored=setStored;window.STORES=STORES;
 async function migrerDepuisLocalStorage(){var done=await idbGet('stats','migration_done_v5');if(done)return;var migrations=[{lsKey:'netubex-account',store:STORES.account,idbKey:'current'},{lsKey:'netubex-boutique',store:STORES.boutique,idbKey:'current'},{lsKey:'netubex-theme',store:STORES.theme,idbKey:'value'}];for(var i=0;i<migrations.length;i++){var m=migrations[i];try{var val=localStorage.getItem(m.lsKey);if(val!==null){var parsed=val;try{parsed=JSON.parse(val);}catch(e){}await idbSet(m.store,m.idbKey,parsed);}}catch(e){}}await idbSet('stats','migration_done_v5',true);}
 window.migrerDepuisLocalStorage=migrerDepuisLocalStorage;
 
-// ✅ VERIFIER PHONE UNIQUE — neutralisé : on compte sur auth/email-already-in-use
-// qui garantit l'unicité de l'email (donc du numéro puisque email = phone@gmail.com)
 window.verifierPhoneUnique=async function(phone){ return true; };
 window.creerIndexPhone=async function(phone,uid){try{var cleanPhone=String(phone).replace(/[^\d]/g,'');await setDoc(doc(db,'phone_index',cleanPhone),{uid:uid,dateCreation:new Date().toISOString()});}catch(e){}};
 
-// ✅ CREATE USER — email basé UNIQUEMENT sur le numéro (ÉTAPE 2 du guide)
 window.createUser=async function(data){
   var cred=await createUserWithEmailAndPassword(auth,data.email,data.password);
   var uid=cred.user.uid;
   var codeParrainage='NTX-'+uid.slice(0,6).toUpperCase();
   await setDoc(doc(db,'netubers',uid),{
-    prenom:data.prenom||'',
-    nom:data.nom||'',
+    prenom:data.prenom||'', nom:data.nom||'',
     nomComplet:data.nomComplet||((data.nom||'')+' '+(data.prenom||'')).trim(),
-    sexe:data.sexe||'',
-    phone:data.phone||'',
-    emailAuth:data.email||'',
-    code:data.password||'',
-    ville:data.ville||'',
-    quartier:'',
-    actif:true,
-    avatarUrl:data.avatarUrl||'',
-    role:data.role||'user',
-    dateCreation:new Date().toISOString(),
-    dateDernierePub:null,
+    sexe:data.sexe||'', phone:data.phone||'', emailAuth:data.email||'',
+    code:data.password||'', ville:data.ville||'', quartier:'',
+    actif:true, avatarUrl:data.avatarUrl||'', role:data.role||'user',
+    dateCreation:new Date().toISOString(), dateDernierePub:null,
     stats:{deblocages:0,commandes:0,parrainage:0,jetons:0,badges:[]},
     notifications:[],
     parrainage:{code:codeParrainage,count:0,palier:0,joursRestants:0,dateDernierePub:null}
@@ -1914,7 +1865,6 @@ window.createUser=async function(data){
 };
 window.updateAvatar=async function(uid,avatarUrl){await updateDoc(doc(db,'netubers',uid),{avatarUrl:avatarUrl||''});await invaliderCache();return{success:true,avatarUrl:avatarUrl||''};};
 
-// ⚠️ LEGACY : conservé mais plus utilisé (remplacé par submitAccountLogin qui utilise Firebase Auth)
 window.loginByPhoneCode=async function(phone,code){
   var variantes=[phone];var digits=String(phone).replace(/[^\d]/g,'');if(digits.length===9)variantes.push('0'+digits,'+243'+digits,'243'+digits);var uniques=Array.from(new Set(variantes.filter(Boolean)));var found=null;
   for(var i=0;i<uniques.length;i++){var v=uniques[i];try{var q=query(collection(db,'netubers'),where('phone','==',v),where('code','==',code),limit(1));var snap=await getDocs(q);if(!snap.empty){found=snap.docs[0];break;}}catch(e){}}
@@ -1978,28 +1928,45 @@ return cached||[];
 };
 
 window.uploadImageAnnonce=async function(file){
-if(!window.CURRENT_ACCOUNT_REF)throw new Error('Non connecté');
-if(!file)throw new Error('Aucun fichier');
-var compressedFile=await window.picrd.compress(file,900,0.75);
-var path='annonces/'+window.CURRENT_ACCOUNT_REF.id+'/'+Date.now()+'_'+Math.random().toString(36).slice(2,7)+'.webp';
-var sRef=storageRef(storage,path);
-await uploadBytes(sRef,compressedFile);
-return await getDownloadURL(sRef);
+  if(!file) throw new Error('Aucun fichier');
+  if(!auth.currentUser) throw new Error('Session expirée');
+  var compressedFile=await window.picrd.compress(file,900,0.75);
+  var path='annonces/'+auth.currentUser.uid+'/'+Date.now()+'_'+Math.random().toString(36).slice(2,7)+'.webp';
+  var sRef=storageRef(storage,path);
+  await Promise.race([
+    uploadBytes(sRef,compressedFile),
+    new Promise(function(_,reject){setTimeout(function(){reject(new Error('Upload timeout'));},20000);})
+  ]);
+  return await getDownloadURL(sRef);
 };
 
 window.creerAnnonce=async function(data,coordonnees,paiement){
-if(!window.CURRENT_ACCOUNT_REF)throw new Error('Non connecté');
-if(!paiement||(!paiement.gratuit&&(!paiement.transactionId||!paiement.numeroEnvoi))){throw new Error('Preuve obligatoire');}
-try { await signInWithEmailAndPassword(secondaryAuth, window.CURRENT_ACCOUNT.emailAuth, window.CURRENT_ACCOUNT.code); } catch(e) {}
-var annonceId='ANN-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
-var annonceData={titre:data.titre||'',desc:data.desc||'',ville:data.ville||'',quartier:data.quartier||'',prix:data.prix||'',img:data.img||'',images:Array.isArray(data.images)?data.images:(data.img?[data.img]:[]),cat:data.cat||'autre',tag:data.tag||'',tagClass:data.tagClass||'',proprietaireUid:data.proprietaireUid||null,publieurNom:data.publieurNom||'',publieurAvatar:data.publieurAvatar||'',publieurType:data.publieurType||'user',publieurBoutique:data.publieurBoutique||null,publieurPhone:data.publieurPhone||'',publieurVille:data.publieurVille||'',publieurParrainage:data.publieurParrainage||null,publieurSexe:data.publieurSexe||'',jobType:data.jobType||null,sousTypeImmo:data.sousTypeImmo||null,badgeConfiance:data.badgeConfiance===true,dateCreation:new Date().toISOString(),actif:false,statut:'en_attente',vues:0};
-if(paiement.gratuit){annonceData.paiement={gratuit:true,montant:0};}else{annonceData.paiement={transactionId:paiement.transactionId,numeroEnvoi:paiement.numeroEnvoi,montant:paiement.montant||400,destinataire:'+243976953045',datePaiement:new Date().toISOString()};}
-await setDoc(doc(db,'annonces',annonceId),annonceData);
-await setDoc(doc(db,'annonces',annonceId,'prive','contact'),{nom:coordonnees.nom||'',adresse:coordonnees.adresse||'',telephone:coordonnees.telephone||'',email:coordonnees.email||''});
-if(data.proprietaireUid){try{await updateDoc(doc(db,'user_stats',data.proprietaireUid),{nbAnnonces:increment(1),nbEnAttente:increment(1),derniereMiseAJour:new Date().toISOString()});}catch(e){}}
-await invaliderCache('cache_annonces');
-try { await signOut(secondaryAuth); } catch(e) {}
-return{annonceId:annonceId};
+  if(!window.CURRENT_ACCOUNT_REF)throw new Error('Non connecté');
+  if(!auth.currentUser)throw new Error('Session expirée, reconnectez-vous');
+  if(auth.currentUser.uid!==window.CURRENT_ACCOUNT.id)throw new Error('Incohérence de session, reconnectez-vous');
+  if(!paiement||(!paiement.gratuit&&(!paiement.transactionId||!paiement.numeroEnvoi)))throw new Error('Preuve obligatoire');
+  var annonceId='ANN-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
+  var annonceData={
+    titre:data.titre||'',desc:data.desc||'',ville:data.ville||'',quartier:data.quartier||'',
+    prix:data.prix||'',img:data.img||'',
+    images:Array.isArray(data.images)?data.images:(data.img?[data.img]:[]),
+    cat:data.cat||'autre',tag:data.tag||'',tagClass:data.tagClass||'',
+    proprietaireUid:data.proprietaireUid||null,
+    publieurNom:data.publieurNom||'',publieurAvatar:data.publieurAvatar||'',
+    publieurType:data.publieurType||'user',publieurBoutique:data.publieurBoutique||null,
+    publieurPhone:data.publieurPhone||'',publieurVille:data.publieurVille||'',
+    publieurParrainage:data.publieurParrainage||null,publieurSexe:data.publieurSexe||'',
+    jobType:data.jobType||null,sousTypeImmo:data.sousTypeImmo||null,
+    badgeConfiance:data.badgeConfiance===true,
+    dateCreation:new Date().toISOString(),actif:false,statut:'en_attente',vues:0
+  };
+  if(paiement.gratuit){annonceData.paiement={gratuit:true,montant:0};}
+  else{annonceData.paiement={transactionId:paiement.transactionId,numeroEnvoi:paiement.numeroEnvoi,montant:paiement.montant||400,destinataire:'+243976953045',datePaiement:new Date().toISOString()};}
+  await setDoc(doc(db,'annonces',annonceId),annonceData);
+  try{await setDoc(doc(db,'annonces',annonceId,'prive','contact'),{nom:coordonnees.nom||'',adresse:coordonnees.adresse||'',telephone:coordonnees.telephone||'',email:coordonnees.email||''});}catch(e){}
+  if(data.proprietaireUid){try{await updateDoc(doc(db,'user_stats',data.proprietaireUid),{nbAnnonces:increment(1),nbEnAttente:increment(1),derniereMiseAJour:new Date().toISOString()});}catch(e){}}
+  await invaliderCache('cache_annonces');
+  return{annonceId:annonceId};
 };
 
 window.creerDemandeBoutique=async function(data){
@@ -2069,7 +2036,6 @@ return{demandeId:demId,fusion:true,profId:existant.id};
 }
 var pid='PROF-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
 var motDePasse=Math.random().toString(36).slice(2,8).toUpperCase();
-// ✅ EMAIL BASÉ UNIQUEMENT SUR LE NUMÉRO (ÉTAPE 2 du guide)
 var telDigits=String(data.telephone||'').replace(/[^\d]/g,'');
 var emailGen=telDigits+'@gmail.com';
 var phoneNorm=data.telephone.startsWith('+')?data.telephone:'+'+telDigits;
@@ -2088,7 +2054,6 @@ return{profId:pid,emailGen:emailGen,motDePasse:motDePasse,phone:phoneNorm};
 window.noterProfesseur=async function(profId,ecoleId,etoiles,commentaire){
 if(!window.CURRENT_ACCOUNT)throw new Error('Non connecté');
 if(!etoiles||etoiles<1||etoiles>5)throw new Error('Note entre 1 et 5');
-try { await signInWithEmailAndPassword(secondaryAuth, window.CURRENT_ACCOUNT.emailAuth, window.CURRENT_ACCOUNT.code); } catch(e) {}
 var profRef=doc(db,'professeurs',profId);
 var snap=await getDoc(profRef);
 if(!snap.exists())throw new Error('Professeur introuvable');
@@ -2115,9 +2080,8 @@ var allNotes={};
 var allTotal=0,allCount=0;
 Object.keys(prof.ecoles).forEach(function(eid){var n=prof.ecoles[eid].notes||{};Object.keys(n).forEach(function(k){var key=eid+'_'+k;allNotes[key]=n[k];allTotal+=n[k].etoiles;allCount++;});});
 var globalMoy=allCount>0?Math.round((allTotal/allCount)*10)/10:0;
-await setDoc(profRef,{ecoles:prof.ecoles,notesGlobales:allNotes,moyenneGlobale:globalMoy,nombreGlobal:allCount},{merge:true});
+await setDoc(profRef,{ecoles:prof.ecoles,notesGlobales:allNotes,moyenneGlobale:globalMoy,nombreNotesGlobal:allCount},{merge:true});
 await invaliderCache('cache_professeurs');
-try { await signOut(secondaryAuth); } catch(e) {}
 return{moyenneEcole:moy,moyenneGlobale:globalMoy};
 };
 
@@ -2155,7 +2119,6 @@ var existingQ=query(collection(db,'netubers'),where('phone','==',phoneNorm),limi
 var existingSnap=await getDocs(existingQ);
 if(existingSnap.empty){
 var motDePasse=prof.motDePasseProvisoire||Math.random().toString(36).slice(2,8).toUpperCase();
-// ✅ EMAIL BASÉ UNIQUEMENT SUR LE NUMÉRO
 var emailGen=prof.emailGen||(telDigits+'@gmail.com');
 await setDoc(doc(db,'netubers',dem.profId),{prenom:'',nom:prof.nom||'',nomComplet:prof.nom||'',sexe:'',phone:phoneNorm,emailAuth:emailGen,code:motDePasse,ville:prof.ville||'',quartier:'',actif:true,avatarUrl:prof.avatarUrl||'',role:'professeur',ecoleId:dem.ecoleId,professeurId:dem.profId,dateCreation:new Date().toISOString(),creePar:dem.demandeurUid,creeParRole:dem.roleDemandeur,motDePasseProvisoire:true,stats:{deblocages:0,commandes:0,parrainage:0,jetons:0,badges:[]},notifications:[],parrainage:{code:'NTX-'+dem.profId.slice(0,6).toUpperCase(),count:0,palier:0,joursRestants:0}});
 try{await setDoc(doc(db,'phone_index',telDigits),{uid:dem.profId,dateCreation:new Date().toISOString()});}catch(e){}
@@ -2449,7 +2412,6 @@ function closeAccountModal(){var modal=document.getElementById('account-modal');
 async function handleAvatarInscription(e){var f=e.target.files&&e.target.files[0];if(!f)return;if(f.size>5*1024*1024){showToast('Image trop lourde (max 5 Mo)');e.target.value='';return;}if(!f.type||f.type.indexOf('image/')!==0){showToast('Format invalide');e.target.value='';return;}try{var preview=document.getElementById('accAvatarPreview');if(preview)preview.innerHTML='<i class="fa-solid fa-spinner fa-spin" style="color:var(--accent-blue)"></i>';showToast('⏳ Upload en cours…');var result=await window.picrd.compressAndUpload(f);_accAvatarUrl=result.image_url||'';if(preview)preview.innerHTML='<img src="'+_accAvatarUrl+'" alt="" style="width:100%;height:100%;object-fit:cover">';var rb=document.getElementById('accAvatarRemoveBtn');if(rb)rb.style.display='inline-flex';showToast('✅ Photo ajoutée');}catch(err){showToast('Erreur upload: '+err.message);var preview=document.getElementById('accAvatarPreview');if(preview)preview.innerHTML='<i class="fa-solid fa-user"></i>';}finally{e.target.value='';}}
 function retirerAvatarInscription(){_accAvatarUrl='';var preview=document.getElementById('accAvatarPreview');if(preview)preview.innerHTML='<i class="fa-solid fa-user"></i>';var rb=document.getElementById('accAvatarRemoveBtn');if(rb)rb.style.display='none';}
 
-// ✅ SUBMIT ACCOUNT MODAL — EMAIL BASÉ UNIQUEMENT SUR LE NUMÉRO (ÉTAPE 2)
 async function submitAccountModal(){
 var consent=document.getElementById('accConsent');
 if(!consent||!consent.checked){showToast('Vous devez accepter les conditions d\'utilisation du numéro');return;}
@@ -2469,7 +2431,6 @@ if(btn){btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin">
 try{var phoneDisponible=await window.verifierPhoneUnique(phone);if(!phoneDisponible){showToast('Numéro déjà inscrit');if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-check"></i> Créer mon compte';}return;}}catch(e){if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-check"></i> Créer mon compte';}showToast('Erreur');return;}
 try{await window.idbDelete(window.STORES.boutique,'current');await window.idbDelete(window.STORES.commerce,'current');}catch(e){}
 var nc=nom+' '+prenom;
-// ✅ EMAIL = numéro uniquement (ÉTAPE 2 du guide)
 var phoneClean = String(phone).replace(/[^\d]/g,'');
 var ef = phoneClean + '@gmail.com';
 if(btn){btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Création…';}
@@ -2483,7 +2444,6 @@ if(box){box.innerHTML='<button onclick="closeAccountModal()" style="position:abs
 }catch(err){if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-check"></i> Créer mon compte';}if(err.code==='auth/email-already-in-use'){showToast('Ce numéro est déjà inscrit');}else{showToast('Erreur: '+(err.message||''));}}
 }
 
-// ✅ SUBMIT ACCOUNT LOGIN — ÉTAPE 3 du guide : connexion SANS lire Firestore avant
 async function submitAccountLogin(){
 var phoneRaw=(document.getElementById('accLoginPhone')||{}).value||'';
 var code=(document.getElementById('accLoginCode')||{}).value||'';
@@ -2493,20 +2453,16 @@ if(code.length<6||code.length>15){showToast('Mot de passe invalide');return;}
 if(!isValidePhone243(phoneRaw)){showToast('Numéro invalide');return;}
 var phone=formatPhone243(phoneRaw);
 var phoneClean = String(phone).replace(/[^\d]/g,'');
-// ⚠️ EXACTEMENT LE MÊME FORMAT QU'À L'INSCRIPTION
 var emailAuth = phoneClean + '@gmail.com';
 var btn=document.querySelector('#accountModalConnexion button[type="submit"]');
 if(btn){btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Connexion…';}
 try{
-// 1. Firebase Auth valide le mot de passe (SANS lire Firestore)
 var cred = await window.signInWithEmailAndPasswordRef(window.auth, emailAuth, code);
 var uid = cred.user.uid;
-// 2. Une fois connecté, on lit le profil (autorisé par la règle)
 var snap = await window.getDocRef(window.docRef(window.db, 'netubers', uid));
 if (!snap.exists()) { throw new Error('Profil introuvable'); }
 var data = snap.data();
 if (data.actif === false) { throw new Error('compte_desactive'); }
-// 3. Construire l'objet compte
 var user = {
   id: uid, uid: uid,
   nom: data.nom || '', prenom: data.prenom || '',
@@ -2541,7 +2497,6 @@ var box=document.querySelector('#account-modal > div');
 if(box){box.innerHTML='<div style="width:80px;height:80px;border-radius:50%;background:#10b981;color:#fff;display:flex;align-items:center;justify-content:center;font-size:40px;margin:20px auto"><i class="fa-solid fa-check"></i></div><h3 style="font-size:22px;font-weight:900;color:var(--text-primary);text-align:center;margin:16px 0 8px">Bienvenue !</h3><p style="font-size:15px;color:var(--text-muted);text-align:center;line-height:1.5">Vous êtes connecté à NeTubeX RDC.</p>';}
 setTimeout(function(){showToast('Connecté');var cb=window._pendingCallback;window._pendingCallback=null;closeAccountModal();if(cb)setTimeout(cb,200);else if(CURRENT_COMMERCE){location.reload();}},1200);
 }catch(err){
-console.error('Login error:', err);
 var msg='Numéro ou mot de passe incorrect';
 if(err.code==='auth/wrong-password')msg='Mot de passe incorrect';
 else if(err.code==='auth/user-not-found')msg='Compte introuvable';
@@ -2622,7 +2577,6 @@ if(p){if(_changeAvatarUrl)p.innerHTML='<img src="'+_changeAvatarUrl+'" alt="" st
 async function retirerAvatarProfil(){if(!window.CURRENT_ACCOUNT){showToast('Connectez-vous');return;}try{await window.updateAvatar(window.CURRENT_ACCOUNT.id,'');window.CURRENT_ACCOUNT.avatarUrl='';setCurrentAccount(window.CURRENT_ACCOUNT);try{await window.setStored(window.STORES.account,'current',window.CURRENT_ACCOUNT);}catch(e){}try{localStorage.setItem('ntx_account_backup',JSON.stringify(window.CURRENT_ACCOUNT));}catch(e){}_changeAvatarUrl='';var p=document.getElementById('changeAvatarPreview');if(p)p.innerHTML='<i class="fa-solid fa-user"></i>';var rb=document.getElementById('changeAvatarRemoveBtn');if(rb)rb.style.display='none';mettreAJourAvatarProfilUI();showToast('Photo retirée');}catch(err){showToast('Erreur: '+err.message);}}
 function mettreAJourAvatarProfilUI(){var el=document.getElementById('profilAvatar');if(!el)return;if(window.CURRENT_ACCOUNT&&window.CURRENT_ACCOUNT.avatarUrl){el.innerHTML='<img src="'+window.CURRENT_ACCOUNT.avatarUrl+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">';}else{el.innerHTML='👤';}}
 
-// ✅ PROMPT CHANGEMENT MOT DE PASSE (ÉTAPE 5 du guide)
 async function promptChangerMdp(){
 if(!window.CURRENT_ACCOUNT){showToast('Connectez-vous');return;}
 var nouveau = prompt('Nouveau mot de passe (6 à 15 caractères) :');
@@ -3012,7 +2966,7 @@ PROFESSEURS_DATA=await window.chargerProfesseursFirestore(false);
 renderStatsReseau();
 renderContexteReseau();
 filtrerProfsReseau();
-}catch(e){console.error(e);}
+}catch(e){}
 }
 
 function renderStatsReseau(){
@@ -3395,11 +3349,19 @@ if (btnElement) { btnElement.disabled = false; btnElement.innerHTML = '<i class=
 }
 }
 
-async function chargerDemandesProfRattachement(){
-var c=document.getElementById('dashEcoleContent');
-if(!c)return;
-if(!window.CURRENT_ACCOUNT){c.innerHTML='';return;}
-if(window.CURRENT_ACCOUNT.role==='professeur'){
+async function chargerDemandesProfRattachement(force){
+    var c=document.getElementById('dashEcoleContent');
+    if(!c)return;
+    if(!window.CURRENT_ACCOUNT){c.innerHTML='';return;}
+    
+    var cacheKey='demandes_ecole_'+window.CURRENT_ACCOUNT.id;
+    var cached=await idbGet('stats',cacheKey);
+    if(!force && cached && cached.data && (Date.now()-cached.ts)<3*60*1000){
+        c.innerHTML=cached.data;
+        return;
+    }
+    
+    if(window.CURRENT_ACCOUNT.role==='professeur'){
 var demandes=[];
 try{demandes=await window.chargerDemandesProf(window.CURRENT_ACCOUNT.id);}catch(e){}
 var monProfil=PROFESSEURS_DATA.find(function(p){return p.uid===window.CURRENT_ACCOUNT.id||p.id===window.CURRENT_ACCOUNT.professeurId;});
@@ -3456,23 +3418,27 @@ c.innerHTML=html;
 }else{
 c.innerHTML='<div class="section-card-3d" style="padding:20px;text-align:center;color:var(--text-muted);font-size:14px">Section réservée aux professeurs et préfets/directeurs.</div>';
 }
+
+try{await idbSet('stats',cacheKey,{data:c.innerHTML,ts:Date.now()});}catch(e){}
 }
 
 async function accepterDemandeRattachementUI(demId){
-try{
-await window.accepterDemandeRattachement(demId);
-showToast('✅ Demande acceptée');
-PROFESSEURS_DATA=await window.chargerProfesseursFirestore(true);
-chargerDemandesProfRattachement();
-}catch(e){showToast('Erreur');}
+    try{
+        await window.accepterDemandeRattachement(demId);
+        try{await window.idbDelete('stats','demandes_ecole_'+window.CURRENT_ACCOUNT.id);}catch(e){}
+        showToast('✅ Demande acceptée');
+        PROFESSEURS_DATA=await window.chargerProfesseursFirestore(true);
+        chargerDemandesProfRattachement(true);
+    }catch(e){showToast('Erreur');}
 }
 
 async function refuserDemandeRattachementUI(demId){
-try{
-await window.refuserDemandeRattachement(demId);
-showToast('Demande refusée');
-chargerDemandesProfRattachement();
-}catch(e){showToast('Erreur');}
+    try{
+        await window.refuserDemandeRattachement(demId);
+        try{await window.idbDelete('stats','demandes_ecole_'+window.CURRENT_ACCOUNT.id);}catch(e){}
+        showToast('Demande refusée');
+        chargerDemandesProfRattachement(true);
+    }catch(e){showToast('Erreur');}
 }
 
 function ouvrirReservation(commerceId){var c=null;for(var i=0;i<COMMERCES_DATA.length;i++){if(COMMERCES_DATA[i].id===commerceId){c=COMMERCES_DATA[i];break;}}if(!c){showToast('Commerce introuvable');return;}requireLogin('réserver',function(){_resaCommerceId=commerceId;_resaChambreSelectionnee=null;var nomEl=document.getElementById('reservationCommerceName');if(nomEl)nomEl.textContent=c.nom||'Hôtel';var nEl=document.getElementById('resaNom');var pEl=document.getElementById('resaPhone');if(nEl)nEl.value=(window.CURRENT_ACCOUNT&&window.CURRENT_ACCOUNT.name)?window.CURRENT_ACCOUNT.name:'';if(pEl&&window.CURRENT_ACCOUNT&&window.CURRENT_ACCOUNT.phone){var digits=String(window.CURRENT_ACCOUNT.phone).replace(/[^\d]/g,'');if(digits.length>9&&digits.indexOf('243')===0)digits=digits.substring(3);while(digits.length>0&&digits.charAt(0)==='0')digits=digits.substring(1);pEl.value=digits.slice(0,9);}var today=new Date();var tomorrow=new Date(Date.now()+86400000);var dArr=document.getElementById('resaDateArrivee');var dDep=document.getElementById('resaDateDepart');if(dArr)dArr.value=today.toISOString().split('T')[0];if(dDep)dDep.value=tomorrow.toISOString().split('T')[0];var ch=document.getElementById('resaChambres');if(ch)ch.value='1';var pe=document.getElementById('resaPersonnes');if(pe)pe.value='2';var nu=document.getElementById('resaNuits');if(nu)nu.value='1';var no=document.getElementById('resaNotes');if(no)no.value='';renderChambresResa(c);var o=document.getElementById('reservationOverlay');var m=document.getElementById('reservationModal');if(o){o.style.opacity='1';o.style.pointerEvents='auto';}if(m){m.style.transform='translateY(0)';m.classList.add('active');}document.body.style.overflow='hidden';});}
@@ -3535,7 +3501,7 @@ refreshAddButtons();
 function openUnlock(){if(!CURRENT_OFFRE)return;var aId=CURRENT_OFFRE.annonceId||CURRENT_OFFRE.id;if(!aId){showToast('Annonce introuvable');return;}var ncu=normCat(CURRENT_OFFRE.cat);var f=CAT_IMMO.indexOf(ncu)!==-1?1000:400;var me=document.getElementById('unlockMontant');var mi=document.getElementById('unlockMontantInline');if(me)me.textContent=f.toLocaleString('fr-FR')+' FC';if(mi)mi.textContent=f.toLocaleString('fr-FR')+' FC';window._pendingDeblocageMontant=f;document.getElementById('unlock-modal').style.display='flex';attacherTousPhones();var de=DEBLOCAGES_MEMORY.find(function(d){return d.annonceId===aId&&(d.statut==='en_attente'||d.statut==='debloque');});if(de){document.getElementById('unlock-modal').style.display='none';if(de.statut==='en_attente'){showToast('Demande en cours');}else{showToast('Déjà débloqué');}}}
 function annulerDeblocage(){document.getElementById('unlock-modal').style.display='none';var t=document.getElementById('unlockTxId');var n=document.getElementById('unlockNumEnvoi');if(t)t.value='';if(n)n.value='';showToast('Annulé');}
 function fermerDeblocageModalSilencieux(){document.getElementById('unlock-modal').style.display='none';var t=document.getElementById('unlockTxId');var n=document.getElementById('unlockNumEnvoi');if(t)t.value='';if(n)n.value='';}
-async function validerDeblocage(){if(!CURRENT_OFFRE){showToast('Introuvable');return;}if(!window.CURRENT_ACCOUNT){showToast('Connectez-vous');return;}var aId=CURRENT_OFFRE.annonceId||CURRENT_OFFRE.id||('LOCAL-'+Date.now());var tx=(document.getElementById('unlockTxId')||{}).value?document.getElementById('unlockTxId').value.trim():'';var neRaw=(document.getElementById('unlockNumEnvoi')||{}).value?document.getElementById('unlockNumEnvoi').value.trim():'';if(!tx||tx.length<6){showToast('ID Transaction invalide');return;}if(!isValidePhone243(neRaw)){showToast('Numéro invalide');return;}var ne=formatPhone243(neRaw);var f=window._pendingDeblocageMontant||400;var sb=document.querySelector('#unlock-modal button[type="submit"]');if(sb){sb.disabled=true;sb.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Envoi…';}try{await window.creerDeblocage(window.CURRENT_ACCOUNT.id,aId,tx,f,ne);DEBLOCAGES_DIRTY=true;fermerDeblocageModalSilencieux();document.getElementById('deblocagePendingOverlay').classList.add('active');document.getElementById('deblocagePendingModal').classList.add('active');await rafraichirTousDeblocages();majVisibiliteSectionDeblocages();}catch(err){showToast('Erreur');}finally{if(sb){sb.disabled=false;sb.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer';}}}
+async function validerDeblocage(){if(!CURRENT_OFFRE){showToast('Introuvable');return;}if(!window.CURRENT_ACCOUNT){showToast('Connectez-vous');return;}var aId=CURRENT_OFFRE.annonceId||CURRENT_OFFRE.id||('LOCAL-'+Date.now());var tx=(document.getElementById('unlockTxId')||{}).value?document.getElementById('unlockTxId').value.trim():'';var neRaw=(document.getElementById('unlockNumEnvoi')||{}).value?document.getElementById('unlockNumEnvoi').value.trim():'';if(!tx||tx.length<6){showToast('ID Transaction invalide');return;}if(!isValidePhone243(neRaw)){showToast('Numéro invalide');return;}var ne=formatPhone243(neRaw);var f=window._pendingDeblocageMontant||400;var sb=document.querySelector('#unlock-modal button[type="submit"]');if(sb){sb.disabled=true;sb.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Envoi…';}try{await window.creerDeblocage(window.CURRENT_ACCOUNT.id,aId,tx,f,ne);DEBLOCAGES_DIRTY=true;fermerDeblocageModalSilencieux();document.getElementById('deblocagePendingOverlay').classList.add('active');document.getElementById('deblocagePendingModal').classList.add('active');await rafraichirTousDeblocages();majVisibiliteSectionDeblocages();try{await window.idbDelete('stats','abo_badge_'+window.CURRENT_ACCOUNT.id);}catch(e){}}catch(err){showToast('Erreur');}finally{if(sb){sb.disabled=false;sb.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer';}}}
 function annulerPaiementPublication(){document.getElementById('paiementModal').style.display='none';window._pendingPublishData=null;showToast('Annulé');}
 function fermerPaiementModalSilencieux(){document.getElementById('paiementModal').style.display='none';}
 function closeDeblocagePending(){document.getElementById('deblocagePendingOverlay').classList.remove('active');document.getElementById('deblocagePendingModal').classList.remove('active');}
@@ -3615,7 +3581,6 @@ async function submitInscriptionBoutique(){
         document.getElementById('boutiquePendingOverlay').classList.add('active');
         document.getElementById('boutiquePendingModal').classList.add('active');
     } catch (err) {
-        console.error(err);
         showToast('❌ Erreur lors de l\'envoi : ' + (err.message || 'Veuillez réessayer.'));
     } finally {
         if (b) {
@@ -3640,16 +3605,74 @@ function handlePublishImages(e){var fs=Array.from(e.target.files||[]);var r=MAX_
 function renderPublishImages(){var p=document.getElementById('publishImagesPreview');var c=document.getElementById('publishImagesCounter');if(!p)return;p.innerHTML='';publishImages.forEach(function(img,idx){var it=document.createElement('div');it.className='publish-image-item';it.innerHTML='<img src="'+img.dataUrl+'" alt=""><button type="button" class="publish-image-remove" onclick="removePublishImage('+idx+')">✕</button>';p.appendChild(it);});if(c){c.textContent=publishImages.length+' photo'+(publishImages.length>1?'s':'');}}
 function removePublishImage(i){publishImages.splice(i,1);renderPublishImages();}
 async function submitPublish(){if(!publishCat){showToast('Sélectionnez un type');return;}var t=(document.getElementById('publishTitre')||{}).value?document.getElementById('publishTitre').value.trim():'';var v=getVilleValue('publishVille','publishVilleLibre');var p=(document.getElementById('publishPrix')||{}).value?document.getElementById('publishPrix').value.trim():'';var a=(document.getElementById('publishAdresse')||{}).value?document.getElementById('publishAdresse').value.trim():'';var d=(document.getElementById('publishDescription')||{}).value?document.getElementById('publishDescription').value.trim():'';d=nettoyerTextePourSaisie(d);if(!t||!v||!p||!d||!a){showToast('Remplissez tous les champs');return;}var ei=(publishCat==='parcelle'||publishCat==='location');var m=ei?1000:400;var jt=null;if(publishCat==='job'){if(!jobContract){showToast('Choisissez CDI ou CDD');return;}jt=jobContract;}window._pendingMontant=m;window._pendingPublishData={titre:t,desc:d,ville:v,prix:p,adresse:a,cat:publishCat,images:publishImages.slice(),jobType:jt,sousTypeImmo:SOUS_TYPE_IMMO};var me=document.getElementById('paiementMontant');if(me)me.textContent=m.toLocaleString('fr-FR')+' FC';document.getElementById('paiementModal').style.display='flex';attacherTousPhones();}
-async function validerPaiementEtPublier(){var tx=(document.getElementById('publishTxId')||{}).value?document.getElementById('publishTxId').value.trim():'';var neRaw=(document.getElementById('publishNumEnvoi')||{}).value?document.getElementById('publishNumEnvoi').value.trim():'';if(!tx||tx.length<6){showToast('ID Transaction invalide');return;}if(!isValidePhone243(neRaw)){showToast('Numéro invalide');return;}var ne=formatPhone243(neRaw);var d=window._pendingPublishData;if(!d){showToast('Données perdues');return;}var submitBtn=document.querySelector('#paiementModal button[type="submit"]');if(submitBtn){submitBtn.disabled=true;submitBtn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Publication…';}var timeoutId=setTimeout(function(){if(submitBtn){submitBtn.disabled=false;submitBtn.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer';}showToast('Délai dépassé');},30000);try{var pn=window.CURRENT_ACCOUNT.name||window.CURRENT_ACCOUNT.nomComplet||'Utilisateur';var tagL='post-tag-'+d.cat;if(d.cat==='job'){tagL='post-tag-job';}var imagesUrl=[];if(d.images&&d.images.length>0){for(var i=0;i<d.images.length;i++){try{var url=await window.uploadImageAnnonce(d.images[i].file);if(url)imagesUrl.push(url);}catch(e){}}}var payload={titre:d.titre,desc:d.desc,ville:d.ville,quartier:'',prix:d.prix,img:imagesUrl.length>0?imagesUrl[0]:'',images:imagesUrl,cat:d.cat,tag:d.cat==='job'?'Emploi':'',tagClass:tagL,proprietaireUid:window.CURRENT_ACCOUNT.id,publieurNom:pn,publieurAvatar:window.CURRENT_ACCOUNT.avatarUrl||'',publieurType:'user',publieurPhone:window.CURRENT_ACCOUNT.phone||'',publieurSexe:window.CURRENT_ACCOUNT.sexe||''};if(d.cat==='job'&&d.jobType){payload.jobType=d.jobType;}if(d.cat==='parcelle'&&d.sousTypeImmo){payload.sousTypeImmo=d.sousTypeImmo;}if(d.cat==='location'&&d.sousTypeImmo){payload.sousTypeImmo=d.sousTypeImmo;}await window.creerAnnonce(payload,{nom:pn,adresse:d.adresse,telephone:window.CURRENT_ACCOUNT.phone||'',email:window.CURRENT_ACCOUNT.emailAuth||''},{transactionId:tx,numeroEnvoi:ne,montant:window._pendingMontant||400,destinataire:'+243976953045'});try{await idbDelete('stats','stats_user_'+window.CURRENT_ACCOUNT.id);}catch(e){}try{await idbDelete('stats','pubs_user_'+window.CURRENT_ACCOUNT.id);}catch(e){}fermerPaiementModalSilencieux();document.getElementById('publishPendingOverlay').classList.add('active');document.getElementById('publishPendingModal').classList.add('active');}catch(e){showToast('Erreur: '+(e.message||''));}finally{clearTimeout(timeoutId);if(submitBtn){submitBtn.disabled=false;submitBtn.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer';}}}
+async function validerPaiementEtPublier(){
+  var tx=(document.getElementById('publishTxId')||{}).value?document.getElementById('publishTxId').value.trim():'';
+  var neRaw=(document.getElementById('publishNumEnvoi')||{}).value?document.getElementById('publishNumEnvoi').value.trim():'';
+  if(!tx||tx.length<6){showToast('ID Transaction invalide');return;}
+  if(!isValidePhone243(neRaw)){showToast('Numéro invalide');return;}
+  var ne=formatPhone243(neRaw);
+  var d=window._pendingPublishData;
+  if(!d){showToast('Données perdues');return;}
+  var submitBtn=document.querySelector('#paiementModal button[type="submit"]');
+  if(submitBtn){submitBtn.disabled=true;submitBtn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Publication…';}
+  try{
+    var pn=window.CURRENT_ACCOUNT.name||window.CURRENT_ACCOUNT.nomComplet||'Utilisateur';
+    var tagL='post-tag-'+d.cat;
+    if(d.cat==='job'){tagL='post-tag-job';}
+    var imagesUrl=[];
+    if(d.images&&d.images.length>0){
+      for(var i=0;i<d.images.length;i++){
+        try{
+          var url=await window.uploadImageAnnonce(d.images[i].file);
+          if(url)imagesUrl.push(url);
+        }catch(imgErr){}
+      }
+    }
+    var payload={
+      titre:d.titre,desc:d.desc,ville:d.ville,quartier:'',prix:d.prix,
+      img:imagesUrl.length>0?imagesUrl[0]:'',images:imagesUrl,cat:d.cat,
+      tag:d.cat==='job'?'Emploi':'',tagClass:tagL,
+      proprietaireUid:window.CURRENT_ACCOUNT.id,publieurNom:pn,
+      publieurAvatar:window.CURRENT_ACCOUNT.avatarUrl||'',publieurType:'user',
+      publieurPhone:window.CURRENT_ACCOUNT.phone||'',publieurSexe:window.CURRENT_ACCOUNT.sexe||''
+    };
+    if(d.cat==='job'&&d.jobType){payload.jobType=d.jobType;}
+    if((d.cat==='parcelle'||d.cat==='location')&&d.sousTypeImmo){payload.sousTypeImmo=d.sousTypeImmo;}
+    await window.creerAnnonce(
+      payload,
+      {nom:pn,adresse:d.adresse,telephone:window.CURRENT_ACCOUNT.phone||'',email:window.CURRENT_ACCOUNT.emailAuth||''},
+      {transactionId:tx,numeroEnvoi:ne,montant:window._pendingMontant||400,destinataire:'+243976953045'}
+    );
+    try{await idbDelete('stats','stats_user_'+window.CURRENT_ACCOUNT.id);}catch(e){}
+    try{await idbDelete('stats','pubs_user_'+window.CURRENT_ACCOUNT.id);}catch(e){}
+    fermerPaiementModalSilencieux();
+    document.getElementById('publishPendingOverlay').classList.add('active');
+    document.getElementById('publishPendingModal').classList.add('active');
+  }catch(e){
+    var msg='Erreur: '+(e.message||'inconnue');
+    if(e.code==='permission-denied')msg='Session expirée. Reconnectez-vous.';
+    if(e.code==='storage/unauthorized')msg='Upload refusé. Reconnectez-vous.';
+    showToast(msg);
+  }finally{
+    if(submitBtn){submitBtn.disabled=false;submitBtn.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer';}
+  }
+}
 function closePublishPending(){document.getElementById('publishPendingOverlay').classList.remove('active');document.getElementById('publishPendingModal').classList.remove('active');showToast('Publication enregistrée');setTimeout(function(){go('index');},400);}
 
 async function renderMesStats(){var t=document.getElementById('statTotalVues');var s=document.getElementById('statTotalVuesSub');if(!t)return;if(!window.CURRENT_ACCOUNT||!window.CURRENT_ACCOUNT.id){t.textContent='—';if(s)s.textContent='Connectez-vous';return;}t.textContent='…';if(s)s.textContent='Chargement…';try{var cacheKey='stats_user_'+window.CURRENT_ACCOUNT.id;var cached=await idbGet('stats',cacheKey);var stats;if(cached&&(Date.now()-cached.ts)<30*60*1000){stats=cached.data;}else{if(!peutLireFirebase())return;var snap=await window.getDocRef(window.docRef(window.db,'user_stats',window.CURRENT_ACCOUNT.id));if(!snap.exists()){stats={totalVues:0,nbAnnonces:0};try{await window.setDoc(window.docRef(window.db,'user_stats',window.CURRENT_ACCOUNT.id),{totalVues:0,nbAnnonces:0,nbPubliees:0,nbEnAttente:0,nbRefusees:0,totalDeblocages:0,totalCommerceVues:0,nbProduitsCommerce:0,derniereMiseAJour:new Date().toISOString()});}catch(e){}}else{stats=snap.data();}await idbSet('stats',cacheKey,{data:stats,ts:Date.now()});}t.textContent=(stats.totalVues||0).toLocaleString('fr-FR');if(s){if((stats.nbAnnonces||0)===0)s.textContent='Aucune annonce publiée';else s.textContent='Vues sur '+stats.nbAnnonces+' annonce'+(stats.nbAnnonces>1?'s':'');}var c=await chargerCommerceCommercant();if(c){var st=document.getElementById('statVuesBoutique');var sp=document.getElementById('statNbProduits');var sec=document.getElementById('statsBoutiqueSection');if(sec)sec.style.display='block';if(st)st.textContent=(c.vues||0).toLocaleString('fr-FR');var prods=(c.produits||[]).filter(function(p){return!p.statut||p.statut==='approuve';});if(sp)sp.textContent=prods.length;}}catch(e){t.textContent='0';if(s)s.textContent='Aucune donnée';}}
 async function chargerCommerceCommercant(){if(!window.CURRENT_ACCOUNT||!window.CURRENT_ACCOUNT.id)return null;var cacheKey='commerce_user_'+window.CURRENT_ACCOUNT.id;var cached=await idbGet('stats',cacheKey);if(cached&&(Date.now()-cached.ts)<60*60*1000){return cached.data;}if(!peutLireFirebase())return null;try{var q=window.query(window.collection(window.db,'commerces'),window.where('uid','==',window.CURRENT_ACCOUNT.id));var snap=await window.getDocs(q);var c=null;snap.forEach(function(d){c=Object.assign({id:d.id},d.data());});await idbSet('stats',cacheKey,{data:c,ts:Date.now()});return c;}catch(e){return null;}}
+
 async function renderMesPublications(){
     var c=document.getElementById('mesPublicationsListe');
     if(!c)return;
     if(!window.CURRENT_ACCOUNT||!window.CURRENT_ACCOUNT.id){
         c.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:14px">Connectez-vous.</div>';
+        return;
+    }
+    var cacheKey='pubs_user_'+window.CURRENT_ACCOUNT.id;
+    var cached=await idbGet('stats',cacheKey);
+    if(cached && cached.data && (Date.now()-cached.ts)<5*60*1000){
+        afficherPublicationsListe(cached.data);
         return;
     }
     c.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:14px"><i class="fa-solid fa-spinner fa-spin"></i> Chargement…</div>';
@@ -3658,32 +3681,34 @@ async function renderMesPublications(){
         var q = window.query(window.collection(window.db,'annonces'), window.where('proprietaireUid','==',window.CURRENT_ACCOUNT.id), window.limit(20));
         var snap = await window.getDocs(q);
         var ma = [];
-        snap.forEach(function(d){
-            ma.push(Object.assign({id:d.id},d.data()));
-        });
-        ma.sort(function(a,b){
-            return (b.dateCreation||'').localeCompare(a.dateCreation||'');
-        });
-        try { await idbSet('stats','pubs_user_'+window.CURRENT_ACCOUNT.id,{data:ma,ts:Date.now()}); } catch(e){}
-        if(ma.length===0){
-            c.innerHTML='<div style="text-align:center;padding:24px 12px;color:var(--text-muted);font-size:14px">Aucune publication.</div>';
-            return;
-        }
-        c.innerHTML = ma.map(function(a){
-            var sb='';
-            if(a.statut==='en_attente') sb='<span style="font-size:11px;font-weight:900;padding:4px 9px;border-radius:6px;background:#fef3c7;color:#92400e;text-transform:uppercase">⏳ En attente</span>';
-            else if(a.statut==='approuve') sb='<span style="font-size:11px;font-weight:900;padding:4px 9px;border-radius:6px;background:#d1fae5;color:#065f46;text-transform:uppercase">✅ Publié</span>';
-            else if(a.statut==='refuse') sb='<span style="font-size:11px;font-weight:900;padding:4px 9px;border-radius:6px;background:#fee2e2;color:#991b1b;text-transform:uppercase">❌ Refusé</span>';
-            return '<div class="pub-item">'+
-                (a.img?'<img src="'+esc(a.img)+'" onerror="this.style.display=\'none\'">':'<div style="width:52px;height:52px;background:var(--bg-card);border:1px solid var(--border-primary);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">📄</div>')+
-                '<div class="pub-item-info"><div class="pub-item-titre">'+esc(a.titre||'Sans titre')+'</div><div class="pub-item-ville">'+esc(a.ville||'')+'</div><div style="margin-top:6px">'+sb+'</div></div>'+
-            '</div>';
-        }).join('');
+        snap.forEach(function(d){ ma.push(Object.assign({id:d.id},d.data())); });
+        ma.sort(function(a,b){ return (b.dateCreation||'').localeCompare(a.dateCreation||''); });
+        try{ await idbSet('stats',cacheKey,{data:ma,ts:Date.now()}); }catch(e){}
+        afficherPublicationsListe(ma);
     } catch(e) {
-        console.error(e);
         c.innerHTML='<div style="text-align:center;padding:20px;color:#dc2626;font-size:14px">Erreur de chargement. Veuillez réessayer.</div>';
     }
 }
+
+function afficherPublicationsListe(ma){
+    var c=document.getElementById('mesPublicationsListe');
+    if(!c)return;
+    if(ma.length===0){
+        c.innerHTML='<div style="text-align:center;padding:24px 12px;color:var(--text-muted);font-size:14px">Aucune publication.</div>';
+        return;
+    }
+    c.innerHTML = ma.map(function(a){
+        var sb='';
+        if(a.statut==='en_attente') sb='<span style="font-size:11px;font-weight:900;padding:4px 9px;border-radius:6px;background:#fef3c7;color:#92400e;text-transform:uppercase">⏳ En attente</span>';
+        else if(a.statut==='approuve') sb='<span style="font-size:11px;font-weight:900;padding:4px 9px;border-radius:6px;background:#d1fae5;color:#065f46;text-transform:uppercase">✅ Publié</span>';
+        else if(a.statut==='refuse') sb='<span style="font-size:11px;font-weight:900;padding:4px 9px;border-radius:6px;background:#fee2e2;color:#991b1b;text-transform:uppercase">❌ Refusé</span>';
+        return '<div class="pub-item">'+
+            (a.img?'<img src="'+esc(a.img)+'" onerror="this.style.display=\'none\'">':'<div style="width:52px;height:52px;background:var(--bg-card);border:1px solid var(--border-primary);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">📄</div>')+
+            '<div class="pub-item-info"><div class="pub-item-titre">'+esc(a.titre||'Sans titre')+'</div><div class="pub-item-ville">'+esc(a.ville||'')+'</div><div style="margin-top:6px">'+sb+'</div></div>'+
+        '</div>';
+    }).join('');
+}
+
 async function verifierBoutiqueEtAfficher(){var ti=document.getElementById('dashTabInfos');var tc=document.getElementById('dashTabCatalogue');var sb=document.getElementById('shopStatusBadge');var bandeau=document.getElementById('bandeauStatutBoutique');var statsBoutique=document.getElementById('statsBoutiqueSection');if(!window.CURRENT_ACCOUNT){if(ti)ti.style.display='none';if(tc)tc.style.display='none';if(sb)sb.style.display='none';if(statsBoutique)statsBoutique.style.display='none';return;}var b=window.CURRENT_ACCOUNT.boutique;if(!b){var c=await chargerCommerceCommercant();if(c){b={uid:c.uid,nom:c.nom,type:c.type,ville:c.ville,quartier:c.quartier,adresse:c.adresse,horaires:c.horaires,telephone:c.telephone,whatsappCommercial:c.whatsappCommercial||c.whatsapp,statut:c.statut,img:c.img,emoji:c.emoji,description:c.description,retraitActif:c.retraitActif,livraisonActive:c.livraisonActive};}if(!b){if(ti)ti.style.display='none';if(tc)tc.style.display='none';if(sb)sb.style.display='none';if(bandeau)bandeau.style.display='none';if(statsBoutique)statsBoutique.style.display='none';return;}}if(b.statut==='approuve'){if(bandeau)bandeau.style.display='none';afficherInfosBoutique(b);}else if(b.statut==='en_attente'){if(bandeau){bandeau.style.display='block';bandeau.innerHTML='<div class="bandeau-statut attente"><i class="fa-solid fa-hourglass-half"></i><div><strong>Commerce en attente</strong><br>Vous serez appelé sous 30 min.</div></div>';}}else if(b.statut==='refuse'){if(bandeau){bandeau.style.display='block';bandeau.innerHTML='<div class="bandeau-statut refuse"><i class="fa-solid fa-circle-xmark"></i><div><strong>Commerce refusé</strong><br>Contactez le support.</div></div>';}}}
 function afficherInfosBoutique(b){var av=document.getElementById('shopHeroAvatar');var nm=document.getElementById('shopHeroName');var ty=document.getElementById('shopHeroType');var sb=document.getElementById('shopStatusBadge');var list=document.getElementById('shopInfoList');if(av){if(b.img||b.emoji){if(b.img){av.innerHTML='<img src="'+esc(b.img)+'" alt="">';}else{av.textContent=b.emoji||'🏪';}}else{av.textContent='🏪';}}if(nm)nm.textContent=b.nom||'Mon commerce';if(ty)ty.textContent=(b.type||'Commerce')+' · '+(b.ville||'RDC')+(b.quartier?' · '+b.quartier:'');if(sb){if(b.statut==='approuve'){sb.className='shop-status-badge approuve';sb.innerHTML='<i class="fa-solid fa-circle-check"></i> Commerce approuvé';}else if(b.statut==='en_attente'){sb.className='shop-status-badge en_attente';sb.innerHTML='<i class="fa-solid fa-hourglass-half"></i> En attente';}else{sb.className='shop-status-badge refuse';sb.innerHTML='<i class="fa-solid fa-circle-xmark"></i> Refusé';}}if(list){var items=[];if(b.telephone)items.push({icon:'fa-phone',color:'#007fff',label:'Téléphone',value:b.telephone});if(b.whatsappCommercial||b.whatsapp)items.push({icon:'fa-brands fa-whatsapp',color:'#10b981',label:'WhatsApp',value:b.whatsappCommercial||b.whatsapp});if(b.adresse)items.push({icon:'fa-location-dot',color:'#ef4444',label:'Adresse',value:b.adresse});if(b.horaires)items.push({icon:'fa-clock',color:'#f59e0b',label:'Horaires',value:b.horaires});list.innerHTML=items.map(function(it){return'<div class="shop-info-item"><div class="shop-info-icon" style="background:'+it.color+'"><i class="fa-solid '+it.icon+'"></i></div><div class="shop-info-content"><div class="shop-info-label">'+it.label+'</div><div class="shop-info-value">'+esc(it.value)+'</div></div></div>';}).join('');}}
 async function switchDashTab(el,tab){
@@ -3813,7 +3838,6 @@ async function ouvrirBoutiqueDepuisURL() {
       return false;
     }
   } catch (e) {
-    console.error('Erreur ouverture boutique URL:', e);
     return false;
   }
 }
@@ -3881,6 +3905,7 @@ var _invalidationActive=false;
 var _enCours=false;
 var POLL_MS=60000;
 var AGE_RECENT_MS=5*60*1000;
+
 async function verifierInvalidation(){
 if(!peutLireFirebase())return;
 if(_enCours)return;
@@ -3894,26 +3919,100 @@ _invalidationActive=inv.active===true;
 if(!_invalidationActive){_lastInvalidation=d.invalidationForcee||0;return;}
 var forcee=d.invalidationForcee||0;
 if(!forcee)return;
-if(_lastInvalidation===null){_lastInvalidation=forcee;var lastChange=inv.lastChangeAt?new Date(inv.lastChangeAt).getTime():0;var age=Date.now()-lastChange;if(age>=0&&age<AGE_RECENT_MS){await rafraichirToutSilencieux();}return;}
-if(forcee!==_lastInvalidation){_lastInvalidation=forcee;await rafraichirToutSilencieux();}
+if(_lastInvalidation===null){
+    _lastInvalidation=forcee;
+    var lastChange=inv.lastChangeAt?new Date(inv.lastChangeAt).getTime():0;
+    var age=Date.now()-lastChange;
+    if(age>=0&&age<AGE_RECENT_MS){
+        await invaliderSelonAction(inv.lastAction||'',inv.lastCible||null);
+    }
+    return;
+}
+if(forcee!==_lastInvalidation){
+    _lastInvalidation=forcee;
+    await invaliderSelonAction(inv.lastAction||'',inv.lastCible||null);
+}
 }catch(e){}
 finally{_enCours=false;}
 }
+
+async function invaliderSelonAction(action,cible){
+    if(!peutLireFirebase())return;
+    var uid=window.CURRENT_ACCOUNT?window.CURRENT_ACCOUNT.id:null;
+    try{
+        if(action==='approveAnnonce'||action==='refuseAnnonce'||action==='editAnnonce'||action==='supprimerAnnonce'||action==='viderFeed'){
+            if(uid){
+                await window.idbDelete('stats','pubs_user_'+uid);
+                await window.idbDelete('stats','stats_user_'+uid);
+            }
+        }
+        else if(action==='approveProduit'||action==='rejectProduit'||action==='deleteProduitAttente'||action==='approveAllProduits'||action==='ajouterArticle'||action==='editArticle'||action==='supprimerArticle'){
+            if(uid) await window.idbDelete('stats','commerce_user_'+uid);
+        }
+        else if(action==='validerAbonnementBoutique'||action==='activerAbonnementBoutique'||action==='refuserAbonnementBoutique'||action==='aboSimple'||action==='aboForce'||action==='changeModeAbonnement'){
+            if(uid) await window.idbDelete('stats','abo_badge_'+uid);
+        }
+        else if(action==='activerAbonnementEcole'||action==='aboEcoleSimple'||action==='aboEcoleForce'){
+            if(uid) await window.idbDelete('stats','abo_badge_'+uid);
+        }
+        else if(action==='validerDeblocage'||action==='rejeterDeblocage'||action==='deleteDeblocage'){
+            if(uid){
+                DEBLOCAGES_DIRTY=true;
+                await window.invaliderCache('cache_deblocages_'+uid);
+            }
+        }
+        else if(action==='editBoutique'||action==='supprimerBoutique'||action==='deleteBoutique'){
+            if(uid) await window.idbDelete('stats','commerce_user_'+uid);
+        }
+        else if(action==='approveBoutique'||action==='refuseBoutique'||action==='createBoutique'||action==='retirerActive'){
+            if(uid){
+                await window.idbDelete('stats','commerce_user_'+uid);
+                await window.idbDelete('stats','stats_user_'+uid);
+            }
+        }
+        else if(action==='createProf'||action==='createPrefect'||action==='repairProfs'||action==='deleteEcole'){
+            if(uid) await window.idbDelete('stats','demandes_ecole_'+uid);
+        }
+        else if(action==='gcEnregistrer'||action==='importMultiple'){
+            if(uid) await window.idbDelete('stats','commerce_user_'+uid);
+        }
+        else {
+            if(uid){
+                await window.idbDelete('stats','pubs_user_'+uid);
+                await window.idbDelete('stats','stats_user_'+uid);
+            }
+        }
+    }catch(e){}
+    await rafraichirToutSilencieux();
+}
+
 async function rafraichirToutSilencieux(){
-if(!peutLireFirebase())return;
-try{await window.invaliderCache();}catch(e){}
-try{
-var results=await Promise.all([window.chargerAnnoncesFirestore(false),window.chargerCommercesFirestore(false),window.chargerEcolesFirestore(false),window.chargerProfesseursFirestore(false)]);
-ANNONCES_DATA=results[0];COMMERCES_DATA=results[1];ECOLES_DATA=results[2];PROFESSEURS_DATA=results[3];
-if(currentTab==='index'){_nextFeedOrder=null;_feedCycleItems=[];_feedCycleIndex=0;_feedSeenIds.clear();initFeed();}
-else if(currentTab==='commerces'){renderCommercesGrid();}
-else if(currentTab==='jobs'){renderJobsFeed();}
-else if(currentTab==='immobilier'){var sub=document.querySelector('.immobilier-subtab.active');renderImmobilierFeed(sub?sub.getAttribute('data-sub')||'all':'all');}
-else if(currentTab==='category'){renderCategoryFeed(CURRENT_CATEGORY||'autre');}
-else if(currentTab==='ecoles'){renderStatsReseau();renderContexteReseau();filtrerProfsReseau();}
-else if(currentTab==='dashboard-utilisateur'){renderMesStats();renderMesPublications();try{DEBLOCAGES_DIRTY=true;await rafraichirTousDeblocages();majVisibiliteSectionDeblocages();}catch(e){if(window.CURRENT_ACCOUNT&&window.CURRENT_ACCOUNT.role==='professeur')chargerDemandesProfRattachement();}}
-else if(currentTab==='catalogue'&&CURRENT_COMMERCE){var refreshed=COMMERCES_DATA.find(function(c){return c.id===CURRENT_COMMERCE.id;});if(refreshed){CURRENT_COMMERCE=refreshed;renderCatalogue(refreshed);if(document.getElementById('cart-drawer').classList.contains('active')){appliquerConfigCommandes();}}}
-}catch(e){}
+    if(!peutLireFirebase())return;
+    try{await window.invaliderCache('cache_annonces');}catch(e){}
+    try{await window.invaliderCache('cache_commerces');}catch(e){}
+    try{await window.invaliderCache('cache_ecoles');}catch(e){}
+    try{await window.invaliderCache('cache_professeurs');}catch(e){}
+    try{
+        var results=await Promise.all([window.chargerAnnoncesFirestore(false),window.chargerCommercesFirestore(false),window.chargerEcolesFirestore(false),window.chargerProfesseursFirestore(false)]);
+        ANNONCES_DATA=results[0];COMMERCES_DATA=results[1];ECOLES_DATA=results[2];PROFESSEURS_DATA=results[3];
+        if(currentTab==='index'){_nextFeedOrder=null;_feedCycleItems=[];_feedCycleIndex=0;_feedSeenIds.clear();initFeed();}
+        else if(currentTab==='commerces'){renderCommercesGrid();}
+        else if(currentTab==='jobs'){renderJobsFeed();}
+        else if(currentTab==='immobilier'){var sub=document.querySelector('.immobilier-subtab.active');renderImmobilierFeed(sub?sub.getAttribute('data-sub')||'all':'all');}
+        else if(currentTab==='category'){renderCategoryFeed(CURRENT_CATEGORY||'autre');}
+        else if(currentTab==='ecoles'){renderStatsReseau();renderContexteReseau();filtrerProfsReseau();}
+        else if(currentTab==='dashboard-utilisateur'){
+            if(!document.querySelector('#dashPanelPubs').offsetParent) renderMesPublications();
+            if(!document.querySelector('#dashPanelStats').offsetParent) renderMesStats();
+            verifierEtAfficherBadgeAbonnement();
+            try{DEBLOCAGES_DIRTY=true;await rafraichirTousDeblocages();majVisibiliteSectionDeblocages();}catch(e){}
+            if(window.CURRENT_ACCOUNT&&window.CURRENT_ACCOUNT.role==='professeur')chargerDemandesProfRattachement(true);
+        }
+        else if(currentTab==='catalogue'&&CURRENT_COMMERCE){
+            var refreshed=COMMERCES_DATA.find(function(c){return c.id===CURRENT_COMMERCE.id;});
+            if(refreshed){CURRENT_COMMERCE=refreshed;renderCatalogue(refreshed);if(document.getElementById('cart-drawer').classList.contains('active')){appliquerConfigCommandes();}}
+        }
+    }catch(e){}
 }
 setInterval(verifierInvalidation,POLL_MS);
 verifierInvalidation();
@@ -4122,6 +4221,7 @@ async function soumettreAbonnement() {
             dateDemande: new Date().toISOString()
         };
         await window.setDoc(window.docRef(window.db, 'abonnements', aboId), dataAbo);
+        try{await window.idbDelete('stats','abo_badge_'+window.CURRENT_ACCOUNT.id);}catch(e){}
         document.getElementById('abonnementOverlay').classList.remove('active');
         document.getElementById('abonnementModal').classList.remove('active');
         document.getElementById('aboVerifOverlay').classList.add('active');
@@ -4131,7 +4231,6 @@ async function soumettreAbonnement() {
             document.querySelector('.fb-header').style.opacity = '1';
         }
     } catch (e) {
-        console.error(e);
         showToast('❌ Erreur réseau. Veuillez réessayer.');
     } finally {
         btn.disabled = false;
@@ -4170,7 +4269,6 @@ async function ecouterConfigurationAbonnement() {
             }
         }
     } catch (e) {
-        console.log("Erreur chargement config abonnement:", e);
     }
 }
 
@@ -4222,13 +4320,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function verifierEtAfficherBadgeAbonnement() {
     if (!window.CURRENT_ACCOUNT) return;
-    const role = window.CURRENT_ACCOUNT.role;
-    const aBoutique = window.CURRENT_ACCOUNT.boutique && window.CURRENT_ACCOUNT.boutique.statut === 'approuve';
-    const estEcole = (role === 'prefet' || role === 'directeur');
+    var role = window.CURRENT_ACCOUNT.role;
+    var aBoutique = window.CURRENT_ACCOUNT.boutique && window.CURRENT_ACCOUNT.boutique.statut === 'approuve';
+    var estEcole = (role === 'prefet' || role === 'directeur');
     if (!aBoutique && !estEcole) return;
-    let badgeContainer = document.getElementById('badgeAbonnementProfil');
+    var badgeContainer = document.getElementById('badgeAbonnementProfil');
     if (!badgeContainer) {
-        const profilHero = document.querySelector('.profil-hero');
+        var profilHero = document.querySelector('.profil-hero');
         if (profilHero) {
             badgeContainer = document.createElement('div');
             badgeContainer.id = 'badgeAbonnementProfil';
@@ -4237,44 +4335,36 @@ async function verifierEtAfficherBadgeAbonnement() {
         }
     }
     if (!badgeContainer) return;
+    var cacheKey='abo_badge_'+window.CURRENT_ACCOUNT.id;
+    var cached=await idbGet('stats',cacheKey);
+    if(cached && cached.data && (Date.now()-cached.ts)<10*60*1000){
+        afficherBadgeAbo(badgeContainer, cached.data);
+        return;
+    }
     try {
-        const q = window.query(
-            window.collection(window.db, 'abonnements'),
-            window.where('uid', '==', window.CURRENT_ACCOUNT.id),
-            window.where('statut', '==', 'valide'),
-            window.limit(1)
-        );
-        const snap = await window.getDocs(q);
-        if (!snap.empty) {
-            badgeContainer.innerHTML = `
-                <div style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 999px; background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-weight: 900; font-size: 14px; box-shadow: 0 4px 14px rgba(16,185,129,0.4); border: 2px solid rgba(255,255,255,0.3);">
-                    <i class="fa-solid fa-circle-check" style="font-size: 18px;"></i>
-                    <span>Abonnement en ordre</span>
-                </div>
-            `;
-        } else {
-            const qAttente = window.query(
-                window.collection(window.db, 'abonnements'),
-                window.where('uid', '==', window.CURRENT_ACCOUNT.id),
-                window.where('statut', '==', 'en_attente'),
-                window.limit(1)
-            );
-            const snapAttente = await window.getDocs(qAttente);
-            if (!snapAttente.empty) {
-                badgeContainer.innerHTML = `
-                    <div style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 999px; background: #fef3c7; color: #92400e; font-weight: 900; font-size: 13.5px; border: 2px solid #fcd34d;">
-                        <i class="fa-solid fa-hourglass-half fa-spin" style="font-size: 16px;"></i>
-                        <span>Vérification en cours</span>
-                    </div>
-                `;
-            } else {
-                badgeContainer.innerHTML = '';
-            }
-        }
-    } catch (e) {
-        console.error("Erreur vérification badge abonnement:", e);
+        var q = window.query(window.collection(window.db, 'abonnements'), window.where('uid', '==', window.CURRENT_ACCOUNT.id), window.limit(3));
+        var snap = await window.getDocs(q);
+        var statut='aucun';
+        snap.forEach(function(d){
+            var s=d.data().statut;
+            if(s==='valide') statut='valide';
+            else if(s==='en_attente' && statut!=='valide') statut='en_attente';
+        });
+        try{await idbSet('stats',cacheKey,{data:{statut:statut},ts:Date.now()});}catch(e){}
+        afficherBadgeAbo(badgeContainer, {statut:statut});
+    } catch (e) {}
+}
+
+function afficherBadgeAbo(badgeContainer, data){
+    if(data.statut==='valide'){
+        badgeContainer.innerHTML='<div style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:999px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-weight:900;font-size:14px;box-shadow:0 4px 14px rgba(16,185,129,0.4);border:2px solid rgba(255,255,255,0.3);"><i class="fa-solid fa-circle-check" style="font-size:18px;"></i><span>Abonnement en ordre</span></div>';
+    }else if(data.statut==='en_attente'){
+        badgeContainer.innerHTML='<div style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:999px;background:#fef3c7;color:#92400e;font-weight:900;font-size:13.5px;border:2px solid #fcd34d;"><i class="fa-solid fa-hourglass-half fa-spin" style="font-size:16px;"></i><span>Vérification en cours</span></div>';
+    }else{
+        badgeContainer.innerHTML='';
     }
 }
+
 window.promptChangerMdp = promptChangerMdp;
 </script>
 </body>
