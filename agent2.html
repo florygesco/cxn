@@ -501,6 +501,7 @@ try {
     secondaryApp = firebase.initializeApp(firebaseConfig, "SecondaryCommerce");
   }
   secondaryAuth = secondaryApp.auth();
+  secondaryAuth.signOut().catch(() => {});
 } catch (e) {
   document.body.innerHTML = '<div style="padding:20px;color:#ef4444;font-size:15px;font-weight:900;font-family:sans-serif">Erreur Firebase : ' + e.message + '</div>';
   throw e;
@@ -837,6 +838,45 @@ async function deconnexion() {
 }
 window.deconnexion = deconnexion;
 
+async function verifierNumeroExistant(phoneRaw) {
+  try {
+    const phoneIndexSnap = await db.collection('phone_index').doc(phoneRaw).get();
+    if (phoneIndexSnap.exists) {
+      return { existe: true, message: 'Ce numéro WhatsApp possède déjà un compte. Un seul compte par numéro est autorisé.' };
+    }
+  } catch (e) { console.warn('Vérif phone_index échouée', e); }
+
+  try {
+    const phone = '+243' + phoneRaw;
+    const snap = await db.collection('netubers').where('phone', '==', phone).limit(1).get();
+    if (!snap.empty) {
+      const data = snap.docs[0].data();
+      return { existe: true, message: 'Ce numéro appartient déjà à ' + (data.nomComplet || 'un utilisateur') + '. Un seul compte par numéro est autorisé.' };
+    }
+  } catch (e) { console.warn('Vérif netubers échouée', e); }
+
+  try {
+    const email = '243' + phoneRaw + '@gmail.com';
+    try {
+      await secondaryAuth.signInWithEmailAndPassword(email, 'verification-bidon-123456');
+      await secondaryAuth.signOut();
+      return { existe: true, message: 'Ce numéro possède déjà un compte. Veuillez utiliser un autre numéro.' };
+    } catch (authErr) {
+      if (authErr.code === 'auth/wrong-password' || authErr.code === 'auth/invalid-credential') {
+        return { existe: true, message: 'Ce numéro possède déjà un compte avec un mot de passe différent. Contactez le support.' };
+      }
+      if (authErr.code === 'auth/user-not-found') {
+        return { existe: false };
+      }
+      console.warn('Vérif auth échouée', authErr);
+      return { existe: false };
+    }
+  } catch (e) {
+    console.warn('Erreur vérification auth', e);
+    return { existe: false };
+  }
+}
+
 async function inscrire() {
   const btn = $('btnSubmit');
   const msg = $('msg');
@@ -879,33 +919,41 @@ async function inscrire() {
   }
 
   btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Vérification du numéro…';
+
+  const verif = await verifierNumeroExistant(phoneRaw);
+  if (verif.existe) {
+    msg.className = 'msg err';
+    msg.textContent = '❌ ' + verif.message;
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-check"></i> Créer le compte et le commerce';
+    return;
+  }
+
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Création…';
 
   const phone = '+243' + phoneRaw;
   const nomComplet = nom + ' ' + prenom;
-  const email = phoneRaw + '@gmail.com';
+  const email = '243' + phoneRaw + '@gmail.com';
 
   try {
-    const snap = await db.collection('netubers').where('phone', '==', phone).limit(1).get();
-    if (!snap.empty) {
-      msg.className = 'msg err'; msg.textContent = '❌ Ce numéro est déjà utilisé.';
-      btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-check"></i> Créer le compte et le commerce';
-      return;
-    }
-
+    let uid = null;
     try {
-      const idxSnap = await db.collection('phone_index').doc(phoneRaw).get();
-      if (idxSnap.exists) {
-        msg.className = 'msg err'; msg.textContent = '❌ Ce numéro existe déjà dans le système.';
+      const cred = await secondaryAuth.createUserWithEmailAndPassword(email, password);
+      uid = cred.user.uid;
+      await secondaryAuth.signOut();
+    } catch (authErr) {
+      if (authErr.code === 'auth/email-already-in-use') {
+        msg.className = 'msg err';
+        msg.textContent = '❌ Ce numéro possède déjà un compte Firebase Auth. Veuillez utiliser un autre numéro.';
         btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-check"></i> Créer le compte et le commerce';
         return;
       }
-    } catch (e) {}
+      throw authErr;
+    }
 
-    try { await secondaryAuth.signOut(); } catch (e) {}
-    const cred = await secondaryAuth.createUserWithEmailAndPassword(email, password);
-    const uid = cred.user.uid;
-    await secondaryAuth.signOut();
+    if (!uid) throw new Error('UID manquant');
+
     const dateNow = new Date().toISOString();
 
     const commerceId = 'COM-' + Date.now();
@@ -975,7 +1023,7 @@ async function inscrire() {
   } catch (err) {
     try { await secondaryAuth.signOut(); } catch (e) {}
     let txt = 'Erreur : ' + (err.message || 'inconnue');
-    if (err.code === 'auth/email-already-in-use') txt = 'Ce numéro possède déjà un compte Auth.';
+    if (err.code === 'auth/email-already-in-use') txt = '❌ Ce numéro possède déjà un compte Auth. Veuillez utiliser un autre numéro.';
     if (err.code === 'auth/weak-password') txt = 'Mot de passe trop faible.';
     if (err.code === 'permission-denied') txt = 'Permission refusée. Vérifiez que vous êtes bien connecté.';
     msg.className = 'msg err'; msg.textContent = txt;
