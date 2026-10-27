@@ -1020,7 +1020,7 @@ body.dark-mode .fb-post-bloque-overlay{background:rgba(17,24,39,0.9)}
     </div>
     <div style="flex:1;min-width:0;">
         <div style="font-size:13.5px;font-weight:900;color:#1e40af;margin-bottom:2px;">Durée de publication : 30 jours</div>
-        <div style="font-size:12.5px;color:#1e40af;line-height:1.5;">Votre annonce sera visible pendant <strong>30 jours</strong>. Après cette date, elle disparaîtra automatiquement du Feed et de la section "Mes pubs".</div>
+        <div style="font-size:12.5px;color:#1e40af;line-height:1.5;">Votre annonce sera visible pendant <strong>30 jours</strong> à compter de sa validation par l'administration. Après cette date, elle disparaîtra automatiquement du Feed et de la section "Mes pubs".</div>
     </div>
 </div>
 
@@ -2031,7 +2031,13 @@ if(data.statut==='refuse')return;
 if(data.statut==='en_attente')return;
 if(data.statut&&data.statut!=='approuve')return;
 
-if (data.dateCreation) {
+// Date d'expiration uniquement si approuvée par l'admin (dateExpiration définie)
+if (data.statut === 'approuve' && data.dateExpiration) {
+    var exp = new Date(data.dateExpiration).getTime();
+    if (!isNaN(exp) && exp < Date.now()) return; // Annonce expirée
+}
+// Sécurité de secours si dateExpiration absente (anciennes annonces)
+else if (data.statut === 'approuve' && data.dateCreation) {
     var datePub = new Date(data.dateCreation).getTime();
     var ageMs = Date.now() - datePub;
     var limiteMs = 30 * 24 * 60 * 60 * 1000;
@@ -2042,7 +2048,7 @@ var nomPublieur=data.publieurNom||'Utilisateur NeTubeX';
 var typePublieur=data.publieurType||'user';
 var imagesArr=Array.isArray(data.images)&&data.images.length>0?data.images:(data.img?[data.img]:[]);
 var imgPrincipale=imagesArr[0]||data.img||'';
-annonces.push({id:d.id,annonceId:d.id,title:data.titre||'',name:nomPublieur,initials:nomPublieur.substring(0,2).toUpperCase(),avatar:data.publieurAvatar||'',location:data.ville||'',dateCreation:data.dateCreation||'',time:data.dateCreation?new Date(data.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}):'Récemment',price:data.prix||'',priceClass:data.tagClass||'post-tag-autre',desc:data.desc||'',img:imgPrincipale,images:imagesArr,cat:normCat(data.cat||'autre'),catRaw:data.cat||'',tag:data.tag||'',tagClass:data.tagClass||'post-tag-autre',unlock:true,urgence:false,publieurType:typePublieur,publieurUid:data.proprietaireUid||null,publieurBoutique:data.publieurBoutique||null,publieurPhone:data.publieurPhone||'',isCommerce:typePublieur==='commerce',vues:data.vues||0,publieurParrainage:data.publieurParrainage||null,publieurSexe:data.publieurSexe||'',jobType:data.jobType||null,sousTypeImmo:data.sousTypeImmo||null,badgeConfiance:data.badgeConfiance===true});
+annonces.push({id:d.id,annonceId:d.id,title:data.titre||'',name:nomPublieur,initials:nomPublieur.substring(0,2).toUpperCase(),avatar:data.publieurAvatar||'',location:data.ville||'',dateCreation:data.dateCreation||'',time:data.dateCreation?new Date(data.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}):'Récemment',price:data.prix||'',priceClass:data.tagClass||'post-tag-autre',desc:data.desc||'',img:imgPrincipale,images:imagesArr,cat:normCat(data.cat||'autre'),catRaw:data.cat||'',tag:data.tag||'',tagClass:data.tagClass||'post-tag-autre',unlock:true,urgence:false,publieurType:typePublieur,publieurUid:data.proprietaireUid||null,publieurBoutique:data.publieurBoutique||null,publieurPhone:data.publieurPhone||'',isCommerce:typePublieur==='commerce',vues:data.vues||0,publieurParrainage:data.publieurParrainage||null,publieurSexe:data.publieurSexe||'',jobType:data.jobType||null,sousTypeImmo:data.sousTypeImmo||null,badgeConfiance:data.badgeConfiance===true,dateExpiration:data.dateExpiration||null});
 });
 annonces.sort(function(a,b){return(b.dateCreation||'').localeCompare(a.dateCreation||'');});
 await setCachedListAvecTs('cache_annonces',annonces);
@@ -2083,7 +2089,9 @@ window.creerAnnonce=async function(data,coordonnees,paiement){
     publieurParrainage:data.publieurParrainage||null,publieurSexe:data.publieurSexe||'',
     jobType:data.jobType||null,sousTypeImmo:data.sousTypeImmo||null,
     badgeConfiance:data.badgeConfiance===true,
-    dateCreation:new Date().toISOString(),actif:false,statut:'en_attente',vues:0
+    dateCreation:new Date().toISOString(),
+    dateExpiration:null, // Sera défini par l'admin à l'approbation
+    actif:false,statut:'en_attente',vues:0
   };
   if(paiement.gratuit){annonceData.paiement={gratuit:true,montant:0};}
   else{annonceData.paiement={transactionId:paiement.transactionId,numeroEnvoi:paiement.numeroEnvoi,montant:paiement.montant||400,destinataire:'+243976953045',datePaiement:new Date().toISOString()};}
@@ -2092,6 +2100,23 @@ window.creerAnnonce=async function(data,coordonnees,paiement){
   if(data.proprietaireUid){try{await updateDoc(doc(db,'user_stats',data.proprietaireUid),{nbAnnonces:increment(1),nbEnAttente:increment(1),derniereMiseAJour:new Date().toISOString()});}catch(e){}}
   await invaliderCache('cache_annonces');
   return{annonceId:annonceId};
+};
+
+window.supprimerAnnonce=async function(annonceId, proprietaireUid){
+  if(!annonceId) throw new Error('ID manquant');
+  if(!window.CURRENT_ACCOUNT || window.CURRENT_ACCOUNT.id !== proprietaireUid) throw new Error('Non autorisé');
+  try {
+    await deleteDoc(doc(db, 'annonces', annonceId));
+    // Optionnel : supprimer le sous-document privé
+    try { await deleteDoc(doc(db, 'annonces', annonceId, 'prive', 'contact')); } catch(e) {}
+    if (proprietaireUid) {
+      try { await updateDoc(doc(db, 'user_stats', proprietaireUid), { nbAnnonces: increment(-1) }); } catch(e) {}
+    }
+    await invaliderCache('cache_annonces');
+    return { success: true };
+  } catch (e) {
+    throw e;
+  }
 };
 
 window.creerDemandeBoutique=async function(data){
@@ -3120,7 +3145,11 @@ function renderCategoryFeed(cat){
     var limiteMs = 30 * 24 * 60 * 60 * 1000;
     var r=ANNONCES_DATA.filter(function(p){
         if(!p)return false;
-        if (p.dateCreation && (Date.now() - new Date(p.dateCreation).getTime()) > limiteMs) return false;
+        if (p.dateExpiration) {
+            if (new Date(p.dateExpiration).getTime() < Date.now()) return false;
+        } else if (p.dateCreation) {
+            if ((Date.now() - new Date(p.dateCreation).getTime()) > limiteMs) return false;
+        }
         var c=normCat(p.cat);
         if(cible==='autre'){return CAT_JOB.indexOf(c)===-1;}
         return c===cible;
@@ -3136,7 +3165,11 @@ function renderJobsFeed(){
     var limiteMs = 30 * 24 * 60 * 60 * 1000;
     var jobs=ANNONCES_DATA.filter(function(p){
         if(!p)return false;
-        if (p.dateCreation && (Date.now() - new Date(p.dateCreation).getTime()) > limiteMs) return false;
+        if (p.dateExpiration) {
+            if (new Date(p.dateExpiration).getTime() < Date.now()) return false;
+        } else if (p.dateCreation) {
+            if ((Date.now() - new Date(p.dateCreation).getTime()) > limiteMs) return false;
+        }
         return CAT_JOB.indexOf(normCat(p.cat))!==-1;
     });
     var q=(document.getElementById('jobsSearchInput')||{}).value||'';
@@ -3156,7 +3189,11 @@ function renderImmobilierFeed(sub){
     var limiteMs = 30 * 24 * 60 * 60 * 1000;
     function nonExpiree(p){
         if (!p) return false;
-        if (p.dateCreation && (Date.now() - new Date(p.dateCreation).getTime()) > limiteMs) return false;
+        if (p.dateExpiration) {
+            if (new Date(p.dateExpiration).getTime() < Date.now()) return false;
+        } else if (p.dateCreation) {
+            if ((Date.now() - new Date(p.dateCreation).getTime()) > limiteMs) return false;
+        }
         return true;
     }
     var results;
@@ -4607,7 +4644,9 @@ async function renderMesPublications(){
         var limiteMs = 30 * 24 * 60 * 60 * 1000;
         snap.forEach(function(d){
             var data = d.data();
-            if (data.dateCreation) {
+            if (data.dateExpiration) {
+                if (new Date(data.dateExpiration).getTime() < Date.now()) return;
+            } else if (data.dateCreation) {
                 var age = Date.now() - new Date(data.dateCreation).getTime();
                 if (age > limiteMs) return;
             }
@@ -4635,7 +4674,15 @@ function afficherPublicationsListe(ma){
         else if(a.statut==='refuse') sb='<span style="font-size:11px;font-weight:900;padding:4px 9px;border-radius:6px;background:#fee2e2;color:#991b1b;text-transform:uppercase">❌ Refusé</span>';
         
         var joursRestants = '';
-        if (a.dateCreation) {
+        if (a.dateExpiration) {
+            var restantMs = new Date(a.dateExpiration).getTime() - Date.now();
+            if (restantMs > 0) {
+                var jours = Math.ceil(restantMs / (24 * 60 * 60 * 1000));
+                var couleur = jours <= 3 ? '#dc2626' : (jours <= 7 ? '#f59e0b' : 'var(--text-muted)');
+                var icone = jours <= 3 ? 'fa-triangle-exclamation' : 'fa-clock';
+                joursRestants = '<div style="font-size:11.5px;color:' + couleur + ';margin-top:4px;font-weight:800;"><i class="fa-solid ' + icone + '"></i> Expire dans ' + jours + ' jour' + (jours > 1 ? 's' : '') + '</div>';
+            }
+        } else if (a.dateCreation) {
             var ageMs = Date.now() - new Date(a.dateCreation).getTime();
             var jours = Math.max(0, Math.ceil((30 * 24 * 60 * 60 * 1000 - ageMs) / (24 * 60 * 60 * 1000)));
             var couleur = jours <= 3 ? '#dc2626' : (jours <= 7 ? '#f59e0b' : 'var(--text-muted)');
@@ -4643,12 +4690,44 @@ function afficherPublicationsListe(ma){
             joursRestants = '<div style="font-size:11.5px;color:' + couleur + ';margin-top:4px;font-weight:800;"><i class="fa-solid ' + icone + '"></i> Expire dans ' + jours + ' jour' + (jours > 1 ? 's' : '') + '</div>';
         }
         
+        var boutonSupprimer = '';
+        if (a.statut === 'approuve' || a.statut === 'en_attente') {
+            boutonSupprimer = '<button onclick="event.stopPropagation();supprimerAnnonceUI(\'' + a.id + '\',\'' + (a.proprietaireUid || '') + '\')" style="padding:8px 12px;border-radius:8px;background:#ef4444;color:#fff;border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:12px;margin-left:auto;display:inline-flex;align-items:center;gap:4px;flex-shrink:0;"><i class="fa-solid fa-trash"></i> Supprimer</button>';
+        }
+        
         return '<div class="pub-item">'+
             (a.img?'<img src="'+esc(a.img)+'" onerror="this.style.display=\'none\'">':'<div style="width:52px;height:52px;background:var(--bg-card);border:1px solid var(--border-primary);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">📄</div>')+
             '<div class="pub-item-info"><div class="pub-item-titre">'+esc(a.titre||'Sans titre')+'</div><div class="pub-item-ville">'+esc(a.ville||'')+'</div><div style="margin-top:6px">'+sb+'</div>'+joursRestants+'</div>'+
+            boutonSupprimer +
         '</div>';
     }).join('');
 }
+
+async function supprimerAnnonceUI(annonceId, proprietaireUid) {
+    if (!window.CURRENT_ACCOUNT) { showToast('Connectez-vous'); return; }
+    if (window.CURRENT_ACCOUNT.id !== proprietaireUid) { showToast('Non autorisé'); return; }
+    if (!confirm('Supprimer définitivement cette annonce ? Cette action est irréversible.')) return;
+    try {
+        await window.supprimerAnnonce(annonceId, proprietaireUid);
+        try { await idbDelete('stats', 'pubs_user_' + window.CURRENT_ACCOUNT.id); } catch(e) {}
+        try { await idbDelete('stats', 'stats_user_' + window.CURRENT_ACCOUNT.id); } catch(e) {}
+        try { await idbDelete('config', 'cache_annonces'); } catch(e) {}
+        try { await idbDelete('config', 'cache_annonces_ts'); } catch(e) {}
+        ANNONCES_DATA = ANNONCES_DATA.filter(function(a) { return (a.annonceId !== annonceId && a.id !== annonceId); });
+        showToast('✅ Annonce supprimée');
+        renderMesPublications();
+        if (currentTab === 'index') {
+            _nextFeedOrder = null;
+            _feedCycleItems = [];
+            _feedCycleIndex = 0;
+            _feedSeenIds.clear();
+            initFeed();
+        }
+    } catch (e) {
+        showToast('❌ Erreur : ' + e.message);
+    }
+}
+window.supprimerAnnonceUI = supprimerAnnonceUI;
 
 async function verifierBoutiqueEtAfficher(){var ti=document.getElementById('dashTabInfos');var tc=document.getElementById('dashTabCatalogue');var sb=document.getElementById('shopStatusBadge');var bandeau=document.getElementById('bandeauStatutBoutique');var statsBoutique=document.getElementById('statsBoutiqueSection');if(!window.CURRENT_ACCOUNT){if(ti)ti.style.display='none';if(tc)tc.style.display='none';if(sb)sb.style.display='none';if(statsBoutique)statsBoutique.style.display='none';return;}var b=window.CURRENT_ACCOUNT.boutique;if(!b){var c=await chargerCommerceCommercant();if(c){b={uid:c.uid,nom:c.nom,type:c.type,ville:c.ville,quartier:c.quartier,adresse:c.adresse,horaires:c.horaires,telephone:c.telephone,whatsappCommercial:c.whatsappCommercial||c.whatsapp,statut:c.statut,img:c.img,emoji:c.emoji,description:c.description,retraitActif:c.retraitActif,livraisonActive:c.livraisonActive};}if(!b){if(ti)ti.style.display='none';if(tc)tc.style.display='none';if(sb)sb.style.display='none';if(bandeau)bandeau.style.display='none';if(statsBoutique)statsBoutique.style.display='none';return;}}if(b.statut==='approuve'){if(bandeau)bandeau.style.display='none';afficherInfosBoutique(b);}else if(b.statut==='en_attente'){if(bandeau){bandeau.style.display='block';bandeau.innerHTML='<div class="bandeau-statut attente"><i class="fa-solid fa-hourglass-half"></i><div><strong>Commerce en attente</strong><br>Vous serez appelé sous 30 min.</div></div>';}}else if(b.statut==='refuse'){if(bandeau){bandeau.style.display='block';bandeau.innerHTML='<div class="bandeau-statut refuse"><i class="fa-solid fa-circle-xmark"></i><div><strong>Commerce refusé</strong><br>Contactez le support.</div></div>';}}}
 function afficherInfosBoutique(b){var av=document.getElementById('shopHeroAvatar');var nm=document.getElementById('shopHeroName');var ty=document.getElementById('shopHeroType');var sb=document.getElementById('shopStatusBadge');var list=document.getElementById('shopInfoList');if(av){if(b.img||b.emoji){if(b.img){av.innerHTML='<img src="'+esc(b.img)+'" alt="">';}else{av.textContent=b.emoji||'🏪';}}else{av.textContent='🏪';}}if(nm)nm.textContent=b.nom||'Mon commerce';if(ty)ty.textContent=(b.type||'Commerce')+' · '+(b.ville||'RDC')+(b.quartier?' · '+b.quartier:'');if(sb){if(b.statut==='approuve'){sb.className='shop-status-badge approuve';sb.innerHTML='<i class="fa-solid fa-circle-check"></i> Commerce approuvé';}else if(b.statut==='en_attente'){sb.className='shop-status-badge en_attente';sb.innerHTML='<i class="fa-solid fa-hourglass-half"></i> En attente';}else{sb.className='shop-status-badge refuse';sb.innerHTML='<i class="fa-solid fa-circle-xmark"></i> Refusé';}}if(list){var items=[];if(b.telephone)items.push({icon:'fa-phone',color:'#2563EB',label:'Téléphone',value:b.telephone});if(b.whatsappCommercial||b.whatsapp)items.push({icon:'fa-brands fa-whatsapp',color:'#10b981',label:'WhatsApp',value:b.whatsappCommercial||b.whatsapp});if(b.adresse)items.push({icon:'fa-location-dot',color:'#ef4444',label:'Adresse',value:b.adresse});if(b.horaires)items.push({icon:'fa-clock',color:'#f59e0b',label:'Horaires',value:b.horaires});list.innerHTML=items.map(function(it){return'<div class="shop-info-item"><div class="shop-info-icon" style="background:'+it.color+'"><i class="fa-solid '+it.icon+'"></i></div><div class="shop-info-content"><div class="shop-info-label">'+it.label+'</div><div class="shop-info-value">'+esc(it.value)+'</div></div></div>';}).join('');}}
@@ -5319,11 +5398,13 @@ document.addEventListener('DOMContentLoaded', () => {
         flatpickr("#resaDateArrivee", {
             dateFormat: "Y-m-d",
             minDate: "today",
+            defaultDate: null,
             disableMobile: true
         });
         flatpickr("#resaDateDepart", {
             dateFormat: "Y-m-d",
             minDate: "today",
+            defaultDate: null,
             disableMobile: true
         });
     }
