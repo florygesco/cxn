@@ -216,7 +216,6 @@ const auth = firebase.auth();
 
 const secondaryApp = firebase.initializeApp(firebaseConfig, "SecondaryEcole");
 const secondaryAuth = firebase.auth(secondaryApp);
-secondaryAuth.signOut().catch(() => {});
 
 const ADMIN_EMAILS = ['equipe@gmail.com', 'ngendaflory2@gmail.com'];
 
@@ -341,45 +340,6 @@ async function deconnexion() {
 }
 window.deconnexion = deconnexion;
 
-async function verifierNumeroExistant(phoneRaw) {
-    try {
-        const phoneIndexSnap = await db.collection('phone_index').doc(phoneRaw).get();
-        if (phoneIndexSnap.exists) {
-            return { existe: true, source: 'phone_index', message: 'Ce numéro WhatsApp possède déjà un compte. Un seul compte par numéro est autorisé.' };
-        }
-    } catch (e) { console.warn('Vérif phone_index échouée', e); }
-
-    try {
-        const phone = '+243' + phoneRaw;
-        const snap = await db.collection('netubers').where('phone', '==', phone).limit(1).get();
-        if (!snap.empty) {
-            const data = snap.docs[0].data();
-            return { existe: true, source: 'netubers', message: 'Ce numéro appartient déjà à ' + (data.nomComplet || 'un utilisateur') + '. Un seul compte par numéro est autorisé.' };
-        }
-    } catch (e) { console.warn('Vérif netubers échouée', e); }
-
-    try {
-        const email = phoneRaw + '@gmail.com';
-        try {
-            await secondaryAuth.signInWithEmailAndPassword(email, 'verification-bidon-123456');
-            await secondaryAuth.signOut();
-            return { existe: true, source: 'auth', message: 'Ce numéro possède déjà un compte. Veuillez utiliser un autre numéro.' };
-        } catch (authErr) {
-            if (authErr.code === 'auth/wrong-password' || authErr.code === 'auth/invalid-credential') {
-                return { existe: true, source: 'auth', message: 'Ce numéro possède déjà un compte avec un mot de passe différent. Contactez le support.' };
-            }
-            if (authErr.code === 'auth/user-not-found') {
-                return { existe: false };
-            }
-            console.warn('Vérif auth échouée', authErr);
-            return { existe: false };
-        }
-    } catch (e) {
-        console.warn('Erreur vérification auth', e);
-        return { existe: false };
-    }
-}
-
 async function inscrire(e) {
   e.preventDefault();
   const msg = $('msg');
@@ -412,17 +372,6 @@ async function inscrire(e) {
   }
 
   btn.disabled = true;
-  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Vérification du numéro…';
-
-  const verif = await verifierNumeroExistant(phoneRaw);
-  if (verif.existe) {
-      msg.className = 'msg err';
-      msg.textContent = '❌ ' + verif.message;
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Enregistrer le compte';
-      return;
-  }
-
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enregistrement…';
 
   const phone = '+243' + phoneRaw;
@@ -430,23 +379,30 @@ async function inscrire(e) {
   const email = phoneRaw + '@gmail.com';
 
   try {
-    let uid = null;
+    const snap = await db.collection('netubers').where('phone', '==', phone).limit(1).get();
+    if (!snap.empty) {
+      const existant = snap.docs[0].data();
+      msg.className = 'msg err';
+      msg.textContent = '❌ Ce numéro WhatsApp est déjà utilisé par un compte (' + (existant.nomComplet || 'inconnu') + '). Un seul compte par numéro est autorisé.';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Enregistrer le compte';
+      return;
+    }
+
     try {
-      const cred = await secondaryAuth.createUserWithEmailAndPassword(email, password);
-      uid = cred.user.uid;
-      await secondaryAuth.signOut();
-    } catch (authErr) {
-      if (authErr.code === 'auth/email-already-in-use') {
+      const phoneIndexSnap = await db.collection('phone_index').doc(phoneRaw).get();
+      if (phoneIndexSnap.exists) {
         msg.className = 'msg err';
-        msg.textContent = '❌ Ce numéro possède déjà un compte Firebase Auth. Veuillez utiliser un autre numéro.';
+        msg.textContent = '❌ Ce numéro WhatsApp est déjà enregistré dans le système. Un seul compte par numéro est autorisé.';
         btn.disabled = false;
         btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Enregistrer le compte';
         return;
       }
-      throw authErr;
-    }
+    } catch (e) {}
 
-    if (!uid) throw new Error('UID manquant');
+    const cred = await secondaryAuth.createUserWithEmailAndPassword(email, password);
+    const uid = cred.user.uid;
+    await secondaryAuth.signOut();
 
     const dateNow = new Date().toISOString();
     const codeParrainage = 'NTX-' + uid.slice(0, 6).toUpperCase();
