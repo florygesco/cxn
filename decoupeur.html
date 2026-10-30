@@ -50,7 +50,6 @@
   <h1>🔧 Découpeur <span>NeTubeX</span></h1>
   <p class="sub">Transforme ton fichier HTML monolithique en 3 fichiers propres : <strong>index.html</strong> + <strong>style.css</strong> + <strong>script.js</strong>. 100 % local, rien n'est envoyé sur un serveur.</p>
 
-  <!-- ÉTAPE 1 : Charger le fichier -->
   <div class="step">
     <h2><span class="num">1</span> Charger ton fichier original</h2>
     <div id="dropZone">
@@ -62,14 +61,12 @@
     <div id="fileInfo"></div>
   </div>
 
-  <!-- ÉTAPE 2 : Découper -->
   <div class="step">
     <h2><span class="num">2</span> Découper automatiquement</h2>
     <button class="btn btn-primary" id="btnDecouper" disabled>✂️ Découper en 3 fichiers</button>
     <div id="log"></div>
   </div>
 
-  <!-- ÉTAPE 3 : Télécharger -->
   <div class="step hidden" id="resultStep">
     <h2><span class="num">3</span> Télécharger les fichiers</h2>
     <div id="resultsList"></div>
@@ -98,14 +95,13 @@ var logEl = document.getElementById('log');
 
 function log(msg, type) {
   logEl.style.display = 'block';
-  var span = document.createElement('div');
-  if (type) span.className = type;
-  span.textContent = msg;
-  logEl.appendChild(span);
+  var div = document.createElement('div');
+  if (type) div.className = type;
+  div.textContent = msg;
+  logEl.appendChild(div);
   logEl.scrollTop = logEl.scrollHeight;
 }
 
-// ============ CHARGEMENT DU FICHIER ============
 dropZone.addEventListener('click', function(){ fileInput.click(); });
 fileInput.addEventListener('change', function(e){ if (e.target.files[0]) chargerFichier(e.target.files[0]); });
 
@@ -136,9 +132,7 @@ function chargerFichier(f) {
   reader.readAsText(f, 'UTF-8');
 }
 
-// ============ LOGIQUE DE DÉCOUPAGE ============
 function extraireCSS(html) {
-  // Trouve le <style>...</style> le plus long (pour éviter les petits styles inline)
   var matches = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
   var meilleur = '';
   matches.forEach(function(m) {
@@ -149,22 +143,18 @@ function extraireCSS(html) {
 }
 
 function extraireModuleFirebase(html) {
-  // Cherche le <script type="module"> contenant "import"
   var regex = /<script\s+type\s*=\s*["']module["'][^>]*>([\s\S]*?)<\/script>/gi;
   var matches = [];
   var m;
   while ((m = regex.exec(html)) !== null) {
     if (m[1].indexOf('import ') !== -1) matches.push(m[1]);
   }
-  // Prend le plus long (le vrai module Firebase)
   var meilleur = '';
   matches.forEach(function(c){ if (c.length > meilleur.length) meilleur = c; });
   return meilleur.trim();
 }
 
 function extraireScriptPrincipal(html) {
-  // Cherche les <script>...</script> classiques (sans type, ou type="text/javascript")
-  // qui sont AVANT </body> et qui contiennent du code applicatif
   var bodyPos = html.lastIndexOf('</body>');
   if (bodyPos === -1) bodyPos = html.length;
   var zoneBody = html.substring(0, bodyPos);
@@ -174,13 +164,8 @@ function extraireScriptPrincipal(html) {
   var m;
   while ((m = regex.exec(zoneBody)) !== null) {
     var code = m[1];
-    // Ignore les scripts courts (thème, protection, imgbb) et les CDN
-    // On garde les scripts > 5000 caractères qui contiennent des fonctions applicatives
-    if (code.length > 5000) {
-      matches.push(code);
-    }
+    if (code.length > 5000) matches.push(code);
   }
-  // Prend le plus long = le script principal
   var meilleur = '';
   matches.forEach(function(c){ if (c.length > meilleur.length) meilleur = c; });
   return meilleur.trim();
@@ -191,19 +176,14 @@ function extraireBody(html) {
   if (!match) return '';
   var body = match[1];
 
-  // Retirer TOUS les scripts (ils sont déplacés dans script.js)
   body = body.replace(/<script\s+type\s*=\s*["']module["'][^>]*>[\s\S]*?<\/script>/gi, '');
 
-  // Retirer le script principal (le plus gros script classique sans src)
   var regex = /<script(?![^>]*type\s*=\s*["']module["'])(?![^>]*\bsrc\s*=)[^>]*>([\s\S]*?)<\/script>/gi;
   var toRemove = [];
   var m;
   while ((m = regex.exec(body)) !== null) {
-    if (m[1].length > 5000) {
-      toRemove.push(m[0]);
-    }
+    if (m[1].length > 5000) toRemove.push(m[0]);
   }
-  // Supprimer du plus long au plus court (évite les décalages d'index)
   toRemove.sort(function(a,b){ return b.length - a.length; });
   toRemove.forEach(function(script){ body = body.replace(script, ''); });
 
@@ -211,7 +191,6 @@ function extraireBody(html) {
 }
 
 function extraireHeadScriptsInline(html) {
-  // Garde les 3 petits scripts inline du <head> (thème, protection, imgbb)
   var headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
   if (!headMatch) return [];
   var head = headMatch[1];
@@ -227,18 +206,16 @@ function extraireHeadScriptsInline(html) {
 }
 
 function extraireLiensCDN(html) {
-  // Extrait les <link> et <script src> du <head> (CDN externes)
   var headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
   if (!headMatch) return { links: [], scripts: [] };
   var head = headMatch[1];
   var links = head.match(/<link[^>]+rel=["']stylesheet["'][^>]*>/gi) || [];
-  // Filtrer les liens locaux (style.css qu'on va créer)
   links = links.filter(function(l){ return l.indexOf('style.css') === -1; });
   var scripts = head.match(/<script[^>]+src=["'][^"']+["'][^>]*><\/script>/gi) || [];
   return { links: links, scripts: scripts };
 }
 
-function reconstruireIndexHtml(html, body, headScripts, cdn) {
+function reconstruireIndexHtml(body, headScripts, cdn) {
   var linksHtml = cdn.links.join('\n');
   var scriptsHtml = cdn.scripts.join('\n');
   var inlineHtml = headScripts.join('\n');
@@ -279,7 +256,6 @@ moduleCode + '\n\n\n' +
 mainCode + '\n';
 }
 
-// ============ LANCEMENT DU DÉCOUPAGE ============
 btnDecouper.addEventListener('click', function() {
   if (!originalFile) return;
   btnDecouper.disabled = true;
@@ -288,34 +264,27 @@ btnDecouper.addEventListener('click', function() {
   log('🔍 Analyse du fichier...', 'info');
 
   try {
-    // 1. CSS
     var css = extraireCSS(originalFile);
     log('📝 CSS extrait : ' + css.length.toLocaleString('fr-FR') + ' caractères', css ? 'ok' : 'err');
 
-    // 2. Module Firebase
     var moduleCode = extraireModuleFirebase(originalFile);
     log('📦 Module Firebase extrait : ' + moduleCode.length.toLocaleString('fr-FR') + ' caractères', moduleCode ? 'ok' : 'err');
 
-    // 3. Script principal
     var mainCode = extraireScriptPrincipal(originalFile);
     log('⚙️ Script principal extrait : ' + mainCode.length.toLocaleString('fr-FR') + ' caractères', mainCode ? 'ok' : 'err');
 
-    // 4. Body
     var body = extraireBody(originalFile);
     log('📄 Body extrait : ' + body.length.toLocaleString('fr-FR') + ' caractères', body ? 'ok' : 'err');
 
-    // 5. Scripts inline du head
     var headScripts = extraireHeadScriptsInline(originalFile);
     log('🔧 Scripts inline du head : ' + headScripts.length + ' trouvé(s)', 'ok');
 
-    // 6. CDN
     var cdn = extraireLiensCDN(originalFile);
     log('🌐 CDN : ' + cdn.links.length + ' CSS + ' + cdn.scripts.length + ' JS', 'ok');
 
-    // 7. Reconstruire
     resultats.css = css;
     resultats.js = fusionnerScripts(moduleCode, mainCode);
-    resultats.html = reconstruireIndexHtml(originalFile, body, headScripts, cdn);
+    resultats.html = reconstruireIndexHtml(body, headScripts, cdn);
 
     log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
     log('✅ index.html : ' + resultats.html.length.toLocaleString('fr-FR') + ' caractères', 'ok');
