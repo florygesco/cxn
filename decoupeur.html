@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Découpeur NeTubeX — 3 fichiers</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;margin:0;padding:20px;min-height:100vh}
+  .container{max-width:900px;margin:0 auto}
+  h1{font-size:26px;font-weight:900;margin:0 0 6px;color:#fff}
+  h1 span{color:#3b82f6}
+  .sub{font-size:14px;color:#94a3b8;margin-bottom:24px;line-height:1.6}
+  .step{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:20px;margin-bottom:16px}
+  .step h2{font-size:16px;font-weight:900;margin:0 0 12px;color:#3b82f6;display:flex;align-items:center;gap:8px}
+  .step h2 .num{width:28px;height:28px;border-radius:50%;background:#3b82f6;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:14px}
+  #dropZone{border:2px dashed #475569;border-radius:14px;padding:40px 20px;text-align:center;cursor:pointer;background:#0f172a;transition:all .2s}
+  #dropZone:hover,#dropZone.dragover{border-color:#3b82f6;background:#1e3a5f}
+  #dropZone .icon{font-size:48px;margin-bottom:12px}
+  #dropZone .txt{font-size:15px;font-weight:700;color:#e2e8f0}
+  #dropZone .sub2{font-size:13px;color:#94a3b8;margin-top:6px}
+  #fileInfo{display:none;padding:14px;background:#0f172a;border-radius:10px;margin-top:14px;font-size:14px}
+  #fileInfo strong{color:#3b82f6}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 24px;border-radius:12px;font-weight:900;font-size:15px;border:none;cursor:pointer;font-family:inherit;transition:transform .1s}
+  .btn:active{transform:scale(.97)}
+  .btn-primary{background:#3b82f6;color:#fff;width:100%}
+  .btn-primary:disabled{background:#475569;cursor:not-allowed}
+  .btn-dl{background:#10b981;color:#fff;width:100%;margin-top:8px}
+  .btn-dl:disabled{background:#475569;cursor:not-allowed}
+  .btn-group{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+  .file-result{display:flex;align-items:center;gap:12px;padding:14px;background:#0f172a;border-radius:10px;margin-bottom:10px}
+  .file-result .ico{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+  .file-result .ico.html{background:#e34c26;color:#fff}
+  .file-result .ico.css{background:#264de4;color:#fff}
+  .file-result .ico.js{background:#f7df1e;color:#000}
+  .file-result .info{flex:1;min-width:0}
+  .file-result .name{font-weight:900;font-size:14px;color:#fff}
+  .file-result .size{font-size:12px;color:#94a3b8;margin-top:2px}
+  .file-result .dl-btn{padding:10px 16px;border-radius:8px;background:#3b82f6;color:#fff;border:none;font-weight:900;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap}
+  .file-result .dl-btn:hover{background:#2563eb}
+  #log{background:#0f172a;border-radius:10px;padding:14px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:#94a3b8;max-height:200px;overflow-y:auto;white-space:pre-wrap;line-height:1.6;margin-top:14px;display:none}
+  #log .ok{color:#10b981}
+  #log .err{color:#ef4444}
+  #log .info{color:#60a5fa}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🔧 Découpeur <span>NeTubeX</span></h1>
+  <p class="sub">Transforme ton fichier HTML monolithique en 3 fichiers propres : <strong>index.html</strong> + <strong>style.css</strong> + <strong>script.js</strong>. 100 % local, rien n'est envoyé sur un serveur.</p>
+
+  <!-- ÉTAPE 1 : Charger le fichier -->
+  <div class="step">
+    <h2><span class="num">1</span> Charger ton fichier original</h2>
+    <div id="dropZone">
+      <div class="icon">📄</div>
+      <div class="txt">Clique pour choisir ton fichier HTML</div>
+      <div class="sub2">ou glisse-dépose-le ici</div>
+      <input type="file" id="fileInput" accept=".html,.htm,.txt" style="display:none">
+    </div>
+    <div id="fileInfo"></div>
+  </div>
+
+  <!-- ÉTAPE 2 : Découper -->
+  <div class="step">
+    <h2><span class="num">2</span> Découper automatiquement</h2>
+    <button class="btn btn-primary" id="btnDecouper" disabled>✂️ Découper en 3 fichiers</button>
+    <div id="log"></div>
+  </div>
+
+  <!-- ÉTAPE 3 : Télécharger -->
+  <div class="step hidden" id="resultStep">
+    <h2><span class="num">3</span> Télécharger les fichiers</h2>
+    <div id="resultsList"></div>
+    <div class="btn-group">
+      <button class="btn btn-dl" id="btnDownloadAll">⬇️ Tout télécharger (3 fichiers)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+var originalFile = null;
+var resultats = { html: '', css: '', js: '' };
+var nomsFichiers = { html: 'index.html', css: 'style.css', js: 'script.js' };
+
+var dropZone = document.getElementById('dropZone');
+var fileInput = document.getElementById('fileInput');
+var fileInfo = document.getElementById('fileInfo');
+var btnDecouper = document.getElementById('btnDecouper');
+var btnDownloadAll = document.getElementById('btnDownloadAll');
+var resultStep = document.getElementById('resultStep');
+var resultsList = document.getElementById('resultsList');
+var logEl = document.getElementById('log');
+
+function log(msg, type) {
+  logEl.style.display = 'block';
+  var span = document.createElement('div');
+  if (type) span.className = type;
+  span.textContent = msg;
+  logEl.appendChild(span);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+// ============ CHARGEMENT DU FICHIER ============
+dropZone.addEventListener('click', function(){ fileInput.click(); });
+fileInput.addEventListener('change', function(e){ if (e.target.files[0]) chargerFichier(e.target.files[0]); });
+
+dropZone.addEventListener('dragover', function(e){ e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', function(){ dropZone.classList.remove('dragover'); });
+dropZone.addEventListener('drop', function(e){
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) chargerFichier(e.dataTransfer.files[0]);
+});
+
+function chargerFichier(f) {
+  if (!f.name.match(/\.(html?|txt)$/i)) {
+    alert('Merci de choisir un fichier .html, .htm ou .txt');
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    originalFile = e.target.result;
+    var tailleKo = (originalFile.length / 1024).toFixed(1);
+    fileInfo.style.display = 'block';
+    fileInfo.innerHTML = '<strong>' + f.name + '</strong> — ' + tailleKo + ' Ko (' + originalFile.length.toLocaleString('fr-FR') + ' caractères)';
+    btnDecouper.disabled = false;
+    logEl.innerHTML = '';
+    resultStep.classList.add('hidden');
+    log('✅ Fichier chargé : ' + f.name, 'ok');
+  };
+  reader.readAsText(f, 'UTF-8');
+}
+
+// ============ LOGIQUE DE DÉCOUPAGE ============
+function extraireCSS(html) {
+  // Trouve le <style>...</style> le plus long (pour éviter les petits styles inline)
+  var matches = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
+  var meilleur = '';
+  matches.forEach(function(m) {
+    var contenu = m.replace(/<style[^>]*>/i, '').replace(/<\/style>/i, '');
+    if (contenu.length > meilleur.length) meilleur = contenu;
+  });
+  return meilleur.trim();
+}
+
+function extraireModuleFirebase(html) {
+  // Cherche le <script type="module"> contenant "import"
+  var regex = /<script\s+type\s*=\s*["']module["'][^>]*>([\s\S]*?)<\/script>/gi;
+  var matches = [];
+  var m;
+  while ((m = regex.exec(html)) !== null) {
+    if (m[1].indexOf('import ') !== -1) matches.push(m[1]);
+  }
+  // Prend le plus long (le vrai module Firebase)
+  var meilleur = '';
+  matches.forEach(function(c){ if (c.length > meilleur.length) meilleur = c; });
+  return meilleur.trim();
+}
+
+function extraireScriptPrincipal(html) {
+  // Cherche les <script>...</script> classiques (sans type, ou type="text/javascript")
+  // qui sont AVANT </body> et qui contiennent du code applicatif
+  var bodyPos = html.lastIndexOf('</body>');
+  if (bodyPos === -1) bodyPos = html.length;
+  var zoneBody = html.substring(0, bodyPos);
+
+  var regex = /<script(?![^>]*type\s*=\s*["']module["'])(?![^>]*\bsrc\s*=)[^>]*>([\s\S]*?)<\/script>/gi;
+  var matches = [];
+  var m;
+  while ((m = regex.exec(zoneBody)) !== null) {
+    var code = m[1];
+    // Ignore les scripts courts (thème, protection, imgbb) et les CDN
+    // On garde les scripts > 5000 caractères qui contiennent des fonctions applicatives
+    if (code.length > 5000) {
+      matches.push(code);
+    }
+  }
+  // Prend le plus long = le script principal
+  var meilleur = '';
+  matches.forEach(function(c){ if (c.length > meilleur.length) meilleur = c; });
+  return meilleur.trim();
+}
+
+function extraireBody(html) {
+  var match = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+  if (!match) return '';
+  var body = match[1];
+
+  // Retirer TOUS les scripts (ils sont déplacés dans script.js)
+  body = body.replace(/<script\s+type\s*=\s*["']module["'][^>]*>[\s\S]*?<\/script>/gi, '');
+
+  // Retirer le script principal (le plus gros script classique sans src)
+  var regex = /<script(?![^>]*type\s*=\s*["']module["'])(?![^>]*\bsrc\s*=)[^>]*>([\s\S]*?)<\/script>/gi;
+  var toRemove = [];
+  var m;
+  while ((m = regex.exec(body)) !== null) {
+    if (m[1].length > 5000) {
+      toRemove.push(m[0]);
+    }
+  }
+  // Supprimer du plus long au plus court (évite les décalages d'index)
+  toRemove.sort(function(a,b){ return b.length - a.length; });
+  toRemove.forEach(function(script){ body = body.replace(script, ''); });
+
+  return body.trim();
+}
+
+function extraireHeadScriptsInline(html) {
+  // Garde les 3 petits scripts inline du <head> (thème, protection, imgbb)
+  var headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+  if (!headMatch) return [];
+  var head = headMatch[1];
+  var regex = /<script(?![^>]*\bsrc\s*=)[^>]*>([\s\S]*?)<\/script>/gi;
+  var scripts = [];
+  var m;
+  while ((m = regex.exec(head)) !== null) {
+    if (m[1].trim().length < 3000 && m[0].indexOf('type="module"') === -1) {
+      scripts.push(m[0].trim());
+    }
+  }
+  return scripts;
+}
+
+function extraireLiensCDN(html) {
+  // Extrait les <link> et <script src> du <head> (CDN externes)
+  var headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+  if (!headMatch) return { links: [], scripts: [] };
+  var head = headMatch[1];
+  var links = head.match(/<link[^>]+rel=["']stylesheet["'][^>]*>/gi) || [];
+  // Filtrer les liens locaux (style.css qu'on va créer)
+  links = links.filter(function(l){ return l.indexOf('style.css') === -1; });
+  var scripts = head.match(/<script[^>]+src=["'][^"']+["'][^>]*><\/script>/gi) || [];
+  return { links: links, scripts: scripts };
+}
+
+function reconstruireIndexHtml(html, body, headScripts, cdn) {
+  var linksHtml = cdn.links.join('\n');
+  var scriptsHtml = cdn.scripts.join('\n');
+  var inlineHtml = headScripts.join('\n');
+
+  return '<!DOCTYPE html>\n' +
+'<html lang="fr">\n' +
+'<head>\n' +
+'<meta charset="UTF-8">\n' +
+'<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">\n' +
+'<title>NeTubeX RDC</title>\n' +
+'<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">\n' +
+'<meta name="theme-color" content="#2563EB">\n' +
+'<meta name="format-detection" content="telephone=no">\n' +
+linksHtml + '\n' +
+scriptsHtml + '\n' +
+inlineHtml + '\n' +
+'<link rel="stylesheet" href="style.css">\n' +
+'</head>\n' +
+'<body>\n\n' +
+body + '\n\n' +
+'<script type="module" src="script.js"></script>\n' +
+'</body>\n' +
+'</html>\n';
+}
+
+function fusionnerScripts(moduleCode, mainCode) {
+  return '/* ============================================================\n' +
+'   NeTubeX RDC — script.js\n' +
+'   Fusion des 2 scripts d\'origine (module Firebase + principal)\n' +
+'   ============================================================ */\n\n' +
+'/* ============================================================\n' +
+'   PARTIE 1 — MODULE FIREBASE\n' +
+'   ============================================================ */\n\n' +
+moduleCode + '\n\n\n' +
+'/* ============================================================\n' +
+'   PARTIE 2 — SCRIPT PRINCIPAL\n' +
+'   ============================================================ */\n\n' +
+mainCode + '\n';
+}
+
+// ============ LANCEMENT DU DÉCOUPAGE ============
+btnDecouper.addEventListener('click', function() {
+  if (!originalFile) return;
+  btnDecouper.disabled = true;
+  logEl.innerHTML = '';
+  resultStep.classList.add('hidden');
+  log('🔍 Analyse du fichier...', 'info');
+
+  try {
+    // 1. CSS
+    var css = extraireCSS(originalFile);
+    log('📝 CSS extrait : ' + css.length.toLocaleString('fr-FR') + ' caractères', css ? 'ok' : 'err');
+
+    // 2. Module Firebase
+    var moduleCode = extraireModuleFirebase(originalFile);
+    log('📦 Module Firebase extrait : ' + moduleCode.length.toLocaleString('fr-FR') + ' caractères', moduleCode ? 'ok' : 'err');
+
+    // 3. Script principal
+    var mainCode = extraireScriptPrincipal(originalFile);
+    log('⚙️ Script principal extrait : ' + mainCode.length.toLocaleString('fr-FR') + ' caractères', mainCode ? 'ok' : 'err');
+
+    // 4. Body
+    var body = extraireBody(originalFile);
+    log('📄 Body extrait : ' + body.length.toLocaleString('fr-FR') + ' caractères', body ? 'ok' : 'err');
+
+    // 5. Scripts inline du head
+    var headScripts = extraireHeadScriptsInline(originalFile);
+    log('🔧 Scripts inline du head : ' + headScripts.length + ' trouvé(s)', 'ok');
+
+    // 6. CDN
+    var cdn = extraireLiensCDN(originalFile);
+    log('🌐 CDN : ' + cdn.links.length + ' CSS + ' + cdn.scripts.length + ' JS', 'ok');
+
+    // 7. Reconstruire
+    resultats.css = css;
+    resultats.js = fusionnerScripts(moduleCode, mainCode);
+    resultats.html = reconstruireIndexHtml(originalFile, body, headScripts, cdn);
+
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+    log('✅ index.html : ' + resultats.html.length.toLocaleString('fr-FR') + ' caractères', 'ok');
+    log('✅ style.css  : ' + resultats.css.length.toLocaleString('fr-FR') + ' caractères', 'ok');
+    log('✅ script.js  : ' + resultats.js.length.toLocaleString('fr-FR') + ' caractères', 'ok');
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+
+    afficherResultats();
+  } catch (err) {
+    log('❌ Erreur : ' + err.message, 'err');
+    console.error(err);
+  } finally {
+    btnDecouper.disabled = false;
+  }
+});
+
+function afficherResultats() {
+  resultStep.classList.remove('hidden');
+  resultsList.innerHTML = '';
+
+  var fichiers = [
+    { key: 'html', ext: 'html', ico: '🌐', label: 'index.html', desc: 'Structure HTML + scripts inline' },
+    { key: 'css', ext: 'css', ico: '🎨', label: 'style.css', desc: 'Toutes les feuilles de style' },
+    { key: 'js', ext: 'js', ico: '⚡', label: 'script.js', desc: 'Module Firebase + script principal fusionnés' }
+  ];
+
+  fichiers.forEach(function(f) {
+    var contenu = resultats[f.key];
+    var tailleKo = (contenu.length / 1024).toFixed(1);
+    var div = document.createElement('div');
+    div.className = 'file-result';
+    div.innerHTML = '<div class="ico ' + f.ext + '">' + f.ico + '</div>' +
+      '<div class="info"><div class="name">' + f.label + '</div>' +
+      '<div class="size">' + tailleKo + ' Ko · ' + f.desc + '</div></div>' +
+      '<button class="dl-btn" data-key="' + f.key + '">⬇️ Télécharger</button>';
+    div.querySelector('.dl-btn').addEventListener('click', function() {
+      telecharger(resultats[f.key], nomsFichiers[f.key]);
+    });
+    resultsList.appendChild(div);
+  });
+
+  resultStep.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function telecharger(contenu, nom) {
+  var mime = nom.endsWith('.html') ? 'text/html' :
+             nom.endsWith('.css')  ? 'text/css'  :
+             'text/javascript';
+  var blob = new Blob([contenu], { type: mime + ';charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = nom;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+  log('⬇️ Téléchargé : ' + nom, 'ok');
+}
+
+btnDownloadAll.addEventListener('click', function() {
+  telecharger(resultats.html, nomsFichiers.html);
+  setTimeout(function(){ telecharger(resultats.css, nomsFichiers.css); }, 400);
+  setTimeout(function(){ telecharger(resultats.js, nomsFichiers.js); }, 800);
+});
+
+})();
+</script>
+</body>
+</html>
