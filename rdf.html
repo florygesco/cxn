@@ -2167,7 +2167,19 @@ reveillerApp();
 function demarrerBarreProgression(){var c=document.getElementById('feedProgressContainer');var b=document.getElementById('feedProgressBar');if(!c||!b)return;c.style.display='block';b.style.width='30%';setTimeout(function(){b.style.width='70%';},200);}
 function terminerBarreProgression(){var c=document.getElementById('feedProgressContainer');var b=document.getElementById('feedProgressBar');if(!c||!b)return;b.style.width='100%';setTimeout(function(){c.style.display='none';b.style.width='0%';},300);}
 var toastTimer=null;
-function showToast(msg){var t=document.getElementById('toast');var txt=document.getElementById('toast-text');if(!t||!txt)return;txt.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.classList.remove('show');},3500);}
+var toastTimer=null;
+function showToast(msg){
+if(!msg)return;
+var interdit=/firestore|firebase|quota|permission[_ ]denied|resource[_ ]exhausted|unavailable|deadline|unauthenticated|too-many-requests|network-request-failed|err_[a-z_]+/i;
+if(interdit.test(String(msg)))msg='⏳ Réessayez dans un instant';
+var t=document.getElementById('toast');
+var txt=document.getElementById('toast-text');
+if(!t||!txt)return;
+txt.textContent=msg;
+t.classList.add('show');
+clearTimeout(toastTimer);
+toastTimer=setTimeout(function(){t.classList.remove('show');},3500);
+}
 function esc(s){if(!s)return'';return String(s).replace(/[&<>"']/g,function(m){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];});}
 function tempsRelatif(ds){if(!ds)return'Récemment';try{var d=new Date(ds);var diff=Date.now()-d.getTime();if(diff<0)return'À l\'instant';var m=Math.floor(diff/60000),h=Math.floor(m/60),j=Math.floor(h/24);if(m<1)return'À l\'instant';if(m<60)return'Il y a '+m+' min';if(h<24)return'Il y a '+h+'h';if(j<7)return'Il y a '+j+'j';return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});}catch(e){return'Récemment';}}
 function getTodayKey(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
@@ -2182,7 +2194,9 @@ function attacherNettoyagePhone(inputId){var inp=document.getElementById(inputId
 function attacherTousPhones(){['accPhone','accLoginPhone','newPhoneInput','confirmPhoneInput','inscTelephone','inscWhatsappCommercial','client-tel','unlockNumEnvoi','publishNumEnvoi','resaPhone','reseauProfTelephone','aboNumeroEnvoi'].forEach(attacherNettoyagePhone);}
 
 function isLoggedIn(){return window.CURRENT_ACCOUNT!==null&&window.CURRENT_ACCOUNT.id!==undefined;}
-function copyText(t){if(!t)return;if(navigator.clipboard&&navigator.clipboard.writeText&&window.isSecureContext){navigator.clipboard.writeText(t).then(function(){showToast('✅ Copié');}).catch(function(){fallbackCopy(t);});}else{fallbackCopy(t);}}
+window.estErreurReessayable=function(err){if(!err)return false;var s=(String(err.code||'')+' '+String(err.message||'')).toLowerCase();return ['resource-exhausted','quota','unavailable','deadline-exceeded','network-request-failed','failed-precondition','offline','unauthenticated','internal','cancelled'].some(function(m){return s.indexOf(m)!==-1;});};
+window.executerAvecFileAttente=async function(action,payload,fn){try{return await fn();}catch(err){if(window.estErreurReessayable(err)){try{await window.PENDING_QUEUE.ajouter(action,payload);return{success:true,queued:true};}catch(e){return{success:false};}}throw err;}};
+setInterval(async function(){if(!navigator.onLine||!window.CURRENT_ACCOUNT)return;try{await window.getDocRef(window.docRef(window.db,'config','app'));if(window.PENDING_QUEUE&&window.synchroniserFileAttente){var items=await window.PENDING_QUEUE.lister();if(items.length>0)await window.synchroniserFileAttente();}}catch(e){}},5*60*1000);function copyText(t){if(!t)return;if(navigator.clipboard&&navigator.clipboard.writeText&&window.isSecureContext){navigator.clipboard.writeText(t).then(function(){showToast('✅ Copié');}).catch(function(){fallbackCopy(t);});}else{fallbackCopy(t);}}
 function fallbackCopy(t){try{var ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.left='-9999px';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showToast('✅ Copié');}catch(e){showToast('Erreur');}}
 
 function appliquerVisibiliteRole(){
