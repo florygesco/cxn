@@ -26,8 +26,6 @@
   .btn-primary{background:#3b82f6;color:#fff;width:100%}
   .btn-primary:disabled{background:#475569;cursor:not-allowed}
   .btn-dl{background:#10b981;color:#fff;width:100%;margin-top:8px}
-  .btn-dl:disabled{background:#475569;cursor:not-allowed}
-  .btn-group{display:flex;flex-direction:column;gap:10px;margin-top:8px}
   .file-result{display:flex;align-items:center;gap:12px;padding:14px;background:#0f172a;border-radius:10px;margin-bottom:10px}
   .file-result .ico{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
   .file-result .ico.html{background:#e34c26;color:#fff}
@@ -48,7 +46,7 @@
 <body>
 <div class="container">
   <h1>🔧 Découpeur <span>NeTubeX</span></h1>
-  <p class="sub">Transforme ton fichier HTML monolithique en 3 fichiers propres : <strong>index.html</strong> + <strong>style.css</strong> + <strong>script.js</strong>. 100 % local, rien n'est envoyé sur un serveur.</p>
+  <p class="sub">Transforme ton fichier HTML monolithique en 3 fichiers : <strong>index.html</strong> + <strong>style.css</strong> + <strong>script.js</strong>. 100 % local.</p>
 
   <div class="step">
     <h2><span class="num">1</span> Charger ton fichier original</h2>
@@ -104,7 +102,6 @@ function log(msg, type) {
 
 dropZone.addEventListener('click', function(){ fileInput.click(); });
 fileInput.addEventListener('change', function(e){ if (e.target.files[0]) chargerFichier(e.target.files[0]); });
-
 dropZone.addEventListener('dragover', function(e){ e.preventDefault(); dropZone.classList.add('dragover'); });
 dropZone.addEventListener('dragleave', function(){ dropZone.classList.remove('dragover'); });
 dropZone.addEventListener('drop', function(e){
@@ -114,16 +111,13 @@ dropZone.addEventListener('drop', function(e){
 });
 
 function chargerFichier(f) {
-  if (!f.name.match(/\.(html?|txt)$/i)) {
-    alert('Merci de choisir un fichier .html, .htm ou .txt');
-    return;
-  }
+  if (!f.name.match(/\.(html?|txt)$/i)) { alert('Fichier .html, .htm ou .txt requis'); return; }
   var reader = new FileReader();
   reader.onload = function(e) {
     originalFile = e.target.result;
-    var tailleKo = (originalFile.length / 1024).toFixed(1);
+    var ko = (originalFile.length / 1024).toFixed(1);
     fileInfo.style.display = 'block';
-    fileInfo.innerHTML = '<strong>' + f.name + '</strong> — ' + tailleKo + ' Ko (' + originalFile.length.toLocaleString('fr-FR') + ' caractères)';
+    fileInfo.innerHTML = '<strong>' + f.name + '</strong> — ' + ko + ' Ko';
     btnDecouper.disabled = false;
     logEl.innerHTML = '';
     resultStep.classList.add('hidden');
@@ -136,8 +130,8 @@ function extraireCSS(html) {
   var matches = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
   var meilleur = '';
   matches.forEach(function(m) {
-    var contenu = m.replace(/<style[^>]*>/i, '').replace(/<\/style>/i, '');
-    if (contenu.length > meilleur.length) meilleur = contenu;
+    var c = m.replace(/<style[^>]*>/i, '').replace(/<\/style>/i, '');
+    if (c.length > meilleur.length) meilleur = c;
   });
   return meilleur.trim();
 }
@@ -157,14 +151,12 @@ function extraireModuleFirebase(html) {
 function extraireScriptPrincipal(html) {
   var bodyPos = html.lastIndexOf('</body>');
   if (bodyPos === -1) bodyPos = html.length;
-  var zoneBody = html.substring(0, bodyPos);
-
+  var zone = html.substring(0, bodyPos);
   var regex = /<script(?![^>]*type\s*=\s*["']module["'])(?![^>]*\bsrc\s*=)[^>]*>([\s\S]*?)<\/script>/gi;
   var matches = [];
   var m;
-  while ((m = regex.exec(zoneBody)) !== null) {
-    var code = m[1];
-    if (code.length > 5000) matches.push(code);
+  while ((m = regex.exec(zone)) !== null) {
+    if (m[1].length > 5000) matches.push(m[1]);
   }
   var meilleur = '';
   matches.forEach(function(c){ if (c.length > meilleur.length) meilleur = c; });
@@ -175,9 +167,7 @@ function extraireBody(html) {
   var match = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
   if (!match) return '';
   var body = match[1];
-
   body = body.replace(/<script\s+type\s*=\s*["']module["'][^>]*>[\s\S]*?<\/script>/gi, '');
-
   var regex = /<script(?![^>]*type\s*=\s*["']module["'])(?![^>]*\bsrc\s*=)[^>]*>([\s\S]*?)<\/script>/gi;
   var toRemove = [];
   var m;
@@ -186,14 +176,13 @@ function extraireBody(html) {
   }
   toRemove.sort(function(a,b){ return b.length - a.length; });
   toRemove.forEach(function(script){ body = body.replace(script, ''); });
-
   return body.trim();
 }
 
 function extraireHeadScriptsInline(html) {
-  var headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
-  if (!headMatch) return [];
-  var head = headMatch[1];
+  var hm = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+  if (!hm) return [];
+  var head = hm[1];
   var regex = /<script(?![^>]*\bsrc\s*=)[^>]*>([\s\S]*?)<\/script>/gi;
   var scripts = [];
   var m;
@@ -206,9 +195,9 @@ function extraireHeadScriptsInline(html) {
 }
 
 function extraireLiensCDN(html) {
-  var headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
-  if (!headMatch) return { links: [], scripts: [] };
-  var head = headMatch[1];
+  var hm = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+  if (!hm) return { links: [], scripts: [] };
+  var head = hm[1];
   var links = head.match(/<link[^>]+rel=["']stylesheet["'][^>]*>/gi) || [];
   links = links.filter(function(l){ return l.indexOf('style.css') === -1; });
   var scripts = head.match(/<script[^>]+src=["'][^"']+["'][^>]*><\/script>/gi) || [];
@@ -216,43 +205,32 @@ function extraireLiensCDN(html) {
 }
 
 function reconstruireIndexHtml(body, headScripts, cdn) {
-  var linksHtml = cdn.links.join('\n');
-  var scriptsHtml = cdn.scripts.join('\n');
-  var inlineHtml = headScripts.join('\n');
-
+  var SCRIPTC = '<' + 'script type="module" src="script.js"><' + '/script>';
   return '<!DOCTYPE html>\n' +
-'<html lang="fr">\n' +
-'<head>\n' +
+'<html lang="fr">\n<head>\n' +
 '<meta charset="UTF-8">\n' +
 '<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">\n' +
 '<title>NeTubeX RDC</title>\n' +
 '<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">\n' +
 '<meta name="theme-color" content="#2563EB">\n' +
 '<meta name="format-detection" content="telephone=no">\n' +
-linksHtml + '\n' +
-scriptsHtml + '\n' +
-inlineHtml + '\n' +
+cdn.links.join('\n') + '\n' +
+cdn.scripts.join('\n') + '\n' +
+headScripts.join('\n') + '\n' +
 '<link rel="stylesheet" href="style.css">\n' +
-'</head>\n' +
-'<body>\n\n' +
+'</head>\n<body>\n\n' +
 body + '\n\n' +
-'<script type="module" src="script.js"></script>\n' +
-'</body>\n' +
-'</html>\n';
+SCRIPTC + '\n' +
+'</body>\n</html>\n';
 }
 
 function fusionnerScripts(moduleCode, mainCode) {
   return '/* ============================================================\n' +
 '   NeTubeX RDC — script.js\n' +
-'   Fusion des 2 scripts d\'origine (module Firebase + principal)\n' +
 '   ============================================================ */\n\n' +
-'/* ============================================================\n' +
-'   PARTIE 1 — MODULE FIREBASE\n' +
-'   ============================================================ */\n\n' +
+'/* PARTIE 1 — MODULE FIREBASE */\n\n' +
 moduleCode + '\n\n\n' +
-'/* ============================================================\n' +
-'   PARTIE 2 — SCRIPT PRINCIPAL\n' +
-'   ============================================================ */\n\n' +
+'/* PARTIE 2 — SCRIPT PRINCIPAL */\n\n' +
 mainCode + '\n';
 }
 
@@ -261,41 +239,35 @@ btnDecouper.addEventListener('click', function() {
   btnDecouper.disabled = true;
   logEl.innerHTML = '';
   resultStep.classList.add('hidden');
-  log('🔍 Analyse du fichier...', 'info');
+  log('🔍 Analyse...', 'info');
 
   try {
     var css = extraireCSS(originalFile);
-    log('📝 CSS extrait : ' + css.length.toLocaleString('fr-FR') + ' caractères', css ? 'ok' : 'err');
-
     var moduleCode = extraireModuleFirebase(originalFile);
-    log('📦 Module Firebase extrait : ' + moduleCode.length.toLocaleString('fr-FR') + ' caractères', moduleCode ? 'ok' : 'err');
-
     var mainCode = extraireScriptPrincipal(originalFile);
-    log('⚙️ Script principal extrait : ' + mainCode.length.toLocaleString('fr-FR') + ' caractères', mainCode ? 'ok' : 'err');
-
     var body = extraireBody(originalFile);
-    log('📄 Body extrait : ' + body.length.toLocaleString('fr-FR') + ' caractères', body ? 'ok' : 'err');
-
     var headScripts = extraireHeadScriptsInline(originalFile);
-    log('🔧 Scripts inline du head : ' + headScripts.length + ' trouvé(s)', 'ok');
-
     var cdn = extraireLiensCDN(originalFile);
+
+    log('📝 CSS : ' + css.length + ' car.', css ? 'ok' : 'err');
+    log('📦 Module Firebase : ' + moduleCode.length + ' car.', moduleCode ? 'ok' : 'err');
+    log('⚙️ Script principal : ' + mainCode.length + ' car.', mainCode ? 'ok' : 'err');
+    log('📄 Body : ' + body.length + ' car.', body ? 'ok' : 'err');
+    log('🔧 Scripts inline : ' + headScripts.length, 'ok');
     log('🌐 CDN : ' + cdn.links.length + ' CSS + ' + cdn.scripts.length + ' JS', 'ok');
 
     resultats.css = css;
     resultats.js = fusionnerScripts(moduleCode, mainCode);
     resultats.html = reconstruireIndexHtml(body, headScripts, cdn);
 
-    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
-    log('✅ index.html : ' + resultats.html.length.toLocaleString('fr-FR') + ' caractères', 'ok');
-    log('✅ style.css  : ' + resultats.css.length.toLocaleString('fr-FR') + ' caractères', 'ok');
-    log('✅ script.js  : ' + resultats.js.length.toLocaleString('fr-FR') + ' caractères', 'ok');
-    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+    log('━━━━━━━━━━━━━━━', 'info');
+    log('✅ index.html : ' + resultats.html.length + ' car.', 'ok');
+    log('✅ style.css : ' + resultats.css.length + ' car.', 'ok');
+    log('✅ script.js : ' + resultats.js.length + ' car.', 'ok');
 
     afficherResultats();
   } catch (err) {
-    log('❌ Erreur : ' + err.message, 'err');
-    console.error(err);
+    log('❌ ' + err.message, 'err');
   } finally {
     btnDecouper.disabled = false;
   }
@@ -304,35 +276,30 @@ btnDecouper.addEventListener('click', function() {
 function afficherResultats() {
   resultStep.classList.remove('hidden');
   resultsList.innerHTML = '';
-
   var fichiers = [
-    { key: 'html', ext: 'html', ico: '🌐', label: 'index.html', desc: 'Structure HTML + scripts inline' },
-    { key: 'css', ext: 'css', ico: '🎨', label: 'style.css', desc: 'Toutes les feuilles de style' },
-    { key: 'js', ext: 'js', ico: '⚡', label: 'script.js', desc: 'Module Firebase + script principal fusionnés' }
+    { key: 'html', ext: 'html', ico: '🌐', label: 'index.html', desc: 'HTML + scripts inline' },
+    { key: 'css', ext: 'css', ico: '🎨', label: 'style.css', desc: 'Styles' },
+    { key: 'js', ext: 'js', ico: '⚡', label: 'script.js', desc: 'Module + principal' }
   ];
-
   fichiers.forEach(function(f) {
     var contenu = resultats[f.key];
-    var tailleKo = (contenu.length / 1024).toFixed(1);
+    var ko = (contenu.length / 1024).toFixed(1);
     var div = document.createElement('div');
     div.className = 'file-result';
     div.innerHTML = '<div class="ico ' + f.ext + '">' + f.ico + '</div>' +
       '<div class="info"><div class="name">' + f.label + '</div>' +
-      '<div class="size">' + tailleKo + ' Ko · ' + f.desc + '</div></div>' +
-      '<button class="dl-btn" data-key="' + f.key + '">⬇️ Télécharger</button>';
+      '<div class="size">' + ko + ' Ko · ' + f.desc + '</div></div>' +
+      '<button class="dl-btn">⬇️ Télécharger</button>';
     div.querySelector('.dl-btn').addEventListener('click', function() {
       telecharger(resultats[f.key], nomsFichiers[f.key]);
     });
     resultsList.appendChild(div);
   });
-
   resultStep.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function telecharger(contenu, nom) {
-  var mime = nom.endsWith('.html') ? 'text/html' :
-             nom.endsWith('.css')  ? 'text/css'  :
-             'text/javascript';
+  var mime = nom.endsWith('.html') ? 'text/html' : nom.endsWith('.css') ? 'text/css' : 'text/javascript';
   var blob = new Blob([contenu], { type: mime + ';charset=utf-8' });
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
@@ -341,7 +308,7 @@ function telecharger(contenu, nom) {
   document.body.appendChild(a);
   a.click();
   setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-  log('⬇️ Téléchargé : ' + nom, 'ok');
+  log('⬇️ ' + nom, 'ok');
 }
 
 btnDownloadAll.addEventListener('click', function() {
