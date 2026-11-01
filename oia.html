@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Test IA NeTubeX</title>
+<title>Test Worker NeTubeX</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,sans-serif;background:#0a0e1a;color:#e8eef5;min-height:100vh;display:flex;justify-content:center;align-items:center;padding:16px}
@@ -14,6 +14,7 @@ h1{font-size:22px;margin-bottom:6px;background:linear-gradient(135deg,#7c3aed,#2
 .msg{max-width:85%;padding:12px 16px;border-radius:16px;font-size:14px;line-height:1.5;white-space:pre-wrap;word-wrap:break-word}
 .msg.user{align-self:flex-end;background:linear-gradient(135deg,#2563EB,#1D4ED8);color:#fff;border-radius:16px 16px 4px 16px}
 .msg.bot{align-self:flex-start;background:#1a2233;border:1px solid rgba(148,163,184,.15);border-radius:16px 16px 16px 4px}
+.msg.bot.error{background:#3f1a1a;border-color:rgba(239,68,68,.3);color:#fca5a5}
 .msg.loading{color:#94a3b8;font-style:italic}
 .input-row{display:flex;gap:8px}
 input[type="text"]{flex:1;padding:14px 18px;border:2px solid #1a2233;border-radius:24px;background:#0a0e1a;color:#e8eef5;outline:none;font-size:15px;font-family:inherit}
@@ -26,13 +27,13 @@ button:disabled{opacity:0.5;cursor:not-allowed}
 </head>
 <body>
 <div class="container">
-<h1>🤖 Test IA NeTubeX</h1>
-<p class="subtitle">Via ton Worker Cloudflare sécurisé</p>
+<h1>🔍 Test Worker NeTubeX</h1>
+<p class="subtitle">Worker : parent.netube-a97.workers.dev</p>
 <div class="messages" id="messages">
-<div class="msg bot">Bonjour 👋 Je suis l'assistant NeTubeX. Pose-moi une question.</div>
+<div class="msg bot">Bonjour 👋 Envoie un message ou un code à 6 chiffres pour tester le Worker.</div>
 </div>
 <div class="input-row">
-<input type="text" id="input" placeholder="Posez votre question…" autocomplete="off">
+<input type="text" id="input" placeholder="Message ou code…" autocomplete="off">
 <button id="sendBtn" onclick="envoyer()">Envoyer</button>
 </div>
 <div class="info">
@@ -61,21 +62,24 @@ try {
 const response = await fetch(WORKER_URL, {
 method: "POST",
 headers: { "Content-Type": "application/json" },
-body: JSON.stringify({ message: texte, historique: historique })
+body: JSON.stringify({ message: texte, historique: historique, code: texte })
 });
 const data = await response.json();
 document.getElementById(loadingId)?.remove();
-if (!data.reponse) {
-ajouterMessage('bot', '❌ Réponse invalide : ' + JSON.stringify(data));
+// ✅ Lire n'importe quel format de réponse
+var reponse = data.reponse || data.answer || data.response || data.result || data.text || data.message;
+var estErreur = data.type === "error" || data.success === false;
+if (!reponse) {
+ajouterMessage('bot', '❌ Format non reconnu : ' + JSON.stringify(data), true);
 return;
 }
-ajouterMessage('bot', data.reponse);
+ajouterMessage('bot', reponse, estErreur);
 historique.push({ role: "user", content: texte });
-historique.push({ role: "assistant", content: data.reponse });
+historique.push({ role: "assistant", content: reponse });
 if (historique.length > 10) historique.splice(0, 2);
 } catch (err) {
 document.getElementById(loadingId)?.remove();
-ajouterMessage('bot', '❌ Erreur réseau : ' + err.message);
+ajouterMessage('bot', '❌ Erreur réseau : ' + err.message, true);
 console.error(err);
 } finally {
 enCours = false;
@@ -83,11 +87,11 @@ sendBtn.disabled = false;
 inputEl.focus();
 }
 }
-function ajouterMessage(role, texte, isLoading = false) {
+function ajouterMessage(role, texte, isError = false) {
 const id = 'msg-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
 const div = document.createElement('div');
 div.id = id;
-div.className = 'msg ' + role + (isLoading ? ' loading' : '');
+div.className = 'msg ' + role + (isError ? ' error' : '');
 div.textContent = texte;
 messagesEl.appendChild(div);
 messagesEl.scrollTop = messagesEl.scrollHeight;
