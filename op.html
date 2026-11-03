@@ -15,7 +15,6 @@
   .page { display: none; }
   .page.active { display: block; }
 
-  /* Header */
   .header {
     position: sticky; top: 0; z-index: 40;
     background: rgba(255,255,255,0.92);
@@ -27,7 +26,6 @@
   .header-title { font-size: 22px; font-weight: 900; letter-spacing: -.5px; color: #0f172a; }
   .header-title span { color: #2563EB; }
 
-  /* Buttons */
   .btn {
     padding: 14px 20px; border-radius: 12px; border: none; cursor: pointer;
     font-family: inherit; font-weight: 800; font-size: 15px;
@@ -41,7 +39,6 @@
   .btn-red   { background: #ef4444; color: #fff; }
   .btn-sm    { padding: 10px 14px; font-size: 13px; border-radius: 10px; }
 
-  /* Inputs */
   .input {
     width: 100%; padding: 14px 16px; border-radius: 12px;
     background: #fff; border: 2px solid #e2e8f0;
@@ -55,21 +52,18 @@
     margin-bottom: 8px;
   }
 
-  /* Card */
   .card {
     background: #fff; border: 1px solid #e2e8f0;
     border-radius: 16px; padding: 20px;
     box-shadow: 0 1px 3px rgba(15,23,42,.04);
   }
 
-  /* Auth screen */
   .auth-screen {
     min-height: 100vh; display: flex; flex-direction: column;
     justify-content: center; padding: 24px;
     max-width: 420px; margin: 0 auto;
   }
 
-  /* Video card */
   .video-card {
     background: #0f172a; border-radius: 16px; overflow: hidden;
     margin-bottom: 20px; box-shadow: 0 8px 24px rgba(15,23,42,.12);
@@ -83,7 +77,6 @@
   }
   .video-meta { padding: 14px 16px; background: #fff; }
 
-  /* Tab bar */
   .tab-bar {
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
     background: rgba(255,255,255,0.96);
@@ -101,7 +94,6 @@
   .tab-btn i { font-size: 20px; }
   .tab-btn.active { color: #2563EB; }
 
-  /* Toast */
   .toast {
     position: fixed; top: 80px; left: 50%; transform: translate(-50%, -180%);
     background: #0f172a; color: #fff; padding: 14px 22px; border-radius: 12px;
@@ -111,7 +103,6 @@
   }
   .toast.show { transform: translate(-50%, 0); }
 
-  /* Progress */
   .progress-wrap { height: 10px; background: #e2e8f0; border-radius: 6px; overflow: hidden; }
   .progress-bar {
     height: 100%; width: 0%;
@@ -119,14 +110,12 @@
     transition: width .2s;
   }
 
-  /* Error box */
   .error-box {
     padding: 12px 14px; background: #fef2f2; border: 1.5px solid #fca5a5;
     border-radius: 10px; color: #991b1b; font-weight: 700; font-size: 14px;
     margin-bottom: 12px; word-break: break-word;
   }
 
-  /* Picker */
   .picker-zone {
     border: 2px dashed #cbd5e1; border-radius: 14px;
     padding: 30px 20px; text-align: center; cursor: pointer;
@@ -139,26 +128,6 @@
   .picker-zone .hint { font-size: 13px; color: #64748b; margin-top: 4px; }
 
   .main-content { padding: 16px; padding-bottom: 90px; max-width: 600px; margin: 0 auto; }
-
-  /* Debug panel */
-  #debugPanel {
-    position: fixed; inset: 0; z-index: 9999;
-    background: rgba(15,23,42,0.95);
-    padding: 16px; overflow-y: auto;
-    color: #e2e8f0; font-family: ui-monospace, monospace; font-size: 12px;
-  }
-  #debugPanel .dp-box {
-    background: #1e293b; border-radius: 8px; padding: 12px; margin-bottom: 10px;
-    border: 1px solid #334155;
-  }
-  #debugPanel .dp-title {
-    color: #fbbf24; font-weight: 900; font-size: 12px;
-    text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px;
-  }
-  #debugPanel pre {
-    margin: 0; white-space: pre-wrap; word-break: break-all;
-    color: #a7f3d0; font-size: 11px; line-height: 1.5;
-  }
 </style>
 </head>
 <body>
@@ -326,11 +295,8 @@ function uploadToPublitio(file, onProgress) {
       if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
     };
     xhr.onload = function() {
-      // Panneau de diagnostic (mobile-friendly)
-      showDebugPanel(xhr.status, xhr.responseText);
-
       if (xhr.status < 200 || xhr.status >= 300) {
-        reject(new Error("HTTP " + xhr.status + " — voir le diagnostic."));
+        reject(new Error("Échec de l'envoi (HTTP " + xhr.status + ")."));
         return;
       }
       try {
@@ -341,19 +307,13 @@ function uploadToPublitio(file, onProgress) {
           return;
         }
         var data = (raw && raw.response) ? raw.response : raw;
-        var videoUrl =
-          data.url_preview ||
-          data.url_mp4 ||
-          data.url ||
-          data.secure_url ||
-          data.url_mp4_download ||
-          data.original_url ||
-          null;
+        // ✅ Champs réels de Publitio
+        var videoUrl = data.url_preview || data.url_mp4 || data.url || null;
         var publitioId = data.id || data.publitio_id || null;
-        var thumbnailUrl = data.thumbnail_url || data.thumbnail || null;
+        var thumbnailUrl = data.url_thumbnail || data.thumbnail_url || null;
 
         if (!publitioId || !videoUrl) {
-          reject(new Error("Champs reçus : " + Object.keys(data).join(", ")));
+          reject(new Error("Réponse Publitio incomplète."));
           return;
         }
         resolve({
@@ -362,89 +322,14 @@ function uploadToPublitio(file, onProgress) {
           thumbnailUrl: thumbnailUrl
         });
       } catch (e) {
-        reject(new Error("Réponse non-JSON — voir le diagnostic."));
+        reject(new Error("Réponse Publitio invalide."));
       }
     };
-    xhr.onerror = function() {
-      showDebugPanel("network-error", "(pas de réponse)");
-      reject(new Error("Erreur réseau."));
-    };
+    xhr.onerror = function() { reject(new Error("Erreur réseau.")); };
     xhr.open("POST", PUBLITIO_UPLOAD_URL);
     xhr.send(form);
   });
 }
-
-// ============ PANNEAU DE DIAGNOSTIC ============
-window.showDebugPanel = function(status, responseText) {
-  var existing = document.getElementById('debugPanel');
-  if (existing) existing.remove();
-
-  var pretty = '(réponse vide)';
-  var champsHtml = '';
-  var urlsHtml = '';
-  try {
-    var parsed = JSON.parse(responseText);
-    pretty = JSON.stringify(parsed, null, 2);
-    var data = (parsed && parsed.response) ? parsed.response : parsed;
-    var keys = Object.keys(data);
-    champsHtml = '<div class="dp-box"><div class="dp-title">Champs disponibles</div><pre>' + keys.join('\n') + '</pre></div>';
-    var urls = [];
-    keys.forEach(function(k) {
-      if (typeof data[k] === 'string' && data[k].indexOf('http') === 0) {
-        urls.push(k + ' :\n' + data[k]);
-      }
-    });
-    if (urls.length > 0) {
-      urlsHtml = '<div class="dp-box"><div class="dp-title">URLs trouvées</div><pre>' + urls.join('\n\n') + '</pre></div>';
-    }
-  } catch (e) {
-    pretty = responseText || '(non-JSON)';
-  }
-
-  var panel = document.createElement('div');
-  panel.id = 'debugPanel';
-  panel.innerHTML =
-    '<div style="max-width:700px;margin:0 auto;">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
-        '<h2 style="color:#f87171;margin:0;font-size:16px;font-weight:900;">🔍 Diagnostic Publitio</h2>' +
-        '<button onclick="document.getElementById(\'debugPanel\').remove()" style="background:#ef4444;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:900;font-size:13px;cursor:pointer;">✕ Fermer</button>' +
-      '</div>' +
-      '<div class="dp-box"><div class="dp-title">Status HTTP</div><pre>' + status + '</pre></div>' +
-      champsHtml +
-      urlsHtml +
-      '<div class="dp-box"><div class="dp-title">Réponse complète</div><pre>' + escapeHtml(pretty) + '</pre></div>' +
-      '<div style="display:flex;gap:8px;margin-top:8px;">' +
-        '<button onclick="copyDebugText()" style="flex:1;background:#10b981;color:#fff;border:none;padding:12px;border-radius:8px;font-weight:900;cursor:pointer;font-size:13px;">📋 Copier</button>' +
-      '</div>' +
-    '</div>';
-
-  document.body.appendChild(panel);
-  window._debugText = 'Status: ' + status + '\n\n' + pretty;
-};
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>]/g, function(c) {
-    return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];
-  });
-}
-
-window.copyDebugText = function() {
-  if (!window._debugText) return;
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(window._debugText).then(function() {
-      toast('Copié !');
-    }).catch(function() {
-      toast('Copie impossible');
-    });
-  } else {
-    var ta = document.createElement('textarea');
-    ta.value = window._debugText;
-    document.body.appendChild(ta);
-    ta.select();
-    try { document.execCommand('copy'); toast('Copié !'); } catch(e) { toast('Copie impossible'); }
-    document.body.removeChild(ta);
-  }
-};
 
 // ============ STATE ============
 let currentUser = null;
