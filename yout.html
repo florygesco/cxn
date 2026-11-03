@@ -1,0 +1,363 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NeTubeX Video Publisher</title>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #f4f5f7;
+      color: #303030;
+    }
+
+    main {
+      max-width: 650px;
+      margin: 20px auto;
+      padding: 24px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 5px 20px #0001;
+    }
+
+    h1 { text-align: center; }
+    h1 span { color: #e67e22; }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin: 18px 0 8px;
+    }
+
+    input, textarea, select, button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      border-radius: 8px;
+    }
+
+    input, textarea, select {
+      border: 1px solid #ccc;
+      background: white;
+    }
+
+    textarea { min-height: 100px; }
+
+    button {
+      border: 0;
+      background: #e67e22;
+      color: white;
+      font-weight: bold;
+      margin-top: 14px;
+      cursor: pointer;
+    }
+
+    button:disabled { opacity: .5; }
+
+    #loginButton { background: #303030; }
+
+    #preview {
+      display: none;
+      width: 100%;
+      max-height: 300px;
+      margin-top: 15px;
+      background: #111;
+      border-radius: 8px;
+    }
+
+    #status {
+      margin-top: 18px;
+      padding: 12px;
+      border-radius: 8px;
+      background: #f0f1f3;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+
+    progress { width: 100%; margin-top: 15px; }
+
+    .small { color: #666; font-size: 13px; line-height: 1.5; }
+  </style>
+</head>
+
+<body>
+<main>
+  <h1>NeTube<span>X</span> Video Publisher</h1>
+  <p style="text-align:center">
+    Publie tes vidéos directement sur ta chaîne YouTube.
+  </p>
+
+  <button id="loginButton" type="button" disabled>
+    Se connecter à Google
+  </button>
+
+  <p id="account" class="small">Initialisation de Google…</p>
+
+  <form id="uploadForm">
+    <label for="video">Choisir une vidéo</label>
+    <input id="video" type="file" accept="video/*" required>
+
+    <video id="preview" controls playsinline></video>
+
+    <label for="title">Titre</label>
+    <input id="title" maxlength="100" required
+           placeholder="Titre de la vidéo">
+
+    <label for="description">Description</label>
+    <textarea id="description" maxlength="5000"
+              placeholder="Description de la vidéo"></textarea>
+
+    <label for="visibility">Visibilité</label>
+    <select id="visibility">
+      <option value="private">Privée</option>
+      <option value="unlisted">Non répertoriée</option>
+      <option value="public">Publique</option>
+    </select>
+
+    <button id="uploadButton" type="submit" disabled>
+      Publier sur YouTube
+    </button>
+  </form>
+
+  <progress id="progress" value="0" max="100" hidden></progress>
+  <div id="status" role="status">Chargement…</div>
+
+  <p class="small">
+    Vérifie la visibilité avant chaque publication.
+    L'autorisation Google permet à cette page d'envoyer des vidéos
+    sur la chaîne YouTube associée au compte que tu autorises.
+  </p>
+</main>
+
+<script>
+"use strict";
+
+// Client ID Google fourni
+const CLIENT_ID =
+  "986921069730-ts27eteicu9ibacjlk6uoj3hs7297837.apps.googleusercontent.com";
+
+const SCOPE = "https://www.googleapis.com/auth/youtube.upload";
+
+const loginButton = document.getElementById("loginButton");
+const uploadButton = document.getElementById("uploadButton");
+const videoInput = document.getElementById("video");
+const preview = document.getElementById("preview");
+const statusBox = document.getElementById("status");
+const account = document.getElementById("account");
+const progress = document.getElementById("progress");
+
+let tokenClient = null;
+let accessToken = null;
+let selectedVideo = null;
+
+function status(message) {
+  statusBox.textContent = message;
+}
+
+function initializeGoogle() {
+  if (location.protocol !== "https:" && location.hostname !== "localhost") {
+    status("Erreur : ouvre cette page avec une adresse HTTPS.");
+    account.textContent = "Connexion Google indisponible.";
+    return;
+  }
+
+  if (!window.google?.accounts?.oauth2) {
+    status(
+      "Le script Google ne s'est pas chargé. Vérifie ta connexion Internet, puis recharge la page."
+    );
+    account.textContent = "Google non chargé.";
+    return;
+  }
+
+  try {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPE,
+      callback: (response) => {
+        if (response.error || !response.access_token) {
+          status(
+            "Connexion refusée : " +
+            (response.error || "aucun jeton reçu") +
+            ". Vérifie les paramètres OAuth dans Google Cloud."
+          );
+          return;
+        }
+
+        accessToken = response.access_token;
+        account.textContent = "Connecté à Google.";
+        uploadButton.disabled = false;
+        status("Connexion réussie. Choisis une vidéo à publier.");
+      },
+      error_callback: (error) => {
+        status(
+          "La fenêtre de connexion Google n'a pas pu s'ouvrir : " +
+          (error.message || error.type || "erreur inconnue")
+        );
+      }
+    });
+
+    loginButton.disabled = false;
+    account.textContent = "Prêt à se connecter.";
+    status("Appuie sur « Se connecter à Google ».");
+  } catch (error) {
+    status("Erreur d'initialisation : " + error.message);
+  }
+}
+
+loginButton.addEventListener("click", () => {
+  if (!tokenClient) {
+    status("Google n'est pas prêt. Recharge la page et réessaie.");
+    return;
+  }
+
+  try {
+    tokenClient.requestAccessToken({ prompt: "consent" });
+    status("Demande de connexion envoyée à Google…");
+  } catch (error) {
+    status("Impossible de lancer Google : " + error.message);
+  }
+});
+
+videoInput.addEventListener("change", () => {
+  selectedVideo = videoInput.files[0] || null;
+
+  if (!selectedVideo) {
+    preview.style.display = "none";
+    return;
+  }
+
+  if (!selectedVideo.type.startsWith("video/")) {
+    selectedVideo = null;
+    videoInput.value = "";
+    status("Choisis un fichier vidéo valide.");
+    return;
+  }
+
+  preview.src = URL.createObjectURL(selectedVideo);
+  preview.style.display = "block";
+
+  status(
+    "Vidéo choisie : " + selectedVideo.name +
+    " (" + (selectedVideo.size / 1048576).toFixed(1) + " Mo)"
+  );
+});
+
+document.getElementById("uploadForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  if (!accessToken) {
+    status("Connecte-toi d'abord à Google.");
+    return;
+  }
+
+  if (!selectedVideo) {
+    status("Choisis une vidéo.");
+    return;
+  }
+
+  const title = document.getElementById("title").value.trim();
+  const description = document.getElementById("description").value.trim();
+  const visibility = document.getElementById("visibility").value;
+
+  if (!title) {
+    status("Saisis un titre.");
+    return;
+  }
+
+  uploadButton.disabled = true;
+  loginButton.disabled = true;
+  progress.hidden = false;
+  progress.value = 0;
+  status("Préparation de l'envoi…");
+
+  try {
+    const metadata = {
+      snippet: {
+        title: title,
+        description: description,
+        categoryId: "22"
+      },
+      status: {
+        privacyStatus: visibility
+      }
+    };
+
+    const start = await fetch(
+      "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + accessToken,
+          "Content-Type": "application/json; charset=UTF-8",
+          "X-Upload-Content-Length": String(selectedVideo.size),
+          "X-Upload-Content-Type":
+            selectedVideo.type || "application/octet-stream"
+        },
+        body: JSON.stringify(metadata)
+      }
+    );
+
+    if (!start.ok) {
+      throw new Error(
+        "YouTube (" + start.status + ") : " + await start.text()
+      );
+    }
+
+    const uploadUrl = start.headers.get("Location");
+
+    if (!uploadUrl) {
+      throw new Error(
+        "YouTube n'a pas fourni l'adresse d'envoi. Vérifie la configuration."
+      );
+    }
+
+    status("Envoi de la vidéo en cours…");
+
+    const result = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": selectedVideo.type || "application/octet-stream"
+      },
+      body: selectedVideo
+    });
+
+    if (!result.ok) {
+      throw new Error(
+        "Échec de l'envoi (" + result.status + ") : " + await result.text()
+      );
+    }
+
+    const video = await result.json();
+    progress.value = 100;
+
+    status(
+      "Envoi terminé !\nID vidéo : " + video.id +
+      "\nVérifie YouTube Studio pour confirmer le traitement."
+    );
+  } catch (error) {
+    console.error(error);
+    status(
+      "Erreur : " + error.message +
+      "\nSi le message mentionne CORS, la publication directe depuis le navigateur est bloquée et nécessitera une autre configuration."
+    );
+  } finally {
+    uploadButton.disabled = !accessToken;
+    loginButton.disabled = false;
+  }
+});
+
+window.addEventListener("load", () => {
+  loginButton.disabled = true;
+  initializeGoogle();
+});
+</script>
+</body>
+</html>
