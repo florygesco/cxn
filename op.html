@@ -5,27 +5,30 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>NeTubeX Vidéo</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js"></script>
 <style>
   * { box-sizing: border-box; }
   body {
     font-family: system-ui, -apple-system, sans-serif;
-    background: #f8fafc; color: #0f172a; margin: 0;
+    background: #0a0e1a; color: #e8eef5; margin: 0;
     -webkit-font-smoothing: antialiased;
   }
   .page { display: none; }
   .page.active { display: block; }
 
+  /* Header */
   .header {
     position: sticky; top: 0; z-index: 40;
-    background: rgba(255,255,255,0.92);
+    background: rgba(17,24,39,0.92);
     backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid rgba(148,163,184,.15);
     padding: 12px 16px;
     display: flex; align-items: center; justify-content: space-between;
   }
-  .header-title { font-size: 22px; font-weight: 900; letter-spacing: -.5px; color: #0f172a; }
-  .header-title span { color: #2563EB; }
+  .header-title { font-size: 22px; font-weight: 900; letter-spacing: -.5px; color: #f1f5f9; }
+  .header-title span { color: #3B82F6; }
 
+  /* Buttons */
   .btn {
     padding: 14px 20px; border-radius: 12px; border: none; cursor: pointer;
     font-family: inherit; font-weight: 800; font-size: 15px;
@@ -39,34 +42,38 @@
   .btn-red   { background: #ef4444; color: #fff; }
   .btn-sm    { padding: 10px 14px; font-size: 13px; border-radius: 10px; }
 
+  /* Inputs */
   .input {
     width: 100%; padding: 14px 16px; border-radius: 12px;
-    background: #fff; border: 2px solid #e2e8f0;
-    color: #0f172a; font-size: 16px; font-family: inherit;
+    background: #141c2b; border: 2px solid #334155;
+    color: #f1f5f9; font-size: 16px; font-family: inherit;
     outline: none; transition: border-color .15s;
   }
-  .input:focus { border-color: #2563EB; }
+  .input:focus { border-color: #3B82F6; background: #111827; }
   .label {
     display: block; font-size: 12px; font-weight: 900;
-    color: #64748b; text-transform: uppercase; letter-spacing: .5px;
+    color: #94a3b8; text-transform: uppercase; letter-spacing: .5px;
     margin-bottom: 8px;
   }
 
+  /* Card */
   .card {
-    background: #fff; border: 1px solid #e2e8f0;
+    background: #111827; border: 1px solid rgba(148,163,184,.15);
     border-radius: 16px; padding: 20px;
-    box-shadow: 0 1px 3px rgba(15,23,42,.04);
+    box-shadow: 0 1px 3px rgba(0,0,0,.3);
   }
 
+  /* Auth screen */
   .auth-screen {
     min-height: 100vh; display: flex; flex-direction: column;
     justify-content: center; padding: 24px;
     max-width: 420px; margin: 0 auto;
   }
 
+  /* Video card */
   .video-card {
-    background: #0f172a; border-radius: 16px; overflow: hidden;
-    margin-bottom: 20px; box-shadow: 0 8px 24px rgba(15,23,42,.12);
+    background: #000; border-radius: 16px; overflow: hidden;
+    margin-bottom: 20px; box-shadow: 0 8px 24px rgba(0,0,0,.4);
   }
   .video-frame {
     width: 100%; aspect-ratio: 9/16; max-height: 78vh;
@@ -75,57 +82,62 @@
   .video-frame video {
     width: 100%; height: 100%; object-fit: contain; background: #000;
   }
-  .video-meta { padding: 14px 16px; background: #fff; }
+  .video-meta { padding: 14px 16px; background: #111827; }
 
+  /* Tab bar */
   .tab-bar {
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
-    background: rgba(255,255,255,0.96);
+    background: rgba(17,24,39,0.95);
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid rgba(148,163,184,.18);
     display: grid; grid-template-columns: repeat(3, 1fr);
     padding-bottom: env(safe-area-inset-bottom);
   }
   .tab-btn {
     padding: 12px 8px 10px; background: transparent; border: none; cursor: pointer;
-    color: #94a3b8; font-size: 11px; font-weight: 800;
+    color: #64748b; font-size: 11px; font-weight: 800;
     display: flex; flex-direction: column; align-items: center; gap: 4px;
     font-family: inherit; transition: color .15s;
   }
   .tab-btn i { font-size: 20px; }
-  .tab-btn.active { color: #2563EB; }
+  .tab-btn.active { color: #3B82F6; }
 
+  /* Toast */
   .toast {
     position: fixed; top: 80px; left: 50%; transform: translate(-50%, -180%);
-    background: #0f172a; color: #fff; padding: 14px 22px; border-radius: 12px;
+    background: #f1f5f9; color: #0f172a; padding: 14px 22px; border-radius: 12px;
     font-size: 14px; font-weight: 700; z-index: 900;
     transition: transform .3s ease; max-width: 85vw; text-align: center;
-    box-shadow: 0 8px 24px rgba(15,23,42,.25);
+    box-shadow: 0 8px 24px rgba(0,0,0,.5);
   }
   .toast.show { transform: translate(-50%, 0); }
 
-  .progress-wrap { height: 10px; background: #e2e8f0; border-radius: 6px; overflow: hidden; }
+  /* Progress */
+  .progress-wrap { height: 10px; background: #1e293b; border-radius: 6px; overflow: hidden; }
   .progress-bar {
     height: 100%; width: 0%;
     background: linear-gradient(90deg, #2563EB, #3B82F6);
     transition: width .2s;
   }
 
+  /* Error box */
   .error-box {
-    padding: 12px 14px; background: #fef2f2; border: 1.5px solid #fca5a5;
-    border-radius: 10px; color: #991b1b; font-weight: 700; font-size: 14px;
+    padding: 12px 14px; background: #450a0a; border: 1.5px solid #ef4444;
+    border-radius: 10px; color: #fecaca; font-weight: 700; font-size: 14px;
     margin-bottom: 12px; word-break: break-word;
   }
 
+  /* Picker */
   .picker-zone {
-    border: 2px dashed #cbd5e1; border-radius: 14px;
+    border: 2px dashed #334155; border-radius: 14px;
     padding: 30px 20px; text-align: center; cursor: pointer;
-    background: #f8fafc; margin-bottom: 16px;
+    background: #0f172a; margin-bottom: 16px;
     transition: border-color .15s, background .15s;
   }
-  .picker-zone:hover { border-color: #2563EB; background: #eff6ff; }
+  .picker-zone:hover { border-color: #3B82F6; background: #1e293b; }
   .picker-zone .icon { font-size: 40px; margin-bottom: 8px; }
-  .picker-zone .title { font-size: 15px; font-weight: 800; color: #0f172a; }
-  .picker-zone .hint { font-size: 13px; color: #64748b; margin-top: 4px; }
+  .picker-zone .title { font-size: 15px; font-weight: 800; color: #f1f5f9; }
+  .picker-zone .hint { font-size: 13px; color: #94a3b8; margin-top: 4px; }
 
   .main-content { padding: 16px; padding-bottom: 90px; max-width: 600px; margin: 0 auto; }
 </style>
@@ -135,10 +147,10 @@
 <!-- ============ AUTH ============ -->
 <div id="page-auth" class="page active">
   <div class="auth-screen">
-    <h1 style="font-size:38px;font-weight:900;text-align:center;margin:0 0 6px;letter-spacing:-1.5px;color:#0f172a;">
-      NeTube<span style="color:#2563EB;">X</span>
+    <h1 style="font-size:38px;font-weight:900;text-align:center;margin:0 0 6px;letter-spacing:-1.5px;color:#f1f5f9;">
+      NeTube<span style="color:#3B82F6;">X</span>
     </h1>
-    <p style="text-align:center;color:#64748b;font-size:14px;margin:0 0 28px;font-weight:600;">
+    <p style="text-align:center;color:#94a3b8;font-size:14px;margin:0 0 28px;font-weight:600;">
       Chaque vidéo compte.
     </p>
 
@@ -155,7 +167,7 @@
       </button>
     </div>
 
-    <p style="text-align:center;color:#94a3b8;font-size:12px;margin-top:24px;">
+    <p style="text-align:center;color:#475569;font-size:12px;margin-top:24px;">
       En continuant, vous acceptez les conditions NeTubeX.
     </p>
   </div>
@@ -184,7 +196,7 @@
       <div class="picker-zone" onclick="document.getElementById('videoFileInput').click()">
         <div class="icon">🎬</div>
         <div id="videoPickerLabel" class="title">Choisir une vidéo</div>
-        <div class="hint">MP4, WebM, MOV · max 500 Mo</div>
+        <div class="hint">Tous formats acceptés · max 500 Mo · conversion auto</div>
         <input type="file" id="videoFileInput" accept="video/*" style="display:none" onchange="onVideoSelected(event)">
       </div>
 
@@ -195,7 +207,7 @@
 
       <div id="videoProgressZone" style="display:none;margin-bottom:16px;">
         <div class="progress-wrap"><div id="videoProgressBar" class="progress-bar"></div></div>
-        <div id="videoProgressText" style="font-size:13px;font-weight:800;color:#64748b;margin-top:8px;text-align:center;">0 %</div>
+        <div id="videoProgressText" style="font-size:13px;font-weight:800;color:#94a3b8;margin-top:8px;text-align:center;">0 %</div>
       </div>
 
       <div id="videoError" class="error-box" style="display:none;"></div>
@@ -222,14 +234,14 @@
           <i class="fa-solid fa-user"></i>
         </div>
         <div style="min-width:0;flex:1;">
-          <div id="profilEmail" style="font-size:16px;font-weight:800;word-break:break-all;color:#0f172a;">—</div>
-          <div style="font-size:13px;color:#64748b;margin-top:2px;">Compte NeTubeX</div>
+          <div id="profilEmail" style="font-size:16px;font-weight:800;word-break:break-all;color:#f1f5f9;">—</div>
+          <div style="font-size:13px;color:#94a3b8;margin-top:2px;">Compte NeTubeX</div>
         </div>
       </div>
     </div>
 
-    <h2 style="font-size:18px;font-weight:900;margin:0 0 12px;color:#0f172a;">
-      <i class="fa-solid fa-video" style="color:#2563EB;margin-right:6px;"></i> Mes vidéos
+    <h2 style="font-size:18px;font-weight:900;margin:0 0 12px;color:#f1f5f9;">
+      <i class="fa-solid fa-video" style="color:#3B82F6;margin-right:6px;"></i> Mes vidéos
     </h2>
     <div id="mesVideosListe"></div>
   </div>
@@ -307,9 +319,11 @@ function uploadToPublitio(file, onProgress) {
           return;
         }
         var data = (raw && raw.response) ? raw.response : raw;
-        // ✅ Champs réels de Publitio
-        var videoUrl = data.url_preview || data.url_mp4 || data.url || null;
         var publitioId = data.id || data.publitio_id || null;
+        // URL MP4 sans token (fonctionne car on uploade toujours du MP4)
+        var videoUrl = publitioId
+          ? ("https://FloryNgenda.publit.io/file/" + publitioId + ".mp4")
+          : null;
         var thumbnailUrl = data.url_thumbnail || data.thumbnail_url || null;
 
         if (!publitioId || !videoUrl) {
@@ -329,6 +343,86 @@ function uploadToPublitio(file, onProgress) {
     xhr.open("POST", PUBLITIO_UPLOAD_URL);
     xhr.send(form);
   });
+}
+
+// ============ CONVERSION FFmpeg.wasm ============
+async function convertirEnMP4(file, onProgress) {
+  var nom = file.name.toLowerCase();
+  var isMP4 = nom.endsWith('.mp4') && (file.type === 'video/mp4' || file.type === '');
+  if (isMP4) return file;
+
+  onProgress(0, 'Préparation de la conversion…');
+
+  var FFmpegNS = window.FFmpeg;
+  if (!FFmpegNS) {
+    throw new Error("Convertisseur indisponible. Vérifiez votre connexion.");
+  }
+
+  var createFFmpeg = FFmpegNS.createFFmpeg;
+  var fetchFile = FFmpegNS.fetchFile;
+
+  var ffmpeg = createFFmpeg({
+    log: false,
+    corePath: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js'
+  });
+
+  ffmpeg.setProgress(function(p) {
+    if (p && p.ratio && p.ratio > 0) {
+      var pct = 10 + Math.round(p.ratio * 80);
+      onProgress(pct, 'Conversion… ' + Math.round(p.ratio * 100) + ' %');
+    }
+  });
+
+  try {
+    if (!ffmpeg.isLoaded()) {
+      onProgress(3, 'Chargement du convertisseur (1ère fois ~10s)…');
+      await ffmpeg.load();
+    }
+
+    onProgress(8, 'Lecture du fichier…');
+    var extMatch = nom.match(/\.[^.]+$/);
+    var inputName = 'input' + (extMatch ? extMatch[0] : '.mov');
+
+    ffmpeg.FS('writeFile', inputName, await fetchFile(file));
+
+    onProgress(10, 'Conversion en MP4 (patience…)');
+
+    await ffmpeg.run(
+      '-i', inputName,
+      '-c:v', 'libx264',
+      '-preset', 'ultrafast',
+      '-crf', '28',
+      '-c:a', 'aac',
+      '-b:a', '128k',
+      '-movflags', '+faststart',
+      'output.mp4'
+    );
+
+    onProgress(92, 'Finalisation…');
+    var data = ffmpeg.FS('readFile', 'output.mp4');
+    var mp4Blob = new Blob([data.buffer], { type: 'video/mp4' });
+
+    if (mp4Blob.size < 1024) {
+      throw new Error("Conversion échouée (fichier vide).");
+    }
+
+    var mp4File = new File(
+      [mp4Blob],
+      (nom.replace(/\.[^.]+$/, '') || 'video') + '.mp4',
+      { type: 'video/mp4' }
+    );
+
+    try { ffmpeg.FS('unlink', inputName); } catch(e) {}
+    try { ffmpeg.FS('unlink', 'output.mp4'); } catch(e) {}
+
+    onProgress(100, '✅ Conversion terminée');
+    return mp4File;
+  } catch (err) {
+    throw new Error(
+      "Conversion impossible sur cet appareil : " + (err.message || err) +
+      ". Essayez avec une vidéo plus courte."
+    );
+  }
 }
 
 // ============ STATE ============
@@ -447,32 +541,71 @@ window.resetPublishForm = function() {
 window.onVideoSelected = function(e) {
   var f = e.target.files && e.target.files[0];
   if (!f) return;
-  if (!f.type.startsWith('video/')) { toast('Veuillez choisir une vidéo.'); e.target.value = ''; return; }
-  if (f.size > VIDEO_MAX_SIZE) { toast('Vidéo trop lourde (max 500 Mo).'); e.target.value = ''; return; }
+  if (!f.type.startsWith('video/')) {
+    toast('Veuillez choisir une vidéo.'); e.target.value = ''; return;
+  }
+  if (f.size > VIDEO_MAX_SIZE) {
+    toast('Vidéo trop lourde (max 500 Mo).'); e.target.value = ''; return;
+  }
+  var isMP4 = f.name.toLowerCase().endsWith('.mp4');
+  if (!isMP4 && f.size > 80 * 1024 * 1024) {
+    toast('⏳ Vidéo non-MP4 trop lourde. Convertissez-la en MP4 d\'abord.');
+    e.target.value = '';
+    return;
+  }
   selectedFile = f;
   var nom = f.name.length > 32 ? f.name.slice(0, 29) + '…' : f.name;
-  document.getElementById('videoPickerLabel').textContent = '✅ ' + nom;
+  document.getElementById('videoPickerLabel').textContent =
+    (isMP4 ? '✅ ' : '⏳ ') + nom + (isMP4 ? '' : ' (sera converti)');
 };
 
 window.lancerPublication = async function() {
   if (!currentUser) { toast('Connectez-vous.'); return; }
   if (!selectedFile) { toast('Choisissez une vidéo.'); return; }
+
+  var isNonMP4 = !selectedFile.name.toLowerCase().endsWith('.mp4');
+  if (isNonMP4) {
+    var confirmer = confirm(
+      '⏳ Cette vidéo va être convertie en MP4.\n\n' +
+      'Durée estimée : 1 à 5 minutes selon sa taille.\n' +
+      'Ne fermez pas l\'app.\n\n' +
+      'Continuer ?'
+    );
+    if (!confirmer) return;
+  }
+
   var desc = document.getElementById('videoDescription').value.trim();
   var btn = document.getElementById('videoPublishBtn');
   var zone = document.getElementById('videoProgressZone');
   var bar = document.getElementById('videoProgressBar');
   var txt = document.getElementById('videoProgressText');
   var errBox = document.getElementById('videoError');
+
   errBox.style.display = 'none';
   zone.style.display = 'block';
+  bar.style.width = '0%';
+  txt.textContent = '0 %';
   btn.disabled = true;
-  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Envoi…';
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Préparation…';
+
   try {
-    var pub = await uploadToPublitio(selectedFile, function(pct) {
+    // 1. Conversion si nécessaire
+    var fichierFinal = await convertirEnMP4(selectedFile, function(pct, msg) {
       bar.style.width = pct + '%';
-      txt.textContent = pct + ' %';
+      txt.textContent = msg || (pct + ' %');
     });
 
+    // 2. Upload Publitio
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Envoi…';
+    bar.style.width = '0%';
+    txt.textContent = 'Envoi… 0 %';
+
+    var pub = await uploadToPublitio(fichierFinal, function(pct) {
+      bar.style.width = pct + '%';
+      txt.textContent = 'Envoi… ' + pct + ' %';
+    });
+
+    // 3. Firestore
     var videoData = {
       ownerUid: currentUser.uid,
       publitioId: pub.publitioId,
@@ -492,7 +625,7 @@ window.lancerPublication = async function() {
     toast('✅ Vidéo publiée !');
     setTimeout(function() { switchTab('feed'); }, 500);
   } catch (e) {
-    errBox.textContent = e.message || 'Échec du téléversement.';
+    errBox.textContent = e.message || 'Échec de la publication.';
     errBox.style.display = 'block';
   } finally {
     btn.disabled = false;
@@ -514,11 +647,13 @@ function renderVideoCard(v, mode) {
   return (
     '<article class="video-card">' +
       '<div class="video-frame">' +
-        '<video src="' + esc(v.videoUrl) + '"' + posterAttr + ' controls playsinline preload="metadata"></video>' +
+        '<video src="' + esc(v.videoUrl) + '"' + posterAttr +
+        ' controls playsinline webkit-playsinline preload="metadata"' +
+        ' crossorigin="anonymous"></video>' +
       '</div>' +
       '<div class="video-meta">' +
-        (v.description ? '<p style="font-size:15px;line-height:1.5;color:#0f172a;margin:0 0 8px;">' + esc(v.description) + '</p>' : '') +
-        '<div style="display:flex;justify-content:space-between;font-size:12.5px;color:#64748b;font-weight:700;">' +
+        (v.description ? '<p style="font-size:15px;line-height:1.5;color:#f1f5f9;margin:0 0 8px;">' + esc(v.description) + '</p>' : '') +
+        '<div style="display:flex;justify-content:space-between;font-size:12.5px;color:#94a3b8;font-weight:700;">' +
           '<span><i class="fa-regular fa-calendar"></i> ' + dateStr + '</span>' +
           '<span><i class="fa-solid fa-eye"></i> ' + (v.validViews || 0) + '</span>' +
         '</div>' +
@@ -543,14 +678,14 @@ function attachPauseObserver() {
 
 function startFeed() {
   var el = document.getElementById('feedListe');
-  el.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b;"><i class="fa-solid fa-spinner fa-spin"></i> Chargement…</div>';
+  el.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;"><i class="fa-solid fa-spinner fa-spin"></i> Chargement…</div>';
   if (unsubFeed) { unsubFeed(); unsubFeed = null; }
   var q = query(collection(db, 'videos'), orderBy('createdAt', 'desc'), limit(50));
   unsubFeed = onSnapshot(q, function(snap) {
     var list = [];
     snap.forEach(function(d) { list.push(Object.assign({ id: d.id }, d.data())); });
     if (list.length === 0) {
-      el.innerHTML = '<div class="card" style="text-align:center;padding:60px 20px;"><div style="font-size:48px;opacity:.4;margin-bottom:14px;">🎬</div><h3 style="font-size:17px;font-weight:800;margin:0 0 8px;color:#0f172a;">Aucune vidéo</h3><p style="font-size:14px;color:#64748b;margin:0;">Soyez le premier à publier !</p></div>';
+      el.innerHTML = '<div class="card" style="text-align:center;padding:60px 20px;"><div style="font-size:48px;opacity:.4;margin-bottom:14px;">🎬</div><h3 style="font-size:17px;font-weight:800;margin:0 0 8px;color:#f1f5f9;">Aucune vidéo</h3><p style="font-size:14px;color:#94a3b8;margin:0;">Soyez le premier à publier !</p></div>';
       return;
     }
     el.innerHTML = list.map(function(v) { return renderVideoCard(v, 'feed'); }).join('');
@@ -574,7 +709,7 @@ window.supprimerVideo = async function(videoId) {
 function startMyVideos() {
   var el = document.getElementById('mesVideosListe');
   if (!currentUser) { el.innerHTML = ''; return; }
-  el.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b;"><i class="fa-solid fa-spinner fa-spin"></i> Chargement…</div>';
+  el.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;"><i class="fa-solid fa-spinner fa-spin"></i> Chargement…</div>';
   if (unsubMine) { unsubMine(); unsubMine = null; }
   var q = query(collection(db, 'videos'), where('ownerUid', '==', currentUser.uid));
   unsubMine = onSnapshot(q, function(snap) {
@@ -584,7 +719,7 @@ function startMyVideos() {
       return (b.createdAt && b.createdAt.seconds || 0) - (a.createdAt && a.createdAt.seconds || 0);
     });
     if (list.length === 0) {
-      el.innerHTML = '<div class="card" style="text-align:center;padding:40px 20px;"><div style="font-size:48px;opacity:.4;margin-bottom:14px;">📹</div><h3 style="font-size:16px;font-weight:800;margin:0 0 10px;color:#0f172a;">Aucune vidéo</h3><button class="btn btn-blue" onclick="switchTab(\'publish\')" style="padding:12px 20px;font-size:14px;margin:0 auto;display:inline-flex;"><i class="fa-solid fa-plus"></i> Publier</button></div>';
+      el.innerHTML = '<div class="card" style="text-align:center;padding:40px 20px;"><div style="font-size:48px;opacity:.4;margin-bottom:14px;">📹</div><h3 style="font-size:16px;font-weight:800;margin:0 0 10px;color:#f1f5f9;">Aucune vidéo</h3><button class="btn btn-blue" onclick="switchTab(\'publish\')" style="padding:12px 20px;font-size:14px;margin:0 auto;display:inline-flex;"><i class="fa-solid fa-plus"></i> Publier</button></div>';
       return;
     }
     el.innerHTML = list.map(function(v) { return renderVideoCard(v, 'mine'); }).join('');
