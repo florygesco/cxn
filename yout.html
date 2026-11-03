@@ -1,362 +1,730 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>NeTubeX Video Publisher</title>
-
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-
-  <style>
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      padding: 20px;
-      font-family: Arial, sans-serif;
-      background: #f4f5f7;
-      color: #303030;
-    }
-
-    main {
-      max-width: 650px;
-      margin: 20px auto;
-      padding: 24px;
-      background: white;
-      border-radius: 16px;
-      box-shadow: 0 5px 20px #0001;
-    }
-
-    h1 { text-align: center; }
-    h1 span { color: #e67e22; }
-
-    label {
-      display: block;
-      font-weight: bold;
-      margin: 18px 0 8px;
-    }
-
-    input, textarea, select, button {
-      width: 100%;
-      padding: 12px;
-      font-size: 16px;
-      border-radius: 8px;
-    }
-
-    input, textarea, select {
-      border: 1px solid #ccc;
-      background: white;
-    }
-
-    textarea { min-height: 100px; }
-
-    button {
-      border: 0;
-      background: #e67e22;
-      color: white;
-      font-weight: bold;
-      margin-top: 14px;
-      cursor: pointer;
-    }
-
-    button:disabled { opacity: .5; }
-
-    #loginButton { background: #303030; }
-
-    #preview {
-      display: none;
-      width: 100%;
-      max-height: 300px;
-      margin-top: 15px;
-      background: #111;
-      border-radius: 8px;
-    }
-
-    #status {
-      margin-top: 18px;
-      padding: 12px;
-      border-radius: 8px;
-      background: #f0f1f3;
-      overflow-wrap: anywhere;
-      white-space: pre-wrap;
-    }
-
-    progress { width: 100%; margin-top: 15px; }
-
-    .small { color: #666; font-size: 13px; line-height: 1.5; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>NeTubeX Vidéo</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js"></script>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+html,body{background:#000;color:#fff;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;overflow:hidden;height:100%;height:100dvh;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.page{display:none;width:100%;height:100%}
+.page.active{display:block}
+#page-feed{position:relative;width:100%;height:100%;height:100dvh;background:#000}
+#feedListe{width:100%;height:100%;height:100dvh;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+#feedListe::-webkit-scrollbar{display:none}
+.video-card{position:relative;width:100%;height:100%;height:100dvh;scroll-snap-align:start;scroll-snap-stop:always;background:#000;overflow:hidden;flex-shrink:0}
+.video-frame{position:absolute;inset:0;width:100%;height:100%;background:#000}
+.video-frame video{width:100%;height:100%;object-fit:cover;background:#000;display:block}
+.play-overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.2);cursor:pointer;z-index:5}
+.play-overlay.visible{display:flex}
+.play-overlay .play-btn{width:84px;height:84px;border-radius:50%;background:rgba(255,255,255,.95);display:flex;align-items:center;justify-content:center;font-size:34px;color:#0f172a;box-shadow:0 8px 32px rgba(0,0,0,.6);transition:transform .15s;padding-left:6px}
+.play-overlay:active .play-btn{transform:scale(.9)}
+.video-bottom{position:absolute;left:0;right:0;bottom:80px;padding:0 16px 12px;background:linear-gradient(to top,rgba(0,0,0,.92) 0%,rgba(0,0,0,.4) 60%,transparent 100%);z-index:4;pointer-events:none}
+.video-bottom>*{pointer-events:auto}
+.church-info{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.church-avatar{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#2563EB,#1D4ED8);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:#fff;flex-shrink:0;border:2.5px solid rgba(255,255,255,.9);box-shadow:0 4px 14px rgba(0,0,0,.4);overflow:hidden}
+.church-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.church-text{flex:1;min-width:0}
+.church-name{font-size:15.5px;font-weight:800;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.9);display:flex;align-items:center;gap:6px;line-height:1.3}
+.church-verified{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#3B82F6;color:#fff;font-size:9px;flex-shrink:0;border:1.5px solid #fff;box-shadow:0 2px 6px rgba(59,130,246,.5)}
+.church-date{font-size:12px;color:rgba(255,255,255,.75);font-weight:600;margin-top:2px;text-shadow:0 1px 4px rgba(0,0,0,.9)}
+.views-badge{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;background:rgba(0,0,0,.7);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);font-size:13px;font-weight:800;color:#fff;border:1px solid rgba(255,255,255,.18);box-shadow:0 2px 12px rgba(0,0,0,.4)}
+.views-badge i{color:#60A5FA;font-size:13px}
+.progress-bar-wrapper{position:absolute;bottom:76px;left:0;right:0;height:2.5px;background:rgba(255,255,255,.15);z-index:5;overflow:hidden}
+.progress-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,#3B82F6,#60A5FA);box-shadow:0 0 8px rgba(59,130,246,.6)}
+.tab-bar{position:fixed;bottom:0;left:0;right:0;z-index:50;background:rgba(10,14,26,.96);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border-top:1px solid rgba(255,255,255,.08);display:grid;grid-template-columns:repeat(3,1fr);padding-bottom:env(safe-area-inset-bottom)}
+.tab-btn{padding:12px 8px 10px;background:transparent;border:none;cursor:pointer;color:#64748b;font-size:10.5px;font-weight:800;display:flex;flex-direction:column;align-items:center;gap:5px;font-family:inherit;transition:color .15s;position:relative}
+.tab-btn i{font-size:21px}
+.tab-btn.active{color:#3B82F6}
+.tab-btn.active::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:28px;height:2px;background:#3B82F6;border-radius:0 0 3px 3px}
+.info-panel{position:absolute;left:0;right:0;bottom:80px;max-height:60%;background:rgba(15,23,42,.94);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border-top-left-radius:24px;border-top-right-radius:24px;border-top:1px solid rgba(255,255,255,.1);padding:20px;z-index:6;transform:translateY(110%);transition:transform .35s cubic-bezier(.22,.9,.28,1);overflow-y:auto}
+.info-panel.visible{transform:translateY(0)}
+.info-panel-handle{width:40px;height:4px;background:rgba(255,255,255,.25);border-radius:99px;margin:0 auto 16px}
+.info-panel-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.08)}
+.info-panel-avatar{width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#2563EB,#1D4ED8);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:#fff;flex-shrink:0;border:2px solid rgba(255,255,255,.3);overflow:hidden}
+.info-panel-avatar img{width:100%;height:100%;object-fit:cover}
+.info-panel-meta{flex:1;min-width:0}
+.info-panel-name{font-size:16px;font-weight:900;color:#fff;display:flex;align-items:center;gap:6px;line-height:1.3}
+.info-panel-city{font-size:12.5px;color:#94a3b8;margin-top:4px;display:flex;align-items:center;gap:5px}
+.info-panel-city i{color:#ef4444;font-size:11px}
+.info-panel-rank{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:linear-gradient(135deg,rgba(251,191,36,.15),rgba(251,191,36,.05));border:1px solid rgba(251,191,36,.35);font-size:12px;font-weight:900;color:#fbbf24;margin-bottom:14px}
+.info-panel-desc{font-size:14.5px;line-height:1.6;color:#e2e8f0;white-space:pre-wrap;word-wrap:break-word;padding-bottom:10px}
+.info-panel-actions{display:flex;gap:10px;margin-top:16px}
+.info-action-btn{flex:1;padding:13px;border-radius:12px;background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.35);color:#60A5FA;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:background .15s}
+.info-action-btn:active{background:rgba(59,130,246,.25)}
+.toast{position:fixed;top:80px;left:50%;transform:translate(-50%,-180%);background:#1e293b;color:#fff;padding:14px 22px;border-radius:14px;font-size:13.5px;font-weight:700;z-index:900;transition:transform .3s ease;max-width:85vw;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.1)}
+.toast.show{transform:translate(-50%,0)}
+.btn{padding:14px 20px;border-radius:14px;border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:15px;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s;width:100%}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-blue{background:linear-gradient(135deg,#2563EB,#1D4ED8);color:#fff;box-shadow:0 4px 20px rgba(37,99,235,.4)}
+.btn-green{background:linear-gradient(135deg,#10b981,#059669);color:#fff;box-shadow:0 4px 20px rgba(16,185,129,.4)}
+.btn-red{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;box-shadow:0 4px 20px rgba(239,68,68,.4)}
+.btn-sm{padding:10px 14px;font-size:13px;border-radius:10px;width:auto}
+.input{width:100%;padding:15px 16px;border-radius:14px;background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.1);color:#f1f5f9;font-size:16px;font-family:inherit;outline:none;transition:border-color .15s,background .15s}
+.input:focus{border-color:#3B82F6;background:rgba(255,255,255,.1)}
+.input::placeholder{color:#64748b}
+.auth-screen{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:24px;max-width:420px;margin:0 auto;background:radial-gradient(circle at 50% 0%,rgba(37,99,235,.15) 0%,transparent 60%),#0a0e1a}
+.auth-logo{font-size:42px;font-weight:900;text-align:center;margin:0 0 8px;letter-spacing:-2px;color:#fff;text-shadow:0 4px 20px rgba(37,99,235,.4)}
+.auth-logo span{background:linear-gradient(135deg,#3B82F6,#60A5FA);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.auth-sub{text-align:center;color:#64748b;font-size:14px;margin:0 0 36px;font-weight:600}
+.error-box{padding:14px 16px;background:rgba(239,68,68,.12);border:1.5px solid rgba(239,68,68,.4);border-radius:12px;color:#fca5a5;font-weight:700;font-size:13.5px;margin-bottom:14px;line-height:1.5}
+.card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:22px;backdrop-filter:blur(10px)}
+.header{position:sticky;top:0;z-index:40;background:rgba(10,14,26,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.08);padding:14px 16px;display:flex;align-items:center;justify-content:space-between}
+.header-title{font-size:20px;font-weight:900;letter-spacing:-.5px;color:#fff}
+.header-title span{background:linear-gradient(135deg,#3B82F6,#60A5FA);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.header-btn{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px}
+.publish-container{padding:20px 16px 100px;max-width:600px;margin:0 auto;background:#0a0e1a;min-height:100vh;overflow-y:auto}
+.picker-zone{border:2px dashed rgba(59,130,246,.4);border-radius:20px;padding:36px 20px;text-align:center;cursor:pointer;background:rgba(37,99,235,.06);margin-bottom:20px;transition:all .2s}
+.picker-zone:hover{border-color:#3B82F6;background:rgba(37,99,235,.12)}
+.picker-icon{width:70px;height:70px;border-radius:20px;background:linear-gradient(135deg,#2563EB,#1D4ED8);display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 14px;box-shadow:0 8px 24px rgba(37,99,235,.4)}
+.picker-title{font-size:16px;font-weight:800;color:#f1f5f9;margin-bottom:6px}
+.picker-hint{font-size:13px;color:#64748b;font-weight:600}
+.label{display:block;font-size:12px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.textarea{resize:none;min-height:90px;font-family:inherit;line-height:1.5}
+.progress-wrap{height:8px;background:rgba(255,255,255,.08);border-radius:6px;overflow:hidden}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,#2563EB,#3B82F6,#60A5FA);transition:width .2s;box-shadow:0 0 10px rgba(59,130,246,.5)}
+.progress-text{font-size:13px;font-weight:800;color:#94a3b8;margin-top:10px;text-align:center}
+.profil-container{padding:20px 16px 100px;max-width:600px;margin:0 auto;background:#0a0e1a;min-height:100vh;overflow-y:auto}
+.profil-hero{background:linear-gradient(135deg,#1e3a8a,#0f172a);border-radius:24px;padding:28px 20px;text-align:center;margin-bottom:20px;position:relative;overflow:hidden}
+.profil-hero::before{content:'';position:absolute;top:-50%;right:-30%;width:300px;height:300px;background:radial-gradient(circle,rgba(59,130,246,.3) 0%,transparent 70%);pointer-events:none}
+.profil-avatar{width:84px;height:84px;border-radius:50%;background:linear-gradient(135deg,#3B82F6,#2563EB);display:flex;align-items:center;justify-content:center;font-size:32px;color:#fff;margin:0 auto 14px;font-weight:900;border:3px solid rgba(255,255,255,.2);box-shadow:0 8px 28px rgba(37,99,235,.5);position:relative;z-index:1}
+.profil-email{font-size:15px;font-weight:800;color:#fff;word-break:break-all;margin:0 0 4px;position:relative;z-index:1}
+.profil-sub{font-size:13px;color:#94a3b8;margin:0;position:relative;z-index:1}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+.stat-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:18px;text-align:center}
+.stat-value{font-size:26px;font-weight:900;color:#3B82F6;line-height:1;margin-bottom:6px}
+.stat-label{font-size:11.5px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+.video-item{display:flex;gap:12px;padding:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;margin-bottom:10px;align-items:center}
+.video-thumb{width:72px;height:88px;border-radius:10px;background:#000;flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:28px}
+.video-thumb img{width:100%;height:100%;object-fit:cover}
+.video-info{flex:1;min-width:0}
+.video-desc{font-size:13.5px;font-weight:700;color:#f1f5f9;line-height:1.4;margin:0 0 6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.video-meta{font-size:11.5px;color:#94a3b8;font-weight:700;display:flex;gap:12px}
+.video-meta i{color:#60A5FA;margin-right:3px}
+.btn-del{width:40px;height:40px;border-radius:10px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.35);color:#f87171;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+</style>
 </head>
-
 <body>
-<main>
-  <h1>NeTube<span>X</span> Video Publisher</h1>
-  <p style="text-align:center">
-    Publie tes vidéos directement sur ta chaîne YouTube.
-  </p>
 
-  <button id="loginButton" type="button" disabled>
-    Se connecter à Google
-  </button>
+<div id="page-auth" class="page active">
+<div class="auth-screen">
+<h1 class="auth-logo">NeTube<span>X</span></h1>
+<p class="auth-sub">Chaque vidéo compte.</p>
+<div id="authError" class="error-box" style="display:none"></div>
+<div style="display:flex;flex-direction:column;gap:14px">
+<input id="authEmail" type="email" class="input" placeholder="Email" autocomplete="email">
+<input id="authPassword" type="password" class="input" placeholder="Mot de passe (min. 6)" autocomplete="current-password">
+<button id="btnLogin" class="btn btn-blue" onclick="handleLogin()"><i class="fa-solid fa-arrow-right-to-bracket"></i> Se connecter</button>
+<button id="btnSignup" class="btn btn-green" onclick="handleSignup()"><i class="fa-solid fa-user-plus"></i> Créer un compte</button>
+</div>
+<p style="text-align:center;color:#475569;font-size:12px;margin-top:28px;font-weight:600">En continuant, vous acceptez les conditions NeTubeX.</p>
+</div>
+</div>
 
-  <p id="account" class="small">Initialisation de Google…</p>
+<div id="page-feed" class="page">
+<div id="feedListe"></div>
+</div>
 
-  <form id="uploadForm">
-    <label for="video">Choisir une vidéo</label>
-    <input id="video" type="file" accept="video/*" required>
+<div id="page-publish" class="page">
+<div class="header">
+<button class="header-btn" onclick="switchTab('feed')"><i class="fa-solid fa-arrow-left"></i></button>
+<div class="header-title">Publier</div>
+<div style="width:40px"></div>
+</div>
+<div class="publish-container">
+<div class="card">
+<div class="picker-zone" onclick="document.getElementById('videoFileInput').click()">
+<div class="picker-icon">🎬</div>
+<div id="videoPickerLabel" class="picker-title">Choisir une vidéo</div>
+<div class="picker-hint">Max 60 sec · 50 Mo · tous formats</div>
+<input type="file" id="videoFileInput" accept="video/*" style="display:none" onchange="onVideoSelected(event)">
+</div>
+<label class="label">Description (optionnel)</label>
+<textarea id="videoDescription" class="input textarea" maxlength="300" placeholder="Ajoutez une description…"></textarea>
+<div id="videoProgressZone" style="display:none;margin-top:20px">
+<div class="progress-wrap"><div id="videoProgressBar" class="progress-fill"></div></div>
+<div id="videoProgressText" class="progress-text">0 %</div>
+</div>
+<div id="videoError" class="error-box" style="display:none;margin-top:16px"></div>
+<button id="videoPublishBtn" class="btn btn-green" style="margin-top:20px" onclick="lancerPublication()"><i class="fa-solid fa-paper-plane"></i> Publier</button>
+</div>
+</div>
+</div>
 
-    <video id="preview" controls playsinline></video>
+<div id="page-profil" class="page">
+<div class="header">
+<div class="header-title">Mon <span>Profil</span></div>
+<button class="header-btn" onclick="handleLogout()"><i class="fa-solid fa-right-from-bracket"></i></button>
+</div>
+<div class="profil-container">
+<div class="profil-hero">
+<div class="profil-avatar"><i class="fa-solid fa-user"></i></div>
+<div id="profilEmail" class="profil-email">—</div>
+<div class="profil-sub">Compte NeTubeX</div>
+</div>
+<div class="stats-grid">
+<div class="stat-card">
+<div id="statVideos" class="stat-value">0</div>
+<div class="stat-label">Vidéos</div>
+</div>
+<div class="stat-card">
+<div id="statVues" class="stat-value">0</div>
+<div class="stat-label">Vues totales</div>
+</div>
+</div>
+<button class="btn btn-blue" style="margin-bottom:20px" onclick="switchTab('publish')"><i class="fa-solid fa-plus-circle"></i> Publier une vidéo</button>
+<h3 style="font-size:14px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin:0 0 14px"><i class="fa-solid fa-video" style="color:#3B82F6;margin-right:6px"></i>Mes vidéos</h3>
+<div id="mesVideosListe"></div>
+</div>
+</div>
 
-    <label for="title">Titre</label>
-    <input id="title" maxlength="100" required
-           placeholder="Titre de la vidéo">
+<div class="tab-bar" id="tabBar" style="display:none">
+<button class="tab-btn active" data-tab="feed" onclick="switchTab('feed')">
+<i class="fa-solid fa-house"></i>
+<span>Feed</span>
+</button>
+<button class="tab-btn" data-tab="publish" onclick="switchTab('publish')">
+<i class="fa-solid fa-plus-circle"></i>
+<span>Publier</span>
+</button>
+<button class="tab-btn" data-tab="profil" onclick="switchTab('profil')">
+<i class="fa-solid fa-user"></i>
+<span>Profil</span>
+</button>
+</div>
 
-    <label for="description">Description</label>
-    <textarea id="description" maxlength="5000"
-              placeholder="Description de la vidéo"></textarea>
+<div id="toast" class="toast"></div>
 
-    <label for="visibility">Visibilité</label>
-    <select id="visibility">
-      <option value="private">Privée</option>
-      <option value="unlisted">Non répertoriée</option>
-      <option value="public">Publique</option>
-    </select>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, collection, addDoc, deleteDoc, updateDoc, getDoc, doc, query, orderBy, onSnapshot, serverTimestamp, where, limit, increment } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-    <button id="uploadButton" type="submit" disabled>
-      Publier sur YouTube
-    </button>
-  </form>
+const firebaseConfig={
+apiKey:"AIzaSyB_GdmPBnWl3w6g99j1cGO7vxDdxmKr4QA",
+authDomain:"netubexmoney.firebaseapp.com",
+projectId:"netubexmoney",
+storageBucket:"netubexmoney.firebasestorage.app",
+messagingSenderId:"856592608176",
+appId:"1:856592608176:web:69f9df9cfd4f8c28630475"
+};
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const db=getFirestore(app);
 
-  <progress id="progress" value="0" max="100" hidden></progress>
-  <div id="status" role="status">Chargement…</div>
+const PUBLITIO_URL="https://api.publit.io/v1/files/create/cbnwpcbP";
+const VIDEO_MAX_SIZE=50*1024*1024;
+const VIDEO_MAX_DURATION=60;
 
-  <p class="small">
-    Vérifie la visibilité avant chaque publication.
-    L'autorisation Google permet à cette page d'envoyer des vidéos
-    sur la chaîne YouTube associée au compte que tu autorises.
-  </p>
-</main>
+let currentUser=null;
+let selectedFile=null;
+let unsubFeed=null;
+let unsubMine=null;
+let videoObserver=null;
+let currentPhase='concours';
+let currentMonth='';
+let userEglise=null;
 
-<script>
-"use strict";
-
-// Client ID Google fourni
-const CLIENT_ID =
-  "986921069730-ts27eteicu9ibacjlk6uoj3hs7297837.apps.googleusercontent.com";
-
-const SCOPE = "https://www.googleapis.com/auth/youtube.upload";
-
-const loginButton = document.getElementById("loginButton");
-const uploadButton = document.getElementById("uploadButton");
-const videoInput = document.getElementById("video");
-const preview = document.getElementById("preview");
-const statusBox = document.getElementById("status");
-const account = document.getElementById("account");
-const progress = document.getElementById("progress");
-
-let tokenClient = null;
-let accessToken = null;
-let selectedVideo = null;
-
-function status(message) {
-  statusBox.textContent = message;
+function toast(msg){
+var t=document.getElementById('toast');
+t.textContent=msg;
+t.classList.add('show');
+clearTimeout(window._toastTimer);
+window._toastTimer=setTimeout(function(){t.classList.remove('show');},3000);
 }
 
-function initializeGoogle() {
-  if (location.protocol !== "https:" && location.hostname !== "localhost") {
-    status("Erreur : ouvre cette page avec une adresse HTTPS.");
-    account.textContent = "Connexion Google indisponible.";
-    return;
-  }
+function esc(s){if(!s)return'';return String(s).replace(/[&<>"']/g,function(m){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];});}
 
-  if (!window.google?.accounts?.oauth2) {
-    status(
-      "Le script Google ne s'est pas chargé. Vérifie ta connexion Internet, puis recharge la page."
-    );
-    account.textContent = "Google non chargé.";
-    return;
-  }
+function getMonthKey(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
 
-  try {
-    tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID,
-      scope: SCOPE,
-      callback: (response) => {
-        if (response.error || !response.access_token) {
-          status(
-            "Connexion refusée : " +
-            (response.error || "aucun jeton reçu") +
-            ". Vérifie les paramètres OAuth dans Google Cloud."
-          );
-          return;
-        }
-
-        accessToken = response.access_token;
-        account.textContent = "Connecté à Google.";
-        uploadButton.disabled = false;
-        status("Connexion réussie. Choisis une vidéo à publier.");
-      },
-      error_callback: (error) => {
-        status(
-          "La fenêtre de connexion Google n'a pas pu s'ouvrir : " +
-          (error.message || error.type || "erreur inconnue")
-        );
-      }
-    });
-
-    loginButton.disabled = false;
-    account.textContent = "Prêt à se connecter.";
-    status("Appuie sur « Se connecter à Google ».");
-  } catch (error) {
-    status("Erreur d'initialisation : " + error.message);
-  }
+function getDateStr(ts){
+if(!ts)return'Récemment';
+var d=ts.seconds?new Date(ts.seconds*1000):new Date(ts);
+var now=Date.now();
+var diff=now-d.getTime();
+var m=Math.floor(diff/60000);
+var h=Math.floor(m/60);
+var j=Math.floor(h/24);
+if(m<1)return'À l\'instant';
+if(m<60)return'Il y a '+m+' min';
+if(h<24)return'Il y a '+h+'h';
+if(j<7)return'Il y a '+j+'j';
+return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});
 }
 
-loginButton.addEventListener("click", () => {
-  if (!tokenClient) {
-    status("Google n'est pas prêt. Recharge la page et réessaie.");
-    return;
-  }
+function showPage(name){
+document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+var el=document.getElementById('page-'+name);
+if(el)el.classList.add('active');
+}
 
-  try {
-    tokenClient.requestAccessToken({ prompt: "consent" });
-    status("Demande de connexion envoyée à Google…");
-  } catch (error) {
-    status("Impossible de lancer Google : " + error.message);
-  }
+window.switchTab=function(tab){
+document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.toggle('active',b.dataset.tab===tab);});
+showPage(tab);
+if(tab==='feed')startFeed();
+if(tab==='profil')startMyVideos();
+if(tab==='publish')resetPublishForm();
+};
+
+window.handleLogin=async function(){
+var email=document.getElementById('authEmail').value.trim();
+var pwd=document.getElementById('authPassword').value;
+var errBox=document.getElementById('authError');
+errBox.style.display='none';
+if(!email||!pwd){toast('Remplissez tous les champs');return;}
+var btn=document.getElementById('btnLogin');
+btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Connexion…';
+try{await signInWithEmailAndPassword(auth,email,pwd);}
+catch(e){errBox.textContent=traduireErreur(e.code||e.message);errBox.style.display='block';}
+finally{btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-arrow-right-to-bracket"></i> Se connecter';}
+};
+
+window.handleSignup=async function(){
+var email=document.getElementById('authEmail').value.trim();
+var pwd=document.getElementById('authPassword').value;
+var errBox=document.getElementById('authError');
+errBox.style.display='none';
+if(!email||!pwd){toast('Remplissez tous les champs');return;}
+if(pwd.length<6){toast('Mot de passe : 6 caractères minimum');return;}
+var btn=document.getElementById('btnSignup');
+btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Création…';
+try{await createUserWithEmailAndPassword(auth,email,pwd);}
+catch(e){errBox.textContent=traduireErreur(e.code||e.message);errBox.style.display='block';}
+finally{btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-user-plus"></i> Créer un compte';}
+};
+
+window.handleLogout=async function(){
+if(unsubFeed){unsubFeed();unsubFeed=null;}
+if(unsubMine){unsubMine();unsubMine=null;}
+if(videoObserver){videoObserver.disconnect();videoObserver=null;}
+await signOut(auth);
+toast('Déconnecté');
+};
+
+function traduireErreur(code){
+var map={
+'auth/invalid-email':'Email invalide',
+'auth/user-not-found':'Aucun compte avec cet email',
+'auth/wrong-password':'Mot de passe incorrect',
+'auth/invalid-credential':'Email ou mot de passe incorrect',
+'auth/email-already-in-use':'Cet email est déjà utilisé',
+'auth/weak-password':'Mot de passe trop faible',
+'auth/too-many-requests':'Trop de tentatives',
+'auth/network-request-failed':'Erreur réseau'
+};
+return map[code]||'Erreur : '+code;
+}
+
+window.resetPublishForm=function(){
+selectedFile=null;
+document.getElementById('videoFileInput').value='';
+document.getElementById('videoPickerLabel').textContent='Choisir une vidéo';
+document.getElementById('videoDescription').value='';
+document.getElementById('videoProgressZone').style.display='none';
+document.getElementById('videoProgressBar').style.width='0%';
+document.getElementById('videoProgressText').textContent='0 %';
+document.getElementById('videoError').style.display='none';
+};
+
+window.onVideoSelected=async function(e){
+var f=e.target.files&&e.target.files[0];
+if(!f)return;
+if(!f.type.startsWith('video/')){toast('Choisissez une vidéo');e.target.value='';return;}
+if(f.size>VIDEO_MAX_SIZE){toast('Fichier trop lourd (max 50 Mo)');e.target.value='';return;}
+var duree=await getVideoDuration(f);
+if(duree>VIDEO_MAX_DURATION){toast('Vidéo trop longue (max 60 sec)');e.target.value='';return;}
+selectedFile=f;
+var nom=f.name.length>32?f.name.slice(0,29)+'…':f.name;
+document.getElementById('videoPickerLabel').textContent='✅ '+nom;
+};
+
+function getVideoDuration(file){
+return new Promise(function(resolve){
+var v=document.createElement('video');
+v.preload='metadata';
+v.src=URL.createObjectURL(file);
+v.onloadedmetadata=function(){URL.revokeObjectURL(v.src);resolve(v.duration||0);};
+v.onerror=function(){URL.revokeObjectURL(v.src);resolve(0);};
+});
+}
+
+function uploadToPublitio(file,onProgress){
+return new Promise(function(resolve,reject){
+var xhr=new XMLHttpRequest();
+var form=new FormData();
+form.append("file",file);
+xhr.upload.onprogress=function(e){if(e.lengthComputable)onProgress(Math.round(e.loaded/e.total*100));};
+xhr.onload=function(){
+if(xhr.status<200||xhr.status>=300){reject(new Error("Échec de l'envoi"));return;}
+try{
+var raw=JSON.parse(xhr.responseText);
+if(raw&&raw.success===false){reject(new Error("Envoi refusé"));return;}
+var data=(raw&&raw.response)?raw.response:raw;
+var publitioId=data.id||data.publitio_id||null;
+var videoUrl=publitioId?("https://FloryNgenda.publit.io/file/"+publitioId+".mp4"):null;
+var thumbnailUrl=data.url_thumbnail||data.thumbnail_url||null;
+if(!publitioId||!videoUrl){reject(new Error("Réponse incomplète"));return;}
+resolve({publitioId:publitioId,videoUrl:videoUrl,thumbnailUrl:thumbnailUrl});
+}catch(e){reject(new Error("Réponse invalide"));}
+};
+xhr.onerror=function(){reject(new Error("Erreur réseau"));};
+xhr.open("POST",PUBLITIO_URL);
+xhr.send(form);
+});
+}
+
+async function chargerEglise(uid){
+try{
+var snap=await getDoc(doc(db,'eglises',uid));
+if(snap.exists())return snap.data();
+return null;
+}catch(e){return null;}
+}
+
+async function chargerPhase(){
+try{
+var snap=await getDoc(doc(db,'config','etat_mois'));
+if(snap.exists())return snap.data();
+return null;
+}catch(e){return null;}
+}
+
+window.lancerPublication=async function(){
+if(!currentUser){toast('Connectez-vous');return;}
+if(!selectedFile){toast('Choisissez une vidéo');return;}
+
+var desc=document.getElementById('videoDescription').value.trim();
+var btn=document.getElementById('videoPublishBtn');
+var zone=document.getElementById('videoProgressZone');
+var bar=document.getElementById('videoProgressBar');
+var txt=document.getElementById('videoProgressText');
+var errBox=document.getElementById('videoError');
+
+if(userEglise&&userEglise.actif===true){
+try{
+var q=query(collection(db,'videos'),where('ownerUid','==',currentUser.uid),where('egliseMois','==',currentMonth));
+var existing=await new Promise(function(resolve){unsubFeed=null;resolve(null);});
+var snap=await new Promise(function(resolve,reject){
+var qq=query(collection(db,'videos'),where('ownerUid','==',currentUser.uid),where('egliseMois','==',currentMonth));
+var unsubscribe=onSnapshot(qq,function(s){unsubscribe();resolve(s);},function(err){unsubscribe();reject(err);});
+});
+if(!snap.empty){toast('Vous avez déjà publié ce mois');return;}
+}catch(e){}
+}
+
+errBox.style.display='none';
+zone.style.display='block';
+bar.style.width='0%';
+txt.textContent='0 %';
+btn.disabled=true;
+btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Envoi…';
+
+try{
+var pub=await uploadToPublitio(selectedFile,function(pct){bar.style.width=pct+'%';txt.textContent=pct+' %';});
+
+var videoData={
+ownerUid:currentUser.uid,
+publitioId:pub.publitioId,
+videoUrl:pub.videoUrl,
+description:desc||"",
+createdAt:serverTimestamp(),
+accountType:'creator',
+status:'published',
+validViews:0
+};
+
+if(pub.thumbnailUrl)videoData.thumbnailUrl=pub.thumbnailUrl;
+
+if(userEglise&&userEglise.actif===true){
+videoData.egliseId=currentUser.uid;
+videoData.churchName=userEglise.nom||'';
+videoData.churchAvatar=userEglise.avatar||'';
+videoData.churchVille=userEglise.ville||'';
+videoData.egliseMois=currentMonth;
+}
+
+Object.keys(videoData).forEach(function(k){if(videoData[k]===undefined)delete videoData[k];});
+
+await addDoc(collection(db,'videos'),videoData);
+toast('✅ Vidéo publiée');
+setTimeout(function(){switchTab('feed');},500);
+}catch(e){
+errBox.textContent=e.message||'Échec de la publication';
+errBox.style.display='block';
+}finally{
+btn.disabled=false;
+btn.innerHTML='<i class="fa-solid fa-paper-plane"></i> Publier';
+}
+};
+
+var _compteursVues={};
+
+function demarrerCompteurVue(video,videoId){
+if(!videoId)return;
+if(currentPhase!=='concours')return;
+if(dejaVuLocalement(videoId))return;
+if(_compteursVues[videoId])return;
+_compteursVues[videoId]=setTimeout(async function(){
+try{
+if(video&&!video.paused&&video.currentTime>3){
+await updateDoc(doc(db,'videos',videoId),{validViews:increment(1)});
+marquerVuLocalement(videoId);
+}
+}catch(e){}
+delete _compteursVues[videoId];
+},5000);
+}
+
+function arreterCompteurVue(videoId){
+if(_compteursVues[videoId]){clearTimeout(_compteursVues[videoId]);delete _compteursVues[videoId];}
+}
+
+function dejaVuLocalement(videoId){
+try{
+var vues=JSON.parse(localStorage.getItem('ntx_vues')||'{}');
+return vues[videoId]===new Date().toISOString().slice(0,10);
+}catch(e){return false;}
+}
+
+function marquerVuLocalement(videoId){
+try{
+var vues=JSON.parse(localStorage.getItem('ntx_vues')||'{}');
+vues[videoId]=new Date().toISOString().slice(0,10);
+if(Object.keys(vues).length>300){
+var keys=Object.keys(vues).slice(-200);
+var n={};
+keys.forEach(function(k){n[k]=vues[k];});
+vues=n;
+}
+localStorage.setItem('ntx_vues',JSON.stringify(vues));
+}catch(e){}
+}
+
+function renderVideo(v){
+var posterAttr=v.thumbnailUrl?' poster="'+esc(v.thumbnailUrl)+'"':'';
+var churchName=v.churchName||'Créateur';
+var churchAvatar=v.churchAvatar||'';
+var initials=churchName.slice(0,2).toUpperCase();
+var isEglise=!!v.egliseId;
+var dateStr=getDateStr(v.createdAt);
+var viewsCount=v.validViews||0;
+var avatarHtml=churchAvatar?'<img src="'+esc(churchAvatar)+'">':esc(initials);
+var verifiedBadge=isEglise?'<span class="church-verified"><i class="fa-solid fa-check"></i></span>':'';
+var descHtml=v.description?'<div style="font-size:14px;line-height:1.5;color:#e2e8f0;margin-bottom:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">'+esc(v.description)+'</div>':'';
+
+return'<div class="video-card" data-vid="'+v.id+'">'+
+'<div class="video-frame">'+
+'<video src="'+esc(v.videoUrl)+'"'+posterAttr+' loop muted playsinline webkit-playsinline preload="metadata" data-vid="'+v.id+'"></video>'+
+'<div class="play-overlay" data-overlay="'+v.id+'" onclick="demarrerLecture(this)"><div class="play-btn">▶</div></div>'+
+'</div>'+
+'<div class="video-bottom">'+
+'<div class="church-info">'+
+'<div class="church-avatar">'+avatarHtml+'</div>'+
+'<div class="church-text">'+
+'<div class="church-name">'+esc(churchName)+verifiedBadge+'</div>'+
+'<div class="church-date">'+dateStr+'</div>'+
+'</div>'+
+'</div>'+
+descHtml+
+'<div class="views-badge"><i class="fa-solid fa-eye"></i> <span data-views="'+v.id+'">'+viewsCount+'</span> vue'+(viewsCount===1?'':'s')+'</div>'+
+'</div>'+
+'<div class="progress-bar-wrapper"><div class="progress-bar-fill" data-progress="'+v.id+'"></div></div>'+
+'<div class="info-panel" data-panel="'+v.id+'">'+
+'<div class="info-panel-handle"></div>'+
+'<div class="info-panel-header">'+
+'<div class="info-panel-avatar">'+avatarHtml+'</div>'+
+'<div class="info-panel-meta">'+
+'<div class="info-panel-name">'+esc(churchName)+verifiedBadge+'</div>'+
+(v.churchVille?'<div class="info-panel-city"><i class="fa-solid fa-location-dot"></i> '+esc(v.churchVille)+'</div>':'')+
+'</div>'+
+'</div>'+
+(isEglise?'<div class="info-panel-rank"><i class="fa-solid fa-trophy"></i> Classement église · '+esc(v.egliseMois||currentMonth)+'</div>':'')+
+(v.description?'<div class="info-panel-desc">'+esc(v.description)+'</div>':'')+
+'<div class="info-panel-actions">'+
+'<button class="info-action-btn" onclick="event.stopPropagation();partagerVideo(\''+esc(v.videoUrl)+'\',\''+esc(churchName)+'\')"><i class="fa-solid fa-share-nodes"></i> Partager</button>'+
+'</div>'+
+'</div>'+
+'</div>';
+}
+
+window.demarrerLecture=function(overlay){
+var vid=overlay.getAttribute('data-overlay');
+var video=document.querySelector('video[data-vid="'+vid+'"]');
+if(!video)return;
+overlay.classList.remove('visible');
+video.muted=false;
+video.play().catch(function(){video.muted=true;video.play().catch(function(){overlay.classList.add('visible');});});
+};
+
+window.partagerVideo=function(url,name){
+var msg='Regardez la vidéo de '+name+' sur NeTubeX :\n'+url;
+if(navigator.share){navigator.share({title:name,text:msg}).catch(function(){});}
+else{window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');}
+};
+
+function toggleInfoPanel(videoId){
+var panel=document.querySelector('[data-panel="'+videoId+'"]');
+if(!panel)return;
+var isVisible=panel.classList.contains('visible');
+document.querySelectorAll('.info-panel').forEach(function(p){p.classList.remove('visible');});
+if(!isVisible)panel.classList.add('visible');
+}
+
+function attachVideoControls(video,videoId){
+var lastTap=0;
+video.addEventListener('click',function(e){
+var now=Date.now();
+if(now-lastTap<300){
+toggleInfoPanel(videoId);
+lastTap=0;
+}else{
+lastTap=now;
+setTimeout(function(){
+if(lastTap===now){
+if(video.paused){video.muted=false;video.play().catch(function(){});}
+else{video.pause();}
+}
+},300);
+}
 });
 
-videoInput.addEventListener("change", () => {
-  selectedVideo = videoInput.files[0] || null;
-
-  if (!selectedVideo) {
-    preview.style.display = "none";
-    return;
-  }
-
-  if (!selectedVideo.type.startsWith("video/")) {
-    selectedVideo = null;
-    videoInput.value = "";
-    status("Choisis un fichier vidéo valide.");
-    return;
-  }
-
-  preview.src = URL.createObjectURL(selectedVideo);
-  preview.style.display = "block";
-
-  status(
-    "Vidéo choisie : " + selectedVideo.name +
-    " (" + (selectedVideo.size / 1048576).toFixed(1) + " Mo)"
-  );
+video.addEventListener('timeupdate',function(){
+var progress=document.querySelector('[data-progress="'+videoId+'"]');
+if(progress&&video.duration){
+progress.style.width=((video.currentTime/video.duration)*100)+'%';
+}
 });
 
-document.getElementById("uploadForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
+video.addEventListener('play',function(){demarrerCompteurVue(video,videoId);});
+video.addEventListener('pause',function(){arreterCompteurVue(videoId);});
+video.addEventListener('ended',function(){arreterCompteurVue(videoId);});
+}
 
-  if (!accessToken) {
-    status("Connecte-toi d'abord à Google.");
-    return;
-  }
-
-  if (!selectedVideo) {
-    status("Choisis une vidéo.");
-    return;
-  }
-
-  const title = document.getElementById("title").value.trim();
-  const description = document.getElementById("description").value.trim();
-  const visibility = document.getElementById("visibility").value;
-
-  if (!title) {
-    status("Saisis un titre.");
-    return;
-  }
-
-  uploadButton.disabled = true;
-  loginButton.disabled = true;
-  progress.hidden = false;
-  progress.value = 0;
-  status("Préparation de l'envoi…");
-
-  try {
-    const metadata = {
-      snippet: {
-        title: title,
-        description: description,
-        categoryId: "22"
-      },
-      status: {
-        privacyStatus: visibility
-      }
-    };
-
-    const start = await fetch(
-      "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
-      {
-        method: "POST",
-        headers: {
-          Authorization: "Bearer " + accessToken,
-          "Content-Type": "application/json; charset=UTF-8",
-          "X-Upload-Content-Length": String(selectedVideo.size),
-          "X-Upload-Content-Type":
-            selectedVideo.type || "application/octet-stream"
-        },
-        body: JSON.stringify(metadata)
-      }
-    );
-
-    if (!start.ok) {
-      throw new Error(
-        "YouTube (" + start.status + ") : " + await start.text()
-      );
-    }
-
-    const uploadUrl = start.headers.get("Location");
-
-    if (!uploadUrl) {
-      throw new Error(
-        "YouTube n'a pas fourni l'adresse d'envoi. Vérifie la configuration."
-      );
-    }
-
-    status("Envoi de la vidéo en cours…");
-
-    const result = await fetch(uploadUrl, {
-      method: "PUT",
-      headers: {
-        "Content-Type": selectedVideo.type || "application/octet-stream"
-      },
-      body: selectedVideo
-    });
-
-    if (!result.ok) {
-      throw new Error(
-        "Échec de l'envoi (" + result.status + ") : " + await result.text()
-      );
-    }
-
-    const video = await result.json();
-    progress.value = 100;
-
-    status(
-      "Envoi terminé !\nID vidéo : " + video.id +
-      "\nVérifie YouTube Studio pour confirmer le traitement."
-    );
-  } catch (error) {
-    console.error(error);
-    status(
-      "Erreur : " + error.message +
-      "\nSi le message mentionne CORS, la publication directe depuis le navigateur est bloquée et nécessitera une autre configuration."
-    );
-  } finally {
-    uploadButton.disabled = !accessToken;
-    loginButton.disabled = false;
-  }
+function attachPauseObserver(){
+if(videoObserver)videoObserver.disconnect();
+if(!('IntersectionObserver' in window))return;
+videoObserver=new IntersectionObserver(function(entries){
+entries.forEach(function(e){
+var video=e.target;
+var vid=video.getAttribute('data-vid');
+var overlay=document.querySelector('.play-overlay[data-overlay="'+vid+'"]');
+if(e.isIntersecting){
+video.muted=true;
+var p=video.play();
+if(p&&p.then){
+p.then(function(){if(overlay)overlay.classList.remove('visible');}).catch(function(){if(overlay)overlay.classList.add('visible');});
+}
+demarrerCompteurVue(video,vid);
+}else{
+if(!video.paused)video.pause();
+arreterCompteurVue(vid);
+var panel=document.querySelector('[data-panel="'+vid+'"]');
+if(panel)panel.classList.remove('visible');
+}
 });
+},{threshold:0.6});
 
-window.addEventListener("load", () => {
-  loginButton.disabled = true;
-  initializeGoogle();
+document.querySelectorAll('.video-card').forEach(function(card){
+var video=card.querySelector('video');
+if(!video)return;
+videoObserver.observe(video);
+var vid=video.getAttribute('data-vid');
+if(vid)attachVideoControls(video,vid);
+});
+}
+
+function startFeed(){
+var el=document.getElementById('feedListe');
+el.innerHTML='<div style="height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#94a3b8;gap:16px"><i class="fa-solid fa-spinner fa-spin" style="font-size:32px"></i><div style="font-size:14px;font-weight:700">Chargement…</div></div>';
+if(unsubFeed){unsubFeed();unsubFeed=null;}
+var q=query(collection(db,'videos'),orderBy('createdAt','desc'),limit(50));
+unsubFeed=onSnapshot(q,function(snap){
+var list=[];
+snap.forEach(function(d){list.push(Object.assign({id:d.id},d.data()));});
+
+if(currentPhase==='publication'){
+list=list.filter(function(v){return v.ownerUid===currentUser.uid;});
+}
+
+if(list.length===0){
+var msg=currentPhase==='publication'?'Aucune vidéo publiée pour ce mois. Publiez la vôtre !':'Aucune vidéo pour le moment';
+el.innerHTML='<div style="height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#94a3b8;gap:16px;padding:20px;text-align:center"><div style="font-size:64px;opacity:.4">🎬</div><h3 style="color:#f1f5f9;font-size:17px;margin:0">'+esc(msg)+'</h3></div>';
+return;
+}
+
+el.innerHTML=list.map(function(v){return renderVideo(v);}).join('');
+attachPauseObserver();
+},function(err){
+el.innerHTML='<div style="height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#ef4444;gap:16px;padding:20px;text-align:center"><i class="fa-solid fa-circle-exclamation" style="font-size:40px"></i><div style="font-size:14px;font-weight:700">Erreur de chargement</div></div>';
+});
+}
+
+window.supprimerVideo=async function(videoId){
+if(!confirm('Supprimer cette vidéo ?'))return;
+try{
+await deleteDoc(doc(db,'videos',videoId));
+toast('Vidéo supprimée');
+}catch(e){toast('Erreur');}
+};
+
+function startMyVideos(){
+var el=document.getElementById('mesVideosListe');
+if(!currentUser){el.innerHTML='';return;}
+el.innerHTML='<div style="text-align:center;padding:40px;color:#94a3b8"><i class="fa-solid fa-spinner fa-spin" style="font-size:24px"></i></div>';
+if(unsubMine){unsubMine();unsubMine=null;}
+var q=query(collection(db,'videos'),where('ownerUid','==',currentUser.uid));
+unsubMine=onSnapshot(q,function(snap){
+var list=[];
+snap.forEach(function(d){list.push(Object.assign({id:d.id},d.data()));});
+list.sort(function(a,b){return(b.createdAt&&b.createdAt.seconds||0)-(a.createdAt&&a.createdAt.seconds||0);});
+
+var totalViews=list.reduce(function(s,v){return s+(v.validViews||0);},0);
+document.getElementById('statVideos').textContent=list.length;
+document.getElementById('statVues').textContent=totalViews;
+
+if(list.length===0){
+el.innerHTML='<div style="text-align:center;padding:40px 20px;background:rgba(255,255,255,.04);border-radius:16px;border:1px dashed rgba(255,255,255,.1)"><div style="font-size:48px;opacity:.3;margin-bottom:12px">📹</div><p style="font-size:14px;color:#94a3b8;margin:0;font-weight:600">Aucune vidéo publiée</p></div>';
+return;
+}
+
+el.innerHTML=list.map(function(v){
+var thumb=v.thumbnailUrl?'<img src="'+esc(v.thumbnailUrl)+'" loading="lazy">':'🎬';
+var date=getDateStr(v.createdAt);
+return'<div class="video-item">'+
+'<div class="video-thumb">'+thumb+'</div>'+
+'<div class="video-info">'+
+'<p class="video-desc">'+esc(v.description||'Sans description')+'</p>'+
+'<div class="video-meta"><span><i class="fa-solid fa-eye"></i>'+(v.validViews||0)+'</span><span><i class="fa-regular fa-calendar"></i>'+date+'</span></div>'+
+'</div>'+
+'<button class="btn-del" onclick="supprimerVideo(\''+v.id+'\')"><i class="fa-solid fa-trash"></i></button>'+
+'</div>';
+}).join('');
+},function(err){
+el.innerHTML='<div class="error-box">Erreur de chargement</div>';
+});
+}
+
+onAuthStateChanged(auth,async function(user){
+currentUser=user;
+if(user){
+currentMonth=getMonthKey();
+var phase=await chargerPhase();
+currentPhase=phase&&phase.phase?phase.phase:'concours';
+userEglise=await chargerEglise(user.uid);
+document.getElementById('page-auth').classList.remove('active');
+document.getElementById('tabBar').style.display='grid';
+document.getElementById('profilEmail').textContent=user.email;
+switchTab('feed');
+}else{
+document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+document.getElementById('page-auth').classList.add('active');
+document.getElementById('tabBar').style.display='none';
+if(unsubFeed){unsubFeed();unsubFeed=null;}
+if(unsubMine){unsubMine();unsubMine=null;}
+}
 });
 </script>
 </body>
