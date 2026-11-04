@@ -720,7 +720,6 @@ body.dark-mode .fb-post-bloque-overlay{background:rgba(17,24,39,0.9)}
 <a href="#" onclick="event.preventDefault();go('jobs');return false;">💼 Réseau Jobs</a>
 <a href="#" onclick="event.preventDefault();go('immobilier');return false;">🏠 Réseau Immobilier</a>
 <a href="#" class="nav-ecoles-link" data-ecole-only="true" onclick="event.preventDefault();go('ecoles');return false;" style="display:none">🏫 Réseau Écoles</a>
-<a href="#" onclick="event.preventDefault();go('eglise');return false;">⛪ Réseau Église</a>
 <a href="#" onclick="event.preventDefault();filterCategory(this,'autre');return false;">🛠️ Autres</a>
 </nav>
 <div class="categories-bar" style="display: block !important;">
@@ -729,7 +728,6 @@ body.dark-mode .fb-post-bloque-overlay{background:rgba(17,24,39,0.9)}
 <button class="category-btn" onclick="go('jobs')"><i class="fa-solid fa-briefcase"></i> Réseau Jobs</button>
 <button class="category-btn" onclick="go('immobilier')"><i class="fa-solid fa-house"></i> Réseau Immobilier</button>
 <button class="category-btn nav-ecoles-link" data-ecole-only="true" onclick="go('ecoles')" style="display:none"><i class="fa-solid fa-school"></i> Réseau Écoles</button>
-<button class="category-btn" onclick="go('eglise')"><i class="fa-solid fa-church"></i> Réseau Église</button>
 <button class="category-btn" onclick="filterCategory(this,'autre')"><i class="fa-solid fa-screwdriver-wrench"></i> Autres</button>
 <button class="category-btn" onclick="go('comment')" style="background:#f1f5f9;color:#2563EB;border-color:#2563EB;padding:10px 16px"><i class="fa-solid fa-circle-question"></i></button>
 </div>
@@ -769,23 +767,6 @@ body.dark-mode .fb-post-bloque-overlay{background:rgba(17,24,39,0.9)}
 <div class="container-3d" style="padding:0">
 <div class="fb-feed" id="mainFeed"></div>
 <div id="feedSentinel" style="height:1px"></div>
-</div>
-</div>
-
-<div id="page-eglise" class="page">
-<div class="page-header-3d" style="background:linear-gradient(135deg,#0f172a,#1e3a8a);">
-<div style="max-width:1200px;margin:0 auto;text-align:center;">
-<div style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:800;padding:6px 14px;border-radius:999px;margin-bottom:12px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.25);">
-<i class="fa-solid fa-church"></i> Réseau Église NeTubeX
-</div>
-<h1 class="page-title-3d">NeTubeX Creator Ranking</h1>
-<p class="page-subtitle-3d">Top 100 mensuel des églises · Récompenses proportionnelles aux vues</p>
-</div>
-</div>
-<div class="container-3d" style="max-width:100%;padding:0;">
-<div style="width:100%;height:calc(100dvh - 118px);background:#000;position:relative;">
-<iframe id="egliseIframe" src="https://www.netubex.com/egvideos" frameborder="0" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen style="width:100%;height:100%;border:0;display:block;"></iframe>
-</div>
 </div>
 </div>
 
@@ -1736,7 +1717,57 @@ if(!forceRefresh){var cached=await getCachedListAvecTs('cache_annonces',30*60*10
 try{var snap=await getDocs(collection(db,'annonces'));var annonces=[];snap.forEach(function(d){var data=d.data();if(data.actif===false)return;if(data.statut==='refuse')return;if(data.statut==='en_attente')return;if(data.statut&&data.statut!=='approuve')return;if(data.statut==='approuve'&&data.dateExpiration){var exp=new Date(data.dateExpiration).getTime();if(!isNaN(exp)&&exp<Date.now())return;}else if(data.statut==='approuve'&&data.dateCreation){var datePub=new Date(data.dateCreation).getTime();var ageMs=Date.now()-datePub;var limiteMs=30*24*60*60*1000;if(ageMs>limiteMs)return;}var nomPublieur=data.publieurNom||'Utilisateur NeTubeX';var typePublieur=data.publieurType||'user';var imagesArr=Array.isArray(data.images)&&data.images.length>0?data.images:(data.img?[data.img]:[]);var imgPrincipale=imagesArr[0]||data.img||'';annonces.push({id:d.id,annonceId:d.id,title:data.titre||'',name:nomPublieur,initials:nomPublieur.substring(0,2).toUpperCase(),avatar:data.publieurAvatar||'',location:data.ville||'',dateCreation:data.dateCreation||'',time:data.dateCreation?new Date(data.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}):'Récemment',price:data.prix||'',priceClass:data.tagClass||'post-tag-autre',desc:data.desc||'',img:imgPrincipale,images:imagesArr,cat:normCat(data.cat||'autre'),catRaw:data.cat||'',tag:data.tag||'',tagClass:data.tagClass||'post-tag-autre',unlock:true,urgence:false,publieurType:typePublieur,publieurUid:data.proprietaireUid||null,publieurBoutique:data.publieurBoutique||null,publieurPhone:data.publieurPhone||'',isCommerce:typePublieur==='commerce',vues:data.vues||0,publieurParrainage:data.publieurParrainage||null,publieurSexe:data.publieurSexe||'',jobType:data.jobType||null,sousTypeImmo:data.sousTypeImmo||null,badgeConfiance:data.badgeConfiance===true,dateExpiration:data.dateExpiration||null});});annonces.sort(function(a,b){return(b.dateCreation||'').localeCompare(a.dateCreation||'');});await setCachedListAvecTs('cache_annonces',annonces);return annonces;}catch(e){var cached=await getCachedList('cache_annonces');return cached||[];}
 };
 
-window.uploadImageAnnonce=async function(file){if(!file)throw new Error('Aucun fichier');try{var compressed=await window.picrd.compress(file,600,0.70);var result=await window.picrd.upload(compressed);return result.image_url||'';}catch(err){throw err;}};
+async function uploadImageToPublitio(file) {
+  if (!file || !file.type.startsWith("image/")) {
+    throw new Error("Format image requis");
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    throw new Error("Image trop lourde (max 5 Mo)");
+  }
+  let compressed = file;
+  try {
+    if (window.picrd && window.picrd.compress) {
+      compressed = await window.picrd.compress(file, 800, 0.75);
+    }
+  } catch (e) {}
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const form = new FormData();
+    form.append("file", compressed);
+    xhr.onload = () => {
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(new Error("Échec de l'envoi (HTTP " + xhr.status + ")"));
+        return;
+      }
+      try {
+        const data = JSON.parse(xhr.responseText);
+        const url = data.url_preview || data.url || data.url_original || data.url_thumbnail;
+        if (!url) {
+          reject(new Error("URL non renvoyée"));
+          return;
+        }
+        resolve(url);
+      } catch (e) {
+        reject(new Error("Réponse Publitio invalide"));
+      }
+    };
+    xhr.onerror = () => reject(new Error("Erreur réseau"));
+    xhr.open("POST", "https://api.publit.io/v1/files/create/cbnwpcbP");
+    xhr.send(form);
+  });
+}
+
+window.uploadImageAnnonce = async function(file) {
+  if (!file) throw new Error('Aucun fichier');
+  try {
+    return await uploadImageToPublitio(file);
+  } catch (err) {
+    console.warn("Publitio échoué, fallback Imgbb :", err);
+    var compressed = await window.picrd.compress(file, 600, 0.70);
+    var result = await window.picrd.upload(compressed);
+    return result.image_url || '';
+  }
+};
 
 window.creerAnnonce=async function(data,coordonnees,paiement){
 if(!window.CURRENT_ACCOUNT_REF)throw new Error('Non connecté');
@@ -2845,7 +2876,7 @@ function closePublishPending(){document.getElementById('publishPendingOverlay').
 
 function go(page,param){
 if(window.rafraichirCompteSiNecessaire&&window.CURRENT_ACCOUNT){try{window.rafraichirCompteSiNecessaire(false);}catch(e){}}
-var pagesPubliques=['index','commerces','jobs','immobilier','comment','inscription','eglise'];
+var pagesPubliques=['index','commerces','jobs','immobilier','comment','inscription'];
 if(pagesPubliques.indexOf(page)===-1&&!window.CURRENT_ACCOUNT){requireLogin('accéder',function(){go(page,param);});return;}
 if(page==='ecoles'){
 if(!window.CURRENT_ACCOUNT){
@@ -2873,12 +2904,6 @@ if(page!=='dashboard-utilisateur'){arreterPollingDeblocages();}
 var ft=document.getElementById('fabThemeBtn');var fl=document.getElementById('fabLogoutBtn');
 if(page==='dashboard-utilisateur'){if(ft)ft.style.display='flex';if(fl)fl.style.display='flex';}else{if(ft)ft.style.display='none';if(fl)fl.style.display='none';}
 if(page==='index'){initFeed();}
-if(page==='eglise'){
-    var iframe = document.getElementById('egliseIframe');
-    if (iframe && !iframe.src.includes('egvideos')) {
-        iframe.src = 'https://www.netubex.com/egvideos';
-    }
-}
 if(page==='jobs'){renderJobsFeed();}
 if(page==='immobilier'){var sub=document.querySelector('.immobilier-subtab.active');renderImmobilierFeed(sub?sub.getAttribute('data-sub')||'all':'all');}
 if(page==='ecoles'){chargerEcolesEtProfs();}
@@ -3116,7 +3141,63 @@ function validerReservation(){if(!_resaCommerceId){showToast('Introuvable');retu
 
 async function openDetail(oD){requireLogin('détails',async function(){if(oD&&CAT_JOB.indexOf(normCat(oD.cat))!==-1){return;}CURRENT_OFFRE=oD;if(oD&&(oD.annonceId||oD.id)){incrementerVuesAnnonce(oD.annonceId||oD.id,oD.publieurUid);}await renderDetail(oD);go('detail');});}
 
-async function renderDetail(o){if(!o){showToast('Introuvable');go('index');return;}var ancienneSectionChambres=document.getElementById('detailChambresSection');if(ancienneSectionChambres)ancienneSectionChambres.innerHTML='';var hi=document.getElementById('detailHeroImg');if(hi){if(o.img){hi.src=o.img;hi.style.display='block';}else hi.style.display='none';}var hb=document.getElementById('detailHeroBadge');if(hb){hb.textContent=o.tag||'—';hb.className='feed-badge '+(o.tagClass||'post-tag-autre');}var ce=document.getElementById('detailCity');if(ce)ce.textContent=o.location||'—';var de=document.getElementById('detailDate');if(de)de.textContent=o.dateCreation?tempsRelatif(o.dateCreation):(o.time||'Récemment');var te=document.getElementById('detailTitle');if(te)te.textContent=o.title||'—';var pl=document.getElementById('detailPriceLabel');var pv=document.getElementById('detailPriceValue');var pb=document.getElementById('detailPriceBox');if(o.price&&pv){var parts=String(o.price).split(':');if(pl)pl.textContent=parts.length>1?parts[0].trim():'Prix';if(pv)pv.textContent=parts.length>1?parts[1].trim():o.price;if(pb)pb.style.display='flex';}else if(pb)pb.style.display='none';var dEl=document.getElementById('detailDescription');if(dEl)dEl.textContent=nettoyerTexte(o.desc)||'—';var chambresHtml='';if(o.commerceOriginal&&commerceUtiliseReservation(o.commerceOriginal.type)){var chambres=o.commerceOriginal.chambres||[];if(chambres.length>0){var htmlChambres='<div id="detailChambresSection" class="detail-section" style="background:var(--bg-card);border:1px solid var(--border-primary);border-radius:20px;padding:22px;margin-bottom:16px;"><h3 class="detail-section-title"><i class="fa-solid fa-bed"></i> Chambres disponibles</h3><div style="display:flex;flex-direction:column;gap:12px;">';chambres.forEach(function(ch){var imgCh=ch.img?'<img src="'+esc(ch.img)+'" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">':'<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--bg-card-alt);font-size:32px;border-radius:10px;">🛏️</div>';htmlChambres+='<div style="display:flex;gap:12px;padding:10px;background:var(--bg-card-soft);border:1px solid var(--border-primary);border-radius:14px;"><div style="width:90px;height:90px;flex-shrink:0;">'+imgCh+'</div><div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;"><div style="font-size:15px;font-weight:900;">'+esc(ch.nom||'Chambre')+'</div>'+(ch.desc?'<div style="font-size:12.5px;color:var(--text-muted);margin-top:2px;">'+esc(ch.desc)+'</div>':'')+'<div style="font-size:14px;font-weight:900;color:#f59e0b;margin-top:4px;">'+Number(ch.prix||0).toLocaleString('fr-FR')+' FC '+(ch.prixLabel||'/nuit')+'</div></div><button onclick="event.stopPropagation();ouvrirReservationChambreDirecte(\''+o.commerceOriginal.id+'\',\''+esc(ch.id||ch.nom)+'\')" style="padding:0 16px;border-radius:10px;background:#f59e0b;color:#fff;font-weight:900;font-size:13px;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;">Réserver</button></div>';});htmlChambres+='</div></div>';chambresHtml=htmlChambres;}}var sectionDesc=document.getElementById('detailDescription').parentNode;var ancienneDetailChambres=document.getElementById('detailChambresSection');if(ancienneDetailChambres)ancienneDetailChambres.remove();if(chambresHtml)sectionDesc.insertAdjacentHTML('afterend',chambresHtml);var os=document.getElementById('detailOrganisationSection');if(os){os.style.display='block';var on=document.getElementById('detailOrgName');var ol=document.getElementById('detailOrgLocation');var oa=document.getElementById('detailOrgAvatar');if(on)on.innerHTML=(o.name||'Utilisateur NeTubeX')+getVerifiedBadgeHTML(o)+getJobBadgeHTML(o);if(ol)ol.textContent=o.location||'';if(oa){if(o.avatar||o.img){oa.innerHTML='<img src="'+(o.avatar||o.img)+'">';}else{oa.textContent='👤';}}}var aId=o.annonceId||o.id||null;var dv=trouverDeblocagePourAnnonce(aId);var cs=document.getElementById('detailContactSection');var csx=document.getElementById('detailContactSexe');var co=document.getElementById('detailContactOwner');var ca=document.getElementById('detailContactAddr');var cp=document.getElementById('detailContactPhone');var ae=document.getElementById('detailActions');var oc=document.getElementById('coordonneesCacheesCard');if(oc)oc.remove();if(!dv){if(cs)cs.style.display='none';if(o.unlock){var cc=document.createElement('div');cc.id='coordonneesCacheesCard';cc.className='detail-section';cc.innerHTML='<h3 class="detail-section-title"><i class="fa-solid fa-lock"></i> Coordonnées du publieur</h3><div style="display:flex;flex-direction:column;gap:12px;position:relative"><div style="padding:14px;background:var(--bg-card-soft);border-radius:14px;filter:blur(7px);pointer-events:none;font-size:16px;font-weight:800">Homme</div><div style="padding:14px;background:var(--bg-card-soft);border-radius:14px;filter:blur(7px);pointer-events:none;font-size:16px;font-weight:800">Jean Kabila</div><div style="padding:14px;background:var(--bg-card-soft);border-radius:14px;filter:blur(7px);pointer-events:none;font-size:16px;font-weight:800">Av. de la Paix N° 45</div><div style="padding:14px;background:var(--bg-card-soft);border-radius:14px;filter:blur(7px);pointer-events:none;font-size:16px;font-weight:800">+243 97 000 00 00</div><div style="position:absolute;inset:0;background:rgba(15,23,42,.7);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px"><div style="width:64px;height:64px;border-radius:50%;background:#2563EB;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff"><i class="fa-solid fa-lock"></i></div><div style="font-size:16px;font-weight:900;color:#fff;text-align:center">Coordonnées verrouillées</div><div style="font-size:14px;color:rgba(255,255,255,.85);text-align:center">Débloquez pour voir</div></div></div>';var oi=document.getElementById('detailOrganisationSection');if(oi&&oi.parentNode){oi.parentNode.insertBefore(cc,oi.nextSibling);}}if(ae){ae.innerHTML='';if(o.unlock){var den=DEBLOCAGES_MEMORY.find(function(d){return d.annonceId===aId&&d.statut==='en_attente';});var ncd=normCat(o.cat);var fd=CAT_IMMO.indexOf(ncd)!==-1?1000:500;if(den){ae.innerHTML='<button class="detail-primary-btn gold" disabled><i class="fa-solid fa-hourglass-half"></i> En attente</button>';}else{ae.innerHTML='<button class="detail-primary-btn gold" onclick="openUnlock()"><i class="fa-solid fa-key"></i> Débloquer — '+fd.toLocaleString('fr-FR')+' FC</button>';}}}}else{var coo=dv.coordonnees;if(cs)cs.style.display='block';var sp=o.publieurSexe||'';var st='—';if(sp==='homme')st='Homme';else if(sp==='femme')st='Femme';if(csx)csx.textContent=st;if(co)co.textContent=(coo&&coo.nom)||o.name||'Propriétaire';if(ca)ca.textContent=(coo&&coo.adresse)||'—';if(cp)cp.textContent=(coo&&coo.telephone)||'—';if(ae){var tc=((coo&&coo.telephone)||'').replace(/[^\d]/g,'');if(tc){ae.innerHTML='<div style="padding:12px 14px;background:#ecfdf5;border:1.5px solid #a7f3d0;border-radius:12px;margin-bottom:10px;display:flex;align-items:center;gap:10px"><i class="fa-solid fa-circle-check" style="color:#059669;font-size:18px"></i><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:900;color:#065f46">Coordonnées débloquées</div><div style="font-size:12.5px;color:#047857;margin-top:2px">Valable 12h</div></div></div><div style="display:flex;gap:10px"><a href="tel:+'+tc+'" class="detail-primary-btn green" style="flex:1;text-decoration:none"><i class="fa-solid fa-phone"></i> Appeler</a><a href="https://wa.me/'+tc+'" target="_blank" class="detail-primary-btn" style="flex:1;background:#10b981;color:#fff;text-decoration:none"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a></div>';}}}var re=document.getElementById('detailRefValue');if(re&&o){var cc2='GEN';var ncr=normCat(o.cat);if(CAT_JOB.indexOf(ncr)!==-1)cc2='JOB';else if(CAT_IMMO_LOC.indexOf(ncr)!==-1)cc2='LOC';else if(CAT_IMMO_PAR.indexOf(ncr)!==-1)cc2='PARC';else if(ncr==='autre')cc2='SRV';var str=String((o.title||'')+(o.name||''));var h=0;for(var i=0;i<str.length;i++){h=((h<<5)-h)+str.charCodeAt(i);h|=0;}var n=String(Math.abs(h)%10000).padStart(4,'0');re.textContent='NTX-'+cc2+'-'+n;}}
+async function renderDetail(o){
+if(!o){showToast('Introuvable');go('index');return;}
+var ancienneSectionChambres=document.getElementById('detailChambresSection');
+if(ancienneSectionChambres)ancienneSectionChambres.innerHTML='';
+
+var hi=document.getElementById('detailHeroImg');
+if (hi) {
+  var imagesList = (o.images && o.images.length > 0) ? o.images : (o.img ? [o.img] : []);
+  if (imagesList.length > 0) {
+    hi.src = imagesList[0];
+    hi.style.display = 'block';
+    hi.style.cursor = 'pointer';
+    hi.setAttribute('data-images', JSON.stringify(imagesList));
+    hi.onclick = function () { openDetailFullscreen(imagesList[0]); };
+    
+    var ancienneGalerie = document.getElementById('detailGallery');
+    if (ancienneGalerie) ancienneGalerie.remove();
+    
+    if (imagesList.length > 1) {
+      var galerieHtml = '<div id="detailGallery" style="display:flex;gap:8px;padding:12px 16px 0;overflow-x:auto;scrollbar-width:none;">';
+      imagesList.forEach(function(url, idx) {
+        galerieHtml += '<div onclick="event.stopPropagation();changerImageDetail(\'' + esc(url) + '\', this)" style="width:70px;height:70px;border-radius:10px;overflow:hidden;flex-shrink:0;cursor:pointer;border:2px solid ' + (idx === 0 ? '#2563EB' : 'transparent') + ';transition:border .2s;">' +
+          '<img src="' + esc(url) + '" style="width:100%;height:100%;object-fit:cover;display:block;">' +
+          '</div>';
+      });
+      galerieHtml += '</div>';
+      
+      var heroContainer = document.getElementById('detailHero');
+      if (heroContainer) {
+        heroContainer.insertAdjacentHTML('afterend', galerieHtml);
+      }
+    }
+  } else {
+    hi.style.display = 'none';
+  }
+}
+
+window.changerImageDetail = function (url, thumb) {
+  var hi = document.getElementById('detailHeroImg');
+  if (hi) hi.src = url;
+  var galerie = document.getElementById('detailGallery');
+  if (galerie) {
+    galerie.querySelectorAll('div').forEach(function (div) {
+      div.style.border = '2px solid transparent';
+    });
+    if (thumb) thumb.style.border = '2px solid #2563EB';
+  }
+  var fsImg = document.getElementById('detailFsImg');
+  if (fsImg && document.getElementById('detailFullscreen').classList.contains('active')) {
+    fsImg.src = url;
+  }
+  if (hi) {
+    hi.onclick = function () { openDetailFullscreen(url); };
+  }
+};
+
+var hb=document.getElementById('detailHeroBadge');if(hb){hb.textContent=o.tag||'—';hb.className='feed-badge '+(o.tagClass||'post-tag-autre');}var ce=document.getElementById('detailCity');if(ce)ce.textContent=o.location||'—';var de=document.getElementById('detailDate');if(de)de.textContent=o.dateCreation?tempsRelatif(o.dateCreation):(o.time||'Récemment');var te=document.getElementById('detailTitle');if(te)te.textContent=o.title||'—';var pl=document.getElementById('detailPriceLabel');var pv=document.getElementById('detailPriceValue');var pb=document.getElementById('detailPriceBox');if(o.price&&pv){var parts=String(o.price).split(':');if(pl)pl.textContent=parts.length>1?parts[0].trim():'Prix';if(pv)pv.textContent=parts.length>1?parts[1].trim():o.price;if(pb)pb.style.display='flex';}else if(pb)pb.style.display='none';var dEl=document.getElementById('detailDescription');if(dEl)dEl.textContent=nettoyerTexte(o.desc)||'—';var chambresHtml='';if(o.commerceOriginal&&commerceUtiliseReservation(o.commerceOriginal.type)){var chambres=o.commerceOriginal.chambres||[];if(chambres.length>0){var htmlChambres='<div id="detailChambresSection" class="detail-section" style="background:var(--bg-card);border:1px solid var(--border-primary);border-radius:20px;padding:22px;margin-bottom:16px;"><h3 class="detail-section-title"><i class="fa-solid fa-bed"></i> Chambres disponibles</h3><div style="display:flex;flex-direction:column;gap:12px;">';chambres.forEach(function(ch){var imgCh=ch.img?'<img src="'+esc(ch.img)+'" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">':'<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--bg-card-alt);font-size:32px;border-radius:10px;">🛏️</div>';htmlChambres+='<div style="display:flex;gap:12px;padding:10px;background:var(--bg-card-soft);border:1px solid var(--border-primary);border-radius:14px;"><div style="width:90px;height:90px;flex-shrink:0;">'+imgCh+'</div><div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;"><div style="font-size:15px;font-weight:900;">'+esc(ch.nom||'Chambre')+'</div>'+(ch.desc?'<div style="font-size:12.5px;color:var(--text-muted);margin-top:2px;">'+esc(ch.desc)+'</div>':'')+'<div style="font-size:14px;font-weight:900;color:#f59e0b;margin-top:4px;">'+Number(ch.prix||0).toLocaleString('fr-FR')+' FC '+(ch.prixLabel||'/nuit')+'</div></div><button onclick="event.stopPropagation();ouvrirReservationChambreDirecte(\''+o.commerceOriginal.id+'\',\''+esc(ch.id||ch.nom)+'\')" style="padding:0 16px;border-radius:10px;background:#f59e0b;color:#fff;font-weight:900;font-size:13px;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;">Réserver</button></div>';});htmlChambres+='</div></div>';chambresHtml=htmlChambres;}}var sectionDesc=document.getElementById('detailDescription').parentNode;var ancienneDetailChambres=document.getElementById('detailChambresSection');if(ancienneDetailChambres)ancienneDetailChambres.remove();if(chambresHtml)sectionDesc.insertAdjacentHTML('afterend',chambresHtml);var os=document.getElementById('detailOrganisationSection');if(os){os.style.display='block';var on=document.getElementById('detailOrgName');var ol=document.getElementById('detailOrgLocation');var oa=document.getElementById('detailOrgAvatar');if(on)on.innerHTML=(o.name||'Utilisateur NeTubeX')+getVerifiedBadgeHTML(o)+getJobBadgeHTML(o);if(ol)ol.textContent=o.location||'';if(oa){if(o.avatar||o.img){oa.innerHTML='<img src="'+(o.avatar||o.img)+'">';}else{oa.textContent='👤';}}}var aId=o.annonceId||o.id||null;var dv=trouverDeblocagePourAnnonce(aId);var cs=document.getElementById('detailContactSection');var csx=document.getElementById('detailContactSexe');var co=document.getElementById('detailContactOwner');var ca=document.getElementById('detailContactAddr');var cp=document.getElementById('detailContactPhone');var ae=document.getElementById('detailActions');var oc=document.getElementById('coordonneesCacheesCard');if(oc)oc.remove();if(!dv){if(cs)cs.style.display='none';if(o.unlock){var cc=document.createElement('div');cc.id='coordonneesCacheesCard';cc.className='detail-section';cc.innerHTML='<h3 class="detail-section-title"><i class="fa-solid fa-lock"></i> Coordonnées du publieur</h3><div style="display:flex;flex-direction:column;gap:12px;position:relative"><div style="padding:14px;background:var(--bg-card-soft);border-radius:14px;filter:blur(7px);pointer-events:none;font-size:16px;font-weight:800">Homme</div><div style="padding:14px;background:var(--bg-card-soft);border-radius:14px;filter:blur(7px);pointer-events:none;font-size:16px;font-weight:800">Jean Kabila</div><div style="padding:14px;background:var(--bg-card-soft);border-radius:14px;filter:blur(7px);pointer-events:none;font-size:16px;font-weight:800">Av. de la Paix N° 45</div><div style="padding:14px;background:var(--bg-card-soft);border-radius:14px;filter:blur(7px);pointer-events:none;font-size:16px;font-weight:800">+243 97 000 00 00</div><div style="position:absolute;inset:0;background:rgba(15,23,42,.7);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px"><div style="width:64px;height:64px;border-radius:50%;background:#2563EB;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff"><i class="fa-solid fa-lock"></i></div><div style="font-size:16px;font-weight:900;color:#fff;text-align:center">Coordonnées verrouillées</div><div style="font-size:14px;color:rgba(255,255,255,.85);text-align:center">Débloquez pour voir</div></div></div>';var oi=document.getElementById('detailOrganisationSection');if(oi&&oi.parentNode){oi.parentNode.insertBefore(cc,oi.nextSibling);}}if(ae){ae.innerHTML='';if(o.unlock){var den=DEBLOCAGES_MEMORY.find(function(d){return d.annonceId===aId&&d.statut==='en_attente';});var ncd=normCat(o.cat);var fd=CAT_IMMO.indexOf(ncd)!==-1?1000:500;if(den){ae.innerHTML='<button class="detail-primary-btn gold" disabled><i class="fa-solid fa-hourglass-half"></i> En attente</button>';}else{ae.innerHTML='<button class="detail-primary-btn gold" onclick="openUnlock()"><i class="fa-solid fa-key"></i> Débloquer — '+fd.toLocaleString('fr-FR')+' FC</button>';}}}}else{var coo=dv.coordonnees;if(cs)cs.style.display='block';var sp=o.publieurSexe||'';var st='—';if(sp==='homme')st='Homme';else if(sp==='femme')st='Femme';if(csx)csx.textContent=st;if(co)co.textContent=(coo&&coo.nom)||o.name||'Propriétaire';if(ca)ca.textContent=(coo&&coo.adresse)||'—';if(cp)cp.textContent=(coo&&coo.telephone)||'—';if(ae){var tc=((coo&&coo.telephone)||'').replace(/[^\d]/g,'');if(tc){ae.innerHTML='<div style="padding:12px 14px;background:#ecfdf5;border:1.5px solid #a7f3d0;border-radius:12px;margin-bottom:10px;display:flex;align-items:center;gap:10px"><i class="fa-solid fa-circle-check" style="color:#059669;font-size:18px"></i><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:900;color:#065f46">Coordonnées débloquées</div><div style="font-size:12.5px;color:#047857;margin-top:2px">Valable 12h</div></div></div><div style="display:flex;gap:10px"><a href="tel:+'+tc+'" class="detail-primary-btn green" style="flex:1;text-decoration:none"><i class="fa-solid fa-phone"></i> Appeler</a><a href="https://wa.me/'+tc+'" target="_blank" class="detail-primary-btn" style="flex:1;background:#10b981;color:#fff;text-decoration:none"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a></div>';}}}var re=document.getElementById('detailRefValue');if(re&&o){var cc2='GEN';var ncr=normCat(o.cat);if(CAT_JOB.indexOf(ncr)!==-1)cc2='JOB';else if(CAT_IMMO_LOC.indexOf(ncr)!==-1)cc2='LOC';else if(CAT_IMMO_PAR.indexOf(ncr)!==-1)cc2='PARC';else if(ncr==='autre')cc2='SRV';var str=String((o.title||'')+(o.name||''));var h=0;for(var i=0;i<str.length;i++){h=((h<<5)-h)+str.charCodeAt(i);h|=0;}var n=String(Math.abs(h)%10000).padStart(4,'0');re.textContent='NTX-'+cc2+'-'+n;}}
 
 function openDetailCommerce(commerce){if(!commerce||!commerce.id){showToast('Commerce introuvable');return;}requireLogin('détails',function(){var offreFormatee={id:commerce.id,annonceId:commerce.id,title:commerce.nom||'Hôtel',name:commerce.nom||'Hôtel',initials:(commerce.nom||'??').substring(0,2).toUpperCase(),avatar:commerce.img||commerce.avatar||'',location:(commerce.ville||'')+(commerce.quartier?' · '+commerce.quartier:''),dateCreation:commerce.dateCreation||'',price:commerce.type||'Hôtel',priceClass:'post-tag-property',desc:commerce.description||'Découvrez nos chambres.',img:commerce.img||commerce.avatar||'',images:commerce.img?[commerce.img]:[],cat:'immobilier',catRaw:'Hôtel',tag:'🏨 Hôtel',tagClass:'post-tag-property',unlock:false,urgence:false,publieurType:'commerce',publieurUid:commerce.uid||null,publieurBoutique:commerce,publieurPhone:commerce.telephone||commerce.whatsapp||'',isCommerce:true,vues:commerce.vues||0,badgeConfiance:commerce.badgeConfiance===true,commerceOriginal:commerce};CURRENT_OFFRE=offreFormatee;renderDetail(offreFormatee);go('detail');});}
 window.openDetailCommerce=openDetailCommerce;
@@ -3350,19 +3431,6 @@ window.addEventListener('focus',function(){if(window.CURRENT_ACCOUNT&&peutLireFi
 window.addEventListener('online',function(){if(window.CURRENT_ACCOUNT&&peutLireFirebase()){setTimeout(verifierInvalidationUtilisateur,500);}});
 document.addEventListener('visibilitychange',function(){if(!document.hidden&&window.CURRENT_ACCOUNT&&peutLireFirebase()){setTimeout(verifierInvalidationUtilisateur,500);}});
 })();
-
-window.addEventListener('message', function(event) {
-    if (!event.data || typeof event.data !== 'object') return;
-    
-    if (event.data.type === 'OPEN_PROFIL') {
-        window.go('dashboard-utilisateur');
-    }
-    
-    if (event.data.type === 'OPEN_TABS') {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        showToast('Menu NeTubeX');
-    }
-});
 
 var originalGo=window.go;
 window.go=function(page,param){
