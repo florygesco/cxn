@@ -131,7 +131,7 @@ textarea{resize:none}
   </div>
 
   <div id="panelCompte" class="panel active">
-    <h2 style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:14px;text-align:center">Enregistrer un Professeur, Préfet ou Directeur</h2>
+    <h2 style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:14px;text-align:center">Enregistrer un membre du personnel</h2>
 
     <form id="formInscription">
       <div class="field">
@@ -162,9 +162,10 @@ textarea{resize:none}
         <label>Rôle à attribuer *</label>
         <select id="role" required>
           <option value="">— Choisir —</option>
-          <option value="professeur">👨‍🏫 Professeur</option>
-          <option value="prefet">👑 Préfet</option>
-          <option value="directeur">🏫 Directeur</option>
+          <option value="professeur">👨‍🏫 Professeur (Secondaire)</option>
+          <option value="enseignant">🧑‍🏫 Enseignant (Primaire)</option>
+          <option value="prefet">👑 Préfet (Secondaire)</option>
+          <option value="directeur">🏫 Directeur (Primaire)</option>
         </select>
       </div>
       <div class="field" id="ecoleField" style="display:none">
@@ -347,7 +348,7 @@ const secondaryAuth = firebase.auth(secondaryApp);
 secondaryAuth.signOut().catch(() => {});
 
 const ADMIN_EMAILS = ['equipe@gmail.com', 'ngendaflory2@gmail.com'];
-const ROLES_AUTORISES = ['professeur', 'prefet', 'directeur'];
+const ROLES_AUTORISES = ['professeur', 'enseignant', 'prefet', 'directeur'];
 
 const REPERTOIRE_ADMIN = {
   'Kasumbalesa': {
@@ -761,14 +762,14 @@ async function inscrire(e) {
 
     let sections = [];
     let ecolesIdsSecondaire = [];
-    let ecolesIdsPrimMat = [];
+    let ecolesIdsPrimaire = [];
 
     if (role === 'professeur' || role === 'prefet') {
       sections = ['secondaire'];
       ecolesIdsSecondaire = [ecoleId];
-    } else if (role === 'directeur') {
-      sections = ['primaire', 'maternelle'];
-      ecolesIdsPrimMat = [ecoleId];
+    } else if (role === 'enseignant' || role === 'directeur') {
+      sections = ['primaire'];
+      ecolesIdsPrimaire = [ecoleId];
     }
 
     const ecolesObj = {};
@@ -784,36 +785,38 @@ async function inscrire(e) {
       nombreNotesEcole: 0
     };
 
-    await db.collection('professeurs').doc(uid).set({
-      uid: uid,
-      nom: nomComplet,
-      sexe: _sexe,
-      matiere: '',
-      sections: sections,
-      ville: ecoleData.ville || '',
-      anneesExperience: 0,
-      diplomes: [],
-      avatarUrl: '',
-      bio: '',
-      telephone: phone,
-      contactActif: false,
-      ecoles: ecolesObj,
-      ecolesIdsSecondaire: ecolesIdsSecondaire,
-      ecolesIdsPrimMat: ecolesIdsPrimMat,
-      notesGlobales: {},
-      moyenneGlobale: 0,
-      nombreNotesGlobal: 0,
-      responsables: [auth.currentUser.uid],
-      emailGen: email,
-      motDePasseProvisoire: password,
-      dateCreation: dateNow,
-      actif: true,
-      creePar: 'agent-netubex',
-      avisUtilisateurs: {},
-      moyenneUtilisateurs: 0,
-      nombreAvisUtilisateurs: 0,
-      moyennePonderee: 0
-    });
+    if (role === 'professeur' || role === 'enseignant') {
+      await db.collection('professeurs').doc(uid).set({
+        uid: uid,
+        nom: nomComplet,
+        sexe: _sexe,
+        matiere: '',
+        sections: sections,
+        ville: ecoleData.ville || '',
+        anneesExperience: 0,
+        diplomes: [],
+        avatarUrl: '',
+        bio: '',
+        telephone: phone,
+        contactActif: false,
+        ecoles: ecolesObj,
+        ecolesIdsSecondaire: ecolesIdsSecondaire,
+        ecolesIdsPrimaire: ecolesIdsPrimaire,
+        notesGlobales: {},
+        moyenneGlobale: 0,
+        nombreNotesGlobal: 0,
+        responsables: [auth.currentUser.uid],
+        emailGen: email,
+        motDePasseProvisoire: password,
+        dateCreation: dateNow,
+        actif: true,
+        creePar: 'agent-netubex',
+        avisUtilisateurs: {},
+        moyenneUtilisateurs: 0,
+        nombreAvisUtilisateurs: 0,
+        moyennePonderee: 0
+      });
+    }
 
     if (role === 'prefet' || role === 'directeur') {
       const prefets = ecoleData.prefets || [];
@@ -929,6 +932,7 @@ async function inscrireEcole(e) {
       codeEcoleActif: true,
       codeEcoleDateCreation: dateNow,
       codeEcoleDateRotation: null,
+      elevesCount: 0,
       prefets: [],
       prefetPrincipal: null,
       dateCreation: dateNow,
