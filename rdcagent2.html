@@ -315,7 +315,7 @@ textarea{resize:none}
       </div>
 
       <div class="field">
-        <label>Description</label>
+        <label>Description du commerce</label>
         <textarea id="description" rows="3" maxlength="300" placeholder="Décrivez votre commerce…"></textarea>
       </div>
 
@@ -354,7 +354,7 @@ textarea{resize:none}
 
       <div class="section-title"><i class="fa-solid fa-box"></i> Produits (optionnel)</div>
 
-      <div class="helper" style="margin-bottom:10px"><i class="fa-solid fa-circle-info"></i> Ajoutez jusqu'à <strong>20 produits</strong>. Nom, prix, unité, <strong>image obligatoire</strong>, description. Vous pourrez en ajouter plus tard dans l'app.</div>
+      <div class="helper" style="margin-bottom:10px"><i class="fa-solid fa-circle-info"></i> Ajoutez jusqu'à <strong>20 produits</strong>. Nom, prix, unité, catégorie, <strong>image obligatoire</strong>.</div>
       <div class="product-counter" id="productCounter">0 / 20 produits</div>
 
       <div class="product-list" id="productList"></div>
@@ -460,6 +460,19 @@ secondaryAuth.signOut().catch(() => {});
 const ADMIN_EMAILS = ['equipe@gmail.com', 'ngendaflory2@gmail.com'];
 const IMGBB_API_KEY = '3c7603b68d243e8bbd5fe29e8e54c8ee';
 const MAX_PRODUCTS = 20;
+
+const CATEGORIES_PRODUIT = [
+  { val: 'Alimentation', label: '🍚 Alimentation' },
+  { val: 'Boissons', label: '🥤 Boissons' },
+  { val: 'Farine & Cereales', label: '🌾 Farine & Céréales' },
+  { val: 'Fruits & Legumes', label: '🍎 Fruits & Légumes' },
+  { val: 'Viandes & Poissons', label: '🥩 Viandes & Poissons' },
+  { val: 'Medicaments', label: '💊 Médicaments' },
+  { val: 'Vetements', label: '👗 Vêtements' },
+  { val: 'Cosmetiques', label: '💄 Cosmétiques' },
+  { val: 'Smartphones', label: '📱 Smartphones' },
+  { val: 'Autres', label: '📦 Autres' }
+];
 
 const REPERTOIRE_ADMIN = {
   'Kasumbalesa': {
@@ -828,7 +841,11 @@ function renderProduits() {
   const counter = $('productCounter');
   counter.textContent = `${_produits.length} / ${MAX_PRODUCTS} produits`;
   if (_produits.length === 0) { list.innerHTML = ''; return; }
-  list.innerHTML = _produits.map((p, i) => `
+  list.innerHTML = _produits.map((p, i) => {
+    const optionsCat = CATEGORIES_PRODUIT.map(c =>
+      `<option value="${c.val}" ${p.categorie === c.val ? 'selected' : ''}>${c.label}</option>`
+    ).join('');
+    return `
     <div class="product-item">
       <div class="product-item-header">
         <span class="product-item-num">Produit #${i + 1}</span>
@@ -863,8 +880,11 @@ function renderProduits() {
         </div>
       </div>
       <div class="field" style="margin-bottom:10px">
-        <label style="font-size:10.5px">Description</label>
-        <textarea oninput="updateProduit(${i},'desc',this.value)" rows="2" placeholder="Description du produit…" maxlength="300" style="padding:10px 12px;font-size:14px">${escapeAttr(p.desc)}</textarea>
+        <label style="font-size:10.5px">Catégorie *</label>
+        <select onchange="updateProduit(${i},'categorie',this.value)" style="padding:10px 12px;font-size:14px">
+          <option value="">— Choisir —</option>
+          ${optionsCat}
+        </select>
       </div>
       <div class="product-img-row">
         <div class="product-img-thumb ${!p.img?'missing':''}" onclick="ouvrirImageProduit(${i})">
@@ -876,7 +896,8 @@ function renderProduits() {
         </div>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function escapeAttr(s) {
@@ -885,7 +906,7 @@ function escapeAttr(s) {
 
 function ajouterProduit() {
   if (_produits.length >= MAX_PRODUCTS) return;
-  _produits.push({ nom: '', prix: 0, unite: '', img: '', desc: '' });
+  _produits.push({ nom: '', prix: 0, unite: '', img: '', categorie: '' });
   renderProduits();
   setTimeout(() => {
     const list = $('productList');
@@ -982,6 +1003,7 @@ $('formCommerce').addEventListener('submit', async function(e) {
     const p = _produits[i];
     if (!p.nom || !p.nom.trim()) { showMsg(`Produit #${i + 1} : nom obligatoire.`, 'err'); return; }
     if (!p.prix || p.prix <= 0) { showMsg(`Produit #${i + 1} : prix obligatoire (> 0).`, 'err'); return; }
+    if (!p.categorie) { showMsg(`Produit #${i + 1} : catégorie obligatoire.`, 'err'); return; }
     if (!p.img) { showMsg(`Produit #${i + 1} : image obligatoire.`, 'err'); return; }
   }
 
@@ -998,9 +1020,8 @@ $('formCommerce').addEventListener('submit', async function(e) {
       nom: p.nom.trim(),
       prix: p.prix,
       prixLabel: p.unite || '',
-      categorie: 'Autres',
+      categorie: p.categorie,
       img: p.img,
-      desc: p.desc || '',
       statut: 'approuve',
       dateAjout: now,
       ajouteParDirection: true
