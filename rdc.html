@@ -1125,7 +1125,10 @@ body.dark-mode .fb-post-bloque-overlay{background:rgba(17,24,39,0.9)}
 <div><label style="display:block;font-size:13px;font-weight:800;color:var(--text-secondary);text-transform:uppercase;margin-bottom:6px">Ville</label>
 <button type="button" class="custom-select-trigger-btn" onclick="ouvrirCustomSelect('commerceVille')" style="padding:14px 16px;"><span id="labelFilterCommerceVille">📍 Kasumbalesa</span><i class="fa-solid fa-chevron-down" style="color:var(--text-muted);font-size:12px;"></i></button>
 </div>
-<div><label style="display:block;font-size:13px;font-weight:800;color:var(--text-secondary);text-transform:uppercase;margin-bottom:6px">Quartier</label><input type="text" id="filterCommerceQuartier" class="form-input-3d" placeholder="Ex: Gombe..." oninput="filtrerCommerces()" style="padding:12px 14px;font-size:15px"></div>
+<div><label style="display:block;font-size:13px;font-weight:800;color:var(--text-secondary);text-transform:uppercase;margin-bottom:6px">Quartier</label>
+<button type="button" class="custom-select-trigger-btn" onclick="ouvrirCustomSelect('filterCommerceQuartier')" style="padding:14px 16px;"><span id="labelFilterCommerceQuartier">📍 Tous les quartiers</span><i class="fa-solid fa-chevron-down" style="color:var(--text-muted);font-size:12px;"></i></button>
+<input type="hidden" id="filterCommerceQuartier" value="">
+</div>
 </div>
 </div>
 <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px"><div><h2 style="font-size:20px;font-weight:900;color:var(--text-primary);margin:0">Établissements Actifs</h2><p style="font-size:14px;color:var(--text-muted);margin-top:3px" id="commercesCount">0 établissement</p></div></div>
@@ -1542,6 +1545,10 @@ body.dark-mode .fb-post-bloque-overlay{background:rgba(17,24,39,0.9)}
 <button class="modal-simple-close" onclick="fermerAjouterProduit()"><i class="fa-solid fa-xmark"></i></button>
 <div class="modal-simple-icon modal-icon-blue"><i class="fa-solid fa-plus"></i></div>
 <h2 class="modal-simple-title">Ajouter un produit</h2>
+<div style="padding:10px 12px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;margin-bottom:16px;font-size:11.5px;color:#1e40af;line-height:1.5;text-align:left">
+  <i class="fa-solid fa-circle-info"></i> <strong>Limite : 50 produits max.</strong> Recommandé : 10 produits/jour.<br>
+  <i class="fa-solid fa-camera"></i> <strong>Conseil photo :</strong> utilisez des photos claires, bien éclairées et de bonne qualité pour inspirer confiance à vos clients.
+</div>
 <div style="display:flex;justify-content:center;gap:8px;margin-bottom:20px"><div id="prodStepDot1" style="width:10px;height:10px;border-radius:50%;background:#2563EB;transition:all .3s"></div><div id="prodStepDot2" style="width:10px;height:10px;border-radius:50%;background:#cbd5e1;transition:all .3s"></div></div>
 <div class="modal-simple-form">
 <div id="prodStep1">
@@ -1850,6 +1857,45 @@ window.signOutRef=signOut;
 window.signInWithEmailAndPasswordRef=signInWithEmailAndPassword;
 window.createUserWithEmailAndPasswordRef=createUserWithEmailAndPassword;
 window.updatePasswordRef=updatePassword;
+const PUBLITIO_IMG_PRESET="cbnwpcbP";
+const PUBLITIO_IMG_UPLOAD="https://api.publit.io/v1/files/create/"+PUBLITIO_IMG_PRESET;
+const PUBLITIO_IMG_DOMAIN="FloryNgenda";
+const IMG_ANNONCE_MAX_MB=5;
+function uploadAnnonceToPublitio(file){
+  return new Promise(function(resolve,reject){
+    if(!file)return reject(new Error('Aucun fichier'));
+    if(!/^image\//.test(file.type))return reject(new Error('Format image requis'));
+    if(file.size>IMG_ANNONCE_MAX_MB*1024*1024)return reject(new Error('Image trop lourde (max '+IMG_ANNONCE_MAX_MB+' Mo)'));
+    var xhr=new XMLHttpRequest();
+    var fd=new FormData();
+    fd.append('file',file);
+    xhr.onload=function(){
+      if(xhr.status<200||xhr.status>=300)return reject(new Error('Upload refusé (HTTP '+xhr.status+')'));
+      try{
+        var raw=JSON.parse(xhr.responseText);
+        if(raw&&raw.success===false){
+          var em=(raw.error&&raw.error.message)||'Erreur Publitio';
+          return reject(new Error('Publitio : '+em));
+        }
+        var data=(raw&&raw.response)?raw.response:raw;
+        var pid=data.id||data.publitio_id||null;
+        var ext=(file.type==='image/png')?'png':(file.type==='image/webp')?'webp':'jpg';
+        var imageUrl=pid?('https://'+PUBLITIO_IMG_DOMAIN+'.publit.io/file/'+pid+'.'+ext):null;
+        if(!pid||!imageUrl)return reject(new Error('Réponse Publitio incomplète'));
+        resolve({publitioId:pid,imageUrl:imageUrl});
+      }catch(e){reject(new Error('Réponse Publitio invalide'));}
+    };
+    xhr.onerror=function(){reject(new Error('Erreur réseau'));};
+    xhr.open('POST',PUBLITIO_IMG_UPLOAD);
+    xhr.send(fd);
+  });
+}
+window.uploadImageAnnonce=async function(file){
+  if(!file)throw new Error('Aucun fichier');
+  var compressed=await window.picrd.compress(file,600,0.70);
+  var result=await uploadAnnonceToPublitio(compressed);
+  return result.imageUrl||'';
+};
 window.changerMonMotDePasse=async function(nouveauMdp){
 try{var user=auth.currentUser;if(!user)throw new Error('Non connecté');if(!nouveauMdp||nouveauMdp.length<6||nouveauMdp.length>15)throw new Error('6 à 15 caractères requis');await updatePassword(user,nouveauMdp);await updateDoc(doc(db,'netubers',user.uid),{code:nouveauMdp});if(window.CURRENT_ACCOUNT){window.CURRENT_ACCOUNT.code=nouveauMdp;window.setCurrentAccount(window.CURRENT_ACCOUNT);try{await window.setStored(window.STORES.account,'current',window.CURRENT_ACCOUNT);}catch(e){}try{localStorage.setItem('ntx_account_backup',JSON.stringify(window.CURRENT_ACCOUNT));}catch(e){}}return{success:true};}catch(e){throw e;}
 };
@@ -1910,7 +1956,6 @@ window.chargerAnnoncesFirestore=async function(forceRefresh){
 if(!forceRefresh){var cached=await getCachedListAvecTs('cache_annonces',30*60*1000);if(cached&&Array.isArray(cached)&&cached.length>0)return cached;}
 try{var snap=await getDocs(collection(db,'annonces'));var annonces=[];snap.forEach(function(d){var data=d.data();if(data.actif===false)return;if(data.statut==='refuse')return;if(data.statut==='en_attente')return;if(data.statut&&data.statut!=='approuve')return;if(data.statut==='approuve'&&data.dateExpiration){var exp=new Date(data.dateExpiration).getTime();if(!isNaN(exp)&&exp<Date.now())return;}else if(data.statut==='approuve'&&data.dateCreation){var datePub=new Date(data.dateCreation).getTime();var ageMs=Date.now()-datePub;var limiteMs=30*24*60*60*1000;if(ageMs>limiteMs)return;}if(!data.quartier){data.ville='Kasumbalesa';data.commune='Musoshi';data.quartier='Village';}var nomPublieur=data.publieurNom||'Utilisateur NeTubeX';var typePublieur=data.publieurType||'user';var imagesArr=Array.isArray(data.images)&&data.images.length>0?data.images:(data.img?[data.img]:[]);var imgPrincipale=imagesArr[0]||data.img||'';annonces.push({id:d.id,annonceId:d.id,title:data.titre||'',name:nomPublieur,initials:nomPublieur.substring(0,2).toUpperCase(),avatar:data.publieurAvatar||'',location:data.ville||'',commune:data.commune||'',quartier:data.quartier||'',dateCreation:data.dateCreation||'',time:data.dateCreation?new Date(data.dateCreation).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}):'Récemment',price:data.prix||'',priceClass:data.tagClass||'post-tag-autre',desc:data.desc||'',img:imgPrincipale,images:imagesArr,cat:normCat(data.cat||'autre'),catRaw:data.cat||'',tag:data.tag||'',tagClass:data.tagClass||'post-tag-autre',unlock:true,urgence:false,publieurType:typePublieur,publieurUid:data.proprietaireUid||null,publieurBoutique:data.publieurBoutique||null,publieurPhone:data.publieurPhone||'',isCommerce:typePublieur==='commerce',vues:data.vues||0,publieurParrainage:data.publieurParrainage||null,publieurSexe:data.publieurSexe||'',jobType:data.jobType||null,sousTypeImmo:data.sousTypeImmo||null,badgeConfiance:data.badgeConfiance===true,dateExpiration:data.dateExpiration||null});});annonces.sort(function(a,b){return(b.dateCreation||'').localeCompare(a.dateCreation||'');});await setCachedListAvecTs('cache_annonces',annonces);return annonces;}catch(e){var cached=await getCachedList('cache_annonces');return cached||[];}
 };
-window.uploadImageAnnonce=async function(file){if(!file)throw new Error('Aucun fichier');var compressed=await window.picrd.compress(file,600,0.70);var result=await window.picrd.upload(compressed);return result.image_url||'';};
 window.creerAnnonce=async function(data,coordonnees,paiement){
 if(!window.CURRENT_ACCOUNT_REF)throw new Error('Non connecté');
 if(!auth.currentUser)throw new Error('Session expirée');
@@ -2223,6 +2268,8 @@ var _appActive=true;
 var INACTIVITE_DELAI_MS=60*1000;
 var _produitEnAttente=null;
 var LIMITE_PRODUITS_VISITEUR=3;
+var LIMITE_PRODUITS_MAX=50;
+var LIMITE_PRODUITS_RECOMMANDES_JOUR=10;
 var _derniereInteractionScroll=Date.now();
 var _reseauPage=0;
 var RESEAU_PROFS_PAR_PAGE=10;
@@ -2610,6 +2657,15 @@ if(type==='commerceVille'){title.textContent='Choisir une ville';options=[{val:'
 else if(type==='accVille'||type==='zoneVille'){title.textContent='Ville';options=[{val:'',label:'— Choisir une ville —'},{val:'Kasumbalesa',label:'Kasumbalesa (ACTIF)'},{val:'Lubumbashi',label:'Lubumbashi (BIENTÔT)'},{val:'Kinshasa',label:'Kinshasa (BIENTÔT)'}];var elV=document.getElementById(type);currentVal=elV?elV.value:'';}
 else if(type==='accCommune'||type==='zoneCommune'){title.textContent='Commune';var inpVilleId=(type==='accCommune')?'accVille':'zoneVille';var ville=(document.getElementById(inpVilleId)||{}).value||'';options=[];var communes=getCommunesPourVille(ville);if(communes.length>0){communes.forEach(function(c){options.push({val:c,label:c});});}else{options=[{val:'',label:'Sélectionnez d\'abord une ville active'}];}var elCm=document.getElementById(type);currentVal=elCm?elCm.value:'';}
 else if(type==='accQuartier'||type==='zoneQuartier'){title.textContent='Quartier';var inpVilleId2=(type==='accQuartier')?'accVille':'zoneVille';var inpCommuneId=(type==='accQuartier')?'accCommune':'zoneCommune';var ville2=(document.getElementById(inpVilleId2)||{}).value||'';var commune2=(document.getElementById(inpCommuneId)||{}).value||'';options=[];var quartiers=getQuartiersPourCommune(ville2,commune2);if(quartiers.length>0){quartiers.forEach(function(q){options.push({val:q,label:q});});}else{options=[{val:'',label:'Sélectionnez d\'abord une commune'}];}var elQ=document.getElementById(type);currentVal=elQ?elQ.value:'';}
+else if(type==='filterCommerceQuartier'){
+  title.textContent='Filtrer par quartier';
+  var villeF=_selectedCommerceVille||'Kasumbalesa';
+  options=[{val:'',label:'📍 Tous les quartiers'}];
+  var communesF=getCommunesPourVille(villeF);
+  communesF.forEach(function(cm){var quartiersF=getQuartiersPourCommune(villeF,cm);quartiersF.forEach(function(qt){options.push({val:qt,label:qt+' ('+cm+')'});});});
+  var elFQ=document.getElementById('filterCommerceQuartier');
+  currentVal=elFQ?elFQ.value:'';
+}
 else if(type==='publishVille'){title.textContent='Ville';options=[{val:'',label:'— Choisir une ville —'},{val:'Kinshasa',label:'Kinshasa'},{val:'Lubumbashi',label:'Lubumbashi'},{val:'Kasumbalesa',label:'Kasumbalesa'}];currentVal=document.getElementById('publishVille')?document.getElementById('publishVille').value:'';}
 else if(type==='supportType'){title.textContent='Type de problème';options=[{val:'Paiement non validé',label:'Paiement non validé'},{val:'Problème déblocage',label:'Problème déblocage'},{val:'Annonce suspecte',label:'Annonce suspecte'},{val:'Bug technique',label:'Bug technique'},{val:'Autre',label:'Autre'}];currentVal=document.getElementById('supportType')?document.getElementById('supportType').value:'';}
 else if(type==='prodPrixLabel'||type==='nouveauPrixLabel'){title.textContent='Unité';options=[{val:'',label:'— Sans —'},{val:'/ pièce',label:'/ pièce'},{val:'/ kg',label:'/ kg'},{val:'/ sac',label:'/ sac'},{val:'/ bouteille',label:'/ bouteille'},{val:'/ pack',label:'/ pack'},{val:'/ lot',label:'/ lot'},{val:'/ carton',label:'/ carton'},{val:'autre',label:'✏️ Autre unité…'}];currentVal=document.getElementById(type)?document.getElementById(type).value:'';}
@@ -2622,7 +2678,8 @@ list.innerHTML=options.map(function(opt){var isSelected=opt.val===currentVal?'se
 function fermerCustomSelect(){document.getElementById('customSelectOverlay').classList.remove('active');document.getElementById('customSelectModal').classList.remove('active');}
 function choisirCustomOption(val){
 if(_currentSelectType==='commerceType'){_selectedCommerceType=val;var labelType='🏪 Tous les types';if(val){var opt=TYPES_COMMERCES.find(function(t){return t.val===val;});if(opt)labelType=opt.label;}document.getElementById('labelFilterCommerceType').textContent=labelType;filtrerCommerces();}
-else if(_currentSelectType==='commerceVille'){_selectedCommerceVille=val;document.getElementById('labelFilterCommerceVille').textContent='📍 '+val;filtrerCommerces();}
+else if(_currentSelectType==='commerceVille'){_selectedCommerceVille=val;document.getElementById('labelFilterCommerceVille').textContent='📍 '+val;var hiddenQ=document.getElementById('filterCommerceQuartier');if(hiddenQ)hiddenQ.value='';var lblQ=document.getElementById('labelFilterCommerceQuartier');if(lblQ)lblQ.textContent='📍 Tous les quartiers';filtrerCommerces();}
+else if(_currentSelectType==='filterCommerceQuartier'){var inpFQ=document.getElementById('filterCommerceQuartier');if(inpFQ)inpFQ.value=val;var lblFQ=document.getElementById('labelFilterCommerceQuartier');if(lblFQ){lblFQ.textContent=val?'📍 '+val:'📍 Tous les quartiers';}filtrerCommerces();}
 else if(_currentSelectType==='inscType'){var inp=document.getElementById('inscType');if(inp)inp.value=val;var labelEl=document.getElementById('labelInscType');if(labelEl){if(val===''){labelEl.textContent='🏪 Choisir un type';}else{var opt2=TYPES_COMMERCES.find(function(t){return t.val===val;});labelEl.textContent=opt2?opt2.label:val;}}}
 else if(_currentSelectType==='inscVille'){var inpV=document.getElementById('inscVille');if(inpV)inpV.value=val;var lv=document.getElementById('labelInscVille');if(lv){if(val==='')lv.textContent='📍 Choisir une ville';else lv.textContent='📍 '+val;}}
 else if(_currentSelectType==='accVille'||_currentSelectType==='zoneVille'){var inpAV=document.getElementById(_currentSelectType);if(inpAV)inpAV.value=val;var lAV=document.getElementById(_currentSelectType==='accVille'?'labelAccVille':'labelZoneVille');var lAV2=document.getElementById(_currentSelectType==='accVille'?'labelAccVille2':'labelZoneVille2');if(lAV){if(val==='')lAV.textContent='📍 Choisir une ville';else lAV.textContent='📍 '+val;}if(lAV2){if(val==='')lAV2.textContent='📍 Choisir une ville';else lAV2.textContent='📍 '+val;}var hC=document.getElementById(_currentSelectType==='accVille'?'accCommune':'zoneCommune');if(hC)hC.value='';var lC=document.getElementById(_currentSelectType==='accVille'?'labelAccCommune':'labelZoneCommune');var lC2=document.getElementById(_currentSelectType==='accVille'?'labelAccCommune2':'labelZoneCommune2');if(lC)lC.textContent='🏘️ Choisir une commune';if(lC2)lC2.textContent='🏘️ Choisir une commune';var hQ=document.getElementById(_currentSelectType==='accVille'?'accQuartier':'zoneQuartier');if(hQ)hQ.value='';var lQ=document.getElementById(_currentSelectType==='accVille'?'labelAccQuartier':'labelZoneQuartier');var lQ2=document.getElementById(_currentSelectType==='accVille'?'labelAccQuartier2':'labelZoneQuartier2');if(lQ)lQ.textContent='📍 Choisir un quartier';if(lQ2)lQ2.textContent='📍 Choisir un quartier';}
@@ -2883,7 +2940,12 @@ async function chargerCompteurSuppressions(){var today=getTodayKey();var key='su
 async function incrementerSuppressions(){var today=getTodayKey();var key='suppressions_'+getUserId();if(SUPPRESSIONS_DATE!==today){SUPPRESSIONS_JOUR=0;SUPPRESSIONS_DATE=today;}SUPPRESSIONS_JOUR++;await idbSet('stats',key,{date:today,count:SUPPRESSIONS_JOUR});}
 function renderCompteurSuppressions(){var el=document.getElementById('catDelCounter');if(!el)return;el.textContent='🗑️ '+SUPPRESSIONS_JOUR+' / '+SUPPRESSIONS_MAX;}
 function renderCataloguePage(){var liste=document.getElementById('catListe');if(!liste)return;renderCompteurSuppressions();if(!CATALOGUE_FULL||CATALOGUE_FULL.length===0){liste.innerHTML='<div class="cat-empty"><div class="cat-empty-icon">📦</div><div class="cat-empty-title">Catalogue vide</div><div class="cat-empty-desc">Ajoutez vos premiers produits.</div></div>';return;}liste.innerHTML=CATALOGUE_FULL.map(function(p,gi){var statut=p.statut||'en_attente';var badge='';if(statut==='approuve')badge='<span class="cat-item-badge approuve"><i class="fa-solid fa-check"></i> Publié</span>';else if(statut==='en_attente')badge='<span class="cat-item-badge en_attente">⏳ En attente</span>';else if(statut==='refuse')badge='<span class="cat-item-badge refuse">❌ Refusé</span>';var actions='<div class="cat-item-actions">';if(statut!=='refuse')actions+='<button class="cat-action-btn cat-action-edit" onclick="event.stopPropagation();ouvrirChangerPrix(\''+esc(p.nom||'')+'\','+gi+')"><i class="fa-solid fa-pen"></i></button>';var dis=(SUPPRESSIONS_JOUR>=SUPPRESSIONS_MAX)?'disabled':'';actions+='<button class="cat-action-btn cat-action-delete" '+dis+' onclick="event.stopPropagation();ouvrirSupprimerProduit(\''+esc(p.nom||'')+'\','+gi+')"><i class="fa-solid fa-'+(SUPPRESSIONS_JOUR>=SUPPRESSIONS_MAX?'lock':'trash')+'"></i></button>';actions+='</div>';var thumb=p.img?'<img src="'+esc(p.img)+'" onerror="this.parentElement.textContent=\'📦\'">':'📦';return'<div class="cat-item"><div class="cat-item-thumb">'+thumb+'</div><div class="cat-item-info"><div class="cat-item-name">'+esc(p.nom||'Sans nom')+'</div><div class="cat-item-price">'+Number(p.prix||0).toLocaleString('fr-FR')+' FC '+(p.prixLabel||'')+'</div>'+badge+'</div>'+actions+'</div>';}).join('');}
-function ouvrirAjouterProduit(){if(!CATALOGUE_COMMERCE_ID){showToast('Catalogue non chargé');return;}var estReservation=commerceUtiliseReservation(CURRENT_COMMERCE?CURRENT_COMMERCE.type:'');var estHotel=estHotelOuHebergement(CURRENT_COMMERCE?CURRENT_COMMERCE.type:'');document.getElementById('prodNom').value='';document.getElementById('prodPrix').value='';document.getElementById('prodPrixLabel').value='';var autEl=document.getElementById('prodPrixLabelAutre');if(autEl){autEl.value='';autEl.style.display='none';}document.getElementById('prodCategorie').value='';_produitImageData=null;var prev=document.getElementById('prodImagePreview');if(prev)prev.style.display='none';document.getElementById('prodStep1').style.display='block';document.getElementById('prodStep2').style.display='none';document.getElementById('prodStepDot1').style.background='#2563EB';document.getElementById('prodStepDot2').style.background='#cbd5e1';var blocNormal=document.getElementById('prodFieldsStandard');var blocResa=document.getElementById('prodFieldsHotel');var titreBloc=document.getElementById('prodBlocTitre');var labelNom=document.getElementById('prodChambreNomLabel');if(estReservation){if(blocNormal)blocNormal.style.display='none';if(blocResa)blocResa.style.display='block';if(titreBloc)titreBloc.textContent=estHotel?'Remplissez les informations de la chambre.':'Remplissez les informations du logement.';if(labelNom)labelNom.textContent=estHotel?'Nom de la chambre *':'Nom du logement *';var inpNom=document.getElementById('prodChambreNom');if(inpNom)inpNom.placeholder=estHotel?'Ex: Chambre Double Deluxe':'Ex: Appartement 2 chambres — Gombe';document.getElementById('prodChambreNom').value='';document.getElementById('prodChambreTarifType').value='/ nuit';document.getElementById('prodChambrePrix').value='';document.getElementById('prodChambreCapacite').value='';document.getElementById('prodChambreEquipements').value='';document.getElementById('prodChambreDesc').value='';}else{if(blocNormal)blocNormal.style.display='block';if(blocResa)blocResa.style.display='none';}document.getElementById('ajouterProduitModal').classList.add('active');}
+function ouvrirAjouterProduit(){if(!CATALOGUE_COMMERCE_ID){showToast('Catalogue non chargé');return;}
+  if(CATALOGUE_FULL && CATALOGUE_FULL.length >= LIMITE_PRODUITS_MAX){
+    showToast('Limite de '+LIMITE_PRODUITS_MAX+' produits atteinte. Supprimez un produit pour en ajouter un nouveau.');
+    return;
+  }
+  var estReservation=commerceUtiliseReservation(CURRENT_COMMERCE?CURRENT_COMMERCE.type:'');var estHotel=estHotelOuHebergement(CURRENT_COMMERCE?CURRENT_COMMERCE.type:'');document.getElementById('prodNom').value='';document.getElementById('prodPrix').value='';document.getElementById('prodPrixLabel').value='';var autEl=document.getElementById('prodPrixLabelAutre');if(autEl){autEl.value='';autEl.style.display='none';}document.getElementById('prodCategorie').value='';_produitImageData=null;var prev=document.getElementById('prodImagePreview');if(prev)prev.style.display='none';document.getElementById('prodStep1').style.display='block';document.getElementById('prodStep2').style.display='none';document.getElementById('prodStepDot1').style.background='#2563EB';document.getElementById('prodStepDot2').style.background='#cbd5e1';var blocNormal=document.getElementById('prodFieldsStandard');var blocResa=document.getElementById('prodFieldsHotel');var titreBloc=document.getElementById('prodBlocTitre');var labelNom=document.getElementById('prodChambreNomLabel');if(estReservation){if(blocNormal)blocNormal.style.display='none';if(blocResa)blocResa.style.display='block';if(titreBloc)titreBloc.textContent=estHotel?'Remplissez les informations de la chambre.':'Remplissez les informations du logement.';if(labelNom)labelNom.textContent=estHotel?'Nom de la chambre *':'Nom du logement *';var inpNom=document.getElementById('prodChambreNom');if(inpNom)inpNom.placeholder=estHotel?'Ex: Chambre Double Deluxe':'Ex: Appartement 2 chambres — Gombe';document.getElementById('prodChambreNom').value='';document.getElementById('prodChambreTarifType').value='/ nuit';document.getElementById('prodChambrePrix').value='';document.getElementById('prodChambreCapacite').value='';document.getElementById('prodChambreEquipements').value='';document.getElementById('prodChambreDesc').value='';}else{if(blocNormal)blocNormal.style.display='block';if(blocResa)blocResa.style.display='none';}document.getElementById('ajouterProduitModal').classList.add('active');}
 function prodStepSuivant(){var estReservation=commerceUtiliseReservation(CURRENT_COMMERCE?CURRENT_COMMERCE.type:'');if(estReservation){var nom=document.getElementById('prodChambreNom').value.trim();var prix=parseInt(document.getElementById('prodChambrePrix').value,10);if(!nom){showToast('Saisissez le nom');return;}if(!prix||prix<=0){showToast('Prix invalide');return;}}else{var nom2=document.getElementById('prodNom').value.trim();var prix2=parseInt(document.getElementById('prodPrix').value,10);if(!nom2){showToast('Saisissez le nom');return;}if(!prix2||prix2<=0){showToast('Prix invalide');return;}if(document.getElementById('prodPrixLabel').value==='autre'&&!document.getElementById('prodPrixLabelAutre').value.trim()){showToast('Précisez l\'unité');return;}}document.getElementById('prodStep1').style.display='none';document.getElementById('prodStep2').style.display='block';document.getElementById('prodStepDot1').style.background='#cbd5e1';document.getElementById('prodStepDot2').style.background='#2563EB';}
 function prodStepPrecedent(){document.getElementById('prodStep2').style.display='none';document.getElementById('prodStep1').style.display='block';document.getElementById('prodStepDot2').style.background='#cbd5e1';document.getElementById('prodStepDot1').style.background='#2563EB';}
 function fermerAjouterProduit(){document.getElementById('ajouterProduitModal').classList.remove('active');_produitImageData=null;}
@@ -2904,6 +2966,7 @@ var snap=await window.getDocRef(ref);
 if(!snap.exists()){showToast('Introuvable');return;}
 var data=snap.data();
 var produits=Array.isArray(data.produits)?data.produits:[];
+if(produits.length >= LIMITE_PRODUITS_MAX){showToast('Limite de '+LIMITE_PRODUITS_MAX+' produits atteinte pour ce commerce.');if(btn){btn.disabled=false;btn.innerHTML='Ajouter';}return;}
 var imgUrl=_produitImageData;
 try{if(window.picrd&&window.picrd.compressAndUpload){var blob=await fetch(_produitImageData).then(function(r){return r.blob();});var file=new File([blob],'p'+Date.now()+'.webp',{type:'image/webp'});var result=await window.picrd.compressAndUpload(file);if(result&&result.image_url)imgUrl=result.image_url;}}catch(e){}
 var nouveauProduit={nom:nom,prix:prix,prixLabel:unit,categorie:cat,img:imgUrl,statut:'en_attente',dateAjout:new Date().toISOString()};
