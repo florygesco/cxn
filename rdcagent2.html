@@ -37,9 +37,6 @@ textarea{resize:none}
 .btn{width:100%;padding:16px;border-radius:14px;font-size:15px;font-weight:900;border:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:9px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;margin-top:10px;box-shadow:0 8px 24px rgba(16,185,129,.35);transition:all .2s ease;position:relative;z-index:1;letter-spacing:.2px}
 .btn:active{transform:scale(.98)}
 .btn:disabled{opacity:.65;cursor:not-allowed;box-shadow:none}
-.btn-gray{background:#f1f5f9;color:#475569;box-shadow:none;border:1.5px solid #e2e8f0}
-.btn-row{display:flex;gap:10px;margin-top:10px;position:relative;z-index:1}
-.btn-row .btn{flex:1;margin-top:0}
 .msg{padding:13px 15px;border-radius:11px;font-size:13px;font-weight:700;text-align:center;margin-bottom:16px;display:none;line-height:1.55;position:relative;z-index:1}
 .msg.err{background:#fef2f2;border:1.5px solid #fca5a5;color:#991b1b;display:block}
 .msg.ok{background:#ecfdf5;border:1.5px solid #a7f3d0;color:#065f46;display:block}
@@ -178,7 +175,7 @@ textarea{resize:none}
 
   <div id="msg" class="msg"></div>
 
-  <div id="panelGérant" class="panel active">
+  <div id="panelGerant" class="panel active">
     <h2 style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:14px;text-align:center">Étape 1 — Compte du gérant</h2>
 
     <form id="formGerant">
@@ -205,7 +202,7 @@ textarea{resize:none}
           <input type="tel" id="gerantPhone" required maxlength="9" inputmode="numeric" pattern="[0-9]{9}" placeholder="97 000 00 00">
         </div>
         <div class="helper"><i class="fa-solid fa-circle-info"></i> Ce numéro servira pour la connexion du gérant.</div>
-        <div id="gerantExistantInfo" class="helper-warn" style="display:none"><i class="fa-solid fa-triangle-exclamation"></i> <span>Un compte existe déjà avec ce numéro. Le commerce sera rattaché à ce compte.</span></div>
+        <div id="gerantExistantInfo" class="helper-warn" style="display:none"><i class="fa-solid fa-triangle-exclamation"></i> <span>Un compte existe déjà avec ce numéro. Le commerce sera rattaché à ce compte et le rôle actuel sera conservé.</span></div>
       </div>
       <div class="field" id="gerantPasswordField">
         <label>Mot de passe initial *</label>
@@ -357,8 +354,8 @@ textarea{resize:none}
 
       <div class="section-title"><i class="fa-solid fa-box"></i> Produits (optionnel)</div>
 
-      <div class="helper" style="margin-bottom:10px"><i class="fa-solid fa-circle-info"></i> Ajoutez jusqu'à <strong>25 produits</strong> dès maintenant. Chaque produit doit avoir une <strong>image obligatoire</strong>. Vous pourrez en ajouter plus tard dans l'app.</div>
-      <div class="product-counter" id="productCounter">0 / 25 produits</div>
+      <div class="helper" style="margin-bottom:10px"><i class="fa-solid fa-circle-info"></i> Ajoutez jusqu'à <strong>20 produits</strong>. Nom, prix, unité, <strong>image obligatoire</strong>, description. Vous pourrez en ajouter plus tard dans l'app.</div>
+      <div class="product-counter" id="productCounter">0 / 20 produits</div>
 
       <div class="product-list" id="productList"></div>
 
@@ -462,7 +459,7 @@ secondaryAuth.signOut().catch(() => {});
 
 const ADMIN_EMAILS = ['equipe@gmail.com', 'ngendaflory2@gmail.com'];
 const IMGBB_API_KEY = '3c7603b68d243e8bbd5fe29e8e54c8ee';
-const MAX_PRODUCTS = 25;
+const MAX_PRODUCTS = 20;
 
 const REPERTOIRE_ADMIN = {
   'Kasumbalesa': {
@@ -720,13 +717,14 @@ $('formGerant').addEventListener('submit', async function(e) {
     return;
   }
 
+  const btn = e.target.querySelector('button[type="submit"]');
+
   if (!_gerantExistant) {
     if (!password || password.length < 6 || password.length > 15) {
       showMsg('Mot de passe : 6 à 15 caractères.', 'err');
       return;
     }
 
-    const btn = e.target.querySelector('button[type="submit"]');
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Création du compte…';
 
@@ -786,26 +784,7 @@ $('formGerant').addEventListener('submit', async function(e) {
       }
 
       _gerantUid = uid;
-      const container = $('panelCommerce');
-      const pwdFieldContainer = container.querySelector('.gerant-summary') || (function() {
-        const div = document.createElement('div');
-        div.className = 'gerant-summary';
-        div.style.cssText = 'padding:12px 14px;background:#ecfdf5;border:1.5px solid #a7f3d0;border-radius:12px;margin-bottom:16px;font-size:12.5px;color:#065f46;font-weight:700;position:relative;z-index:1';
-        div.innerHTML = `<i class="fa-solid fa-user-check"></i> Gérant : ${nomComplet} · +243${phoneRaw}`;
-        container.insertBefore(div, container.firstChild.nextSibling);
-        return div;
-      })();
-      pwdFieldContainer.innerHTML = `<i class="fa-solid fa-user-check"></i> Gérant : ${nomComplet} · +243${phoneRaw}`;
-
-      $('panelGérant').classList.remove('active');
-      $('panelCommerce').classList.add('active');
-      $('stepCircle1').classList.remove('active');
-      $('stepCircle1').classList.add('done');
-      $('stepCircle1').innerHTML = '<i class="fa-solid fa-check"></i>';
-      $('stepLabel1').classList.remove('active');
-      $('stepCircle2').classList.add('active');
-      $('stepLabel2').classList.add('active');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      passerEtape2(nomComplet, phoneRaw, _gerantExistant);
 
     } catch (err) {
       let txt = 'Erreur : ' + (err.message || 'inconnue');
@@ -817,28 +796,32 @@ $('formGerant').addEventListener('submit', async function(e) {
       btn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> Continuer vers le commerce';
     }
   } else {
-    const container = $('panelCommerce');
-    const nomComplet = nom + ' ' + prenom;
-    let summary = container.querySelector('.gerant-summary');
-    if (!summary) {
-      summary = document.createElement('div');
-      summary.className = 'gerant-summary';
-      summary.style.cssText = 'padding:12px 14px;background:#ecfdf5;border:1.5px solid #a7f3d0;border-radius:12px;margin-bottom:16px;font-size:12.5px;color:#065f46;font-weight:700;position:relative;z-index:1';
-      container.insertBefore(summary, container.firstChild.nextSibling);
-    }
-    summary.innerHTML = `<i class="fa-solid fa-user-check"></i> Gérant existant : ${nomComplet} · +243${phoneRaw}`;
-
-    $('panelGérant').classList.remove('active');
-    $('panelCommerce').classList.add('active');
-    $('stepCircle1').classList.remove('active');
-    $('stepCircle1').classList.add('done');
-    $('stepCircle1').innerHTML = '<i class="fa-solid fa-check"></i>';
-    $('stepLabel1').classList.remove('active');
-    $('stepCircle2').classList.add('active');
-    $('stepLabel2').classList.add('active');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    passerEtape2(nom + ' ' + prenom, phoneRaw, true);
   }
 });
+
+function passerEtape2(nomComplet, phoneRaw, existant) {
+  const container = $('panelCommerce');
+  let summary = container.querySelector('.gerant-summary');
+  if (!summary) {
+    summary = document.createElement('div');
+    summary.className = 'gerant-summary';
+    summary.style.cssText = 'padding:12px 14px;background:#ecfdf5;border:1.5px solid #a7f3d0;border-radius:12px;margin-bottom:16px;font-size:12.5px;color:#065f46;font-weight:700;position:relative;z-index:1';
+    container.insertBefore(summary, container.firstChild.nextSibling);
+  }
+  const prefixe = existant ? 'Gérant existant' : 'Gérant';
+  summary.innerHTML = `<i class="fa-solid fa-user-check"></i> ${prefixe} : ${nomComplet} · +243${phoneRaw}`;
+
+  $('panelGerant').classList.remove('active');
+  $('panelCommerce').classList.add('active');
+  $('stepCircle1').classList.remove('active');
+  $('stepCircle1').classList.add('done');
+  $('stepCircle1').innerHTML = '<i class="fa-solid fa-check"></i>';
+  $('stepLabel1').classList.remove('active');
+  $('stepCircle2').classList.add('active');
+  $('stepLabel2').classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
 function renderProduits() {
   const list = $('productList');
@@ -879,12 +862,16 @@ function renderProduits() {
           </select>
         </div>
       </div>
+      <div class="field" style="margin-bottom:10px">
+        <label style="font-size:10.5px">Description</label>
+        <textarea oninput="updateProduit(${i},'desc',this.value)" rows="2" placeholder="Description du produit…" maxlength="300" style="padding:10px 12px;font-size:14px">${escapeAttr(p.desc)}</textarea>
+      </div>
       <div class="product-img-row">
         <div class="product-img-thumb ${!p.img?'missing':''}" onclick="ouvrirImageProduit(${i})">
           ${p.img ? `<img src="${escapeAttr(p.img)}" alt="">` : '<i class="fa-solid fa-camera"></i>'}
         </div>
         <div class="product-img-hint">
-          <div class="product-img-hint-title">Image du produit</div>
+          <div class="product-img-hint-title">Image du produit *</div>
           <div class="product-img-hint-sub ${!p.img?'req':''}">${p.img ? '✅ Image ajoutée — cliquez pour changer' : '⚠️ Obligatoire — cliquez sur la photo'}</div>
         </div>
       </div>
@@ -898,7 +885,7 @@ function escapeAttr(s) {
 
 function ajouterProduit() {
   if (_produits.length >= MAX_PRODUCTS) return;
-  _produits.push({ nom: '', prix: 0, unite: '', img: '' });
+  _produits.push({ nom: '', prix: 0, unite: '', img: '', desc: '' });
   renderProduits();
   setTimeout(() => {
     const list = $('productList');
@@ -916,7 +903,6 @@ window.retirerProduit = retirerProduit;
 function updateProduit(i, key, val) {
   if (!_produits[i]) return;
   _produits[i][key] = val;
-  if (key === 'img') renderProduits();
 }
 window.updateProduit = updateProduit;
 
@@ -947,6 +933,24 @@ $('hiddenProductImageInput').addEventListener('change', async function(e) {
   }
 });
 
+function commerceUtiliseReservation(typeCommerce) {
+  const t = String(typeCommerce || '').toLowerCase();
+  if (t.indexOf('parcelle') !== -1) return false;
+  if (t.indexOf('terrain') !== -1) return false;
+  if (t.indexOf('immobilier') !== -1) return false;
+  if (t.indexOf('vente') !== -1) return false;
+  if (t.indexOf('hôtel') !== -1 || t.indexOf('hotel') !== -1) return true;
+  if (t.indexOf('hébergement') !== -1 || t.indexOf('hebergement') !== -1) return true;
+  if (t.indexOf('logement') !== -1) return true;
+  if (t.indexOf('appartement') !== -1) return true;
+  if (t.indexOf('auberge') !== -1) return true;
+  if (t.indexOf('résidence') !== -1 || t.indexOf('residence') !== -1) return true;
+  if (t.indexOf('studio') !== -1) return true;
+  if (t.indexOf('villa') !== -1) return true;
+  if (t.indexOf('meublé') !== -1 || t.indexOf('meuble') !== -1) return true;
+  return false;
+}
+
 $('formCommerce').addEventListener('submit', async function(e) {
   e.preventDefault();
   $('msg').style.display = 'none';
@@ -972,6 +976,8 @@ $('formCommerce').addEventListener('submit', async function(e) {
   if (!ville || !commune || !quartier) { showMsg('Sélectionnez ville, commune et quartier.', 'err'); return; }
   if (!_gerantUid) { showMsg('Gérant non défini. Recommencez.', 'err'); return; }
 
+  const estReservation = commerceUtiliseReservation(typeCommerce);
+
   for (let i = 0; i < _produits.length; i++) {
     const p = _produits[i];
     if (!p.nom || !p.nom.trim()) { showMsg(`Produit #${i + 1} : nom obligatoire.`, 'err'); return; }
@@ -987,16 +993,24 @@ $('formCommerce').addEventListener('submit', async function(e) {
   const commerceId = 'COM-' + Date.now();
   const now = new Date().toISOString();
 
-  const produitsFinaux = _produits.map(p => ({
-    nom: p.nom.trim(),
-    prix: p.prix,
-    prixLabel: p.unite || '',
-    categorie: 'Autres',
-    img: p.img,
-    statut: 'approuve',
-    dateAjout: now,
-    ajouteParDirection: true
-  }));
+  const produitsFinaux = _produits.map(p => {
+    const base = {
+      nom: p.nom.trim(),
+      prix: p.prix,
+      prixLabel: p.unite || '',
+      categorie: 'Autres',
+      img: p.img,
+      desc: p.desc || '',
+      statut: 'approuve',
+      dateAjout: now,
+      ajouteParDirection: true
+    };
+    if (estReservation) {
+      base.capacite = '';
+      base.equipements = '';
+    }
+    return base;
+  });
 
   const boutiqueData = {
     uid: _gerantUid,
@@ -1028,8 +1042,32 @@ $('formCommerce').addEventListener('submit', async function(e) {
 
   try {
     await db.collection('commerces').doc(commerceId).set(boutiqueData);
-    await db.collection('netubers').doc(_gerantUid).set({ boutique: boutiqueData, role: 'commerce' }, { merge: true });
-    await db.collection('demandes_boutiques').doc('DEM-' + Date.now()).set(Object.assign({}, boutiqueData, { statut: 'approuve', creeParDirection: true }));
+
+    const gerantSnap = await db.collection('netubers').doc(_gerantUid).get();
+    const gerantData = gerantSnap.exists ? gerantSnap.data() : {};
+    const roleActuel = gerantData.role || 'user';
+    const rolesEcole = ['prefet', 'directeur', 'professeur', 'enseignant'];
+    const nouveauRole = rolesEcole.indexOf(roleActuel) !== -1 ? roleActuel : 'commerce';
+
+    await db.collection('netubers').doc(_gerantUid).set({ boutique: boutiqueData, role: nouveauRole }, { merge: true });
+
+    await db.collection('demandes_boutiques').doc('DEM-' + Date.now()).set({
+      nom: nomCommerce,
+      nomCommerce: nomCommerce,
+      type: typeCommerce,
+      ville: ville,
+      commune: commune,
+      quartier: quartier,
+      adresse: adresse,
+      telephone: whatsapp,
+      whatsappCommercial: whatsapp,
+      uid: _gerantUid,
+      img: _commerceImageUrl,
+      statut: 'approuve',
+      dateCreation: now,
+      dateApprobation: now,
+      creeParDirection: true
+    });
 
     try {
       await db.collection('config').doc('app').set({
@@ -1059,7 +1097,7 @@ $('formCommerce').addEventListener('submit', async function(e) {
     $('commerceImageDrop').classList.remove('has-image');
     $('commerceImageDrop').innerHTML = '<div class="image-drop-icon">📷</div><div class="image-drop-title">Ajouter une photo de la face du commerce</div><div class="image-drop-sub">JPG, PNG · Max 10 Mo</div><input type="file" id="commerceImageInput" accept="image/*" style="display:none" onchange="handleCommerceImage(event)">';
     $('panelCommerce').classList.remove('active');
-    $('panelGérant').classList.add('active');
+    $('panelGerant').classList.add('active');
     $('stepCircle1').classList.remove('done');
     $('stepCircle1').classList.add('active');
     $('stepCircle1').innerHTML = '1';
