@@ -855,7 +855,6 @@ const auth = firebase.auth();
 let secondaryApp;
 try{secondaryApp=firebase.app("SecondaryEcole")}catch(e){secondaryApp=firebase.initializeApp(firebaseConfig,"SecondaryEcole")}
 const secondaryAuth = firebase.auth(secondaryApp);
-secondaryAuth.signOut().catch(()=>{});
 
 const ADMIN_EMAILS = ['equipe@gmail.com','ngendaflory2@gmail.com'];
 const IMGBB_API_KEY = '3c7603b68d243e8bbd5fe29e8e54c8ee';
@@ -1211,7 +1210,6 @@ function afficherSucces(titre,desc,infos){
 }
 
 let _currentSelectId=null;
-let _currentSelectTheme='';
 function ouvrirSelect(inputId,titre){
   _currentSelectId=inputId;
   var val=$(inputId).value;
@@ -1281,7 +1279,6 @@ window.fermerSelect=fermerSelect;
 function choisirOption(inputId,val,label){
   var hidden=$(inputId);
   var valueSpan=$(inputId+'Value');
-  var trigger=$(inputId+'Trigger');
   if(hidden)hidden.value=val;
   if(valueSpan){
     valueSpan.textContent=label;
@@ -1322,7 +1319,6 @@ function resetSelect(inputId){
   }
 }
 
-/* COMMERCE */
 var _cSexe='';
 var _cImageUrl='';
 
@@ -1433,6 +1429,7 @@ $('formCommerce').addEventListener('submit',async function(e){
   var nomComplet=nom+' '+prenom;
   var email='243'+phoneRaw+'@gmail.com';
   var mdp=genererMotDePasse();
+  var adminEmail = auth.currentUser ? auth.currentUser.email : 'system';
   try{
     var cred=await secondaryAuth.createUserWithEmailAndPassword(email,mdp);
     var uid=cred.user.uid;
@@ -1446,7 +1443,7 @@ $('formCommerce').addEventListener('submit',async function(e){
       actif:true,avatarUrl:'',role:'commerce',
       ecoleId:null,professeurId:null,
       dateCreation:dateNow,motDePasseProvisoire:true,
-      creePar:firebase.auth().currentUser.email,
+      creePar:adminEmail,
       accesEcole:null,accesEglise:null,roleEglise:null,egliseId:null,
       stats:{deblocages:0,commandes:0,parrainage:0,jetons:0,badges:[]},
       notifications:[],
@@ -1505,7 +1502,6 @@ $('formCommerce').addEventListener('submit',async function(e){
   }
 });
 
-/* ÉCOLE */
 var _eCodeGenere='';
 
 function toggleCodeEcole(){
@@ -1554,6 +1550,7 @@ $('formEcole').addEventListener('submit',async function(e){
   var btn=$('eSubmitBtn');
   btn.disabled=true;
   btn.innerHTML='<i class="fa-solid fa-spinner spinner-btn"></i> Enregistrement…';
+  var adminEmail = auth.currentUser ? auth.currentUser.email : 'system';
   try{
     var exist=await db.collection('ecoles').where('nom','==',nom).limit(1).get();
     if(!exist.empty){alertForm('ecoleAlert','❌ Une école avec ce nom existe déjà');btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-school-circle-plus"></i> Enregistrer l\'école';return}
@@ -1573,7 +1570,7 @@ $('formEcole').addEventListener('submit',async function(e){
       description:description,
       codeEcole:code,codeEcoleActif:true,codeEcoleDateCreation:dateNow,
       elevesCount:0,prefets:[],prefetPrincipal:null,
-      dateCreation:dateNow,creePar:firebase.auth().currentUser.email,actif:true
+      dateCreation:dateNow,creePar:adminEmail,actif:true
     });
     afficherSucces(
       'École enregistrée !',
@@ -1595,7 +1592,6 @@ $('formEcole').addEventListener('submit',async function(e){
   }
 });
 
-/* ÉGLISE */
 var _gCodeGenere='';
 
 function toggleCodeEglise(){
@@ -1645,6 +1641,7 @@ $('formEglise').addEventListener('submit',async function(e){
   var btn=$('gSubmitBtn');
   btn.disabled=true;
   btn.innerHTML='<i class="fa-solid fa-spinner spinner-btn"></i> Création…';
+  var adminEmail = auth.currentUser ? auth.currentUser.email : 'system';
   try{
     var dateNow=new Date().toISOString();
     var codeFideles=_gCodeGenere||genererCodeAcces();
@@ -1667,7 +1664,7 @@ $('formEglise').addEventListener('submit',async function(e){
       responsables:[],
       responsablePrincipal:null,
       dateCreation:dateNow,
-      creePar:firebase.auth().currentUser.email,
+      creePar:adminEmail,
       actif:true
     });
     afficherSucces(
@@ -1690,7 +1687,6 @@ $('formEglise').addEventListener('submit',async function(e){
   }
 });
 
-/* COMPTE */
 var _pSexe='';
 
 function choisirSexeCompte(s){
@@ -1784,6 +1780,7 @@ $('formCompte').addEventListener('submit',async function(e){
   var nomComplet=nom+' '+prenom;
   var email='243'+phoneRaw+'@gmail.com';
   var mdp=genererMotDePasse();
+  var adminEmail = auth.currentUser ? auth.currentUser.email : 'system';
   try{
     var cred=await secondaryAuth.createUserWithEmailAndPassword(email,mdp);
     var uid=cred.user.uid;
@@ -1804,7 +1801,7 @@ $('formCompte').addEventListener('submit',async function(e){
         accesEglise:{egliseId:egliseId,egliseNom:egliseData.nom||'Église',codeUtilise:codeEglise,dateAcces:dateNow},
         ecoleId:null,professeurId:null,
         dateCreation:dateNow,motDePasseProvisoire:true,
-        creePar:firebase.auth().currentUser.email,
+        creePar:adminEmail,
         accesEcole:null,
         stats:{deblocages:0,commandes:0,parrainage:0,jetons:0,badges:[]},
         notifications:[],
@@ -1834,13 +1831,13 @@ $('formCompte').addEventListener('submit',async function(e){
       var ecoleSnap=await db.collection('ecoles').doc(ecoleId).get();
       var ecoleData=ecoleSnap.exists?ecoleSnap.data():{nom:'École',ville:'',commune:'',quartier:''};
       await db.collection('netubers').doc(uid).set({
-        prenom:prenom,nom:nomComplet||(nom+' '+prenom),nomComplet:nomComplet,sexe:_pSexe,
+        prenom:prenom,nom:nom,nomComplet:nomComplet,sexe:_pSexe,
         phone:phone,emailAuth:email,code:mdp,
         ville:ecoleData.ville||'',commune:ecoleData.commune||'',quartier:ecoleData.quartier||'',
         actif:true,avatarUrl:'',role:role,
         ecoleId:ecoleId,professeurId:uid,
         dateCreation:dateNow,motDePasseProvisoire:true,
-        creePar:firebase.auth().currentUser.email,
+        creePar:adminEmail,
         accesEcole:null,accesEglise:null,roleEglise:null,egliseId:null,
         stats:{deblocages:0,commandes:0,parrainage:0,jetons:0,badges:[]},
         notifications:[],
@@ -1854,8 +1851,8 @@ $('formCompte').addEventListener('submit',async function(e){
       ecolesObj[ecoleId]={
         ecoleNom:ecoleData.nom||'École',
         dateAjout:dateNow,dateDebut:dateNow,statut:'approuve',
-        ajoutePar:firebase.auth().currentUser.uid,
-        ajouteParNom:firebase.auth().currentUser.email,
+        ajoutePar:auth.currentUser?auth.currentUser.uid:'admin',
+        ajouteParNom:adminEmail,
         notes:{},moyenneEcole:0,nombreNotesEcole:0
       };
       if(role==='professeur'||role==='enseignant'){
@@ -1868,9 +1865,9 @@ $('formCompte').addEventListener('submit',async function(e){
           ecolesIdsSecondaire:ecolesIdsSecondaire,
           ecolesIdsPrimaire:ecolesIdsPrimaire,
           notesGlobales:{},moyenneGlobale:0,nombreNotesGlobal:0,
-          responsables:[firebase.auth().currentUser.uid],
+          responsables:[auth.currentUser?auth.currentUser.uid:'admin'],
           emailGen:email,motDePasseProvisoire:mdp,
-          dateCreation:dateNow,actif:true,creePar:'agent-netubex',
+          dateCreation:dateNow,actif:true,creePar:adminEmail,
           avisUtilisateurs:{},moyenneUtilisateurs:0,
           nombreAvisUtilisateurs:0,moyennePonderee:0
         });
