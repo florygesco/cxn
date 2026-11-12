@@ -1,162 +1,44 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test API Bible Corrigée - NeTubeX RDC</title>
-    <style>
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-            background-color: #f8fafc;
-            color: #0f172a;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-        }
-        .container {
-            background: white;
-            padding: 24px;
-            border-radius: 16px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            max-width: 500px;
-            width: 100%;
-        }
-        h2 { margin-top: 0; color: #1e3a8a; text-align: center; }
-        .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
-        input {
-            flex: 1; padding: 12px; border: 2px solid #e2e8f0;
-            border-radius: 8px; font-size: 16px; outline: none;
-        }
-        input:focus { border-color: #2563eb; }
-        button {
-            padding: 12px 20px; background: #2563eb; color: white;
-            border: none; border-radius: 8px; font-weight: bold;
-            cursor: pointer; font-size: 16px;
-        }
-        button:active { background: #1d4ed8; }
-        .result-box {
-            background: #f1f5f9; padding: 20px; border-radius: 12px;
-            border-left: 5px solid #f59e0b; min-height: 100px;
-            font-size: 18px; line-height: 1.6; font-style: italic;
-            color: #334155;
-        }
-        .error { color: #dc2626; font-style: normal; font-weight: bold; }
-        .loading { color: #2563eb; font-style: normal; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>La Bible - NeTubeX</title>
+<script>(function(){document.addEventListener('contextmenu',function(e){e.preventDefault();return false;},{capture:true});document.addEventListener('dragstart',function(e){if(e.target&&e.target.tagName==='IMG'){e.preventDefault();return false;}},{capture:true});})();</script>
+<style>
+:root{--bg-body:#f8fafc;--bg-card:#ffffff;--text-main:#0f172a;--text-muted:#64748b;--border:#e2e8f0;--loading:#2563eb;--error:#dc2626;--success:#059669;--warn:#b45309}
+@media(prefers-color-scheme:dark){:root{--bg-body:#0a0e1a;--bg-card:#111827;--text-main:#f1f5f9;--text-muted:#94a3b8;--border:#1f2937;--loading:#3B82F6;--error:#f87171;--success:#34d399;--warn:#fbbf24}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background-color:var(--bg-body);color:var(--text-main);margin:0;padding:20px 16px;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+.container{background:var(--bg-card);padding:24px;border-radius:16px;box-shadow:0 4px 12px rgba(0,0,0,0.05);max-width:600px;width:100%;border:1px solid var(--border)}
+.header{text-align:center;margin-bottom:24px}
+.header h2{margin:0;font-size:20px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:8px}
+.header p{margin:6px 0 0;color:var(--text-muted);font-size:13px;font-weight:600}
+.result-box{background:var(--bg-body);padding:20px;border-radius:12px;border-left:5px solid var(--warn);min-height:120px;font-size:18px;line-height:1.7;font-style:italic;color:var(--text-main);position:relative;border-top:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
+.result-box .ref-title{font-size:14px;font-weight:900;color:var(--loading);margin-bottom:12px;font-style:normal;letter-spacing:0.5px}
+.result-box .verse-text{white-space:pre-wrap;word-wrap:break-word}
+.error{color:var(--error);font-style:normal;font-weight:700;font-size:15px;line-height:1.6}
+.loading{color:var(--loading);font-style:normal;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;height:100px}
+.spinner{width:20px;height:20px;border:3px solid rgba(37,99,235,0.2);border-top-color:var(--loading);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.hidden{display:none!important}
+</style>
 </head>
 <body>
-
 <div class="container">
-    <h2>📖 Test API Bible (LSG)</h2>
-    
-    <div class="input-group">
-        <input type="text" id="referenceInput" value="Marc 11:24" placeholder="Ex: Jean 3:16">
-        <button onclick="chercherVerset()">Chercher</button>
-    </div>
-
-    <div class="result-box" id="resultat">
-        Le texte du verset s'affichera ici...
-    </div>
+<div class="header">
+<h2>📖 La Bible (LSG)</h2>
+<p>Louis Segond</p>
 </div>
-
+<div class="result-box" id="resultat">
+<div class="loading"><div class="spinner"></div><span>Chargement...</span></div>
+</div>
+</div>
 <script>
-    // Dictionnaire pour faire correspondre les noms français aux noms attendus par l'API
-    const livresBible = {
-        "genese": "genesis", "exode": "exodus", "levitique": "leviticus", "nombres": "numbers", "deuteronome": "deuteronomy",
-        "josue": "joshua", "juges": "judges", "ruth": "ruth", "1samuel": "1samuel", "2samuel": "2samuel",
-        "1rois": "1kings", "2rois": "2kings", "1chroniques": "1chronicles", "2chroniques": "2chronicles",
-        "esdras": "ezra", "nehemie": "nehemiah", "esther": "esther", "job": "job", "psaumes": "psalms", "psaume": "psalms",
-        "proverbes": "proverbs", "ecclesiaste": "ecclesiastes", "cantique": "songofsolomon", "esaie": "isaiah",
-        "jeremie": "jeremiah", "lamentations": "lamentations", "ezechiel": "ezekiel", "daniel": "daniel",
-        "osee": "hosea", "joel": "joel", "amos": "amos", "obadia": "obadiah", "jonas": "jonah", "michee": "micah",
-        "nahum": "nahum", "habacuc": "habakkuk", "sophonie": "zephaniah", "aggee": "haggai", "zacharie": "zechariah", "malachie": "malachi",
-        "matthieu": "matthew", "marc": "mark", "luc": "luke", "jean": "john", "actes": "acts", "romains": "romans",
-        "1corinthiens": "1corinthians", "2corinthiens": "2corinthians", "galates": "galatians", "ephesiens": "ephesians",
-        "philippiens": "philippians", "colossiens": "colossians", "1thessaloniciens": "1thessalonians", "2thessaloniciens": "2thessalonians",
-        "1timothee": "1timothy", "2timothee": "2timothy", "tite": "titus", "philemon": "philemon", "hebreux": "hebrews",
-        "jacques": "james", "1pierre": "1peter", "2pierre": "2peter", "1jean": "1john", "2jean": "2john", "3jean": "3john",
-        "jude": "jude", "apocalypse": "revelation"
-    };
-
-    function extraireReference(ref) {
-        // Regex pour gérer "Marc 11:24", "1 Jean 3:16", "Psaume 23:1", etc.
-        const regex = /^([1-3]?\s*[a-zA-ZÀ-ÿ]+)\s+(\d+)[:.](\d+)$/;
-        const match = ref.trim().match(regex);
-        
-        if (!match) return null;
-        
-        // Nettoyer le nom du livre (enlever les espaces, accents, mettre en minuscule)
-        let livreSaisi = match[1].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '');
-        
-        // Traduire le nom français vers le nom anglais attendu par l'API
-        let livreAPI = livresBible[livreSaisi];
-        
-        // Si le livre n'est pas dans le dictionnaire, on tente quand même avec la saisie de l'utilisateur
-        if (!livreAPI) {
-            livreAPI = livreSaisi; 
-        }
-        
-        return { 
-            livre: livreAPI, 
-            chapitre: match[2], 
-            verset: match[3] 
-        };
-    }
-
-    async function chercherVerset() {
-        const input = document.getElementById('referenceInput').value;
-        const resultatDiv = document.getElementById('resultat');
-        
-        if (!input) return;
-
-        resultatDiv.innerHTML = '<span class="loading">⏳ Chargement...</span>';
-
-        const refDecoupee = extraireReference(input);
-
-        if (!refDecoupee) {
-            resultatDiv.innerHTML = '<span class="error">❌ Format invalide. Utilisez par exemple : Marc 11:24 ou 1 Jean 3:16</span>';
-            return;
-        }
-
-        // Construction de l'URL pour l'API Midvash
-        // Exemple: https://api.midvash.com/v1/lsg/mark/11/24
-        const url = `https://api.midvash.com/v1/lsg/${refDecoupee.livre}/${refDecoupee.chapitre}/${refDecoupee.verset}`;
-
-        try {
-            const response = await fetch(url);
-            
-            if (!response.ok) {
-                throw new Error("Verset introuvable (Code " + response.status + ")");
-            }
-
-            const jsonResponse = await response.json();
-            
-            // L'API renvoie un objet contenant "data" qui contient "text" et "reference"
-            if (jsonResponse && jsonResponse.data && jsonResponse.data.text) {
-                resultatDiv.innerHTML = `
-                    <div style="font-size: 14px; font-weight: bold; color: #2563eb; margin-bottom: 10px; font-style: normal;">
-                        ${jsonResponse.data.reference || input}
-                    </div>
-                    "${jsonResponse.data.text}"
-                `;
-            } else {
-                console.log("Réponse brute :", jsonResponse);
-                throw new Error("Le verset est introuvable dans cette traduction.");
-            }
-
-        } catch (error) {
-            resultatDiv.innerHTML = `
-                <span class="error">❌ Erreur : ${error.message}</span><br><br>
-                <span style="font-size: 14px; font-style: normal; color: #64748b;">
-                    Vérifiez que le livre existe (ex: "Marc" et non "Mrc") et que les chapitres/versets sont corrects.
-                </span>
-            `;
-        }
-    }
-
-    // Lancer une recherche au démarrage
-    window.onload = chercherVerset;
+const livresBible={"genese":"genesis","exode":"exodus","levitique":"leviticus","nombres":"numbers","deuteronome":"deuteronomy","josue":"joshua","juges":"judges","ruth":"ruth","1samuel":"1samuel","2samuel":"2samuel","1rois":"1kings","2rois":"2kings","1chroniques":"1chronicles","2chroniques":"2chronicles","esdras":"ezra","nehemie":"nehemiah","esther":"esther","job":"job","psaumes":"psalms","psaume":"psalms","proverbes":"proverbs","ecclesiaste":"ecclesiastes","cantique":"songofsolomon","esaie":"isaiah","jeremie":"jeremiah","lamentations":"lamentations","ezechiel":"ezekiel","daniel":"daniel","osee":"hosea","joel":"joel","amos":"amos","obadia":"obadiah","jonas":"jonah","michee":"micah","nahum":"nahum","habacuc":"habakkuk","sophonie":"zephaniah","aggee":"haggai","zacharie":"zechariah","malachie":"malachi","matthieu":"matthew","marc":"mark","luc":"luke","jean":"john","actes":"acts","romains":"romans","1corinthiens":"1corinthians","2corinthiens":"2corinthians","galates":"galatians","ephesiens":"ephesians","philippiens":"philippians","colossiens":"colossians","1thessaloniciens":"1thessalonians","2thessaloniciens":"2thessalonians","1timothee":"1timothy","2timothee":"2timothy","tite":"titus","philemon":"philemon","hebreux":"hebrews","jacques":"james","1pierre":"1peter","2pierre":"2peter","1jean":"1john","2jean":"2john","3jean":"3john","jude":"jude","apocalypse":"revelation"};
+function extraireReference(ref){const regex=/^([1-3]?\s*[a-zA-ZÀ-ÿ]+)\s+(\d+)[:.](\d+)$/;const match=ref.trim().match(regex);if(!match)return null;let livreSaisi=match[1].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g,'');let livreAPI=livresBible[livreSaisi];if(!livreAPI){livreAPI=livreSaisi;}return{livre:livreAPI,chapitre:match[2],verset:match[3]};}
+async function chercherVerset(reference){const resultatDiv=document.getElementById('resultat');if(!reference){resultatDiv.innerHTML='<span class="error">❌ Aucune référence fournie.</span>';return;}resultatDiv.innerHTML='<div class="loading"><div class="spinner"></div><span>Chargement...</span></div>';const refDecoupee=extraireReference(reference);if(!refDecoupee){resultatDiv.innerHTML='<span class="error">❌ Format invalide : "'+reference+'"<br>Exemple : Marc 11:24</span>';return;}const url=`https://api.midvash.com/v1/lsg/${refDecoupee.livre}/${refDecoupee.chapitre}/${refDecoupee.verset}`;try{const response=await fetch(url);if(!response.ok){throw new Error("Verset introuvable (Code "+response.status+")");}const jsonResponse=await response.json();if(jsonResponse&&jsonResponse.data&&jsonResponse.data.text){resultatDiv.innerHTML=`<div class="ref-title">${jsonResponse.data.reference||reference}</div><div class="verse-text">"${jsonResponse.data.text}"</div>`;}else{throw new Error("Le verset est introuvable.");}}catch(error){resultatDiv.innerHTML=`<span class="error">❌ Erreur : ${error.message}</span><br><br><span style="font-size:14px;color:var(--text-muted);font-style:normal;">Vérifiez la référence ou votre connexion.</span>`;}}
+window.onload=function(){const urlParams=new URLSearchParams(window.location.search);const refFromUrl=urlParams.get('ref');if(refFromUrl){chercherVerset(refFromUrl);}else{chercherVerset("Marc 11:24");}};
 </script>
-
 </body>
 </html>
