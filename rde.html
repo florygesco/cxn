@@ -866,9 +866,7 @@ body.dark-mode .eglise-code-value{color:var(--eglise)}
 </div>
 </div>
 <div class="reseau-contexte" id="reseauContexte"></div>
-<div id="reseauFeed" class="reseau-feed" style="grid-template-columns: 1fr;">
-<style>@media(min-width:700px){#reseauFeed{grid-template-columns: 1fr;}}@media(min-width:1100px){#reseauFeed{grid-template-columns: 1fr;}}</style>
-</div>
+<div id="reseauFeed" class="reseau-feed"></div>
 </div>
 <div id="page-eglises" class="page">
 <div class="reseau-ecoles-hero" style="background:linear-gradient(135deg,#f59e0b 0%,#b45309 100%)">
@@ -883,12 +881,10 @@ body.dark-mode .eglise-code-value{color:var(--eglise)}
 </div>
 </div>
 </div>
-<div id="egliseSearchBarWrapper">
 <div class="reseau-toolbar-wrapper">
 <div class="reseau-toolbar-inner">
 <div class="reseau-search-row">
 <div class="reseau-search"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="egliseSearchInput" placeholder="Rechercher une synthèse, un verset…" oninput="filtrerSynthesesEglise()"></div>
-</div>
 </div>
 </div>
 </div>
@@ -1925,13 +1921,6 @@ body.dark-mode .eglise-code-value{color:var(--eglise)}
       <button type="button" class="modal-simple-btn modal-btn-blue" id="btnValiderWaCommercial" onclick="validerChangerWhatsappCommercial()">Enregistrer</button>
     </div>
   </div>
-</div>
-<div id="zoomSyntheseOverlay" class="modal-overlay-simple" onclick="fermerZoomSynthese()"></div>
-<div id="zoomSyntheseModal" class="modal-simple" style="max-width:600px;padding:24px">
-    <button class="modal-simple-close" onclick="fermerZoomSynthese()"><i class="fa-solid fa-xmark"></i></button>
-    <h2 class="modal-simple-title" id="zoomSyntheseTitre" style="text-align:left; margin-bottom:16px; padding-right:40px;">Titre</h2>
-    <div id="zoomSyntheseBody" style="max-height:65vh; overflow-y:auto; font-size:17px; line-height:1.8; color:var(--text-primary); padding-right:8px;">
-    </div>
 </div>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -3026,21 +3015,6 @@ if(page==='publish'){var cat=(!param||param==='all')?'autre':param;var type='aut
 if(page==='commerces'){demarrerBarreProgression();refreshCommerces(false).finally(function(){terminerBarreProgression();});}
 if(page==='inscription'){preparerPageInscription();}
 if(page==='dashboard-utilisateur'){demarrerPollingDeblocages();if(window.CURRENT_ACCOUNT){var n=document.getElementById('profilNom');var p=document.getElementById('profilPhone');if(n)n.textContent=window.CURRENT_ACCOUNT.name;if(p)p.textContent=window.CURRENT_ACCOUNT.phone;mettreAJourAvatarProfilUI();}appliquerThemeProfilUI();var pd=document.getElementById('profilPhoneDisplay');if(pd)pd.textContent=window.CURRENT_ACCOUNT?window.CURRENT_ACCOUNT.phone||'—':'—';verifierBoutiqueEtAfficher().then(function(){appliquerTabsSelonRole();appliquerTabDefaut();});renderMesStats();renderMaZone();var dte=document.getElementById('dashTabEcole');if(dte&&window.CURRENT_ACCOUNT&&(window.CURRENT_ACCOUNT.role==='professeur'||window.CURRENT_ACCOUNT.role==='prefet'||window.CURRENT_ACCOUNT.role==='directeur')&&!estResponsableEglise()){dte.style.display='inline-flex';}if(window.CURRENT_ACCOUNT){DEBLOCAGES_DIRTY=true;majVisibiliteSectionDeblocages();rafraichirTousDeblocages().then(function(){majVisibiliteSectionDeblocages();renderDeblocagesEnAttente();majVisibiliteSectionDeblocages();});}}
-if(page==='eglises'){
-    if(window.CURRENT_ACCOUNT && (window.CURRENT_ACCOUNT.accesEglise || estResponsableEglise())){
-        try{
-            var egliseIdPourVues = window.CURRENT_ACCOUNT.accesEglise ? window.CURRENT_ACCOUNT.accesEglise.egliseId : window.CURRENT_ACCOUNT.egliseId;
-            if(egliseIdPourVues){
-                var keyVuesEglise = 'vues_eglise_' + egliseIdPourVues + '_' + window.CURRENT_ACCOUNT.id + '_' + getTodayKey();
-                var dejaVuAujourdhui = await idbGet('stats', keyVuesEglise);
-                if(!dejaVuAujourdhui){
-                    await window.updateDoc(window.docRef(window.db,'eglises',egliseIdPourVues),{vues:window.increment(1)});
-                    await idbSet('stats', keyVuesEglise, true);
-                }
-            }
-        }catch(e){}
-    }
-}
 if(!_navFromPopstate){try{history.pushState({page:page,param:param||null},'',null);}catch(e){}}
 _navFromPopstate=false;
 }
@@ -3241,7 +3215,6 @@ var themeHtml=s.theme?'<span class="eglise-synthese-theme"><i class="fa-solid fa
 var versetHtml=s.verset?'<span class="eglise-synthese-verse"><i class="fa-solid fa-book-bible"></i> '+esc(s.verset)+'</span>':'';
 var isAdmin=estResponsableEglise();
 var actions='<button class="eglise-feed-btn eglise-feed-btn-share" onclick="event.stopPropagation();partagerSyntheseEglise(\''+s.id+'\')"><i class="fa-solid fa-share-nodes"></i> Partager</button>';
-actions+='<button class="eglise-feed-btn" onclick="event.stopPropagation();ouvrirZoomSynthese(\''+s.id+'\')" style="background:rgba(37,99,235,.08);color:var(--accent-blue);border:1.5px solid rgba(37,99,235,.2)"><i class="fa-solid fa-search-plus"></i> Zoom</button>';
 if(isAdmin){
   actions+='<button class="eglise-feed-btn eglise-feed-btn-delete" onclick="event.stopPropagation();supprimerSyntheseEgliseUI(\''+s.id+'\')"><i class="fa-solid fa-trash"></i> Supprimer</button>';
 }
@@ -3405,20 +3378,6 @@ async function validerSuppressionSyntheseUI(){if(!_syntheseASupprimerId)return;v
 window.validerSuppressionSyntheseUI=validerSuppressionSyntheseUI;
 async function chargerPanelsEglise(){var c=document.getElementById('dashEgliseContent');if(!c)return;if(!window.CURRENT_ACCOUNT||!estResponsableEglise()){c.innerHTML='<div style="padding:20px;text-align:center;background:var(--bg-card);border:1px dashed var(--border-primary);border-radius:14px;color:var(--text-muted)">Section réservée aux responsables d\'église.</div>';return;}EGLISES_DATA=await chargerEglisesFirestore(false);var acces=window.CURRENT_ACCOUNT.accesEglise;if(!acces||!acces.egliseId){c.innerHTML='<div style="padding:20px;text-align:center;background:var(--bg-card);border:1px dashed var(--border-primary);border-radius:14px;color:var(--text-muted)">Aucune église associée.</div>';return;}var eglise=EGLISES_DATA.find(function(e){return e.id===acces.egliseId;});if(!eglise){c.innerHTML='<div style="padding:20px;text-align:center;background:var(--bg-card);border:1px dashed var(--border-primary);border-radius:14px;color:var(--text-muted)">Église introuvable.</div>';return;}SYNTHESES_EGLISE_DATA=await chargerSynthesesEglise(acces.egliseId,true);var peutPublier=await peutPublierAujourdhui(acces.egliseId);var totalVues=SYNTHESES_EGLISE_DATA.reduce(function(s,x){return s+(x.vues||0);},0);var codeEglise=eglise.codeEglise||'—';var html='';html+='<div class="section-card-3d" style="padding:20px;margin-bottom:16px"><div style="display:flex;align-items:center;gap:14px;margin-bottom:16px"><div style="width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,#f59e0b,#b45309);color:#fff;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0"><i class="fa-solid fa-church"></i></div><div style="flex:1;min-width:0"><div style="font-size:18px;font-weight:900;color:var(--text-primary);line-height:1.3">'+esc(eglise.nom||'Mon église')+'</div><div style="font-size:13px;color:var(--text-muted);margin-top:3px">'+esc(eglise.ville||'')+(eglise.commune?' · '+esc(eglise.commune):'')+(eglise.quartier?' · '+esc(eglise.quartier):'')+'</div></div></div><div style="padding:12px 14px;background:#ecfdf5;border:1.5px solid #a7f3d0;border-radius:12px;font-size:13px;font-weight:900;color:#065f46;display:flex;align-items:center;gap:8px"><i class="fa-solid fa-circle-check"></i> Responsable actif</div></div>';html+='<div class="eglise-code-bandeau"><div class="eglise-code-label"><i class="fa-solid fa-key"></i> Code fidèles</div><div class="eglise-code-value">'+esc(codeEglise)+'</div><button type="button" class="eglise-code-btn" onclick="copyText(\''+codeEglise+'\')"><i class="fa-solid fa-copy"></i> Copier</button></div>';html+='<div class="stats-grid" style="margin-bottom:16px"><div class="stats-card stats-card-blue"><div class="stats-card-value">'+SYNTHESES_EGLISE_DATA.length+'</div><div class="stats-card-label">Synthèses</div></div><div class="stats-card stats-card-green"><div class="stats-card-value">'+totalVues+'</div><div class="stats-card-label">Vues</div></div></div>';if(!peutPublier){html+='<div class="section-card-3d" style="padding:16px;margin-bottom:16px;background:#fffbeb;border:1.5px solid #fcd34d"><div style="display:flex;align-items:flex-start;gap:10px;font-size:13.5px;color:#78350f;line-height:1.55"><i class="fa-solid fa-clock" style="font-size:16px;margin-top:1px"></i><div><strong>Prochaine publication demain</strong><br>Vous avez déjà publié aujourd\'hui.</div></div></div>';}html+='<div class="section-card-3d" style="padding:20px;margin-bottom:16px"><div class="compte-section-title"><i class="fa-solid fa-book-open"></i> Mes dernières synthèses</div>';if(SYNTHESES_EGLISE_DATA.length===0){html+='<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:14px">Aucune synthèse active.</div>';}else{SYNTHESES_EGLISE_DATA.slice(0,10).forEach(function(s){var jr=joursRestantsSynthese(s);var expireBadge='<span class="eglise-synthese-expire'+(jr<=2?' urgent':'')+'"><i class="fa-solid fa-hourglass-half"></i> '+(jr>0?jr+'j':'Expiré')+'</span>';html+='<div style="padding:12px;background:var(--bg-card-soft);border:1px solid var(--border-primary);border-radius:12px;margin-bottom:10px"><div style="font-size:14.5px;font-weight:900;color:var(--text-primary);margin-bottom:4px">'+esc(s.titre||'Sans titre')+'</div><div style="font-size:12.5px;color:var(--text-muted);margin-bottom:6px">📖 '+esc(s.verset||'')+(s.theme?' · 🏷️ '+esc(s.theme):'')+'</div><div style="display:flex;justify-content:space-between;align-items:center;gap:8px">'+expireBadge+'<button onclick="event.stopPropagation();supprimerSyntheseEgliseUI(\''+s.id+'\')" style="padding:6px 10px;border-radius:8px;background:#ef4444;color:#fff;border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:11.5px"><i class="fa-solid fa-trash"></i></button></div></div>';});}html+='</div>';c.innerHTML=html;}
 window.chargerPanelsEglise=chargerPanelsEglise;
-window.ouvrirZoomSynthese=function(id){
-var s=SYNTHESES_EGLISE_DATA.find(function(x){return x.id===id;});
-if(!s)return;
-var titreEl=document.getElementById('zoomSyntheseTitre');
-var bodyEl=document.getElementById('zoomSyntheseBody');
-if(titreEl)titreEl.textContent=s.titre||'Synthèse';
-if(bodyEl)bodyEl.innerHTML=parserMarkdownRiche(s.resume||'');
-document.getElementById('zoomSyntheseOverlay').classList.add('active');
-document.getElementById('zoomSyntheseModal').classList.add('active');
-};
-window.fermerZoomSynthese=function(){
-document.getElementById('zoomSyntheseOverlay').classList.remove('active');
-document.getElementById('zoomSyntheseModal').classList.remove('active');
-};
 document.addEventListener('DOMContentLoaded',async function(){await window.migrerDepuisLocalStorage();await restaurerSession();if(!window.CURRENT_ACCOUNT){var fbUser=await attendreFirebaseAuth();if(fbUser){await restaurerDepuisFirebaseAuth(fbUser);if(!window.CURRENT_ACCOUNT){await restaurerSession();}}}if(window.CURRENT_ACCOUNT){window.CURRENT_ACCOUNT_REF=window.CURRENT_ACCOUNT;}await verifierCompteLocal();appliquerVisibiliteRole();document.querySelectorAll('[data-ecole-only]').forEach(function(el){if(!window.CURRENT_ACCOUNT)el.style.display='none';});demarrerBarreProgression();afficherSkeletonsFeed(4);try{var co=[];var an=[];if(window.CURRENT_ACCOUNT){co=await window.chargerCommercesFirestore(true);an=await window.chargerAnnoncesFirestore(true);}COMMERCES_DATA=co;ANNONCES_DATA=an;ECOLES_DATA=await window.chargerEcolesFirestore(false);PROFESSEURS_DATA=[];renderCommercesGrid();masquerSkeletonsFeed();initFeed();terminerBarreProgression();updateCart();appliquerThemeProfilUI();attacherTousPhones();attacherNettoyageDescription();_sessionEnCours=false;var redirige=await ouvrirBoutiqueDepuisURL();if(!redirige){go('index');}if(window.CURRENT_ACCOUNT&&!zoneEstComplete()){setTimeout(afficherModaleZoneObligatoire,500);}if(window.CURRENT_ACCOUNT&&window.rafraichirCompteSiNecessaire){setTimeout(function(){window.rafraichirCompteSiNecessaire(false);},2000);}}catch(err){masquerSkeletonsFeed();terminerBarreProgression();_sessionEnCours=false;var feed=document.getElementById('mainFeed');if(feed){feed.innerHTML='<div style="text-align:center;padding:60px 20px;background:var(--bg-card);border:1px dashed var(--border-primary);border-radius:16px;margin:16px"><div style="font-size:48px;opacity:.35;margin-bottom:14px">📶</div><h3 style="font-size:17px;font-weight:800;margin-bottom:8px">Connexion instable</h3><p style="font-size:14px;color:var(--text-muted);margin-bottom:16px">Impossible de charger les annonces.</p><button onclick="window.location.reload()" class="btn-3d blue" style="padding:12px 24px;border-radius:10px;margin:0 auto"><i class="fa-solid fa-rotate"></i> Réessayer</button></div>';}showToast('Réessayez dans un instant');}});
 if(window.onAuthStateChangedRef){window.onAuthStateChangedRef(window.auth,async function(user){if(_sessionEnCours)return;if(user&&user.uid){if(!window.CURRENT_ACCOUNT||window.CURRENT_ACCOUNT.id!==user.uid){if(peutLireFirebase()){await restaurerDepuisFirebaseAuth(user);appliquerVisibiliteRole();}}}});}
 setInterval(async function(){if(!navigator.onLine||!window.CURRENT_ACCOUNT)return;try{await window.getDocRef(window.docRef(window.db,'config','app'));if(window.PENDING_QUEUE&&window.synchroniserFileAttente){var items=await window.PENDING_QUEUE.lister();if(items.length>0)await window.synchroniserFileAttente();}}catch(e){}},15*1000);
@@ -3458,8 +3417,6 @@ window.creerSyntheseEglise=creerSyntheseEglise;
 window.parserMarkdownRiche=parserMarkdownRiche;
 window.renderSynthesesEglise=renderSynthesesEglise;
 window.renderEgliseThumb=renderEgliseThumb;
-window.ouvrirZoomSynthese=ouvrirZoomSynthese;
-window.fermerZoomSynthese=fermerZoomSynthese;
 </script>
 </body>
 </html>
