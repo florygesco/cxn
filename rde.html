@@ -3465,26 +3465,52 @@ window.creerSyntheseEglise=creerSyntheseEglise;
 window.parserMarkdownRiche=parserMarkdownRiche;
 window.renderSynthesesEglise=renderSynthesesEglise;
 window.renderEgliseThumb=renderEgliseThumb;
+
 let _versetActuelTexte = "";
-function formaterReferenceBible(ref) {
-    if (!ref) return "";
-    let propre = ref.replace(/\s+/g, ' ').trim();
-    propre = propre.replace(/\s*,\s*/g, ':');
-    propre = propre.replace(/\s*:\s*/g, ':');
-    return propre;
+let _versetActuelReference = "";
+
+const livresBibleNeTubeX = {
+    "genese": "genesis", "exode": "exodus", "levitique": "leviticus", "nombres": "numbers", "deuteronome": "deuteronomy",
+    "josue": "joshua", "juges": "judges", "ruth": "ruth", "1samuel": "1samuel", "2samuel": "2samuel",
+    "1rois": "1kings", "2rois": "2kings", "1chroniques": "1chronicles", "2chroniques": "2chronicles",
+    "esdras": "ezra", "nehemie": "nehemiah", "esther": "esther", "job": "job", "psaumes": "psalms", "psaume": "psalms",
+    "proverbes": "proverbs", "ecclesiaste": "ecclesiastes", "cantique": "songofsolomon", "esaie": "isaiah",
+    "jeremie": "jeremiah", "lamentations": "lamentations", "ezechiel": "ezekiel", "daniel": "daniel",
+    "osee": "hosea", "joel": "joel", "amos": "amos", "obadia": "obadiah", "jonas": "jonah", "michee": "micah",
+    "nahum": "nahum", "habacuc": "habakkuk", "sophonie": "zephaniah", "aggee": "haggai", "zacharie": "zechariah", "malachie": "malachi",
+    "matthieu": "matthew", "marc": "mark", "luc": "luke", "jean": "john", "actes": "acts", "romains": "romans",
+    "1corinthiens": "1corinthians", "2corinthiens": "2corinthians", "galates": "galatians", "ephesiens": "ephesians",
+    "philippiens": "philippians", "colossiens": "colossians", "1thessaloniciens": "1thessalonians", "2thessaloniciens": "2thessalonians",
+    "1timothee": "1timothy", "2timothee": "2timothy", "tite": "titus", "philemon": "philemon", "hebreux": "hebrews",
+    "jacques": "james", "1pierre": "1peter", "2pierre": "2peter", "1jean": "1john", "2jean": "2john", "3jean": "3john",
+    "jude": "jude", "apocalypse": "revelation"
+};
+
+function extraireReferenceBibleNeTubeX(ref) {
+    const regex = /^([1-3]?\s*[a-zA-ZÀ-ÿ]+)\s+(\d+)[:.](\d+)$/;
+    const match = ref.trim().match(regex);
+    if (!match) return null;
+    
+    let livreSaisi = match[1].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '');
+    let livreAPI = livresBibleNeTubeX[livreSaisi] || livreSaisi;
+    
+    return { livre: livreAPI, chapitre: match[2], verset: match[3] };
 }
+
 async function ouvrirMiniBible(reference) {
     if (!reference) return;
-    const refPropre = formaterReferenceBible(reference);
+    
     const panel = document.getElementById('miniBiblePanel');
     const backdrop = document.getElementById('miniBibleBackdrop');
     const mainContent = document.querySelector('main');
-    document.getElementById('miniBibleRefTitre').textContent = refPropre;
+    
+    document.getElementById('miniBibleRefTitre').textContent = reference;
     document.getElementById('miniBibleContenu').innerHTML = `
         <div style="text-align:center;padding:40px 20px;">
             <i class="fa-solid fa-spinner fa-spin fa-2x" style="color:var(--accent-blue)"></i>
-            <p style="margin-top:16px;font-size:13px;color:var(--text-muted);font-weight:700;">Chargement...</p>
+            <p style="margin-top:16px;font-size:13px;color:var(--text-muted);font-weight:700;">Chargement du verset...</p>
         </div>`;
+        
     backdrop.style.opacity = '1';
     backdrop.style.pointerEvents = 'auto';
     panel.style.transform = 'translateX(0)';
@@ -3494,40 +3520,63 @@ async function ouvrirMiniBible(reference) {
         mainContent.style.transform = `translateX(-${decalage * 0.3}px) scale(0.98)`; 
         mainContent.style.opacity = '0.7';
     }
+
+    const refDecoupee = extraireReferenceBibleNeTubeX(reference);
+
+    if (!refDecoupee) {
+        document.getElementById('miniBibleContenu').innerHTML = `
+            <div style="padding:20px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px;color:#991b1b;font-size:14px;text-align:left;">
+                <i class="fa-solid fa-triangle-exclamation" style="margin-bottom:8px;display:block;font-size:24px;"></i>
+                <strong>Format invalide.</strong><br>
+                Utilisez par exemple : Marc 11:24
+            </div>`;
+        return;
+    }
+
+    const url = `https://api.midvash.com/v1/lsg/${refDecoupee.livre}/${refDecoupee.chapitre}/${refDecoupee.verset}`;
+
     try {
-        const response = await fetch('https://bible-api.com/' + encodeURIComponent(refPropre) + '?translation=lsg');
-        if (!response.ok) throw new Error('Verset introuvable');
-        const data = await response.json();
-        if (data.text) {
-            _versetActuelTexte = data.text.trim();
-            const textePropre = _versetActuelTexte.replace(/\s+/g, ' ');
-            document.getElementById('miniBibleRefTitre').textContent = data.reference || refPropre;
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error("Verset introuvable (Code " + response.status + ")");
+        }
+
+        const jsonResponse = await response.json();
+        
+        if (jsonResponse && jsonResponse.data && jsonResponse.data.text) {
+            _versetActuelTexte = jsonResponse.data.text.trim();
+            _versetActuelReference = jsonResponse.data.reference || reference;
+            
+            document.getElementById('miniBibleRefTitre').textContent = _versetActuelReference;
             document.getElementById('miniBibleContenu').innerHTML = `
                 <div style="background:linear-gradient(135deg, rgba(245,158,11,0.08), rgba(245,158,11,0.02));padding:20px;border-radius:16px;border-left:5px solid var(--eglise);text-align:left;margin-bottom:20px;">
                     <p style="font-size:18px;line-height:1.8;font-weight:500;font-style:italic;color:var(--text-primary);margin:0;">
-                        "${textePropre}"
+                        "${_versetActuelTexte.replace(/\s+/g, ' ')}"
                     </p>
                 </div>
             `;
         } else {
-            throw new Error('Texte vide');
+            throw new Error("Texte vide");
         }
     } catch (error) {
         document.getElementById('miniBibleContenu').innerHTML = `
             <div style="padding:20px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px;color:#991b1b;font-size:14px;text-align:left;">
                 <i class="fa-solid fa-triangle-exclamation" style="margin-bottom:8px;display:block;font-size:24px;"></i>
                 <strong>Impossible de charger le verset.</strong><br>
-                Vérifiez la référence (<em>${refPropre}</em>) ou votre connexion Internet.
+                Vérifiez la référence (<em>${reference}</em>) ou votre connexion Internet.
             </div>
             <p style="margin-top:16px;font-size:13px;color:var(--text-muted);text-align:center;">Vous pouvez chercher ce verset sur <a href="https://www.bible.com" target="_blank" style="color:var(--accent-blue);font-weight:800;">YouVersion</a>.</p>
         `;
     }
 }
+
 function copierVersetMiniBible() {
     if (!_versetActuelTexte) return;
     copyText(_versetActuelTexte);
     showToast('✅ Verset copié');
 }
+
 function fermerMiniBible() {
     const panel = document.getElementById('miniBiblePanel');
     const backdrop = document.getElementById('miniBibleBackdrop');
