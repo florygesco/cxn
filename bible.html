@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API Bible - NeTubeX RDC</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 100%;
+        }
+        h2 { margin-top: 0; color: #1e3a8a; text-align: center; }
+        .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        input {
+            flex: 1; padding: 12px; border: 2px solid #e2e8f0;
+            border-radius: 8px; font-size: 16px; outline: none;
+        }
+        input:focus { border-color: #2563eb; }
+        button {
+            padding: 12px 20px; background: #2563eb; color: white;
+            border: none; border-radius: 8px; font-weight: bold;
+            cursor: pointer; font-size: 16px;
+        }
+        button:active { background: #1d4ed8; }
+        .result-box {
+            background: #f1f5f9; padding: 20px; border-radius: 12px;
+            border-left: 5px solid #f59e0b; min-height: 100px;
+            font-size: 18px; line-height: 1.6; font-style: italic;
+            color: #334155;
+        }
+        .error { color: #dc2626; font-style: normal; font-weight: bold; }
+        .loading { color: #2563eb; font-style: normal; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>📖 Test API Bible (LSG)</h2>
+    
+    <div class="input-group">
+        <!-- On pré-remplit avec votre exemple -->
+        <input type="text" id="referenceInput" value="Marc 11:24" placeholder="Ex: Jean 3:16">
+        <button onclick="chercherVerset()">Chercher</button>
+    </div>
+
+    <div class="result-box" id="resultat">
+        Le texte du verset s'affichera ici...
+    </div>
+</div>
+
+<script>
+    // Fonction pour formater "Marc 11:24" en "marc/11/24" pour l'API
+    function formaterReferencePourAPI(ref) {
+        // Enlève les espaces en trop, met en minuscule, remplace l'espace par / et les : par /
+        let propre = ref.trim().toLowerCase();
+        // Gère les cas comme "1 Jean 3:16" -> "1jean/3/16"
+        propre = propre.replace(/\s+/g, ''); 
+        propre = propre.replace(':', '/');
+        // On doit séparer le nom du livre du chapitre. 
+        // L'API Midvash attend : nomdulivre/chapitre/verset
+        // On va utiliser une regex simple pour trouver les chiffres à la fin
+        let match = propre.match(/^([a-z0-9]+)\/([0-9]+)\/([0-9]+)$/);
+        if (match) {
+            return `${match[1]}/${match[2]}/${match[3]}`;
+        }
+        return propre.replace('/', '/').replace(':', '/'); // Fallback
+    }
+
+    // Version plus robuste pour extraire Livre, Chapitre, Verset
+    function extraireReference(ref) {
+        // Exemple : "Marc 11:24" ou "1 Jean 3:16"
+        const regex = /^([1-3]?\s*[a-zA-ZÀ-ÿ]+)\s+(\d+)[:.](\d+)$/;
+        const match = ref.trim().match(regex);
+        if (!match) return null;
+        
+        let livre = match[1].toLowerCase().replace(/\s+/g, ''); // "marc" ou "1jean"
+        let chapitre = match[2];
+        let verset = match[3];
+        
+        return { livre, chapitre, verset };
+    }
+
+    async function chercherVerset() {
+        const input = document.getElementById('referenceInput').value;
+        const resultatDiv = document.getElementById('resultat');
+        
+        if (!input) return;
+
+        resultatDiv.innerHTML = '<span class="loading">⏳ Chargement...</span>';
+
+        const refDecoupee = extraireReference(input);
+
+        if (!refDecoupee) {
+            resultatDiv.innerHTML = '<span class="error">❌ Format invalide. Utilisez par exemple : Marc 11:24</span>';
+            return;
+        }
+
+        // Construction de l'URL pour l'API Midvash (Version Louis Segond 1910)
+        // Format: https://api.midvash.com/v1/lsg/marc/11/24
+        const url = `https://api.midvash.com/v1/lsg/${refDecoupee.livre}/${refDecoupee.chapitre}/${refDecoupee.verset}`;
+
+        try {
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                throw new Error("Verset introuvable (Code " + response.status + ")");
+            }
+
+            const data = await response.json();
+            
+            // L'API Midvash renvoie le texte dans la propriété "text"
+            if (data && data.text) {
+                resultatDiv.innerHTML = `
+                    <div style="font-size: 14px; font-weight: bold; color: #2563eb; margin-bottom: 10px; font-style: normal;">
+                        ${data.reference || input}
+                    </div>
+                    "${data.text}"
+                `;
+            } else {
+                throw new Error("Aucun texte trouvé dans la réponse.");
+            }
+
+        } catch (error) {
+            resultatDiv.innerHTML = `
+                <span class="error">❌ Erreur : ${error.message}</span><br><br>
+                <span style="font-size: 14px; font-style: normal; color: #64748b;">
+                    Vérifiez l'orthographe du livre (ex: "Marc" et non "Mrc") ou votre connexion Internet.
+                </span>
+            `;
+        }
+    }
+
+    // Lancer une recherche au démarrage
+    window.onload = chercherVerset;
+</script>
+
+</body>
+</html>
