@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test API Bible - NeTubeX RDC</title>
+    <title>Test API Bible Corrigée - NeTubeX RDC</title>
     <style>
         body {
             font-family: system-ui, -apple-system, sans-serif;
@@ -50,7 +50,6 @@
     <h2>📖 Test API Bible (LSG)</h2>
     
     <div class="input-group">
-        <!-- On pré-remplit avec votre exemple -->
         <input type="text" id="referenceInput" value="Marc 11:24" placeholder="Ex: Jean 3:16">
         <button onclick="chercherVerset()">Chercher</button>
     </div>
@@ -61,35 +60,47 @@
 </div>
 
 <script>
-    // Fonction pour formater "Marc 11:24" en "marc/11/24" pour l'API
-    function formaterReferencePourAPI(ref) {
-        // Enlève les espaces en trop, met en minuscule, remplace l'espace par / et les : par /
-        let propre = ref.trim().toLowerCase();
-        // Gère les cas comme "1 Jean 3:16" -> "1jean/3/16"
-        propre = propre.replace(/\s+/g, ''); 
-        propre = propre.replace(':', '/');
-        // On doit séparer le nom du livre du chapitre. 
-        // L'API Midvash attend : nomdulivre/chapitre/verset
-        // On va utiliser une regex simple pour trouver les chiffres à la fin
-        let match = propre.match(/^([a-z0-9]+)\/([0-9]+)\/([0-9]+)$/);
-        if (match) {
-            return `${match[1]}/${match[2]}/${match[3]}`;
-        }
-        return propre.replace('/', '/').replace(':', '/'); // Fallback
-    }
+    // Dictionnaire pour faire correspondre les noms français aux noms attendus par l'API
+    const livresBible = {
+        "genese": "genesis", "exode": "exodus", "levitique": "leviticus", "nombres": "numbers", "deuteronome": "deuteronomy",
+        "josue": "joshua", "juges": "judges", "ruth": "ruth", "1samuel": "1samuel", "2samuel": "2samuel",
+        "1rois": "1kings", "2rois": "2kings", "1chroniques": "1chronicles", "2chroniques": "2chronicles",
+        "esdras": "ezra", "nehemie": "nehemiah", "esther": "esther", "job": "job", "psaumes": "psalms", "psaume": "psalms",
+        "proverbes": "proverbs", "ecclesiaste": "ecclesiastes", "cantique": "songofsolomon", "esaie": "isaiah",
+        "jeremie": "jeremiah", "lamentations": "lamentations", "ezechiel": "ezekiel", "daniel": "daniel",
+        "osee": "hosea", "joel": "joel", "amos": "amos", "obadia": "obadiah", "jonas": "jonah", "michee": "micah",
+        "nahum": "nahum", "habacuc": "habakkuk", "sophonie": "zephaniah", "aggee": "haggai", "zacharie": "zechariah", "malachie": "malachi",
+        "matthieu": "matthew", "marc": "mark", "luc": "luke", "jean": "john", "actes": "acts", "romains": "romans",
+        "1corinthiens": "1corinthians", "2corinthiens": "2corinthians", "galates": "galatians", "ephesiens": "ephesians",
+        "philippiens": "philippians", "colossiens": "colossians", "1thessaloniciens": "1thessalonians", "2thessaloniciens": "2thessalonians",
+        "1timothee": "1timothy", "2timothee": "2timothy", "tite": "titus", "philemon": "philemon", "hebreux": "hebrews",
+        "jacques": "james", "1pierre": "1peter", "2pierre": "2peter", "1jean": "1john", "2jean": "2john", "3jean": "3john",
+        "jude": "jude", "apocalypse": "revelation"
+    };
 
-    // Version plus robuste pour extraire Livre, Chapitre, Verset
     function extraireReference(ref) {
-        // Exemple : "Marc 11:24" ou "1 Jean 3:16"
+        // Regex pour gérer "Marc 11:24", "1 Jean 3:16", "Psaume 23:1", etc.
         const regex = /^([1-3]?\s*[a-zA-ZÀ-ÿ]+)\s+(\d+)[:.](\d+)$/;
         const match = ref.trim().match(regex);
+        
         if (!match) return null;
         
-        let livre = match[1].toLowerCase().replace(/\s+/g, ''); // "marc" ou "1jean"
-        let chapitre = match[2];
-        let verset = match[3];
+        // Nettoyer le nom du livre (enlever les espaces, accents, mettre en minuscule)
+        let livreSaisi = match[1].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '');
         
-        return { livre, chapitre, verset };
+        // Traduire le nom français vers le nom anglais attendu par l'API
+        let livreAPI = livresBible[livreSaisi];
+        
+        // Si le livre n'est pas dans le dictionnaire, on tente quand même avec la saisie de l'utilisateur
+        if (!livreAPI) {
+            livreAPI = livreSaisi; 
+        }
+        
+        return { 
+            livre: livreAPI, 
+            chapitre: match[2], 
+            verset: match[3] 
+        };
     }
 
     async function chercherVerset() {
@@ -103,12 +114,12 @@
         const refDecoupee = extraireReference(input);
 
         if (!refDecoupee) {
-            resultatDiv.innerHTML = '<span class="error">❌ Format invalide. Utilisez par exemple : Marc 11:24</span>';
+            resultatDiv.innerHTML = '<span class="error">❌ Format invalide. Utilisez par exemple : Marc 11:24 ou 1 Jean 3:16</span>';
             return;
         }
 
-        // Construction de l'URL pour l'API Midvash (Version Louis Segond 1910)
-        // Format: https://api.midvash.com/v1/lsg/marc/11/24
+        // Construction de l'URL pour l'API Midvash
+        // Exemple: https://api.midvash.com/v1/lsg/mark/11/24
         const url = `https://api.midvash.com/v1/lsg/${refDecoupee.livre}/${refDecoupee.chapitre}/${refDecoupee.verset}`;
 
         try {
@@ -118,25 +129,26 @@
                 throw new Error("Verset introuvable (Code " + response.status + ")");
             }
 
-            const data = await response.json();
+            const jsonResponse = await response.json();
             
-            // L'API Midvash renvoie le texte dans la propriété "text"
-            if (data && data.text) {
+            // L'API renvoie un objet contenant "data" qui contient "text" et "reference"
+            if (jsonResponse && jsonResponse.data && jsonResponse.data.text) {
                 resultatDiv.innerHTML = `
                     <div style="font-size: 14px; font-weight: bold; color: #2563eb; margin-bottom: 10px; font-style: normal;">
-                        ${data.reference || input}
+                        ${jsonResponse.data.reference || input}
                     </div>
-                    "${data.text}"
+                    "${jsonResponse.data.text}"
                 `;
             } else {
-                throw new Error("Aucun texte trouvé dans la réponse.");
+                console.log("Réponse brute :", jsonResponse);
+                throw new Error("Le verset est introuvable dans cette traduction.");
             }
 
         } catch (error) {
             resultatDiv.innerHTML = `
                 <span class="error">❌ Erreur : ${error.message}</span><br><br>
                 <span style="font-size: 14px; font-style: normal; color: #64748b;">
-                    Vérifiez l'orthographe du livre (ex: "Marc" et non "Mrc") ou votre connexion Internet.
+                    Vérifiez que le livre existe (ex: "Marc" et non "Mrc") et que les chapitres/versets sont corrects.
                 </span>
             `;
         }
