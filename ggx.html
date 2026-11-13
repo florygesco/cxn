@@ -325,7 +325,7 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 <div class="fiche-active-badge" id="sidebarFicheRef">F---</div>
 <div class="fiche-active-cours" id="sidebarFicheCours">—</div>
 <div class="fiche-active-info" id="sidebarFicheClasse">—</div>
-<div class="sidebar-active-info" id="sidebarFicheOption">—</div>
+<div class="fiche-active-info" id="sidebarFicheOption">—</div>
 <div class="fiche-active-count" id="sidebarFicheCount">0 élèves</div>
 </div>
 <div style="margin-top:14px;">
@@ -832,6 +832,7 @@ function afficherCotation() {
     if (searchTerm) elevesFiltres = elevesFiltres.filter(e => getNomComplet(e).toLowerCase().includes(searchTerm));
     if (triAlphabetiqueActif) elevesFiltres.sort((a, b) => getNomComplet(a).localeCompare(getNomComplet(b)));
     if (!elevesFiltres.length) { th.innerHTML = ''; tb.innerHTML = '<tr><td class="empty-state">Aucun élève</td></tr>'; return; }
+
     let h = ['<th>N°</th><th style="text-align:left;padding-left:16px;">NOMS COMPLETS</th><th>SEXE</th>'];
     if (currentFiche.option === 'TOUTES') h.push('<th>OPTION</th>');
     let e1 = currentFiche.epreuvesParPeriode?.[1] || [];
@@ -847,6 +848,7 @@ function afficherCotation() {
     if (pf === 'all') h.push('<th>EXAM S2<br>normalisée</th>');
     th.innerHTML = h.join('');
     tb.innerHTML = '';
+
     for (let i = 0; i < elevesFiltres.length; i++) {
         let e = elevesFiltres[i];
         ensureNotes(e);
@@ -1767,6 +1769,17 @@ document.getElementById('importJsonBtn').onclick = () => {
             • Multi-options : <code>{classe, options: {SCIENCES: [...], ...}}</code>
         </div>
         <div id="importPreviewContainer"></div>
+        
+        <div id="importProgressContainer" style="display:none; margin-top:20px; padding:16px; background:#1c1e21; border-radius:8px; border:1px solid #3b82f6;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:13px; color:#e4e6eb; font-weight:600;">
+                <span id="importProgressText">Importation en cours...</span>
+                <span id="importProgressPercent">0%</span>
+            </div>
+            <div style="width:100%; height:12px; background:#3a3b3c; border-radius:6px; overflow:hidden;">
+                <div id="importProgressBar" style="width:0%; height:100%; background:#25d366; transition:width 0.2s ease;"></div>
+            </div>
+        </div>
+
         <div class="modal-form-actions">
             <button class="btn btn-secondary" id="impCancel">Annuler</button>
             <button class="btn btn-success" id="impOk" disabled style="opacity:0.5;">Importer</button>
@@ -1842,22 +1855,71 @@ document.getElementById('importJsonBtn').onclick = () => {
     zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
     zone.addEventListener('drop', (e) => { e.preventDefault(); zone.classList.remove('dragover'); if (e.dataTransfer.files[0]) traiterFichier(e.dataTransfer.files[0]); });
     d.querySelector('#impCancel').onclick = () => { jsonImportData = null; d.remove(); };
+    
     impOk.onclick = async () => {
         if (!jsonImportData || !jsonImportData.valides.length) return;
-        impOk.disabled = true; impOk.textContent = 'Importation...';
+        
+        const btnCancel = d.querySelector('#impCancel');
+        const progressContainer = d.querySelector('#importProgressContainer');
+        const progressBar = d.querySelector('#importProgressBar');
+        const progressText = d.querySelector('#importProgressText');
+        const progressPercent = d.querySelector('#importProgressPercent');
+
+        // Désactiver les boutons et afficher la barre
+        impOk.disabled = true; 
+        btnCancel.disabled = true;
+        btnCancel.style.opacity = '0.5';
+        progressContainer.style.display = 'block';
+        
+        const total = jsonImportData.valides.length;
+        let countOk = 0, countSkip = 0;
+
         try {
             const existing = new Set(localEleves.map(e => (e.nom + '|' + e.postnom + '|' + e.prenom).toLowerCase()));
-            let countOk = 0, countSkip = 0;
-            for (const eleve of jsonImportData.valides) {
+            
+            for (let i = 0; i < total; i++) {
+                const eleve = jsonImportData.valides[i];
                 const key = (eleve.nom + '|' + eleve.postnom + '|' + eleve.prenom).toLowerCase();
-                if (existing.has(key)) { countSkip++; continue; }
-                const newId = 'e' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-                await setDoc(doc(db, "ecoles", ECOLET_ID, SC.ELEVES, newId), { ...eleve, school: ECOLET_ID, createdAt: new Date() });
-                existing.add(key); countOk++;
+                
+                if (existing.has(key)) { 
+                    countSkip++; 
+                } else {
+                    const newId = 'e' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+                    await setDoc(doc(db, "ecoles", ECOLET_ID, SC.ELEVES, newId), { ...eleve, school: ECOLET_ID, createdAt: new Date() });
+                    existing.add(key); 
+                    countOk++;
+                }
+
+                // Mettre à jour la barre de progression
+                const current = i + 1;
+                const percent = Math.round((current / total) * 100);
+                progressBar.style.width = percent + '%';
+                progressPercent.textContent = percent + '%';
+                progressText.textContent = `Importation ${current} / ${total}...`;
             }
+
+            // Succès
+            progressBar.style.background = '#25d366';
+            progressText.textContent = `Terminé ! (${countOk} importés)`;
+            
             toast(`${countOk} élève(s) importé(s)${countSkip > 0 ? ' — ' + countSkip + ' doublon(s) ignoré(s)' : ''}`, 'success');
-            jsonImportData = null; d.remove(); chargerElevesTable();
-        } catch (err) { toast("Erreur lors de l'import", 'error'); impOk.disabled = false; impOk.textContent = 'Réessayer'; }
+            
+            setTimeout(() => {
+                jsonImportData = null; 
+                d.remove(); 
+                chargerElevesTable();
+            }, 1000); // Ferme le modal 1 seconde après la fin pour que l'utilisateur voie "Terminé"
+
+        } catch (err) { 
+            progressBar.style.background = '#ef4444';
+            progressText.textContent = "Erreur lors de l'importation";
+            toast("Erreur lors de l'import", 'error'); 
+            
+            impOk.disabled = false; 
+            btnCancel.disabled = false;
+            btnCancel.style.opacity = '1';
+            impOk.textContent = 'Réessayer'; 
+        }
     };
 };
 
@@ -1884,6 +1946,7 @@ document.getElementById('replaceElevesBtn').onclick = () => {
                 <option value="">-- Toutes les options de la classe --</option>
                 ${OPTIONS_DISPONIBLES.map(o => `<option value="${o}">${o}</option>`).join('')}
             </select>
+            <div style="font-size:11px;color:#b0b3b8;margin-top:4px;">Laissez vide pour remplacer TOUTES les options de la classe.</div>
         </div>
         <div id="repInfoBox" style="display:none;padding:14px;background:#1c1e21;border-radius:6px;margin-bottom:16px;">
             <div style="font-size:12px;color:#b0b3b8;margin-bottom:6px;">📊 ÉLÈVES ACTUELS CONCERNÉS</div>
