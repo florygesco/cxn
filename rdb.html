@@ -3726,18 +3726,118 @@ function ouvrirMiniBible(reference) {
   catch(e) { refDecodee = reference || ""; }
   refDecodee = refDecodee.trim();
   if (!refDecodee) { return; }
+  
   _bibleCurrentRef = refDecodee;
   _bibleVersetTexte = "";
+  
   var inp = document.getElementById('bibleRefInput');
   if (inp) inp.value = refDecodee;
   var label = document.getElementById('bibleRefLabel');
   if (label) label.textContent = refDecodee;
+  
   var backdrop = document.getElementById('bibleBackdrop');
   var panel = document.getElementById('biblePanel');
   if (backdrop) { backdrop.style.opacity = '1'; backdrop.style.pointerEvents = 'auto'; }
   if (panel) panel.style.transform = 'translateY(0)';
   document.body.style.overflow = 'hidden';
-  rechercherVersetBible();
+  
+  var resultatDiv = document.getElementById('bibleResultat');
+  if (resultatDiv) {
+    resultatDiv.innerHTML = '<div class="bible-loading"><div class="bible-spinner"></div><span>Chargement…</span></div>';
+  }
+  
+  var regex = /^([1-3]?\s*[a-zA-ZÀ-ÿ]+)\s+(\d+)[:.](\d+)$/;
+  var match = refDecodee.match(regex);
+  if (!match) {
+    if (resultatDiv) {
+      resultatDiv.innerHTML = '<div class="bible-error"><i class="fa-solid fa-triangle-exclamation"></i> Format invalide : ' + refDecodee + '</div>';
+    }
+    return;
+  }
+  
+  var livreSaisi = match[1].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '');
+  var livres = {
+    "marc":"mark","jean":"john","matthieu":"matthew","luc":"luke",
+    "genese":"genesis","psaume":"psalms","psaumes":"psalms",
+    "exode":"exodus","levitique":"leviticus","nombres":"numbers",
+    "deuteronome":"deuteronomy","josue":"joshua","juges":"judges",
+    "ruth":"ruth","1samuel":"1samuel","2samuel":"2samuel",
+    "1rois":"1kings","2rois":"2kings","proverbes":"proverbs",
+    "ecclesiaste":"ecclesiastes","esaie":"isaiah","jeremie":"jeremiah",
+    "ezechiel":"ezekiel","daniel":"daniel","osee":"hosea","joel":"joel",
+    "amos":"amos","jonas":"jonah","michee":"micah","nahum":"nahum",
+    "habacuc":"habakkuk","sophonie":"zephaniah","aggee":"haggai",
+    "zacharie":"zechariah","malachie":"malachi","actes":"acts",
+    "romains":"romans","1corinthiens":"1corinthians","2corinthiens":"2corinthians",
+    "galates":"galatians","ephesiens":"ephesians","philippiens":"philippians",
+    "colossiens":"colossians","1thessaloniciens":"1thessalonians",
+    "2thessaloniciens":"2thessalonians","1timothee":"1timothy",
+    "2timothee":"2timothy","tite":"titus","philemon":"philemon",
+    "hebreux":"hebrews","jacques":"james","1pierre":"1peter",
+    "2pierre":"2peter","1jean":"1john","2jean":"2john","3jean":"3john",
+    "jude":"jude","apocalypse":"revelation"
+  };
+  var livreAPI = livres[livreSaisi] || livreSaisi;
+  var url = 'https://api.midvash.com/v1/lsg/' + livreAPI + '/' + match[2] + '/' + match[3];
+  
+  fetch(url)
+    .then(function(response) {
+      if (!response.ok) throw new Error("Code " + response.status);
+      return response.json();
+    })
+    .then(function(json) {
+      if (json && json.data && json.data.text) {
+        _bibleVersetTexte = json.data.text.trim();
+        if (resultatDiv) {
+          resultatDiv.innerHTML = '<div class="bible-panel-result"><div class="bible-ref-title"><i class="fa-solid fa-book-bible"></i> ' + (json.data.reference || refDecodee) + '</div><div class="bible-verse-text">« ' + _bibleVersetTexte + ' »</div></div>';
+        }
+      } else {
+        if (resultatDiv) {
+          resultatDiv.innerHTML = '<div class="bible-error"><i class="fa-solid fa-triangle-exclamation"></i> Réponse inattendue de l\'API</div>';
+        }
+      }
+    })
+    .catch(function(error) {
+      if (resultatDiv) {
+        resultatDiv.innerHTML = '<div class="bible-error"><i class="fa-solid fa-triangle-exclamation"></i> Erreur : ' + error.message + '<br><span style="font-size:12px;word-break:break-all">URL : ' + url + '</span></div>';
+      }
+    });
+}
+
+async function rechercherVersetBible() {
+  var inp = document.getElementById('bibleRefInput');
+  var ref = inp ? inp.value.trim() : _bibleCurrentRef;
+  if (!ref) return;
+  var resultatDiv = document.getElementById('bibleResultat');
+  if (!resultatDiv) return;
+  resultatDiv.innerHTML = '<div class="bible-loading"><div class="bible-spinner"></div><span>Chargement…</span></div>';
+  var label = document.getElementById('bibleRefLabel');
+  if (label) label.textContent = ref;
+  _bibleCurrentRef = ref;
+  _bibleVersetTexte = "";
+  var regex = /^([1-3]?\s*[a-zA-ZÀ-ÿ]+)\s+(\d+)[:.](\d+)$/;
+  var match = String(ref).trim().match(regex);
+  if (!match) {
+    resultatDiv.innerHTML = '<div class="bible-error"><i class="fa-solid fa-triangle-exclamation"></i> Format invalide. Exemple : Marc 11:24</div>';
+    return;
+  }
+  var livreSaisi = match[1].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '');
+  var livres = {"marc":"mark","jean":"john","matthieu":"matthew","luc":"luke","genese":"genesis","psaume":"psalms","psaumes":"psalms"};
+  var livreAPI = livres[livreSaisi] || livreSaisi;
+  var url = 'https://api.midvash.com/v1/lsg/' + livreAPI + '/' + match[2] + '/' + match[3];
+  fetch(url)
+    .then(function(r) { if (!r.ok) throw new Error("Code " + r.status); return r.json(); })
+    .then(function(json) {
+      if (json && json.data && json.data.text) {
+        _bibleVersetTexte = json.data.text.trim();
+        resultatDiv.innerHTML = '<div class="bible-panel-result"><div class="bible-ref-title"><i class="fa-solid fa-book-bible"></i> ' + (json.data.reference || ref) + '</div><div class="bible-verse-text">« ' + _bibleVersetTexte + ' »</div></div>';
+      } else {
+        resultatDiv.innerHTML = '<div class="bible-error"><i class="fa-solid fa-triangle-exclamation"></i> Verset introuvable.</div>';
+      }
+    })
+    .catch(function(error) {
+      resultatDiv.innerHTML = '<div class="bible-error"><i class="fa-solid fa-triangle-exclamation"></i> Erreur : ' + error.message + '<br><span style="font-size:12px;word-break:break-all">URL : ' + url + '</span></div>';
+    });
 }
 
 function fermerBibleIframe() {
