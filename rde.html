@@ -3674,29 +3674,38 @@ async function rechercherVersetBible() {
   var ref = inp ? inp.value.trim() : _bibleCurrentRef;
   var resultatDiv = document.getElementById('bibleResultat');
   var label = document.getElementById('bibleRefLabel');
+  
   if (!resultatDiv) { alert("Erreur : zone d'affichage introuvable"); return; }
   if (!ref) {
     resultatDiv.innerHTML = '<div class="bible-error"><i class="fa-solid fa-triangle-exclamation"></i> Aucune référence fournie.</div>';
     return;
   }
+  
   if (label) label.textContent = ref;
   _bibleCurrentRef = ref;
   resultatDiv.innerHTML = '<div class="bible-loading"><div class="bible-spinner"></div><span>Chargement…</span></div>';
+  
   var refDecoupee = _extraireReferenceBible(ref);
   if (!refDecoupee) {
     resultatDiv.innerHTML = '<div class="bible-error"><i class="fa-solid fa-triangle-exclamation"></i> Format invalide : "' + _escBible(ref) + '"<br><span style="font-weight:600;font-size:13px;display:block;margin-top:6px">Exemple : Marc 11:24</span></div>';
     return;
   }
+  
   var url = 'https://api.midvash.com/v1/lsg/' + refDecoupee.livre + '/' + refDecoupee.chapitre + '/' + refDecoupee.verset;
+  
   var controller = new AbortController();
   var timeoutId = setTimeout(function(){ controller.abort(); }, 10000);
+  
   try {
     var response = await fetch(url, { signal: controller.signal });
     clearTimeout(timeoutId);
+    
     if (!response.ok) {
       throw new Error("Verset introuvable (Code " + response.status + ")");
     }
+    
     var jsonResponse = await response.json();
+    
     if (jsonResponse && jsonResponse.data && jsonResponse.data.text) {
       var referenceAffichee = jsonResponse.data.reference || ref;
       _bibleVersetTexte = jsonResponse.data.text.trim();
@@ -3716,7 +3725,7 @@ function ouvrirMiniBible(reference) {
   try { refDecodee = decodeURIComponent(reference || ""); }
   catch(e) { refDecodee = reference || ""; }
   refDecodee = refDecodee.trim();
-  if (!refDecodee) { showToast("Référence de verset manquante"); return; }
+  if (!refDecodee) { return; }
   _bibleCurrentRef = refDecodee;
   _bibleVersetTexte = "";
   var inp = document.getElementById('bibleRefInput');
@@ -3752,12 +3761,14 @@ function fermerBibleIframe() {
 function fermerMiniBible() { fermerBibleIframe(); }
 
 function copierVersetBible() {
-  if (!_bibleVersetTexte) { showToast("Aucun verset à copier"); return; }
-  copyText('"' + _bibleVersetTexte + '" — ' + _bibleCurrentRef);
+  if (!_bibleVersetTexte) { return; }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText('"' + _bibleVersetTexte + '" — ' + _bibleCurrentRef);
+  }
 }
 
 function partagerVersetBible() {
-  if (!_bibleVersetTexte) { showToast("Aucun verset à partager"); return; }
+  if (!_bibleVersetTexte) { return; }
   var txt = '📖 *' + _bibleCurrentRef + '*\n\n« ' + _bibleVersetTexte + ' »\n\n_Partagé via NeTubeX RDC_';
   if (navigator.share) {
     navigator.share({ title: _bibleCurrentRef, text: txt }).catch(function(err){
