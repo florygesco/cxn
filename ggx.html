@@ -1,0 +1,2045 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1c1e21">
+<title>GESTION DE SCOLARITÉ</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;}
+html,body{height:100%;background:#1c1e21;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;overflow-x:hidden;color:#e4e6eb;}
+body{overscroll-behavior:none;}
+.container{max-width:1400px;margin:0 auto;padding:20px;}
+.card{background:#242526;border-radius:8px;margin-bottom:20px;overflow:hidden;border:1px solid #3a3b3c;}
+.card-header{padding:14px 20px;background:#25d366;color:#ffffff;font-weight:700;display:flex;justify-content:space-between;align-items:center;font-size:15px;}
+.school-header{background:#242526;border-radius:8px;padding:20px;text-align:center;margin-bottom:20px;border:1px solid #3a3b3c;}
+.school-name{font-size:22px;font-weight:700;color:#e4e6eb;}
+.school-sub{font-size:12px;color:#b0b3b8;margin-top:4px;}
+.prof-card{background:#242526;border-radius:8px;padding:12px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px;border:1px solid #3a3b3c;}
+.prof-avatar{width:40px;height:40px;border-radius:50%;background:#25d366;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;color:#fff;}
+.prof-info{flex:1;text-align:left;min-width:0;}
+.prof-role{font-size:11px;font-weight:600;color:#25d366;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:1px;}
+.prof-name{font-size:15px;font-weight:700;color:#e4e6eb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tabs-container{overflow-x:auto;margin-bottom:20px;white-space:nowrap;-webkit-overflow-scrolling:touch;}
+.tabs{display:inline-flex;gap:8px;}
+.tab{background:#3a3b3c;border:none;padding:10px 20px;border-radius:6px;font-size:14px;cursor:pointer;color:#b0b3b8;transition:all 0.2s;font-family:inherit;font-weight:600;}
+.tab:hover{background:#4a4b4c;color:#e4e6eb;}
+.tab.active{background:#25d366;color:#ffffff;}
+.tab-content{display:none;animation:fadeIn 0.25s;}
+.tab-content.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.form-grid{display:grid;grid-template-columns:1fr;gap:14px;}
+@media(min-width:768px){.form-grid{grid-template-columns:repeat(3,1fr)}}
+.form-field{display:flex;flex-direction:column;gap:6px;}
+.form-field label{font-size:12px;font-weight:600;color:#b0b3b8;}
+.form-field input,.form-field select{background:#3a3b3c;border:1px solid transparent;border-radius:6px;padding:11px 14px;color:#e4e6eb;font-family:inherit;font-size:14px;transition:all 0.2s;}
+.form-field input:focus,.form-field select:focus{outline:none;border-color:#25d366;background:#4a4b4c;}
+.hidden-field{display:none !important;}
+.field-required label::after{content:" *";color:#f02849;}
+.btn{background:#3a3b3c;color:#e4e6eb;border:none;padding:10px 20px;border-radius:6px;font-weight:600;cursor:pointer;font-size:14px;display:inline-flex;align-items:center;gap:8px;transition:all 0.2s;font-family:inherit;}
+.btn:hover{background:#4a4b4c;}
+.btn-sm{padding:6px 14px;font-size:13px;}
+.btn-outline{background:transparent;border:1px solid #25d366;color:#25d366;}
+.btn-outline:hover{background:#25d366;color:#fff;}
+.btn-danger{background:#f02849;color:#fff;}
+.btn-danger:hover{background:#d91e3f;}
+.btn-success{background:#25d366;color:#fff;}
+.btn-success:hover{background:#128c7e;}
+.btn-secondary{background:#3a3b3c;color:#e4e6eb;}
+.btn-primary{background:#1877f2;color:#fff;}
+.btn-primary:hover{background:#166fe5;}
+.btn-warning{background:#f7b928;color:#050505;}
+.btn-warning:hover{background:#e0a520;}
+.table-wrapper{width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;display:block;border-radius:8px;border:1px solid #3a3b3c;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
+.student-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;min-width:800px;background:#242526;}
+.student-table th{background:#2a2b2c;padding:14px 8px;border-bottom:2px solid #25d366;font-size:12px;color:#e4e6eb;font-weight:700;text-align:center;position:sticky;top:0;z-index:10;}
+.student-table td{border-bottom:1px solid #3a3b3c;padding:10px 8px;color:#e4e6eb;text-align:center;transition:background 0.15s;}
+.student-table tr:hover td{background:#2f3031;}
+.student-table input[type="number"]{width:65px;padding:8px 4px;border-radius:6px;background:#1c1e21;border:1px solid #3a3b3c;color:#e4e6eb;text-align:center;font-family:inherit;font-size:14px;font-weight:600;transition:all 0.2s;}
+.student-table input[type="number"]:focus{outline:none;border-color:#25d366;background:#242526;box-shadow:0 0 0 2px rgba(37,211,102,0.2);}
+.student-table input[type="number"].note-insuffisant{color:#f02849;border-color:rgba(240,40,73,0.3);}
+.student-table input[type="number"].note-moyen{color:#f7b928;border-color:rgba(247,185,40,0.3);}
+.student-table input[type="number"].note-bien{color:#25d366;border-color:rgba(37,211,102,0.3);}
+.student-table input[type="number"].note-excellent{color:#25d366;background:rgba(37,211,102,0.1);}
+.name-edit-group { display: flex; gap: 4px; justify-content: center; width: 100%; }
+.name-edit-input { width: 30%; padding: 6px; border-radius: 4px; background: #1c1e21; border: 1px solid #25d366; color: #e4e6eb; font-family: inherit; font-size: 12px; font-weight: 600; text-align: left; }
+.name-edit-input::placeholder { color: #6a6c6f; font-weight: 400; }
+.name-edit-input:focus { outline: none; box-shadow: 0 0 0 2px rgba(37,211,102,0.3); }
+.sexe-select{padding:6px;border-radius:6px;background:#1c1e21;border:1px solid #25d366;color:#e4e6eb;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;}
+.total-cell{background:#2a2b2c;font-weight:800;font-size:14px;}
+.edit-toggle-btn{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:8px 16px;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;font-family:inherit;}
+.edit-toggle-btn:hover{background:rgba(255,255,255,0.25);}
+.edit-toggle-btn.active{background:#fff;color:#128c7e;border-color:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.2);}
+.footer-note{text-align:center;padding:12px;font-size:12px;color:#b0b3b8;}
+.fiche-selector{background:#242526;margin:0;padding:16px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border-bottom:1px solid #3a3b3c;}
+.fiche-selector label{color:#b0b3b8;font-size:12px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;white-space:nowrap;}
+#ficheSelect,#epreuveFicheSelector{flex:1;min-width:200px;padding:11px 14px;border-radius:6px;background:#3a3b3c;border:1px solid transparent;color:#e4e6eb;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;outline:none;}
+.modal-fullscreen{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:20000;display:flex;align-items:center;justify-content:center;visibility:hidden;opacity:0;transition:all 0.2s;}
+.modal-fullscreen.show{visibility:visible;opacity:1;}
+.modal-content{background:#242526;border-radius:8px;width:90%;max-width:95vw;padding:24px;border:1px solid #3a3b3c;max-height:90vh;overflow-y:auto;}
+.modal-content h3{font-size:18px;margin-bottom:16px;color:#e4e6eb;font-weight:700;}
+.toast-container{position:fixed;top:20px;right:20px;z-index:30000;display:flex;flex-direction:column;gap:12px;pointer-events:none;}
+.toast-notification{background:#242526;border-radius:8px;padding:16px 20px;min-width:320px;max-width:380px;display:flex;align-items:center;gap:12px;border-left:4px solid #25d366;border-top:1px solid #3a3b3c;border-right:1px solid #3a3b3c;border-bottom:1px solid #3a3b3c;transform:translateX(400px);transition:transform 0.3s ease;pointer-events:auto;box-shadow:0 4px 12px rgba(0,0,0,0.4);}
+.toast-notification.show{transform:translateX(0);}
+.toast-notification.error{border-left-color:#f02849;}
+.toast-notification.warning{border-left-color:#f7b928;}
+.toast-icon{font-size:18px;}
+.toast-content{flex:1;}
+.toast-title{font-weight:700;font-size:14px;color:#e4e6eb;margin-bottom:2px;}
+.toast-message{font-size:13px;color:#b0b3b8;line-height:1.4;}
+.empty-state{text-align:center;padding:40px;color:#b0b3b8;font-size:14px;}
+.login-overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:10000;display:flex;align-items:stretch;justify-content:center;overflow:hidden;}
+.login-split{display:flex;width:100%;height:100%;}
+.login-left{flex:0 0 40%;background:linear-gradient(160deg,#25d366 0%,#128c7e 60%,#075e54 100%);display:flex;flex-direction:column;justify-content:space-between;padding:60px 48px;color:#fff;position:relative;overflow:hidden;}
+.login-left::before{content:'';position:absolute;top:-100px;right:-100px;width:320px;height:320px;background:radial-gradient(circle,rgba(255,255,255,0.15),transparent 70%);border-radius:50%;pointer-events:none;}
+.login-left::after{content:'';position:absolute;bottom:-80px;left:-80px;width:240px;height:240px;background:radial-gradient(circle,rgba(255,255,255,0.1),transparent 70%);border-radius:50%;pointer-events:none;}
+.login-left-top{position:relative;z-index:2;}
+.login-left-logo{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.4);display:flex;align-items:center;justify-content:center;margin-bottom:32px;color:#fff;font-size:36px;font-weight:800;backdrop-filter:blur(10px);}
+.login-left-title{font-size:34px;font-weight:800;line-height:1.15;letter-spacing:-1px;margin-bottom:16px;color:#ffffff;}
+.login-left-subtitle{font-size:15px;color:rgba(255,255,255,0.9);line-height:1.6;max-width:340px;}
+.login-left-bottom{position:relative;z-index:2;}
+.login-left-divider{width:48px;height:2px;background:rgba(255,255,255,0.4);margin-bottom:20px;}
+.login-left-brand{font-size:12px;color:rgba(255,255,255,0.7);letter-spacing:1px;text-transform:uppercase;}
+.login-left-brand strong{color:#fff;font-weight:700;letter-spacing:1.5px;}
+.login-right{flex:1;background:#242526;display:flex;align-items:center;justify-content:center;padding:40px;overflow-y:auto;}
+.login-form-wrap{width:100%;max-width:400px;}
+.login-form-header{margin-bottom:36px;}
+.login-form-school{font-size:14px;font-weight:600;color:#25d366;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;}
+.login-form-title{font-size:28px;font-weight:800;color:#e4e6eb;letter-spacing:-0.5px;margin-bottom:8px;}
+.login-form-desc{font-size:14px;color:#b0b3b8;line-height:1.5;}
+.login-input-wrap{position:relative;margin-bottom:14px;}
+.login-input-wrap .input-icon{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:#b0b3b8;pointer-events:none;display:flex;align-items:center;}
+.login-input-wrap input{width:100%;padding:16px 18px 16px 48px;border-radius:6px;background:#3a3b3c;border:1.5px solid transparent;color:#e4e6eb;font-size:15px;outline:none;font-family:inherit;font-weight:500;transition:all 0.2s ease;}
+.login-input-wrap input:focus{border-color:#25d366;background:#4a4b4c;}
+.login-input-wrap input::placeholder{color:#b0b3b8;font-weight:400;}
+.login-btn-row{display:flex;gap:10px;margin-top:22px;}
+.login-btn{flex:1;padding:14px;border-radius:6px;background:#25d366;color:#ffffff;font-weight:700;border:none;cursor:pointer;font-size:16px;font-family:inherit;transition:all 0.2s ease;}
+.login-btn:hover:not(:disabled){background:#128c7e;}
+.login-btn:disabled{opacity:0.6;cursor:wait;}
+.login-refresh-btn{flex:0 0 52px;padding:14px;border-radius:6px;background:#3a3b3c;color:#e4e6eb;font-weight:600;border:none;cursor:pointer;font-size:16px;font-family:inherit;transition:all 0.2s ease;display:flex;align-items:center;justify-content:center;}
+.login-refresh-btn:hover{background:#4a4b4c;}
+.login-error{margin-top:14px;font-size:13px;color:#f02849;font-weight:600;min-height:18px;padding:12px 16px;border-radius:6px;background:rgba(240,40,73,0.15);border:1px solid rgba(240,40,73,0.3);transition:all 0.3s ease;}
+.login-error:empty{background:transparent;border-color:transparent;padding:0;min-height:0;}
+.login-footer{margin-top:36px;padding-top:20px;border-top:1px solid #3a3b3c;font-size:12px;color:#b0b3b8;text-align:center;}
+.login-footer strong{color:#25d366;font-weight:700;}
+.login-forgot{margin-top:14px;text-align:center;font-size:13px;color:#b0b3b8;}
+.login-forgot a{color:#25d366;text-decoration:none;font-weight:600;cursor:pointer;}
+.login-forgot a:hover{text-decoration:underline;}
+@media(max-width:768px){.login-split{flex-direction:column;}.login-left{flex:0 0 auto;padding:32px 24px;min-height:auto;}.login-left-logo{width:56px;height:56px;margin-bottom:20px;font-size:28px;}.login-left-title{font-size:24px;margin-bottom:8px;}.login-left-subtitle{font-size:13px;}.login-left-bottom{display:none;}.login-right{padding:32px 24px;flex:1;}.login-form-header{margin-bottom:28px;}.login-form-title{font-size:22px;}}
+.epreuve-box{background:#2a2b2c;border-radius:8px;padding:14px;margin-bottom:12px;border:1px solid #3a3b3c;}
+.epreuve-box h4{color:#25d366;font-size:14px;margin-bottom:10px;}
+.epreuve-list{display:flex;flex-wrap:wrap;gap:8px;}
+.epreuve-item{display:flex;align-items:center;gap:8px;background:#3a3b3c;padding:6px 12px;border-radius:6px;}
+.epreuve-item input{background:#4a4b4c;border:1px solid transparent;color:#e4e6eb;padding:6px 10px;border-radius:6px;font-family:inherit;font-size:13px;}
+.epreuve-item input:focus{outline:none;border-color:#25d366;background:#242526;}
+.prof-config{background:#2a2b2c;border-radius:8px;padding:16px;margin-top:16px;border:1px solid #3a3b3c;}
+.prof-config h3{font-size:14px;margin-bottom:12px;color:#e4e6eb;font-weight:700;}
+.prof-config .note-max-row{display:flex;align-items:center;gap:15px;flex-wrap:wrap;margin-bottom:15px;}
+.prof-config .note-max-row label{color:#b0b3b8;font-size:13px;font-weight:600;}
+.prof-config .note-max-row input{width:100px;padding:10px;border-radius:6px;background:#3a3b3c;color:#e4e6eb;border:1px solid transparent;font-family:inherit;}
+.prof-config .note-max-row input:focus{outline:none;border-color:#25d366;}
+.prof-config .btn-group{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23b0b3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");background-repeat:no-repeat;background-position:right 12px center;background-size:14px;padding-right:36px !important;}
+.floating-actions{position:fixed;right:16px;top:50%;transform:translateY(-50%);z-index:15000;display:flex;flex-direction:column;gap:12px;}
+.floating-btn{width:48px;height:48px;border-radius:50%;border:1px solid #3a3b3c;background:#242526;color:#e4e6eb;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.4);transition:all 0.2s;font-family:inherit;}
+.floating-btn:hover{transform:scale(1.05);background:#3a3b3c;}
+.floating-btn.logout{background:#f02849;color:#fff;border-color:#f02849;}
+.floating-btn.logout:hover{background:#d91e3f;}
+.floating-btn.technique{background:#25d366;color:#fff;border-color:#25d366;}
+.floating-btn.technique:hover{background:#128c7e;}
+@media (max-width:480px){.floating-actions{right:10px;gap:10px;}.floating-btn{width:44px;height:44px;font-size:18px;}}
+.cotation-layout{display:grid;grid-template-columns:1fr;gap:16px;}
+@media(min-width:900px){.cotation-layout{grid-template-columns:1fr 300px;}}
+.cotation-main{order:2;min-width:0;}
+.cotation-sidebar{order:1;display:flex;flex-direction:column;gap:16px;}
+@media(min-width:900px){.cotation-main{order:1;}.cotation-sidebar{order:2;}}
+.sidebar-block{background:#242526;border-radius:8px;padding:18px;border:1px solid #3a3b3c;}
+.sidebar-block-title{font-size:11px;font-weight:700;color:#b0b3b8;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;}
+.fiche-active-badge{display:inline-block;background:#25d366;color:#fff;padding:4px 12px;border-radius:6px;font-size:12px;font-weight:700;margin-bottom:10px;letter-spacing:1px;}
+.fiche-active-cours{font-size:16px;font-weight:700;color:#e4e6eb;margin-bottom:6px;}
+.fiche-active-info{font-size:13px;color:#b0b3b8;margin-bottom:4px;}
+.fiche-active-count{font-size:13px;color:#25d366;font-weight:600;margin-top:8px;}
+.sidebar-action-btn{width:100%;padding:12px;border-radius:6px;border:none;font-weight:700;font-size:14px;cursor:pointer;transition:all 0.2s;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;}
+.sidebar-action-btn.save{background:#25d366;color:#fff;}
+.sidebar-action-btn.save:hover{background:#128c7e;}
+.sidebar-action-btn.pdf{background:#f02849;color:#fff;}
+.sidebar-action-btn.pdf:hover{background:#d91e3f;}
+.sidebar-action-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.cotation-toolbar{background:#242526;border-radius:8px;padding:12px;margin-bottom:16px;border:1px solid #3a3b3c;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.cotation-toolbar input,.cotation-toolbar select{flex:1;min-width:120px;padding:10px 14px;border-radius:6px;background:#3a3b3c;border:1px solid transparent;color:#e4e6eb;font-family:inherit;font-size:13px;}
+.cotation-toolbar input:focus,.cotation-toolbar select:focus{outline:none;border-color:#25d366;background:#4a4b4c;}
+.cotation-toolbar button{padding:10px 14px;border-radius:6px;background:#3a3b3c;border:none;color:#e4e6eb;font-weight:600;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap;}
+.cotation-toolbar button:hover{background:#4a4b4c;}
+.cotation-toolbar button.active{background:#25d366;color:#fff;}
+@media(max-width:899px){
+  .cotation-sidebar{order:1;flex-direction:row;flex-wrap:wrap;}
+  .cotation-sidebar .sidebar-block{flex:1;min-width:220px;}
+}
+.multioptions-config{margin-top:14px;padding:14px;background:#1c1e21;border-radius:6px;border:1px dashed #3a3b3c;}
+.multioptions-config.hidden{display:none;}
+.multioptions-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:6px 10px;background:#242526;border-radius:6px;}
+.multioptions-row label{flex:1;font-size:13px;color:#e4e6eb;font-weight:500;}
+.multioptions-row input{width:80px;padding:6px 10px;border-radius:6px;background:#3a3b3c;border:1px solid transparent;color:#e4e6eb;font-family:inherit;font-size:13px;text-align:center;}
+.multioptions-row input:focus{outline:none;border-color:#25d366;}
+.multioptions-toggle{display:flex;gap:8px;margin-bottom:12px;}
+.multioptions-toggle button{flex:1;padding:8px 12px;border-radius:6px;background:#3a3b3c;border:none;color:#b0b3b8;font-weight:600;font-size:12px;cursor:pointer;font-family:inherit;}
+.multioptions-toggle button.active{background:#25d366;color:#fff;}
+.technique-panel{position:fixed;top:0;left:0;right:0;bottom:0;background:#1c1e21;z-index:18000;display:flex;flex-direction:column;visibility:hidden;opacity:0;transition:all 0.3s;}
+.technique-panel.show{visibility:visible;opacity:1;}
+.technique-header{background:#242526;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #3a3b3c;}
+.technique-header h2{font-size:20px;font-weight:700;color:#e4e6eb;}
+.technique-close{background:#3a3b3c;border:none;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:18px;color:#e4e6eb;display:flex;align-items:center;justify-content:center;transition:background 0.2s;}
+.technique-close:hover{background:#4a4b4c;}
+.technique-tabs{background:#242526;padding:0 24px;display:flex;gap:4px;border-bottom:1px solid #3a3b3c;overflow-x:auto;}
+.technique-tab{padding:14px 20px;background:transparent;border:none;color:#b0b3b8;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;border-bottom:3px solid transparent;transition:all 0.2s;white-space:nowrap;}
+.technique-tab:hover{color:#e4e6eb;}
+.technique-tab.active{color:#25d366;border-bottom-color:#25d366;}
+.technique-content{flex:1;overflow-y:auto;padding:24px;}
+.technique-section{display:none;}
+.technique-section.active{display:block;}
+.technique-toolbar{background:#242526;border-radius:8px;padding:16px;margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;border:1px solid #3a3b3c;}
+.technique-toolbar input{flex:1;min-width:200px;padding:10px 14px;border-radius:6px;background:#3a3b3c;border:1px solid transparent;color:#e4e6eb;font-family:inherit;font-size:14px;}
+.technique-toolbar input:focus{outline:none;border-color:#25d366;background:#4a4b4c;}
+.technique-toolbar select{padding:10px 14px;border-radius:6px;background:#3a3b3c;border:1px solid transparent;color:#e4e6eb;font-family:inherit;font-size:14px;}
+.technique-toolbar select:focus{outline:none;border-color:#25d366;background:#4a4b4c;}
+.data-table{width:100%;background:#242526;border-radius:8px;overflow:hidden;border:1px solid #3a3b3c;border-collapse:collapse;}
+.data-table thead{background:#3a3b3c;}
+.data-table th{padding:12px 16px;text-align:left;font-size:12px;font-weight:700;color:#b0b3b8;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #3a3b3c;}
+.data-table td{padding:12px 16px;font-size:14px;color:#e4e6eb;border-bottom:1px solid #3a3b3c;}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tr:hover{background:#2a2b2c;}
+.table-action-btn{background:#3a3b3c;border:none;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;color:#e4e6eb;font-weight:600;font-family:inherit;margin-right:4px;transition:background 0.2s;}
+.table-action-btn:hover{background:#4a4b4c;}
+.table-action-btn.danger{background:rgba(240,40,73,0.15);color:#f02849;}
+.table-action-btn.danger:hover{background:rgba(240,40,73,0.25);}
+.modal-form-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:21000;display:flex;align-items:center;justify-content:center;visibility:hidden;opacity:0;transition:all 0.2s;}
+.modal-form-overlay.show{visibility:visible;opacity:1;}
+.modal-form{background:#242526;border-radius:8px;width:90%;max-width:500px;padding:24px;border:1px solid #3a3b3c;max-height:90vh;overflow-y:auto;}
+.modal-form h3{font-size:18px;font-weight:700;color:#e4e6eb;margin-bottom:20px;}
+.modal-form .form-group{margin-bottom:16px;}
+.modal-form label{display:block;font-size:12px;font-weight:600;color:#b0b3b8;margin-bottom:6px;}
+.modal-form input,.modal-form select,.modal-form textarea{width:100%;padding:11px 14px;border-radius:6px;background:#3a3b3c;border:1px solid transparent;color:#e4e6eb;font-family:inherit;font-size:14px;}
+.modal-form input:focus,.modal-form select:focus,.modal-form textarea:focus{outline:none;border-color:#25d366;background:#4a4b4c;}
+.modal-form input:read-only{background:#2a2b2c;color:#b0b3b8;}
+.modal-form input[type="checkbox"]{width:auto;margin-right:8px;}
+.modal-form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;}
+.pdf-choice-grid{display:grid;grid-template-columns:1fr;gap:12px;margin:20px 0;}
+@media(min-width:600px){.pdf-choice-grid{grid-template-columns:1fr 1fr;}}
+.pdf-choice-card{background:#1c1e21;border:2px solid #3a3b3c;border-radius:8px;padding:20px;cursor:pointer;transition:all 0.2s;position:relative;}
+.pdf-choice-card:hover{border-color:#25d366;transform:translateY(-2px);}
+.pdf-choice-card.selected{border-color:#25d366;background:rgba(37,211,102,0.1);}
+.pdf-choice-card.disabled{opacity:0.5;pointer-events:none;}
+.pdf-choice-card h4{color:#e4e6eb;font-size:15px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px;}
+.pdf-choice-card p{color:#b0b3b8;font-size:12px;line-height:1.5;margin-bottom:10px;}
+.pdf-option-select{margin-top:10px;}
+.pdf-option-select select{width:100%;padding:10px 14px;border-radius:6px;background:#242526;border:1px solid #3a3b3c;color:#e4e6eb;font-family:inherit;font-size:13px;cursor:pointer;}
+.pdf-option-select select:focus{outline:none;border-color:#25d366;}
+.pdf-option-select select:disabled{opacity:0.5;cursor:not-allowed;}
+.pdf-option-count{font-size:12px;color:#b0b3b8;margin-top:8px;text-align:center;min-height:16px;}
+.pdf-option-count strong{color:#25d366;}
+.import-zone{border:2px dashed #3a3b3c;border-radius:8px;padding:30px;text-align:center;cursor:pointer;transition:all 0.2s;background:#1c1e21;}
+.import-zone:hover{border-color:#25d366;background:rgba(37,211,102,0.05);}
+.import-zone.dragover{border-color:#25d366;background:rgba(37,211,102,0.1);}
+.import-zone-icon{font-size:48px;margin-bottom:12px;}
+.import-zone-text{color:#e4e6eb;font-size:14px;font-weight:600;margin-bottom:6px;}
+.import-zone-sub{color:#b0b3b8;font-size:12px;}
+.import-preview{background:#1c1e21;border-radius:6px;padding:14px;margin-top:16px;max-height:200px;overflow-y:auto;}
+.import-preview-item{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #2a2b2c;}
+.import-preview-item:last-child{border-bottom:none;}
+.import-preview-item.error{color:#f02849;}
+.import-preview-item.ok{color:#e4e6eb;}
+</style>
+</head>
+<body>
+<div id="loadingScreen" style="display:flex;position:fixed;top:0;left:0;right:0;bottom:0;background:#1c1e21;z-index:99999;align-items:center;justify-content:center;flex-direction:column;gap:24px;font-family:'Inter',sans-serif;"><div style="color:#25d366;font-size:22px;font-weight:700;letter-spacing:1px;">GESTION SCOLAIRE</div><div style="width:40px;height:40px;border:4px solid rgba(37,211,102,0.2);border-top-color:#25d366;border-radius:50%;animation:spin 0.8s linear infinite;"></div><style>@keyframes spin{to{transform:rotate(360deg);}}</style></div>
+<div class="container" id="mainApp" style="display:none">
+<div class="school-header"><div class="school-name" id="schoolNameHeader">ÉCOLE GLORIA DEI</div><div class="school-sub" id="schoolSubHeader">CHARGEMENT...</div><div style="font-size:13px;margin-top:8px;color:#25d366;font-weight:600;">GESTION DE SCOLARITÉ</div></div>
+<div class="prof-card" id="profCard">
+<div class="prof-avatar" id="profAvatar">👨‍🏫</div>
+<div class="prof-info">
+<div class="prof-role" id="profRole">PROFESSEUR</div>
+<div class="prof-name" id="profCardName">—</div>
+</div>
+</div>
+<div class="tabs-container"><div class="tabs" id="tabsProfesseur">
+<button class="tab active" data-tab="tabProf">ESPACE PROFESSEUR</button>
+<button class="tab" data-tab="tabEpreuves">EPREUVES</button>
+<button class="tab" data-tab="tabCotation">FICHES DE COTATION</button>
+</div></div>
+<div id="tabProf" class="tab-content active"><div class="card"><div class="card-header"><span>GESTION DES FICHES</span></div>
+<div class="fiche-selector"><label>Fiche active :</label><select id="ficheSelect"></select></div>
+<div class="form-grid" style="padding:20px;">
+<div class="form-field field-required"><label>MATIÈRE (COURS)</label><input type="text" id="coursInput" placeholder="ex: Français"></div>
+<div class="form-field field-required"><label>CLASSE</label><select id="classeSelect"><option value="">-- Sélectionner --</option><option value="7ème EB">7ème EB</option><option value="8ème EB">8ème EB</option><option value="1ère Année">1ère Année</option><option value="2ème Année">2ème Année</option><option value="3ème Année">3ème Année</option><option value="4ème Année">4ème Année</option></select></div>
+<div class="form-field" id="optionField"><label>OPTION</label>
+<select id="optionSelect">
+<option value="">-- Sélectionner --</option>
+<option value="SCIENCES">SCIENCES</option>
+<option value="PEDAGOGIE GENERALE">PÉDAGOGIE GÉNÉRALE</option>
+<option value="COMMERCIALE ET GESTION">COMMERCIALE ET GESTION</option>
+<option value="ELECTRICITE">ÉLECTRICITÉ</option>
+<option value="MECANIQUE GENERALE">MÉCANIQUE GÉNÉRALE</option>
+<option value="COUPE ET COUTURE">COUPE ET COUTURE</option>
+<option value="TOUTES">TOUTES</option>
+</select>
+</div>
+<div class="form-field"><label>ANNEE SCOLAIRE</label><input type="text" id="anneeInput" value="2026-2027" readonly></div>
+</div>
+<div class="prof-config" style="margin:0 20px 20px 20px;"><h3>CONFIGURATION</h3>
+<div class="note-max-row"><label>Note max / période :</label><input type="number" id="p1MaxConfig" value="20" step="1"></div>
+<div id="multiOptionsSection" class="multioptions-config hidden">
+<div style="font-size:12px;font-weight:700;color:#25d366;letter-spacing:0.5px;margin-bottom:10px;">⚙️ NOTE MAX PAR OPTION</div>
+<div class="multioptions-toggle">
+<button type="button" id="modeUniforme" class="active">Note unique</button>
+<button type="button" id="modePersonnalise">Note par option</button>
+</div>
+<div id="multiOptionsList" style="display:none;"></div>
+</div>
+<div class="btn-group" id="btnGroupContainer" style="margin-top:16px;">
+<button class="btn btn-success" id="creerFicheBtn">CRÉER</button>
+<button class="btn btn-primary" id="modifierFicheBtn" style="display:none;">MODIFIER</button>
+<button class="btn btn-danger" id="supprimerFicheBtn" style="display:none;">SUPPRIMER</button>
+<button class="btn btn-warning" id="diviserFicheBtn" style="display:none;">✂️ DIVISER PAR OPTION</button>
+<button class="btn btn-secondary" id="viderChampsBtn">EFFACER</button>
+</div>
+</div>
+<div style="padding:20px;border-top:1px solid #3a3b3c;"><h3 style="color:#e4e6eb;margin-bottom:15px;font-size:14px;font-weight:700;">LISTE DES ÉLÈVES</h3><div id="elevesListContainer" style="max-height:300px;overflow-y:auto;margin-bottom:15px;"></div><button class="btn btn-success" id="rechargerElevesBtn" style="width:100%;">RECHARGER</button><div id="ficheStats" style="margin-top:12px;padding:12px;background:#2a2b2c;border-radius:6px;font-size:13px;color:#b0b3b8;"><div id="ficheStatsContent"></div></div></div>
+</div></div>
+<div id="tabEpreuves" class="tab-content"><div class="card"><div class="card-header">EPREUVES PAR PERIODE</div><div class="fiche-selector"><select id="epreuveFicheSelector"></select></div><div id="epreuvesContainer" style="padding:20px;"></div><div class="btn-group" style="padding:0 20px 20px 20px;margin:0"><button class="btn btn-sm" id="addEpreuve1">+ P1</button><button class="btn btn-sm" id="addEpreuve2">+ P2</button><button class="btn btn-sm" id="addEpreuve3">+ P3</button><button class="btn btn-sm" id="addEpreuve4">+ P4</button></div></div></div>
+
+<div id="tabCotation" class="tab-content">
+<div class="cotation-layout">
+<div class="cotation-main">
+    <div class="cotation-toolbar">
+        <input type="text" id="searchInput" placeholder="🔍 Rechercher un élève...">
+        <select id="periodeFilterSelect">
+            <option value="all">📅 Toutes les périodes</option>
+            <option value="1">Période 1</option>
+            <option value="2">Période 2</option>
+            <option value="3">Période 3</option>
+            <option value="4">Période 4</option>
+        </select>
+        <button id="sortAlphaBtn">🔤 Tri alphabétique</button>
+        <button id="toggleEditModeBtn" class="btn btn-primary" style="background:#1877f2;">✏️ Éditer Noms/Sexes</button>
+    </div>
+    <div class="table-wrapper">
+        <table class="student-table" id="cotationTable">
+            <thead id="cotationHeader"></thead>
+            <tbody id="cotationBody"></tbody>
+        </table>
+    </div>
+</div>
+<div class="cotation-sidebar">
+<div class="sidebar-block">
+<div class="sidebar-block-title">📚 FICHE ACTIVE</div>
+<div id="sidebarFicheInfo">
+<div class="fiche-active-badge" id="sidebarFicheRef">F---</div>
+<div class="fiche-active-cours" id="sidebarFicheCours">—</div>
+<div class="fiche-active-info" id="sidebarFicheClasse">—</div>
+<div class="fiche-active-info" id="sidebarFicheOption">—</div>
+<div class="fiche-active-count" id="sidebarFicheCount">0 élèves</div>
+</div>
+<div style="margin-top:14px;">
+<select id="cotationFicheSelector" style="width:100%;padding:10px 14px;border-radius:6px;background:#3a3b3c;border:1px solid transparent;color:#e4e6eb;font-family:inherit;font-size:13px;"></select>
+</div>
+</div>
+<div class="sidebar-block">
+<div class="sidebar-block-title">⚙️ ACTIONS</div>
+<button class="sidebar-action-btn save" id="saveCotationBtn">💾 Enregistrer</button>
+<button class="sidebar-action-btn pdf" id="exportCurrentBtn" style="margin-top:10px;">📄 Export PDF</button>
+</div>
+</div>
+</div>
+</div>
+
+<div class="footer-note" id="footerNote">CHARGEMENT...</div>
+</div>
+
+<div class="technique-panel" id="techniquePanel">
+<div class="technique-header">
+<h2>⚙️ ESPACE TECHNIQUE</h2>
+<button class="technique-close" id="techniqueCloseBtn">✕</button>
+</div>
+<div class="technique-tabs">
+<button class="technique-tab active" data-section="eleves">👥 ÉLÈVES</button>
+<button class="technique-tab" data-section="professeurs">👨‍🏫 PROFESSEURS</button>
+</div>
+<div class="technique-content">
+<div class="technique-section active" id="section-eleves">
+<div class="technique-toolbar">
+<input type="text" id="eleveSearchInput" placeholder="🔍 Rechercher un élève...">
+<select id="eleveClasseFilter">
+<option value="">Toutes les classes</option>
+<option value="7ème EB">7ème EB</option>
+<option value="8ème EB">8ème EB</option>
+<option value="1ère Année">1ère Année</option>
+<option value="2ème Année">2ème Année</option>
+<option value="3ème Année">3ème Année</option>
+<option value="4ème Année">4ème Année</option>
+</select>
+<button class="btn btn-primary" id="importJsonBtn">📥 Importer JSON</button>
+<button class="btn btn-success" id="addEleveBtn">➕ Ajouter</button>
+</div>
+<div id="elevesTableContainer"></div>
+</div>
+<div class="technique-section" id="section-professeurs">
+<div class="technique-toolbar">
+<input type="text" id="profSearchInput" placeholder="🔍 Rechercher un professeur...">
+<button class="btn btn-success" id="addProfBtn">➕ Ajouter un professeur</button>
+</div>
+<div id="profsTableContainer"></div>
+</div>
+</div>
+</div>
+
+<div class="floating-actions" style="display:none;">
+<button class="floating-btn technique" id="floatingTechniqueBtn" title="Espace technique">⚙️</button>
+<button class="floating-btn logout" id="floatingLogoutBtn" title="Déconnexion">🚪</button>
+</div>
+<div class="toast-container" id="toastContainer"></div>
+
+<script type="importmap">
+{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js","firebase/analytics":"https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js"}}
+</script>
+<script type="module">
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'F12') { e.preventDefault(); return false; }
+    if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) { e.preventDefault(); return false; }
+    if (e.ctrlKey && (e.key === 'u' || e.key === 'U')) { e.preventDefault(); return false; }
+    if (e.ctrlKey && e.shiftKey && (e.key === 'K' || e.key === 'k')) { e.preventDefault(); return false; }
+});
+
+import { initializeApp, initializeApp as initializeAppSecondary } from "firebase/app";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc } from "firebase/firestore";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, createUserWithEmailAndPassword } from "firebase/auth";
+import { getAnalytics } from "firebase/analytics";
+
+const firebaseConfig = {
+apiKey: "AIzaSyDX430AIfzzgfq3o8tXHwQfIptgWOZ-K8c",
+authDomain: "gesco-67c43.firebaseapp.com",
+projectId: "gesco-67c43",
+storageBucket: "gesco-67c43.firebasestorage.app",
+messagingSenderId: "333004443566",
+appId: "1:333004443566:web:de41f60000e418dce9023f",
+measurementId: "G-V7MF88Y5EE"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+try { getAnalytics(app); } catch(e) {}
+
+let secondaryApp = null;
+function getSecondaryAuth() {
+    if (!secondaryApp) secondaryApp = initializeAppSecondary(firebaseConfig, "Secondary");
+    return getAuth(secondaryApp);
+}
+
+const urlParams = new URLSearchParams(window.location.search);
+let schoolId = urlParams.get('ecole') || 'ecole-principale';
+const ECOLET_ID = schoolId.replace(/[^a-zA-Z0-9]/g,'_');
+const SC = { PROFESSEURS: 'professeurs', FICHES: 'fiches', ELEVES: 'eleves', ADMIN: 'admin' };
+
+let currentProf = null;
+let currentRole = null;
+let currentFicheId = null;
+let currentFiche = null;
+let toutesFiches = [];
+let isCreatingFiche = false;
+let isUpdatingSelectors = false;
+let champsModifiables = false;
+let localEleves = [];
+let triAlphabetiqueActif = false;
+let periodeFilterCotation = 'all';
+let modeMultiOptionsActif = false;
+let jsonImportData = null;
+let editModeCotation = false;
+
+const OPTIONS_DISPONIBLES = ["SCIENCES", "PEDAGOGIE GENERALE", "COMMERCIALE ET GESTION", "ELECTRICITE", "MECANIQUE GENERALE", "COUPE ET COUTURE"];
+const CLASSES_VALIDES = ["7ème EB", "8ème EB", "1ère Année", "2ème Année", "3ème Année", "4ème Année"];
+const SCHOOL_DISPLAY_NAME = "ÉCOLE GLORIA DEI";
+const TITULAIRE_NAME = "NGENDA FLORY";
+const ADMIN_EMAILS_FALLBACK = ["ngendaflory@gmail.com"];
+
+document.getElementById('schoolNameHeader').textContent = SCHOOL_DISPLAY_NAME;
+document.getElementById('schoolSubHeader').textContent = `Année scolaire 2026-2027`;
+document.getElementById('footerNote').textContent = `${SCHOOL_DISPLAY_NAME} | Année scolaire 2026-2027`;
+
+function toast(message, type = "success") {
+    const container = document.getElementById("toastContainer");
+    if (!container) return;
+    const icons = { success: "✅", error: "❌", warning: "⚠️", info: "ℹ️" };
+    const titles = { success: "Succès", error: "Erreur", warning: "Attention", info: "Information" };
+    const el = document.createElement("div");
+    el.className = `toast-notification ${type}`;
+    el.innerHTML = `<div class="toast-icon">${icons[type] || "ℹ️"}</div><div class="toast-content"><div class="toast-title">${titles[type] || "Information"}</div><div class="toast-message">${message}</div></div>`;
+    container.appendChild(el);
+    requestAnimationFrame(() => { el.classList.add("show"); });
+    setTimeout(() => { el.classList.remove("show"); setTimeout(() => { if (el.parentNode) el.remove(); }, 400); }, 3500);
+}
+
+function escapeHtml(s) { if (!s) return ''; return s.toString().replace(/[&<>"']/g, function(m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]; }); }
+function formatNumero(n) { return n ? 'F' + String(n).padStart(3, '0') : 'F---'; }
+
+function showConfirm(msg, onOk) {
+    let d = document.createElement('div');
+    d.className = 'modal-fullscreen show';
+    d.innerHTML = '<div class="modal-content" style="max-width:400px;text-align:center;"><p style="color:#e4e6eb;margin-bottom:20px;font-size:15px;line-height:1.5;">' + msg + '</p><div style="display:flex;gap:12px;justify-content:center;"><button class="btn btn-danger" id="confirmOk">Confirmer</button><button class="btn btn-secondary" id="confirmCancel">Annuler</button></div></div>';
+    document.body.appendChild(d);
+    d.querySelector('#confirmOk').onclick = function() { d.remove(); if (onOk) onOk(); };
+    d.querySelector('#confirmCancel').onclick = function() { d.remove(); };
+}
+
+function ensureNotes(eleve) {
+    if (!eleve) return;
+    if (!eleve.notes || typeof eleve.notes !== 'object') eleve.notes = {};
+    if (!Array.isArray(eleve.notes.p1)) eleve.notes.p1 = [];
+    if (!Array.isArray(eleve.notes.p2)) eleve.notes.p2 = [];
+    if (!Array.isArray(eleve.notes.p3)) eleve.notes.p3 = [];
+    if (!Array.isArray(eleve.notes.p4)) eleve.notes.p4 = [];
+    if (typeof eleve.notes.exam1 !== 'number' || isNaN(eleve.notes.exam1)) eleve.notes.exam1 = 0;
+    if (typeof eleve.notes.exam2 !== 'number' || isNaN(eleve.notes.exam2)) eleve.notes.exam2 = 0;
+}
+
+function trouverEleveParId(id) {
+    if (!currentFiche || !Array.isArray(currentFiche.eleves)) return null;
+    return currentFiche.eleves.find(e => e.id === id) || null;
+}
+
+function sanitizeForFirestore(obj) {
+    if (obj === null || obj === undefined) return null;
+    if (obj instanceof Date) return obj;
+    if (Array.isArray(obj)) return obj.map(item => sanitizeForFirestore(item)).filter(v => v !== undefined);
+    if (typeof obj === 'object') {
+        if (typeof obj.seconds === 'number' && typeof obj.nanoseconds === 'number') return obj;
+        const out = {};
+        for (const k in obj) {
+            if (!Object.prototype.hasOwnProperty.call(obj, k)) continue;
+            if (obj[k] === undefined) continue;
+            out[k] = sanitizeForFirestore(obj[k]);
+        }
+        return out;
+    }
+    return obj;
+}
+
+function normaliserClasse(nomClasse) {
+    if (!nomClasse) return '';
+    const c = {
+        '7eme EB':'7ème EB','7ème EB':'7ème EB','7eme':'7ème EB','7ème':'7ème EB',
+        '8eme EB':'8ème EB','8ème EB':'8ème EB','8eme':'8ème EB','8ème':'8ème EB',
+        '1ere Annee':'1ère Année','1ère Année':'1ère Année','1ere':'1ère Année','1ère':'1ère Année',
+        '2eme Annee':'2ème Année','2ème Année':'2ème Année','2eme':'2ème Année','2ème':'2ème Année',
+        '3eme Annee':'3ème Année','3ème Année':'3ème Année','3eme':'3ème Année','3ème':'3ème Année',
+        '4eme Annee':'4ème Année','4ème Année':'4ème Année','4eme':'4ème Année','4ème':'4ème Année'
+    };
+    const cleaned = nomClasse.trim().replace(/\s+/g, ' ');
+    return c[cleaned] || cleaned;
+}
+
+function genererEmailGmail(nomComplet) {
+    let email = (nomComplet || '').toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s]/g, '')
+        .trim()
+        .replace(/\s+/g, '.');
+    return email + '@gmail.com';
+}
+
+function genererCode6Chiffres() { return String(Math.floor(100000 + Math.random() * 900000)); }
+
+async function verifierEmailExiste(email) {
+    const snap = await getDocs(collection(db, "ecoles", ECOLET_ID, SC.PROFESSEURS));
+    return snap.docs.some(d => (d.data().email || '').toLowerCase() === email.toLowerCase());
+}
+
+async function trouverEmailUnique(nomComplet) {
+    let base = genererEmailGmail(nomComplet);
+    let email = base;
+    let compteur = 0;
+    while (await verifierEmailExiste(email)) {
+        compteur++;
+        const local = base.replace('@gmail.com', '');
+        email = local + compteur + '@gmail.com';
+        if (compteur > 100) break;
+    }
+    return email;
+}
+
+async function getAllEleves() {
+    const snap = await getDocs(collection(db, "ecoles", ECOLET_ID, SC.ELEVES));
+    const liste = [];
+    snap.forEach(ds => {
+        const d = ds.data();
+        liste.push({
+            id: ds.id, nom: d.nom || '', postnom: d.postnom || '', prenom: d.prenom || '',
+            sexe: d.sexe || 'M', classe: normaliserClasse(d.classe), option: d.option || ''
+        });
+    });
+    localEleves = liste;
+    return liste;
+}
+
+function getNomComplet(eleve) {
+    if (!eleve) return '';
+    return [eleve.nom, eleve.postnom, eleve.prenom].filter(p => p && p.trim()).join(' ') || 'Élève';
+}
+
+function getNotesMaxForEleve(eleve) {
+    if (!currentFiche) return 20;
+    if (currentFiche.modeMultiOptions && currentFiche.notesMaxParOption) {
+        const opt = eleve?.option || '';
+        if (opt && currentFiche.notesMaxParOption[opt]) return currentFiche.notesMaxParOption[opt];
+    }
+    return currentFiche.p1Max || 20;
+}
+
+async function loadAllFiches() {
+    if (!currentProf) return [];
+    try {
+        const snap = await getDocs(collection(db, "ecoles", ECOLET_ID, SC.FICHES));
+        const fiches = [];
+        snap.forEach(ds => {
+            const data = ds.data();
+            if (!data._type) {
+                if (currentRole === 'admin') {
+                    fiches.push({ id: ds.id, cours: data.cours || '', classe: data.classe || '', option: data.option || '', numeroRef: data.numeroRef || null });
+                } else {
+                    const belongs = (data.profId === currentProf.id) || ((data.profEmail || '').toLowerCase() === (currentProf.email || '').toLowerCase());
+                    if (belongs) fiches.push({ id: ds.id, cours: data.cours || '', classe: data.classe || '', option: data.option || '', numeroRef: data.numeroRef || null });
+                }
+            }
+        });
+        fiches.sort((a, b) => (a.numeroRef || 999) - (b.numeroRef || 999));
+        return fiches;
+    } catch (e) { console.error(e); return []; }
+}
+
+function getNextNumeroLocal() {
+    let maxNum = 0;
+    toutesFiches.forEach(f => { if (f.numeroRef && f.numeroRef > maxNum && f.numeroRef < 999999) maxNum = f.numeroRef; });
+    return maxNum + 1;
+}
+
+async function saveCurrentFiche() {
+    if (!currentProf || !currentFicheId || !currentFiche) return false;
+    const ficheIdAuSave = currentFicheId;
+    const ficheAuSave = currentFiche;
+    try {
+        (ficheAuSave.eleves || []).forEach(e => ensureNotes(e));
+        ficheAuSave.lastModified = new Date();
+        const payload = sanitizeForFirestore(ficheAuSave);
+        try { JSON.stringify(payload); } catch (jsonErr) { toast("Données invalides", 'error'); return false; }
+        await setDoc(doc(db, "ecoles", ECOLET_ID, SC.FICHES, ficheIdAuSave), payload);
+        return true;
+    } catch (e) {
+        console.error('[saveCurrentFiche]', e);
+        toast("Erreur d'enregistrement : " + (e.message || e.code || 'inconnue'), 'error');
+        return false;
+    }
+}
+
+async function refreshSelectors(selectedId = null) {
+    if (isUpdatingSelectors) return;
+    isUpdatingSelectors = true;
+    try {
+        toutesFiches = await loadAllFiches();
+        const selectorIds = ['ficheSelect', 'epreuveFicheSelector', 'cotationFicheSelector'];
+        for (const s of selectorIds) {
+            const sel = document.getElementById(s);
+            if (!sel) continue;
+            sel.innerHTML = '<option value="">-- Choisir --</option>';
+            for (const f of toutesFiches) {
+                const opt = document.createElement('option');
+                opt.value = f.id;
+                const refa = f.numeroRef ? formatNumero(f.numeroRef) : 'Nouvelle';
+                const optText = f.option ? ' (' + f.option + ')' : '';
+                opt.textContent = refa + ' - ' + (f.cours || '?') + ' - ' + (f.classe || '?') + optText;
+                sel.appendChild(opt);
+            }
+            if (selectedId && toutesFiches.some(f => f.id === selectedId)) sel.value = selectedId;
+            else if (currentFicheId && toutesFiches.some(f => f.id === currentFicheId)) sel.value = currentFicheId;
+            sel.onchange = function() { if (isUpdatingSelectors || isCreatingFiche) return; if (this.value) selectFiche(this.value); };
+        }
+    } finally {
+        setTimeout(() => { isUpdatingSelectors = false; }, 50);
+    }
+}
+
+async function selectFiche(id) {
+    if (!id || isCreatingFiche) return;
+    currentFicheId = id;
+    try {
+        const docRef = doc(db, "ecoles", ECOLET_ID, SC.FICHES, id);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (!data._type) {
+                if (currentRole !== 'admin') {
+                    const belongs = (data.profId === currentProf.id) || ((data.profEmail || '').toLowerCase() === (currentProf.email || '').toLowerCase());
+                    if (!belongs) { toast("Accès refusé à cette fiche", 'error'); return; }
+                }
+                currentFiche = data;
+                (currentFiche.eleves || []).forEach(e => ensureNotes(e));
+                document.getElementById('coursInput').value = currentFiche.cours || '';
+                document.getElementById('classeSelect').value = currentFiche.classe || '';
+                document.getElementById('optionSelect').value = currentFiche.option || '';
+                document.getElementById('p1MaxConfig').value = currentFiche.p1Max || 20;
+                toggleOptionField();
+                updateMultiOptionsUI();
+                if (currentFiche.modeMultiOptions && currentFiche.notesMaxParOption) {
+                    modeMultiOptionsActif = true;
+                    document.getElementById('modePersonnalise').classList.add('active');
+                    document.getElementById('modeUniforme').classList.remove('active');
+                    document.getElementById('multiOptionsList').style.display = 'block';
+                    renderMultiOptionsList();
+                }
+                updateSidebarFicheInfo();
+                afficherEpreuves();
+                afficherEleves();
+                afficherCotation();
+                setChampsModifiables(false);
+                mettreAJourBoutons();
+            }
+        }
+    } catch (e) {
+        console.error('[selectFiche]', e);
+        toast("Erreur chargement fiche", 'error');
+    }
+}
+
+function updateSidebarFicheInfo() {
+    if (!currentFiche) {
+        document.getElementById('sidebarFicheRef').textContent = 'F---';
+        document.getElementById('sidebarFicheCours').textContent = '—';
+        document.getElementById('sidebarFicheClasse').textContent = '—';
+        document.getElementById('sidebarFicheOption').textContent = '—';
+        document.getElementById('sidebarFicheCount').textContent = '0 élèves';
+        return;
+    }
+    document.getElementById('sidebarFicheRef').textContent = currentFiche.numeroRef ? formatNumero(currentFiche.numeroRef) : 'F---';
+    document.getElementById('sidebarFicheCours').textContent = currentFiche.cours || '—';
+    document.getElementById('sidebarFicheClasse').textContent = currentFiche.classe || '—';
+    document.getElementById('sidebarFicheOption').textContent = currentFiche.option || '—';
+    document.getElementById('sidebarFicheCount').textContent = (currentFiche.eleves || []).length + ' élèves';
+}
+
+function toggleOptionField() {
+    let c = document.getElementById('classeSelect').value;
+    let o = document.getElementById('optionField');
+    if (c === '7ème EB' || c === '8ème EB') { o.classList.add('hidden-field'); document.getElementById('optionSelect').value = ''; }
+    else if (c) o.classList.remove('hidden-field');
+    else o.classList.add('hidden-field');
+    updateMultiOptionsUI();
+}
+
+function updateMultiOptionsUI() {
+    const opt = document.getElementById('optionSelect').value;
+    const section = document.getElementById('multiOptionsSection');
+    if (opt === 'TOUTES') section.classList.remove('hidden');
+    else {
+        section.classList.add('hidden');
+        modeMultiOptionsActif = false;
+        document.getElementById('modeUniforme').classList.add('active');
+        document.getElementById('modePersonnalise').classList.remove('active');
+        document.getElementById('multiOptionsList').style.display = 'none';
+    }
+}
+
+function renderMultiOptionsList() {
+    const container = document.getElementById('multiOptionsList');
+    let html = '';
+    for (const opt of OPTIONS_DISPONIBLES) {
+        let val = 20;
+        if (currentFiche && currentFiche.notesMaxParOption && currentFiche.notesMaxParOption[opt]) val = currentFiche.notesMaxParOption[opt];
+        html += `<div class="multioptions-row"><label>${opt}</label><input type="number" data-option="${opt}" value="${val}" min="1" step="1"></div>`;
+    }
+    container.innerHTML = html;
+}
+
+function setChampsModifiables(actif) {
+    champsModifiables = actif;
+    ['coursInput', 'p1MaxConfig', 'classeSelect', 'optionSelect'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.disabled = !actif; el.style.opacity = actif ? '1' : '0.7'; }
+    });
+    const modifierBtn = document.getElementById('modifierFicheBtn');
+    if (modifierBtn) {
+        if (actif) { modifierBtn.textContent = 'METTRE À JOUR'; modifierBtn.className = 'btn btn-success'; }
+        else { modifierBtn.textContent = 'MODIFIER'; modifierBtn.className = 'btn btn-primary'; }
+    }
+}
+
+function mettreAJourBoutons() {
+    const creerBtn = document.getElementById('creerFicheBtn');
+    const modifierBtn = document.getElementById('modifierFicheBtn');
+    const supprimerBtn = document.getElementById('supprimerFicheBtn');
+    const diviserBtn = document.getElementById('diviserFicheBtn');
+    if (currentFicheId && currentFiche) {
+        creerBtn.style.display = 'none';
+        modifierBtn.style.display = 'inline-flex';
+        supprimerBtn.style.display = 'inline-flex';
+        if (currentFiche.option === 'TOUTES') diviserBtn.style.display = 'inline-flex';
+        else diviserBtn.style.display = 'none';
+        if (!champsModifiables) setChampsModifiables(false);
+    } else {
+        creerBtn.style.display = 'inline-flex';
+        modifierBtn.style.display = 'none';
+        supprimerBtn.style.display = 'none';
+        diviserBtn.style.display = 'none';
+        champsModifiables = true;
+        setChampsModifiables(true);
+    }
+}
+
+function viderChamps() {
+    document.getElementById('coursInput').value = '';
+    document.getElementById('classeSelect').value = '';
+    document.getElementById('optionSelect').value = '';
+    document.getElementById('p1MaxConfig').value = 20;
+    modeMultiOptionsActif = false;
+    document.getElementById('modeUniforme').classList.add('active');
+    document.getElementById('modePersonnalise').classList.remove('active');
+    document.getElementById('multiOptionsList').style.display = 'none';
+    toggleOptionField();
+    champsModifiables = true;
+    currentFiche = null;
+    currentFicheId = null;
+    mettreAJourBoutons();
+    updateSidebarFicheInfo();
+}
+
+function afficherEleves() {
+    let c = document.getElementById('elevesListContainer');
+    if (!c) return;
+    if (!currentFiche) { c.innerHTML = '<div class="empty-state">Aucune fiche sélectionnée</div>'; return; }
+    c.innerHTML = '';
+    let ev = currentFiche.eleves || [];
+    for (let i = 0; i < ev.length; i++) {
+        let d = document.createElement('div');
+        d.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 12px;background:#2a2b2c;border-radius:6px;margin-bottom:6px;border:1px solid #3a3b3c;';
+        const nMax = getNotesMaxForEleve(ev[i]);
+        d.innerHTML = `<span style="flex:1;color:#e4e6eb;font-size:13px;font-weight:500;">${escapeHtml(getNomComplet(ev[i]))}</span><span style="color:#b0b3b8;font-size:12px;">${ev[i].sexe || 'M'}</span><span style="color:#25d366;font-size:11px;font-weight:600;">${ev[i].option || '—'} /${nMax}</span>`;
+        c.appendChild(d);
+    }
+    if (ev.length === 0) c.innerHTML = '<div class="empty-state">Aucun élève dans cette fiche</div>';
+}
+
+function getPeriodeMax() { return currentFiche?.p1Max || 20; }
+function getExamMax() { return getPeriodeMax() * 2; }
+
+function calcMoy(p, notes, eleve) {
+    let eps = currentFiche.epreuvesParPeriode?.[p] || [];
+    if (!eps.length || !notes?.length) return 0;
+    let sommeNotes = 0, sommeMax = 0;
+    for (let i = 0; i < eps.length; i++) { sommeNotes += (notes[i] || 0); sommeMax += (eps[i].max || 1); }
+    if (sommeMax === 0) return 0;
+    let noteMaxPeriode = eleve ? getNotesMaxForEleve(eleve) : getPeriodeMax();
+    return Math.round(Math.min(noteMaxPeriode, (sommeNotes / sommeMax) * noteMaxPeriode));
+}
+
+function getNoteClass(note, maxNote) {
+    if (maxNote === 0) return '';
+    const ratio = note / maxNote;
+    if (ratio >= 0.8) return 'note-excellent';
+    if (ratio >= 0.7) return 'note-bien';
+    if (ratio >= 0.5) return 'note-moyen';
+    return 'note-insuffisant';
+}
+
+function afficherCotation() {
+    if (!currentFiche) {
+        document.getElementById('cotationHeader').innerHTML = '';
+        document.getElementById('cotationBody').innerHTML = '<tr><td class="empty-state">Aucune fiche sélectionnée</td></tr>';
+        return;
+    }
+    let th = document.getElementById('cotationHeader');
+    let tb = document.getElementById('cotationBody');
+    let ev = currentFiche.eleves || [];
+    let elevesFiltres = [...ev];
+    const searchTerm = document.getElementById('searchInput')?.value?.toLowerCase() || '';
+    if (searchTerm) elevesFiltres = elevesFiltres.filter(e => getNomComplet(e).toLowerCase().includes(searchTerm));
+    if (triAlphabetiqueActif) elevesFiltres.sort((a, b) => getNomComplet(a).localeCompare(getNomComplet(b)));
+    if (!elevesFiltres.length) { th.innerHTML = ''; tb.innerHTML = '<tr><td class="empty-state">Aucun élève</td></tr>'; return; }
+
+    let h = ['<th>N°</th><th style="text-align:left;padding-left:16px;">NOMS COMPLETS</th><th>SEXE</th>'];
+    if (currentFiche.option === 'TOUTES') h.push('<th>OPTION</th>');
+    let e1 = currentFiche.epreuvesParPeriode?.[1] || [];
+    let e2 = currentFiche.epreuvesParPeriode?.[2] || [];
+    let e3 = currentFiche.epreuvesParPeriode?.[3] || [];
+    let e4 = currentFiche.epreuvesParPeriode?.[4] || [];
+    const pf = periodeFilterCotation;
+    if (pf === 'all' || pf === '1') { for (let ep of e1) h.push('<th>' + ep.nom + '<br>P1 /' + ep.max + '</th>'); h.push('<th>MOY P1<br>normalisée</th>'); }
+    if (pf === 'all' || pf === '2') { for (let ep of e2) h.push('<th>' + ep.nom + '<br>P2 /' + ep.max + '</th>'); h.push('<th>MOY P2<br>normalisée</th>'); }
+    if (pf === 'all') h.push('<th>EXAM S1<br>normalisée</th>');
+    if (pf === 'all' || pf === '3') { for (let ep of e3) h.push('<th>' + ep.nom + '<br>P3 /' + ep.max + '</th>'); h.push('<th>MOY P3<br>normalisée</th>'); }
+    if (pf === 'all' || pf === '4') { for (let ep of e4) h.push('<th>' + ep.nom + '<br>P4 /' + ep.max + '</th>'); h.push('<th>MOY P4<br>normalisée</th>'); }
+    if (pf === 'all') h.push('<th>EXAM S2<br>normalisée</th>');
+    th.innerHTML = h.join('');
+    tb.innerHTML = '';
+
+    for (let i = 0; i < elevesFiltres.length; i++) {
+        let e = elevesFiltres[i];
+        ensureNotes(e);
+        const eid = e.id;
+        const nMaxEleve = getNotesMaxForEleve(e);
+        const examMaxEleve = nMaxEleve * 2;
+        let p1 = calcMoy(1, e.notes.p1, e), p2 = calcMoy(2, e.notes.p2, e), p3 = calcMoy(3, e.notes.p3, e), p4 = calcMoy(4, e.notes.p4, e);
+        let ex1 = e.notes.exam1 || 0, ex2 = e.notes.exam2 || 0;
+        let nomHTML = escapeHtml(getNomComplet(e));
+        let sexeHTML = e.sexe || 'M';
+        if (editModeCotation) {
+            nomHTML = `<div class="name-edit-group">
+                <input type="text" class="name-edit-input" placeholder="Nom" value="${escapeHtml(e.nom || '')}" onchange="window.updNomEleve('${eid}', 'nom', this.value)">
+                <input type="text" class="name-edit-input" placeholder="Postnom" value="${escapeHtml(e.postnom || '')}" onchange="window.updNomEleve('${eid}', 'postnom', this.value)">
+                <input type="text" class="name-edit-input" placeholder="Prénom" value="${escapeHtml(e.prenom || '')}" onchange="window.updNomEleve('${eid}', 'prenom', this.value)">
+            </div>`;
+            sexeHTML = `<select class="sexe-select" onchange="window.updSexeEleve('${eid}', this.value)">
+                <option value="M" ${e.sexe === 'M' ? 'selected' : ''}>M</option>
+                <option value="F" ${e.sexe === 'F' ? 'selected' : ''}>F</option>
+            </select>`;
+        }
+        let r = '<tr>';
+        r += '<td>' + String(i + 1).padStart(2, '0') + '</td>';
+        r += '<td style="text-align:left;padding-left:16px;font-weight:600;color:#e4e6eb;">' + nomHTML + '</td>';
+        r += '<td>' + sexeHTML + '</td>';
+        if (currentFiche.option === 'TOUTES') r += '<td style="font-size:11px;color:#25d366;font-weight:600;">' + escapeHtml(e.option || '—') + '</td>';
+        if (pf === 'all' || pf === '1') {
+            for (let ei = 0; ei < e1.length; ei++) {
+                let val = e.notes.p1?.[ei] || 0;
+                let maxVal = e1[ei]?.max || 20;
+                let nc = getNoteClass(val, maxVal);
+                r += '<td><input type="number" step="0.5" min="0" max="' + maxVal + '" value="' + val + '" onchange="window.updNote(\'' + eid + '\',1,' + ei + ',this.value)" class="' + nc + '"></td>';
+            }
+            let p1c = getNoteClass(p1, nMaxEleve);
+            r += '<td class="total-cell ' + p1c + '">' + p1 + '/' + nMaxEleve + '</td>';
+        }
+        if (pf === 'all' || pf === '2') {
+            for (let ei = 0; ei < e2.length; ei++) {
+                let val = e.notes.p2?.[ei] || 0;
+                let maxVal = e2[ei]?.max || 20;
+                let nc = getNoteClass(val, maxVal);
+                r += '<td><input type="number" step="0.5" min="0" max="' + maxVal + '" value="' + val + '" onchange="window.updNote(\'' + eid + '\',2,' + ei + ',this.value)" class="' + nc + '"></td>';
+            }
+            let p2c = getNoteClass(p2, nMaxEleve);
+            r += '<td class="total-cell ' + p2c + '">' + p2 + '/' + nMaxEleve + '</td>';
+        }
+        if (pf === 'all') {
+            let e1c = getNoteClass(ex1, examMaxEleve);
+            r += '<td><input type="number" step="0.5" min="0" max="' + examMaxEleve + '" value="' + ex1 + '" onchange="window.updExam(\'' + eid + '\',1,this.value)" class="' + e1c + '"></td>';
+        }
+        if (pf === 'all' || pf === '3') {
+            for (let ei = 0; ei < e3.length; ei++) {
+                let val = e.notes.p3?.[ei] || 0;
+                let maxVal = e3[ei]?.max || 20;
+                let nc = getNoteClass(val, maxVal);
+                r += '<td><input type="number" step="0.5" min="0" max="' + maxVal + '" value="' + val + '" onchange="window.updNote(\'' + eid + '\',3,' + ei + ',this.value)" class="' + nc + '"></td>';
+            }
+            let p3c = getNoteClass(p3, nMaxEleve);
+            r += '<td class="total-cell ' + p3c + '">' + p3 + '/' + nMaxEleve + '</td>';
+        }
+        if (pf === 'all' || pf === '4') {
+            for (let ei = 0; ei < e4.length; ei++) {
+                let val = e.notes.p4?.[ei] || 0;
+                let maxVal = e4[ei]?.max || 20;
+                let nc = getNoteClass(val, maxVal);
+                r += '<td><input type="number" step="0.5" min="0" max="' + maxVal + '" value="' + val + '" onchange="window.updNote(\'' + eid + '\',4,' + ei + ',this.value)" class="' + nc + '"></td>';
+            }
+            let p4c = getNoteClass(p4, nMaxEleve);
+            r += '<td class="total-cell ' + p4c + '">' + p4 + '/' + nMaxEleve + '</td>';
+        }
+        if (pf === 'all') {
+            let e2c = getNoteClass(ex2, examMaxEleve);
+            r += '<td><input type="number" step="0.5" min="0" max="' + examMaxEleve + '" value="' + ex2 + '" onchange="window.updExam(\'' + eid + '\',2,this.value)" class="' + e2c + '"></td>';
+        }
+        r += '</tr>';
+        tb.innerHTML += r;
+    }
+}
+
+window.updNomEleve = function(eleveId, field, valeur) {
+    const eleve = trouverEleveParId(eleveId);
+    if (!eleve) return;
+    eleve[field] = valeur.trim();
+    afficherCotation();
+    saveCurrentFiche();
+};
+
+window.updSexeEleve = function(eleveId, nouveauSexe) {
+    const eleve = trouverEleveParId(eleveId);
+    if (!eleve) return;
+    eleve.sexe = nouveauSexe;
+    afficherCotation();
+    saveCurrentFiche();
+};
+
+window.updNote = function(eleveId, p, epi, v) {
+    const eleve = trouverEleveParId(eleveId);
+    if (!eleve) return;
+    ensureNotes(eleve);
+    let va = parseFloat(v) || 0;
+    let me = currentFiche.epreuvesParPeriode?.[p]?.[epi]?.max || 20;
+    if (va > me) va = me;
+    if (va < 0) va = 0;
+    eleve.notes['p' + p][epi] = va;
+    afficherCotation();
+};
+
+window.updExam = function(eleveId, s, v) {
+    const eleve = trouverEleveParId(eleveId);
+    if (!eleve) return;
+    ensureNotes(eleve);
+    let va = parseFloat(v) || 0;
+    let me = getNotesMaxForEleve(eleve) * 2;
+    if (va > me) va = me;
+    if (va < 0) va = 0;
+    if (s === 1) eleve.notes.exam1 = va;
+    else eleve.notes.exam2 = va;
+    afficherCotation();
+};
+
+function afficherEpreuves() {
+    let c = document.getElementById('epreuvesContainer');
+    if (!c) return;
+    if (!currentFiche) { c.innerHTML = '<div class="empty-state">Aucune fiche sélectionnée</div>'; return; }
+    c.innerHTML = '';
+    for (let p = 1; p <= 4; p++) {
+        let b = document.createElement('div');
+        b.className = 'epreuve-box';
+        b.innerHTML = '<h4>PERIODE ' + p + '</h4><div class="epreuve-list" id="listEpreuve' + p + '"></div>';
+        c.appendChild(b);
+        let ld = document.getElementById('listEpreuve' + p);
+        if (ld) {
+            ld.innerHTML = '';
+            let eps = currentFiche.epreuvesParPeriode?.[p] || [];
+            for (let i = 0; i < eps.length; i++) {
+                let d = document.createElement('div');
+                d.className = 'epreuve-item';
+                d.innerHTML = '<input type="text" value="' + escapeHtml(eps[i].nom) + '" onchange="window.updEpreuve(' + p + ',' + i + ',\'nom\',this.value)" style="width:90px;"><input type="number" value="' + eps[i].max + '" onchange="window.updEpreuve(' + p + ',' + i + ',\'max\',this.value)" style="width:55px;"><span style="cursor:pointer;color:#f02849;font-weight:700;" onclick="window.delEpreuve(' + p + ',' + i + ')">✕</span>';
+                ld.appendChild(d);
+            }
+            if (eps.length === 0) ld.innerHTML = '<span style="font-size:12px;color:#b0b3b8">Aucune épreuve</span>';
+        }
+    }
+}
+
+window.updEpreuve = function(p, i, f, v) {
+    if (!currentFiche) return;
+    if (!currentFiche.epreuvesParPeriode[p]) currentFiche.epreuvesParPeriode[p] = [];
+    if (!currentFiche.epreuvesParPeriode[p][i]) currentFiche.epreuvesParPeriode[p][i] = { nom: 'Epreuve', max: 20 };
+    if (f === 'nom') currentFiche.epreuvesParPeriode[p][i].nom = v;
+    else { let newMax = parseFloat(v) || 20; if (newMax < 0) newMax = 0; currentFiche.epreuvesParPeriode[p][i].max = newMax; }
+    afficherCotation();
+    saveCurrentFiche();
+};
+
+window.delEpreuve = function(p, i) {
+    if (!currentFiche) return;
+    currentFiche.epreuvesParPeriode[p].splice(i, 1);
+    afficherEpreuves();
+    afficherCotation();
+    saveCurrentFiche();
+};
+
+function addEpreuve(p) {
+    if (!currentFiche) { toast("Aucune fiche sélectionnée", 'error'); return; }
+    if (!currentFiche.epreuvesParPeriode) currentFiche.epreuvesParPeriode = {};
+    if (!currentFiche.epreuvesParPeriode[p]) currentFiche.epreuvesParPeriode[p] = [];
+    currentFiche.epreuvesParPeriode[p].push({ nom: "Epreuve " + (currentFiche.epreuvesParPeriode[p].length + 1), max: getPeriodeMax() });
+    afficherEpreuves();
+    afficherCotation();
+    saveCurrentFiche();
+}
+
+document.getElementById('modeUniforme').addEventListener('click', function() {
+    modeMultiOptionsActif = false;
+    this.classList.add('active');
+    document.getElementById('modePersonnalise').classList.remove('active');
+    document.getElementById('multiOptionsList').style.display = 'none';
+});
+
+document.getElementById('modePersonnalise').addEventListener('click', function() {
+    modeMultiOptionsActif = true;
+    this.classList.add('active');
+    document.getElementById('modeUniforme').classList.remove('active');
+    document.getElementById('multiOptionsList').style.display = 'block';
+    if (!document.getElementById('multiOptionsList').innerHTML) renderMultiOptionsList();
+});
+
+async function determinerRole(user) {
+    const emailLower = (user.email || '').toLowerCase();
+    if (ADMIN_EMAILS_FALLBACK.includes(emailLower)) return 'admin';
+    try {
+        const adminSnap = await getDocs(collection(db, "ecoles", ECOLET_ID, SC.ADMIN));
+        if (adminSnap.docs.some(d => (d.data().email || '').toLowerCase() === emailLower)) return 'admin';
+    } catch (e) {}
+    try {
+        const profsSnap = await getDocs(collection(db, "ecoles", ECOLET_ID, SC.PROFESSEURS));
+        const profDoc = profsSnap.docs.find(d => (d.data().email || '').toLowerCase() === emailLower);
+        if (profDoc) {
+            const data = profDoc.data();
+            return { role: 'professeur', nom: data.nom || '', docId: profDoc.id };
+        }
+    } catch (e) {}
+    return 'admin';
+}
+
+function appliquerRole(role, nomProf = null) {
+    currentRole = role;
+    const btnTechnique = document.getElementById('floatingTechniqueBtn');
+    const profRole = document.getElementById('profRole');
+    const profAvatar = document.getElementById('profAvatar');
+    if (role === 'admin') {
+        if (btnTechnique) btnTechnique.style.display = 'flex';
+        profRole.textContent = 'ADMINISTRATEUR';
+        profAvatar.textContent = '🛡️';
+        document.getElementById('profCardName').textContent = nomProf || TITULAIRE_NAME;
+    } else {
+        if (btnTechnique) btnTechnique.style.display = 'none';
+        profRole.textContent = 'PROFESSEUR';
+        profAvatar.textContent = '👨‍🏫';
+        document.getElementById('profCardName').textContent = nomProf || (currentProf.email || '').split('@')[0];
+    }
+}
+
+function showLogin() {
+    document.querySelector('.floating-actions').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'none';
+    let existing = document.getElementById('loginOverlay');
+    if (existing) existing.remove();
+    let d = document.createElement('div');
+    d.className = 'login-overlay';
+    d.id = 'loginOverlay';
+    d.innerHTML = `
+<div class="login-split">
+    <div class="login-left">
+        <div class="login-left-top">
+            <div class="login-left-logo">G</div>
+            <h1 class="login-left-title">${SCHOOL_DISPLAY_NAME}</h1>
+            <p class="login-left-subtitle">Système de gestion de scolarité. Créez vos fiches, notez vos élèves, exportez en PDF.</p>
+        </div>
+        <div class="login-left-bottom">
+            <div class="login-left-divider"></div>
+            <div class="login-left-brand">Propulsé par <strong>NeTubeX SARL</strong></div>
+        </div>
+    </div>
+    <div class="login-right">
+        <div class="login-form-wrap">
+            <div class="login-form-header">
+                <div class="login-form-school">Complexe Scolaire</div>
+                <h2 class="login-form-title">Accès à votre espace</h2>
+                <p class="login-form-desc">Connectez-vous avec votre adresse email et votre mot de passe.</p>
+            </div>
+            <div class="login-input-wrap">
+                <span class="input-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 6h16v12H4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                        <path d="M4 7l8 6 8-6" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                    </svg>
+                </span>
+                <input type="email" id="loginEmail" placeholder="Adresse email" autocomplete="email">
+            </div>
+            <div class="login-input-wrap">
+                <span class="input-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M8 11V7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7V11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <circle cx="12" cy="16" r="1.5" fill="currentColor"/>
+                    </svg>
+                </span>
+                <input type="password" id="loginPassword" placeholder="Mot de passe" autocomplete="current-password">
+            </div>
+            <div class="login-btn-row">
+                <button id="loginBtn" class="login-btn">Se connecter</button>
+                <button id="refreshPageBtn" class="login-refresh-btn">🔄</button>
+            </div>
+            <div id="loginError" class="login-error"></div>
+            <div class="login-forgot"><a id="forgotPasswordLink">Mot de passe oublié ?</a></div>
+            <div class="login-footer">NeTubeX SARL — Système de gestion de scolarité</div>
+        </div>
+    </div>
+</div>`;
+    document.body.appendChild(d);
+    const emailInput = document.getElementById('loginEmail');
+    const pwdInput = document.getElementById('loginPassword');
+    setTimeout(() => emailInput.focus(), 100);
+
+    const tryLogin = async () => {
+        const btn = document.getElementById('loginBtn');
+        btn.disabled = true;
+        btn.textContent = 'Connexion...';
+        const email = emailInput.value.trim();
+        const pwd = pwdInput.value;
+        document.getElementById('loginError').textContent = '';
+        if (!email || !pwd) {
+            document.getElementById('loginError').textContent = "Veuillez remplir tous les champs";
+            btn.disabled = false; btn.textContent = 'Se connecter'; return;
+        }
+        try {
+            const userCred = await signInWithEmailAndPassword(auth, email, pwd);
+            currentProf = {
+                id: userCred.user.uid,
+                nom: email.split('@')[0].replace(/\./g, ' ').toUpperCase(),
+                email: email
+            };
+            localStorage.setItem('gloria_session_admin', JSON.stringify({ email, school: ECOLET_ID }));
+            const roleInfo = await determinerRole(userCred.user);
+            let nomAffichage = null;
+            if (typeof roleInfo === 'object') { nomAffichage = roleInfo.nom; appliquerRole(roleInfo.role, nomAffichage); }
+            else appliquerRole(roleInfo, null);
+            await initApp();
+            toast("Bienvenue " + (nomAffichage || currentProf.nom), 'success');
+        } catch (e) {
+            console.error(e);
+            const code = e.code || '';
+            let msg = "Email ou mot de passe incorrect";
+            if (code === 'auth/too-many-requests') msg = "Trop de tentatives. Réessayez plus tard.";
+            else if (code === 'auth/invalid-email') msg = "Format d'email invalide.";
+            else if (code === 'auth/network-request-failed') msg = "Problème de connexion internet.";
+            else if (code === 'auth/user-not-found') msg = "Aucun compte pour cet email. Contactez l'administrateur.";
+            else if (code === 'auth/wrong-password') msg = "Mot de passe incorrect.";
+            document.getElementById('loginError').textContent = msg;
+            btn.disabled = false; btn.textContent = 'Se connecter';
+        }
+    };
+    document.getElementById('loginBtn').onclick = tryLogin;
+    pwdInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') tryLogin(); });
+    emailInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') pwdInput.focus(); });
+    document.getElementById('refreshPageBtn').onclick = () => window.location.reload();
+    document.getElementById('forgotPasswordLink').onclick = async function() {
+        const email = emailInput.value.trim();
+        if (!email) { toast("Entrez d'abord votre email", 'error'); return; }
+        try {
+            await sendPasswordResetEmail(auth, email);
+            toast("Email de réinitialisation envoyé à " + email, 'success');
+        } catch (e) { toast("Erreur : " + (e.code || e.message), 'error'); }
+    };
+}
+
+async function initApp() {
+    const overlay = document.getElementById('loginOverlay');
+    if (overlay) overlay.remove();
+    document.getElementById('mainApp').style.display = 'block';
+    document.querySelector('.floating-actions').style.display = 'flex';
+    try {
+        toutesFiches = await loadAllFiches();
+        if (toutesFiches.length) await selectFiche(toutesFiches[0].id);
+        await refreshSelectors();
+        await getAllEleves();
+    } catch (e) { console.error('[initApp]', e); }
+}
+
+document.querySelectorAll('#tabsProfesseur .tab').forEach(tab => {
+    tab.addEventListener('click', async function() {
+        document.querySelectorAll('#tabsProfesseur .tab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        const target = document.getElementById(this.dataset.tab);
+        if (target) target.classList.add('active');
+        const tabId = this.dataset.tab;
+        if (tabId === 'tabEpreuves' || tabId === 'tabCotation') {
+            const selectorId = tabId === 'tabEpreuves' ? 'epreuveFicheSelector' : 'cotationFicheSelector';
+            const sel = document.getElementById(selectorId);
+            if (sel && sel.value && (!currentFiche || currentFicheId !== sel.value)) await selectFiche(sel.value);
+            else if (currentFiche) { if (tabId === 'tabEpreuves') afficherEpreuves(); else { afficherCotation(); updateSidebarFicheInfo(); } }
+        }
+    });
+});
+
+document.getElementById('toggleEditModeBtn').addEventListener('click', function() {
+    editModeCotation = !editModeCotation;
+    this.classList.toggle('active', editModeCotation);
+    if (editModeCotation) {
+        this.innerHTML = '🔒 Terminer l\'édition';
+        this.style.background = '#fff'; this.style.color = '#128c7e';
+    } else {
+        this.innerHTML = '✏️ Éditer Noms/Sexes';
+        this.style.background = '#1877f2'; this.style.color = '#fff';
+    }
+    afficherCotation();
+});
+
+document.getElementById('creerFicheBtn').addEventListener('click', async function() {
+    if (isCreatingFiche) return;
+    const cours = document.getElementById('coursInput').value.trim();
+    const classe = document.getElementById('classeSelect').value;
+    const option = document.getElementById('optionSelect').value;
+    const noteMax = parseFloat(document.getElementById('p1MaxConfig').value) || 20;
+    if (!cours) { toast("Veuillez renseigner le cours", 'error'); return; }
+    if (!classe) { toast("Veuillez sélectionner une classe", 'error'); return; }
+    if (classe !== '7ème EB' && classe !== '8ème EB' && !option) { toast("Veuillez sélectionner une option", 'error'); return; }
+    const fop = (classe === '7ème EB' || classe === '8ème EB') ? '' : option;
+    let notesMaxParOption = null;
+    if (fop === 'TOUTES' && modeMultiOptionsActif) {
+        notesMaxParOption = {};
+        document.querySelectorAll('#multiOptionsList input').forEach(inp => {
+            notesMaxParOption[inp.dataset.option] = parseFloat(inp.value) || 20;
+        });
+    }
+    const doublon = toutesFiches.find(f => f.cours === cours && f.classe === classe && (f.option || '') === fop);
+    if (doublon) { toast("Une fiche identique existe déjà", 'warning'); return; }
+    isCreatingFiche = true;
+    this.disabled = true;
+    try {
+        const nid = 'f' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+        const nnum = getNextNumeroLocal();
+        const now = new Date();
+        if (!localEleves || localEleves.length === 0) await getAllEleves();
+        let elevesFiltres = localEleves.filter(e => {
+            if (e.classe !== classe) return false;
+            if (fop === 'TOUTES') return true;
+            if (fop && e.option !== fop) return false;
+            return true;
+        });
+        if (elevesFiltres.length === 0) {
+            showConfirm(`Aucun élève trouvé pour ${classe}${fop ? ' — ' + fop : ''}.`, null);
+            this.disabled = false; isCreatingFiche = false; return;
+        }
+        let eleves = elevesFiltres.map(e => ({
+            id: e.id, nom: e.nom || '', postnom: e.postnom || '', prenom: e.prenom || '',
+            sexe: e.sexe || 'M', option: e.option || '',
+            notes: { p1: [], p2: [], p3: [], p4: [], exam1: 0, exam2: 0 }, source: "auto"
+        }));
+        const nouvelleFiche = {
+            profId: currentProf.id, profEmail: currentProf.email, cours, classe, option: fop,
+            titulaire: currentRole === 'admin' ? TITULAIRE_NAME : currentProf.nom,
+            anneeScolaire: "2026-2027", p1Max: noteMax,
+            numeroRef: nnum, dateCreation: now, lastModified: now,
+            epreuvesParPeriode: {
+                1: [{ nom: "Interrogation", max: noteMax }],
+                2: [{ nom: "Interrogation", max: noteMax }],
+                3: [{ nom: "Interrogation", max: noteMax }],
+                4: [{ nom: "Interrogation", max: noteMax }]
+            },
+            eleves: eleves, school: ECOLET_ID
+        };
+        if (notesMaxParOption) { nouvelleFiche.modeMultiOptions = true; nouvelleFiche.notesMaxParOption = notesMaxParOption; }
+        await setDoc(doc(db, "ecoles", ECOLET_ID, SC.FICHES, nid), sanitizeForFirestore(nouvelleFiche));
+        currentFiche = nouvelleFiche;
+        currentFicheId = nid;
+        if (!toutesFiches.find(f => f.id === nid)) toutesFiches.push({ id: nid, cours, classe, option: fop, numeroRef: nnum });
+        isCreatingFiche = false;
+        viderChamps();
+        await refreshSelectors(nid);
+        await selectFiche(nid);
+        toast(`Fiche "${cours}" créée avec ${eleves.length} élèves`, 'success');
+    } catch (e) { console.error(e); toast("Erreur lors de la création", 'error'); }
+    finally { this.disabled = false; isCreatingFiche = false; }
+});
+
+document.getElementById('modifierFicheBtn').addEventListener('click', async function() {
+    if (!currentFicheId || !currentFiche) { toast("Aucune fiche sélectionnée", 'error'); return; }
+    if (!champsModifiables) { setChampsModifiables(true); toast("Mode modification activé", 'info'); return; }
+    try {
+        currentFiche.cours = document.getElementById('coursInput').value.trim();
+        const nouveauMax = parseFloat(document.getElementById('p1MaxConfig').value) || 20;
+        const ancienMax = currentFiche.p1Max || 20;
+        currentFiche.p1Max = nouveauMax;
+        if (nouveauMax !== ancienMax && currentFiche.epreuvesParPeriode) {
+            for (const p of [1, 2, 3, 4]) {
+                (currentFiche.epreuvesParPeriode[p] || []).forEach(ep => { if (ep.max === ancienMax) ep.max = nouveauMax; });
+            }
+        }
+        if (currentFiche.option === 'TOUTES' && modeMultiOptionsActif) {
+            currentFiche.modeMultiOptions = true;
+            currentFiche.notesMaxParOption = currentFiche.notesMaxParOption || {};
+            document.querySelectorAll('#multiOptionsList input').forEach(inp => {
+                currentFiche.notesMaxParOption[inp.dataset.option] = parseFloat(inp.value) || 20;
+            });
+        } else if (!modeMultiOptionsActif) {
+            delete currentFiche.modeMultiOptions;
+            delete currentFiche.notesMaxParOption;
+        }
+        const ok = await saveCurrentFiche();
+        if (!ok) return;
+        await refreshSelectors(currentFicheId);
+        updateSidebarFicheInfo();
+        afficherCotation();
+        setChampsModifiables(false);
+        mettreAJourBoutons();
+        toast("Fiche mise à jour", 'success');
+    } catch (e) { console.error(e); toast("Erreur", 'error'); }
+});
+
+document.getElementById('supprimerFicheBtn').addEventListener('click', function() {
+    if (!currentFicheId) return;
+    const id = currentFicheId;
+    const cours = currentFiche.cours;
+    showConfirm(`Supprimer définitivement la fiche "${cours}" ?`, async function() {
+        try {
+            await deleteDoc(doc(db, "ecoles", ECOLET_ID, SC.FICHES, id));
+            currentFiche = null; currentFicheId = null;
+            toutesFiches = toutesFiches.filter(f => f.id !== id);
+            viderChamps();
+            await refreshSelectors();
+            afficherEpreuves(); afficherEleves(); afficherCotation();
+            toast("Fiche supprimée", 'success');
+        } catch (e) { toast("Erreur", 'error'); }
+    });
+});
+
+document.getElementById('diviserFicheBtn').addEventListener('click', async function() {
+    if (!currentFiche || currentFiche.option !== 'TOUTES') { toast("Seules les fiches TOUTES peuvent être divisées", 'error'); return; }
+    const eleves = currentFiche.eleves || [];
+    const elevesParOption = {};
+    for (const e of eleves) {
+        const opt = e.option || 'SANS_OPTION';
+        if (!elevesParOption[opt]) elevesParOption[opt] = [];
+        elevesParOption[opt].push(e);
+    }
+    const optionsPresentes = Object.keys(elevesParOption).filter(k => k !== 'SANS_OPTION');
+    if (optionsPresentes.length < 2) { toast("Il faut au moins 2 options différentes", 'warning'); return; }
+    let listeHtml = optionsPresentes.map(opt => `<li style="margin-bottom:6px;color:#e4e6eb;font-size:13px;"><strong>${escapeHtml(opt)}</strong> — ${elevesParOption[opt].length} élèves</li>`).join('');
+    let d = document.createElement('div');
+    d.className = 'modal-fullscreen show';
+    d.innerHTML = `<div class="modal-content" style="max-width:520px;"><h3 style="color:#25d366;">✂️ DIVISER PAR OPTION</h3>
+    <p style="color:#b0b3b8;font-size:13px;line-height:1.6;margin-bottom:16px;">Cette action va créer <strong style="color:#25d366;">${optionsPresentes.length}</strong> fiches séparées.</p>
+    <ul style="list-style:none;padding:14px;background:#1c1e21;border-radius:6px;margin-bottom:20px;">${listeHtml}</ul>
+    <div style="display:flex;gap:12px;justify-content:flex-end;"><button class="btn btn-secondary" id="divCancel">Annuler</button><button class="btn btn-warning" id="divOk">DIVISER</button></div></div>`;
+    document.body.appendChild(d);
+    d.querySelector('#divCancel').onclick = () => d.remove();
+    d.querySelector('#divOk').onclick = async function() {
+        this.disabled = true; this.textContent = 'Division...';
+        try {
+            const baseNum = currentFiche.numeroRef || getNextNumeroLocal();
+            let index = 0;
+            for (const opt of optionsPresentes) {
+                index++;
+                const nid = 'f' + Date.now() + '_' + index + '_' + Math.random().toString(36).substr(2, 4);
+                const p1MaxOpt = (currentFiche.notesMaxParOption && currentFiche.notesMaxParOption[opt]) || currentFiche.p1Max || 20;
+                const nouvelleFiche = {
+                    profId: currentFiche.profId || currentProf.id,
+                    profEmail: currentFiche.profEmail || currentProf.email,
+                    ficheId: nid, cours: currentFiche.cours, classe: currentFiche.classe,
+                    option: opt, titulaire: currentFiche.titulaire || TITULAIRE_NAME,
+                    anneeScolaire: currentFiche.anneeScolaire || "2026-2027",
+                    p1Max: p1MaxOpt, numeroRef: baseNum, dateCreation: new Date(), lastModified: new Date(),
+                    epreuvesParPeriode: JSON.parse(JSON.stringify(currentFiche.epreuvesParPeriode || { 1: [], 2: [], 3: [], 4: [] })),
+                    eleves: JSON.parse(JSON.stringify(elevesParOption[opt])), school: ECOLET_ID,
+                    ficheParente: currentFicheId, suffixe: String.fromCharCode(96 + index)
+                };
+                nouvelleFiche.eleves.forEach(e => ensureNotes(e));
+                await setDoc(doc(db, "ecoles", ECOLET_ID, SC.FICHES, nid), sanitizeForFirestore(nouvelleFiche));
+            }
+            d.remove();
+            await refreshSelectors(currentFicheId);
+            toast(`Fiche divisée en ${optionsPresentes.length} fiches`, 'success');
+        } catch (e) { console.error(e); toast("Erreur lors de la division", 'error'); this.disabled = false; this.textContent = 'DIVISER'; }
+    };
+});
+
+document.getElementById('viderChampsBtn').addEventListener('click', function() {
+    viderChamps(); refreshSelectors(); afficherEpreuves(); afficherEleves(); afficherCotation();
+});
+
+document.getElementById('rechargerElevesBtn').onclick = async function() {
+    if (!currentFiche) { toast("Aucune fiche sélectionnée", 'error'); return; }
+    this.disabled = true;
+    try {
+        await getAllEleves();
+        const classe = currentFiche.classe;
+        const option = currentFiche.option;
+        let elevesFiltres = localEleves.filter(e => {
+            if (e.classe !== classe) return false;
+            if (option === 'TOUTES') return true;
+            if (option && e.option !== option) return false;
+            return true;
+        });
+        const notesExistantes = {};
+        (currentFiche.eleves || []).forEach(e => { if (e.id && e.notes) notesExistantes[e.id] = e.notes; });
+        currentFiche.eleves = elevesFiltres.map(e => ({
+            id: e.id, nom: e.nom || '', postnom: e.postnom || '', prenom: e.prenom || '',
+            sexe: e.sexe || 'M', option: e.option || '',
+            notes: notesExistantes[e.id] || { p1: [], p2: [], p3: [], p4: [], exam1: 0, exam2: 0 }, source: "reload"
+        }));
+        currentFiche.eleves.forEach(e => ensureNotes(e));
+        await saveCurrentFiche();
+        afficherEleves(); afficherCotation(); updateSidebarFicheInfo();
+        toast(`${elevesFiltres.length} élève(s) chargé(s)`, 'success');
+    } catch (e) { console.error(e); toast("Erreur", 'error'); }
+    finally { this.disabled = false; }
+};
+
+document.getElementById('coursInput').oninput = function() { if (currentFiche && champsModifiables) currentFiche.cours = this.value; };
+document.getElementById('classeSelect').onchange = function() { if (currentFiche && champsModifiables) { currentFiche.classe = this.value; if (['7ème EB', '8ème EB'].includes(this.value)) { currentFiche.option = ''; document.getElementById('optionSelect').value = ''; } } toggleOptionField(); };
+document.getElementById('optionSelect').onchange = function() { if (currentFiche && champsModifiables) currentFiche.option = this.value; toggleOptionField(); };
+document.getElementById('p1MaxConfig').onchange = function() { if (currentFiche && champsModifiables) { currentFiche.p1Max = parseFloat(this.value) || 20; afficherCotation(); } };
+
+document.getElementById('saveCotationBtn').onclick = async function() {
+    if (!currentFicheId || !currentFiche) { toast("Aucune fiche sélectionnée", 'error'); return; }
+    const ok = await saveCurrentFiche();
+    if (ok) toast("Fiche enregistrée", 'success');
+    else toast("Erreur d'enregistrement", 'error');
+};
+
+document.getElementById('exportCurrentBtn').onclick = async function() {
+    if (!currentFiche) { toast("Aucune fiche sélectionnée", 'error'); return; }
+    if (!currentFiche.eleves || currentFiche.eleves.length === 0) { toast("Aucun élève à exporter", 'error'); return; }
+    const eleves = currentFiche.eleves || [];
+    const optionsPresentes = [...new Set(eleves.map(e => e.option).filter(Boolean))].sort();
+    let optionsHtml = optionsPresentes.map(opt => {
+        const count = eleves.filter(e => e.option === opt).length;
+        return `<option value="${escapeHtml(opt)}">${escapeHtml(opt)} (${count} élève${count > 1 ? 's' : ''})</option>`;
+    }).join('');
+    let d = document.createElement('div');
+    d.className = 'modal-fullscreen show';
+    d.innerHTML = `<div class="modal-content" style="max-width:560px;">
+        <h3 style="color:#25d366;">📄 EXPORTER EN PDF</h3>
+        <p style="color:#b0b3b8;font-size:13px;line-height:1.6;margin-bottom:16px;">Choisissez le format d'export :</p>
+        <div class="pdf-choice-grid">
+            <div class="pdf-choice-card" id="pdfMulti">
+                <h4>📊 Multi-options</h4>
+                <p>Toutes les options dans un tableau avec une colonne <strong>OPT</strong> séparée.</p>
+            </div>
+            <div class="pdf-choice-card" id="pdfUnique">
+                <h4>📋 Option unique</h4>
+                <p>Sélectionnez une option précise. Sans colonne OPT.</p>
+                <div class="pdf-option-select">
+                    <select id="pdfOptionSelect">
+                        <option value="">-- Sélectionner une option --</option>
+                        ${optionsHtml}
+                    </select>
+                    <div class="pdf-option-count" id="pdfOptionCount"></div>
+                </div>
+            </div>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px;">
+            <button class="btn btn-secondary" id="pdfCancel">Annuler</button>
+            <button class="btn btn-success" id="pdfGo" disabled style="opacity:0.5;">📄 GÉNÉRER PDF</button>
+        </div>
+    </div>`;
+    document.body.appendChild(d);
+    let pdfModeChoisiLocal = null;
+    let pdfOptionChoisie = null;
+    const cardMulti = d.querySelector('#pdfMulti');
+    const cardUnique = d.querySelector('#pdfUnique');
+    const selectOption = d.querySelector('#pdfOptionSelect');
+    const countEl = d.querySelector('#pdfOptionCount');
+    const goBtn = d.querySelector('#pdfGo');
+    const updateGo = () => {
+        if (pdfModeChoisiLocal === 'multi') {
+            goBtn.disabled = false; goBtn.style.opacity = '1';
+            goBtn.textContent = `📄 GÉNÉRER PDF (${eleves.length} élèves)`;
+        } else if (pdfModeChoisiLocal === 'unique' && pdfOptionChoisie) {
+            const count = eleves.filter(e => e.option === pdfOptionChoisie).length;
+            goBtn.disabled = false; goBtn.style.opacity = '1';
+            goBtn.textContent = `📄 GÉNÉRER PDF (${count} élèves)`;
+        } else {
+            goBtn.disabled = true; goBtn.style.opacity = '0.5';
+            goBtn.textContent = '📄 GÉNÉRER PDF';
+        }
+    };
+    cardMulti.onclick = () => {
+        pdfModeChoisiLocal = 'multi';
+        cardMulti.classList.add('selected');
+        cardUnique.classList.remove('selected');
+        cardUnique.classList.add('disabled');
+        selectOption.value = ''; pdfOptionChoisie = null; countEl.textContent = '';
+        updateGo();
+    };
+    cardUnique.onclick = (e) => {
+        if (e.target === selectOption || e.target.closest('select')) return;
+        pdfModeChoisiLocal = 'unique';
+        cardUnique.classList.add('selected');
+        cardMulti.classList.remove('selected');
+        cardMulti.classList.add('disabled');
+        selectOption.focus();
+        updateGo();
+    };
+    selectOption.onclick = (e) => e.stopPropagation();
+    selectOption.onchange = function() {
+        pdfOptionChoisie = this.value || null;
+        if (pdfOptionChoisie) {
+            pdfModeChoisiLocal = 'unique';
+            cardUnique.classList.add('selected');
+            cardMulti.classList.remove('selected');
+            cardMulti.classList.add('disabled');
+            const count = eleves.filter(e => e.option === pdfOptionChoisie).length;
+            countEl.innerHTML = `<strong>${count}</strong> élève(s) inclus dans le PDF`;
+        } else { countEl.textContent = ''; cardMulti.classList.remove('disabled'); }
+        updateGo();
+    };
+    d.querySelector('#pdfCancel').onclick = () => d.remove();
+    goBtn.onclick = async () => {
+        if (!pdfModeChoisiLocal) return;
+        if (pdfModeChoisiLocal === 'unique' && !pdfOptionChoisie) return;
+        d.remove();
+        await genererPDF(pdfModeChoisiLocal === 'multi', pdfOptionChoisie);
+    };
+};
+
+async function genererPDF(multiOpt, optionFiltre) {
+    try {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('landscape', 'mm', 'a4');
+        const rn = currentFiche.numeroRef ? formatNumero(currentFiche.numeroRef) : 'F---';
+        let elevesExport = currentFiche.eleves || [];
+        if (!multiOpt && optionFiltre) elevesExport = elevesExport.filter(e => e.option === optionFiltre);
+        if (elevesExport.length === 0) { toast("Aucun élève à exporter", 'error'); return; }
+        let hd = ['N°', 'NOMS COMPLETS', 'S'];
+        if (multiOpt) hd.push('OPT');
+        hd = hd.concat(['P1', 'P2', 'EX1', 'TS1', 'P3', 'P4', 'EX2', 'TS2', 'TOT']);
+        let bd = [];
+        if (multiOpt) {
+            const optionsGroupees = [...new Set(elevesExport.map(e => e.option || '—'))].sort();
+            for (const opt of optionsGroupees) {
+                const eleveRef = elevesExport.find(e => (e.option || '—') === opt);
+                const nm = getNotesMaxForEleve(eleveRef);
+                let rowFinal = ['MAX', opt.substring(0, 5), '', ''];
+                rowFinal.push(nm, nm, nm * 2, nm * 4, nm, nm, nm * 2, nm * 4, nm * 8);
+                bd.push(rowFinal);
+            }
+        } else {
+            const nm = elevesExport.length ? getNotesMaxForEleve(elevesExport[0]) : getPeriodeMax();
+            let rowFinal = ['MAX', '', ''];
+            rowFinal.push(nm, nm, nm * 2, nm * 4, nm, nm, nm * 2, nm * 4, nm * 8);
+            bd.push(rowFinal);
+        }
+        for (let i = 0; i < elevesExport.length; i++) {
+            const e = elevesExport[i];
+            ensureNotes(e);
+            const n = e.notes;
+            const p1 = calcMoy(1, n.p1, e), p2 = calcMoy(2, n.p2, e), p3 = calcMoy(3, n.p3, e), p4 = calcMoy(4, n.p4, e);
+            const ex1 = n.exam1 || 0, ex2 = n.exam2 || 0;
+            let row = [(i + 1).toString(), getNomComplet(e).toUpperCase(), e.sexe === 'F' ? 'F' : 'M'];
+            if (multiOpt) row.push((e.option || '—').substring(0, 5));
+            row.push(p1, p2, ex1, p1 + p2 + ex1, p3, p4, ex2, p3 + p4 + ex2, p1 + p2 + ex1 + p3 + p4 + ex2);
+            bd.push(row);
+        }
+        pdf.setFillColor(37, 211, 102);
+        pdf.rect(0, 0, 297, 15, 'F');
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(14);
+        pdf.text(SCHOOL_DISPLAY_NAME, 148, 10, { align: 'center' });
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+        pdf.text('Année scolaire : ' + (currentFiche.anneeScolaire || '2026-2027'), 14, 22);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(12);
+        pdf.text('FICHE DE COTATION', 148, 30, { align: 'center' });
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        pdf.text('Référence : ' + rn, 14, 38);
+        pdf.text('Cours : ' + (currentFiche.cours || ''), 14, 44);
+        pdf.text('Classe : ' + (currentFiche.classe || ''), 14, 50);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Titulaire : ' + (currentFiche.titulaire || TITULAIRE_NAME), 14, 56);
+        if (!multiOpt && optionFiltre) { pdf.setFont('helvetica', 'bold'); pdf.text('Option : ' + optionFiltre, 14, 62); }
+        else if (currentFiche.option) { pdf.setFont('helvetica', 'normal'); pdf.text('Option : ' + currentFiche.option, 14, 62); }
+        let colStyles = {
+            0: { cellWidth: 10, halign: 'center' },
+            1: { cellWidth: multiOpt ? 70 : 85, halign: 'left', fontStyle: 'bold' },
+            2: { cellWidth: 10, halign: 'center' }
+        };
+        let startIndex = 3;
+        if (multiOpt) { colStyles[3] = { cellWidth: 15, halign: 'center' }; startIndex = 4; }
+        for (let k = 0; k < 9; k++) colStyles[startIndex + k] = { cellWidth: 16, halign: 'center' };
+        pdf.autoTable({
+            head: [hd], body: bd, startY: 66, theme: 'grid',
+            styles: { fontSize: 9, cellPadding: 2, halign: 'center', valign: 'middle', textColor: [0, 0, 0], lineColor: [180, 180, 180], lineWidth: 0.1 },
+            headStyles: { fillColor: [37, 211, 102], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+            didParseCell: function(data) {
+                if (data.section === 'body' && data.row.raw && data.row.raw[0] === 'MAX') {
+                    data.cell.styles.fontStyle = 'bold';
+                    data.cell.styles.fillColor = [255, 235, 232];
+                }
+            },
+            alternateRowStyles: { fillColor: [245, 250, 245] },
+            columnStyles: colStyles,
+            margin: { left: 8, right: 8, top: 8, bottom: 8 }
+        });
+        const suffix = multiOpt ? 'MultiOptions' : (optionFiltre || 'Unique').replace(/\s/g, '_');
+        pdf.save("Fiche_" + rn + "_" + (currentFiche.cours || 'cours') + "_" + suffix + ".pdf");
+        toast("PDF exporté", 'success');
+    } catch (e) { console.error('[genererPDF]', e); toast("Erreur PDF : " + (e.message || e), 'error'); }
+}
+
+document.getElementById('addEpreuve1').onclick = () => addEpreuve(1);
+document.getElementById('addEpreuve2').onclick = () => addEpreuve(2);
+document.getElementById('addEpreuve3').onclick = () => addEpreuve(3);
+document.getElementById('addEpreuve4').onclick = () => addEpreuve(4);
+
+document.getElementById('searchInput')?.addEventListener('input', () => afficherCotation());
+document.getElementById('periodeFilterSelect')?.addEventListener('change', function() { periodeFilterCotation = this.value; afficherCotation(); });
+document.getElementById('sortAlphaBtn')?.addEventListener('click', function() {
+    triAlphabetiqueActif = !triAlphabetiqueActif;
+    this.classList.toggle('active', triAlphabetiqueActif);
+    afficherCotation();
+});
+
+document.getElementById('floatingLogoutBtn').addEventListener('click', function() {
+    showConfirm("Se déconnecter ?", async function() {
+        try { await signOut(auth); } catch (e) {}
+        localStorage.removeItem('gloria_session_admin');
+        currentProf = null; currentRole = null; currentFiche = null; currentFicheId = null;
+        showLogin();
+    });
+});
+
+document.getElementById('floatingTechniqueBtn').addEventListener('click', () => {
+    if (currentRole !== 'admin') { toast("Accès réservé à l'administrateur", 'error'); return; }
+    document.getElementById('techniquePanel').classList.add('show');
+    chargerElevesTable();
+    chargerProfsTable();
+});
+document.getElementById('techniqueCloseBtn').addEventListener('click', () => {
+    document.getElementById('techniquePanel').classList.remove('show');
+});
+
+document.querySelectorAll('.technique-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+        document.querySelectorAll('.technique-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.technique-section').forEach(s => s.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById('section-' + this.dataset.section).classList.add('active');
+    });
+});
+
+async function chargerElevesTable() {
+    await getAllEleves();
+    const search = document.getElementById('eleveSearchInput')?.value?.toLowerCase() || '';
+    const classe = document.getElementById('eleveClasseFilter')?.value || '';
+    let filtered = localEleves;
+    if (search) filtered = filtered.filter(e => getNomComplet(e).toLowerCase().includes(search));
+    if (classe) filtered = filtered.filter(e => e.classe === classe);
+    const c = document.getElementById('elevesTableContainer');
+    if (!filtered.length) { c.innerHTML = '<div class="empty-state" style="background:#242526;border-radius:8px;padding:40px;border:1px solid #3a3b3c;">Aucun élève</div>'; return; }
+    c.innerHTML = `<table class="data-table"><thead><tr><th>NOM COMPLET</th><th>SEXE</th><th>CLASSE</th><th>OPTION</th><th>ACTIONS</th></tr></thead><tbody>${filtered.map(e => `<tr><td><strong>${escapeHtml(getNomComplet(e))}</strong></td><td>${e.sexe}</td><td>${escapeHtml(e.classe)}</td><td>${escapeHtml(e.option || '—')}</td><td><button class="table-action-btn" onclick="window.editEleve('${e.id}')">✏️ Modifier</button><button class="table-action-btn danger" onclick="window.delEleve('${e.id}')">🗑️ Supprimer</button></td></tr>`).join('')}</tbody></table>`;
+}
+
+window.editEleve = async function(id) {
+    const e = localEleves.find(x => x.id === id);
+    if (!e) return;
+    showEleveForm(e);
+};
+
+window.delEleve = function(id) {
+    const e = localEleves.find(x => x.id === id);
+    if (!e) return;
+    showConfirm(`Supprimer ${getNomComplet(e)} ?`, async function() {
+        try {
+            await deleteDoc(doc(db, "ecoles", ECOLET_ID, SC.ELEVES, id));
+            toast("Élève supprimé", 'success');
+            chargerElevesTable();
+        } catch (err) { toast("Erreur", 'error'); }
+    });
+};
+
+function showEleveForm(eleve = null) {
+    const isEdit = !!eleve;
+    const d = document.createElement('div');
+    d.className = 'modal-form-overlay show';
+    d.innerHTML = `
+    <div class="modal-form">
+        <h3>${isEdit ? '✏️ Modifier un élève' : '➕ Ajouter un élève'}</h3>
+        <div class="form-group"><label>Nom *</label><input type="text" id="efNom" value="${escapeHtml(eleve?.nom || '')}"></div>
+        <div class="form-group"><label>Postnom</label><input type="text" id="efPostnom" value="${escapeHtml(eleve?.postnom || '')}"></div>
+        <div class="form-group"><label>Prénom</label><input type="text" id="efPrenom" value="${escapeHtml(eleve?.prenom || '')}"></div>
+        <div class="form-group"><label>Sexe</label><select id="efSexe"><option value="M" ${eleve?.sexe === 'M' ? 'selected' : ''}>Masculin</option><option value="F" ${eleve?.sexe === 'F' ? 'selected' : ''}>Féminin</option></select></div>
+        <div class="form-group"><label>Classe *</label><select id="efClasse">
+            <option value="">-- Sélectionner --</option>
+            ${CLASSES_VALIDES.map(c => `<option value="${c}" ${eleve?.classe === c ? 'selected' : ''}>${c}</option>`).join('')}
+        </select></div>
+        <div class="form-group"><label>Option</label><select id="efOption">
+            <option value="">-- Aucune --</option>
+            ${OPTIONS_DISPONIBLES.map(o => `<option value="${o}" ${eleve?.option === o ? 'selected' : ''}>${o}</option>`).join('')}
+        </select></div>
+        <div class="modal-form-actions">
+            <button class="btn btn-secondary" id="efCancel">Annuler</button>
+            <button class="btn btn-success" id="efSave">${isEdit ? 'Enregistrer' : 'Ajouter'}</button>
+        </div>
+    </div>`;
+    document.body.appendChild(d);
+    d.querySelector('#efCancel').onclick = () => d.remove();
+    d.querySelector('#efSave').onclick = async function() {
+        const nom = d.querySelector('#efNom').value.trim();
+        const postnom = d.querySelector('#efPostnom').value.trim();
+        const prenom = d.querySelector('#efPrenom').value.trim();
+        const sexe = d.querySelector('#efSexe').value;
+        const classe = d.querySelector('#efClasse').value;
+        const option = d.querySelector('#efOption').value;
+        if (!nom) { toast("Le nom est requis", 'error'); return; }
+        if (!classe) { toast("La classe est requise", 'error'); return; }
+        const data = { nom, postnom, prenom, sexe, classe, option, school: ECOLET_ID };
+        try {
+            if (isEdit) {
+                await setDoc(doc(db, "ecoles", ECOLET_ID, SC.ELEVES, eleve.id), data);
+                toast("Élève modifié", 'success');
+            } else {
+                const newId = 'e' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+                await setDoc(doc(db, "ecoles", ECOLET_ID, SC.ELEVES, newId), data);
+                toast("Élève ajouté", 'success');
+            }
+            d.remove();
+            chargerElevesTable();
+        } catch (err) { toast("Erreur", 'error'); }
+    };
+}
+
+document.getElementById('addEleveBtn').onclick = () => showEleveForm(null);
+document.getElementById('eleveSearchInput')?.addEventListener('input', chargerElevesTable);
+document.getElementById('eleveClasseFilter')?.addEventListener('change', chargerElevesTable);
+
+document.getElementById('importJsonBtn').onclick = () => {
+    let d = document.createElement('div');
+    d.className = 'modal-form-overlay show';
+    d.innerHTML = `
+    <div class="modal-form" style="max-width:600px;">
+        <h3>📥 Importer des élèves depuis un fichier JSON</h3>
+        <div class="import-zone" id="importZone">
+            <div class="import-zone-icon">📄</div>
+            <div class="import-zone-text">Déposez votre fichier .json ici</div>
+            <div class="import-zone-sub">ou cliquez pour parcourir</div>
+            <input type="file" id="importFile" accept=".json,application/json" style="display:none;">
+        </div>
+        <div style="margin-top:16px;padding:12px;background:#1c1e21;border-radius:6px;font-size:12px;color:#b0b3b8;line-height:1.6;">
+            <strong style="color:#25d366;">Formats acceptés :</strong><br>
+            • Tableau simple : <code>[{nom, postnom, prenom, sexe, classe, option}, ...]</code><br>
+            • Objet avec élèves : <code>{classe, eleves: [...]}</code><br>
+            • Multi-options : <code>{classe, options: {SCIENCES: [...], ...}}</code>
+        </div>
+        <div id="importPreviewContainer"></div>
+        <div class="modal-form-actions">
+            <button class="btn btn-secondary" id="impCancel">Annuler</button>
+            <button class="btn btn-success" id="impOk" disabled style="opacity:0.5;">Importer</button>
+        </div>
+    </div>`;
+    document.body.appendChild(d);
+    const zone = d.querySelector('#importZone');
+    const fileInput = d.querySelector('#importFile');
+    const previewContainer = d.querySelector('#importPreviewContainer');
+    const impOk = d.querySelector('#impOk');
+    const traiterFichier = (file) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                const data = JSON.parse(ev.target.result);
+                const elevesBruts = [];
+                if (Array.isArray(data)) {
+                    data.forEach(e => { if (e && typeof e === 'object') elevesBruts.push({ ...e, _classeGlobale: null, _optionGlobale: null }); });
+                } else if (data && typeof data === 'object') {
+                    if (data.options && typeof data.options === 'object') {
+                        const classeG = data.classe || null;
+                        for (const opt in data.options) {
+                            const arr = data.options[opt];
+                            if (Array.isArray(arr)) arr.forEach(e => { if (e && typeof e === 'object') elevesBruts.push({ ...e, _classeGlobale: classeG, _optionGlobale: opt }); });
+                        }
+                    } else if (Array.isArray(data.eleves)) {
+                        const classeG = data.classe || null;
+                        data.eleves.forEach(e => { if (e && typeof e === 'object') elevesBruts.push({ ...e, _classeGlobale: classeG, _optionGlobale: null }); });
+                    } else { toast("Format JSON non reconnu", 'error'); return; }
+                } else { toast("Format JSON non reconnu", 'error'); return; }
+                const valides = [];
+                const erreurs = [];
+                const cleanNom = (s) => (s || '').toString().trim();
+                elevesBruts.forEach((e, idx) => {
+                    const nom = cleanNom(e.nom);
+                    const postnom = cleanNom(e.postnom);
+                    const prenom = cleanNom(e.prenom);
+                    const sexe = (e.sexe || 'M').toString().toUpperCase() === 'F' ? 'F' : 'M';
+                    const classe = normaliserClasse(e.classe || e._classeGlobale || '');
+                    const option = (e.option || e._optionGlobale || '').toString().trim().toUpperCase();
+                    if (!nom) { erreurs.push({ ligne: idx + 1, raison: 'Nom manquant' }); return; }
+                    if (!classe || !CLASSES_VALIDES.includes(classe)) { erreurs.push({ ligne: idx + 1, nom, raison: 'Classe invalide (' + (e.classe || e._classeGlobale || 'vide') + ')' }); return; }
+                    if (classe !== '7ème EB' && classe !== '8ème EB' && option && !OPTIONS_DISPONIBLES.includes(option)) {
+                        erreurs.push({ ligne: idx + 1, nom, raison: 'Option invalide (' + option + ')' }); return;
+                    }
+                    valides.push({ nom, postnom, prenom, sexe, classe, option: (classe === '7ème EB' || classe === '8ème EB') ? '' : option });
+                });
+                jsonImportData = { valides, erreurs };
+                let previewHtml = `<div style="margin-top:16px;padding:14px;background:#1c1e21;border-radius:6px;">
+                    <div style="font-size:14px;font-weight:700;color:#25d366;margin-bottom:10px;">📊 Résumé</div>
+                    <div style="font-size:13px;color:#e4e6eb;line-height:1.8;">
+                        • <strong style="color:#25d366;">${valides.length}</strong> élève(s) prêt(s) à importer<br>
+                        • <strong style="color:${erreurs.length > 0 ? '#f02849' : '#b0b3b8'};">${erreurs.length}</strong> erreur(s)
+                    </div>
+                    ${valides.length > 0 ? `<div style="font-size:12px;font-weight:700;color:#b0b3b8;margin-top:12px;margin-bottom:6px;">APERÇU (5 premiers) :</div>` : ''}
+                    <div class="import-preview">
+                        ${valides.slice(0, 5).map(e => `<div class="import-preview-item ok">✅ ${escapeHtml([e.nom, e.postnom, e.prenom].filter(Boolean).join(' '))} — ${e.sexe} — ${escapeHtml(e.classe)}${e.option ? ' — ' + escapeHtml(e.option) : ''}</div>`).join('')}
+                        ${erreurs.slice(0, 5).map(err => `<div class="import-preview-item error">❌ Ligne ${err.ligne}${err.nom ? ' (' + escapeHtml(err.nom) + ')' : ''} : ${escapeHtml(err.raison)}</div>`).join('')}
+                    </div>
+                </div>`;
+                previewContainer.innerHTML = previewHtml;
+                if (valides.length > 0) {
+                    impOk.disabled = false; impOk.style.opacity = '1';
+                    impOk.textContent = `Importer ${valides.length} élève(s)`;
+                } else { impOk.disabled = true; impOk.style.opacity = '0.5'; }
+            } catch (err) { toast("Fichier JSON invalide : " + err.message, 'error'); }
+        };
+        reader.readAsText(file);
+    };
+    zone.onclick = () => fileInput.click();
+    fileInput.onchange = (ev) => { if (ev.target.files[0]) traiterFichier(ev.target.files[0]); };
+    zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', (e) => { e.preventDefault(); zone.classList.remove('dragover'); if (e.dataTransfer.files[0]) traiterFichier(e.dataTransfer.files[0]); });
+    d.querySelector('#impCancel').onclick = () => { jsonImportData = null; d.remove(); };
+    impOk.onclick = async () => {
+        if (!jsonImportData || !jsonImportData.valides.length) return;
+        impOk.disabled = true; impOk.textContent = 'Importation...';
+        try {
+            const existing = new Set(localEleves.map(e => (e.nom + '|' + e.postnom + '|' + e.prenom).toLowerCase()));
+            let countOk = 0, countSkip = 0;
+            for (const eleve of jsonImportData.valides) {
+                const key = (eleve.nom + '|' + eleve.postnom + '|' + eleve.prenom).toLowerCase();
+                if (existing.has(key)) { countSkip++; continue; }
+                const newId = 'e' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+                await setDoc(doc(db, "ecoles", ECOLET_ID, SC.ELEVES, newId), { ...eleve, school: ECOLET_ID, createdAt: new Date() });
+                existing.add(key); countOk++;
+            }
+            toast(`${countOk} élève(s) importé(s)${countSkip > 0 ? ' — ' + countSkip + ' doublon(s) ignoré(s)' : ''}`, 'success');
+            jsonImportData = null; d.remove(); chargerElevesTable();
+        } catch (err) { toast("Erreur lors de l'import", 'error'); impOk.disabled = false; impOk.textContent = 'Réessayer'; }
+    };
+};
+
+async function chargerProfsTable() {
+    const snap = await getDocs(collection(db, "ecoles", ECOLET_ID, SC.PROFESSEURS));
+    const profs = [];
+    snap.forEach(ds => profs.push({ id: ds.id, ...ds.data() }));
+    const search = document.getElementById('profSearchInput')?.value?.toLowerCase() || '';
+    let filtered = profs;
+    if (search) filtered = filtered.filter(p => (p.nom || '').toLowerCase().includes(search) || (p.email || '').toLowerCase().includes(search));
+    const c = document.getElementById('profsTableContainer');
+    if (!filtered.length) { c.innerHTML = '<div class="empty-state" style="background:#242526;border-radius:8px;padding:40px;border:1px solid #3a3b3c;">Aucun professeur</div>'; return; }
+    c.innerHTML = `<table class="data-table"><thead><tr><th>NOM</th><th>CODE</th><th>EMAIL</th><th>STATUT</th><th>ACTIONS</th></tr></thead><tbody>${filtered.map(p => `<tr><td><strong>${escapeHtml(p.nom || '')}</strong></td><td>${escapeHtml(String(p.code || ''))}</td><td>${escapeHtml(p.email || '')}</td><td>${p.actif !== false ? '✅ Actif' : '⛔ Inactif'}</td><td><button class="table-action-btn" onclick="window.editProf('${p.id}')">✏️ Modifier</button><button class="table-action-btn danger" onclick="window.delProf('${p.id}')">🗑️ Supprimer</button></td></tr>`).join('')}</tbody></table>`;
+}
+
+window.editProf = async function(id) {
+    const docSnap = await getDoc(doc(db, "ecoles", ECOLET_ID, SC.PROFESSEURS, id));
+    if (!docSnap.exists()) return;
+    showProfForm({ id, ...docSnap.data() });
+};
+
+window.delProf = function(id) {
+    showConfirm("Supprimer ce professeur ?", async function() {
+        try {
+            await deleteDoc(doc(db, "ecoles", ECOLET_ID, SC.PROFESSEURS, id));
+            toast("Professeur supprimé", 'success');
+            chargerProfsTable();
+        } catch (err) { toast("Erreur", 'error'); }
+    });
+};
+
+async function creerCompteAuth(email, motDePasse) {
+    const secAuth = getSecondaryAuth();
+    try {
+        const cred = await createUserWithEmailAndPassword(secAuth, email, motDePasse);
+        await signOut(secAuth);
+        return { ok: true, uid: cred.user.uid };
+    } catch (e) {
+        if (e.code === 'auth/email-already-in-use') return { ok: true, alreadyExists: true };
+        return { ok: false, error: e.code || e.message };
+    }
+}
+
+function showProfForm(prof = null) {
+    const isEdit = !!prof;
+    const d = document.createElement('div');
+    d.className = 'modal-form-overlay show';
+    d.innerHTML = `
+    <div class="modal-form">
+        <h3>${isEdit ? '✏️ Modifier un professeur' : '➕ Ajouter un professeur'}</h3>
+        <div class="form-group"><label>Nom complet *</label><input type="text" id="pfNom" value="${escapeHtml(prof?.nom || '')}" placeholder="ex: Jean Dupont"></div>
+        <div class="form-group"><label>Email (auto-généré)</label><input type="text" id="pfEmail" value="${escapeHtml(prof?.email || '')}" readonly></div>
+        <div class="form-group"><label>Code d'accès (6 chiffres) *</label><input type="text" id="pfCode" maxlength="6" inputmode="numeric" value="${escapeHtml(String(prof?.code || ''))}"></div>
+        <div class="form-group"><label><input type="checkbox" id="pfActif" ${prof?.actif !== false ? 'checked' : ''}> Compte actif</label></div>
+        <div class="modal-form-actions">
+            <button class="btn btn-secondary" id="pfCancel">Annuler</button>
+            <button class="btn btn-success" id="pfSave">${isEdit ? 'Enregistrer' : 'Créer'}</button>
+        </div>
+    </div>`;
+    document.body.appendChild(d);
+    const nomInput = d.querySelector('#pfNom');
+    const emailInput = d.querySelector('#pfEmail');
+    const codeInput = d.querySelector('#pfCode');
+    nomInput.addEventListener('input', function() { if (!isEdit) emailInput.value = genererEmailGmail(this.value); });
+    codeInput.addEventListener('input', function() { this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6); });
+    if (!isEdit) {
+        d.querySelector('#pfCode').value = genererCode6Chiffres();
+        d.querySelector('#pfActif').checked = true;
+    }
+    d.querySelector('#pfCancel').onclick = () => d.remove();
+    d.querySelector('#pfSave').onclick = async function() {
+        const nom = nomInput.value.trim();
+        const code = codeInput.value.trim();
+        const actif = d.querySelector('#pfActif').checked;
+        if (!nom) { toast("Le nom est requis", 'error'); return; }
+        if (!code || code.length !== 6) { toast("Le code doit contenir 6 chiffres", 'error'); return; }
+        this.disabled = true;
+        this.textContent = 'Traitement...';
+        try {
+            let email = emailInput.value.trim();
+            if (!isEdit) email = await trouverEmailUnique(nom);
+            else if (!email) email = await trouverEmailUnique(nom);
+            if (!isEdit) {
+                const authResult = await creerCompteAuth(email, code);
+                if (!authResult.ok) {
+                    toast("Erreur Auth : " + authResult.error, 'error');
+                    this.disabled = false;
+                    this.textContent = 'Créer';
+                    return;
+                }
+                if (authResult.alreadyExists) toast("Compte Auth existant pour " + email, 'warning');
+            }
+            const data = { nom, code, email, actif, school: ECOLET_ID };
+            if (isEdit) {
+                await setDoc(doc(db, "ecoles", ECOLET_ID, SC.PROFESSEURS, prof.id), data, { merge: true });
+                toast("Professeur modifié", 'success');
+            } else {
+                const newId = 'p' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+                await setDoc(doc(db, "ecoles", ECOLET_ID, SC.PROFESSEURS, newId), data);
+                toast("Professeur créé ✓ Connexion : " + email + " / " + code, 'success');
+            }
+            d.remove();
+            chargerProfsTable();
+        } catch (err) {
+            console.error(err);
+            toast("Erreur : " + err.message, 'error');
+            this.disabled = false;
+            this.textContent = isEdit ? 'Enregistrer' : 'Créer';
+        }
+    };
+}
+
+document.getElementById('addProfBtn').onclick = () => showProfForm(null);
+document.getElementById('profSearchInput')?.addEventListener('input', chargerProfsTable);
+
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        if (!currentProf) {
+            currentProf = {
+                id: user.uid,
+                nom: (user.email || '').split('@')[0].replace(/\./g, ' ').toUpperCase(),
+                email: user.email
+            };
+        }
+        try {
+            const roleInfo = await determinerRole(user);
+            let nomAffichage = null;
+            if (typeof roleInfo === 'object') { nomAffichage = roleInfo.nom; appliquerRole(roleInfo.role, nomAffichage); }
+            else appliquerRole(roleInfo, null);
+            await initApp();
+        } catch (e) {
+            console.error('[auth state]', e);
+            showLogin();
+        }
+    } else {
+        currentProf = null;
+        currentRole = null;
+        showLogin();
+    }
+    setTimeout(() => { document.getElementById('loadingScreen').style.display = 'none'; }, 300);
+});
+</script>
+</body>
+</html>
