@@ -384,6 +384,7 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 <option value="4ème Année">4ème Année</option>
 </select>
 <button class="btn btn-primary" id="importJsonBtn">📥 Importer JSON</button>
+<button class="btn btn-warning" id="replaceElevesBtn">🔄 Remplacer par classe/option</button>
 <button class="btn btn-success" id="addEleveBtn">➕ Ajouter</button>
 </div>
 <div id="elevesTableContainer"></div>
@@ -466,7 +467,7 @@ const OPTIONS_DISPONIBLES = ["SCIENCES", "PEDAGOGIE GENERALE", "COMMERCIALE ET G
 const CLASSES_VALIDES = ["7ème EB", "8ème EB", "1ère Année", "2ème Année", "3ème Année", "4ème Année"];
 const SCHOOL_DISPLAY_NAME = "ÉCOLE GLORIA DEI";
 const TITULAIRE_NAME = "NGENDA FLORY";
-const ADMIN_EMAILS_FALLBACK = ["ngendaflory@gmail.com"];
+const ADMIN_EMAILS_FALLBACK = ["ngendaflory@gmail.com", "ngendaflory2@gmail.com"];
 
 document.getElementById('schoolNameHeader').textContent = SCHOOL_DISPLAY_NAME;
 document.getElementById('schoolSubHeader').textContent = `Année scolaire 2026-2027`;
@@ -545,12 +546,12 @@ function normaliserClasse(nomClasse) {
 }
 
 function genererEmailGmail(nomComplet) {
-    let email = (nomComplet || '').toLowerCase()
+    let slug = (nomComplet || '').toLowerCase()
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9\s]/g, '')
         .trim()
         .replace(/\s+/g, '.');
-    return email + '@gmail.com';
+    return 'prof.' + slug + '@gmail.com';
 }
 
 function genererCode6Chiffres() { return String(Math.floor(100000 + Math.random() * 900000)); }
@@ -561,7 +562,7 @@ async function verifierEmailExiste(email) {
 }
 
 async function trouverEmailUnique(nomComplet) {
-    let base = genererEmailGmail(nomComplet);
+    const base = genererEmailGmail(nomComplet);
     let email = base;
     let compteur = 0;
     while (await verifierEmailExiste(email)) {
@@ -1076,18 +1077,16 @@ document.getElementById('modePersonnalise').addEventListener('click', function()
 async function determinerRole(user) {
     const emailLower = (user.email || '').toLowerCase();
     if (ADMIN_EMAILS_FALLBACK.includes(emailLower)) return 'admin';
-    try {
-        const adminSnap = await getDocs(collection(db, "ecoles", ECOLET_ID, SC.ADMIN));
-        if (adminSnap.docs.some(d => (d.data().email || '').toLowerCase() === emailLower)) return 'admin';
-    } catch (e) {}
-    try {
-        const profsSnap = await getDocs(collection(db, "ecoles", ECOLET_ID, SC.PROFESSEURS));
-        const profDoc = profsSnap.docs.find(d => (d.data().email || '').toLowerCase() === emailLower);
-        if (profDoc) {
-            const data = profDoc.data();
-            return { role: 'professeur', nom: data.nom || '', docId: profDoc.id };
+    if (emailLower.startsWith('direction.')) return 'admin';
+    if (emailLower.startsWith('prof.') || emailLower.startsWith('ens.')) {
+        try {
+            const profsSnap = await getDocs(collection(db, "ecoles", ECOLET_ID, SC.PROFESSEURS));
+            const profDoc = profsSnap.docs.find(d => (d.data().email || '').toLowerCase() === emailLower);
+            return { role: 'professeur', nom: profDoc ? (profDoc.data().nom || '') : '', docId: profDoc ? profDoc.id : null };
+        } catch (e) {
+            return { role: 'professeur', nom: '', docId: null };
         }
-    } catch (e) {}
+    }
     return 'admin';
 }
 
@@ -1268,6 +1267,7 @@ document.getElementById('toggleEditModeBtn').addEventListener('click', function(
 
 document.getElementById('creerFicheBtn').addEventListener('click', async function() {
     if (isCreatingFiche) return;
+    if (!currentProf || !currentProf.email) { toast("Session invalide. Reconnectez-vous.", 'error'); return; }
     const cours = document.getElementById('coursInput').value.trim();
     const classe = document.getElementById('classeSelect').value;
     const option = document.getElementById('optionSelect').value;
@@ -1902,6 +1902,227 @@ document.getElementById('importJsonBtn').onclick = () => {
     };
 };
 
+document.getElementById('replaceElevesBtn').onclick = () => {
+    let d = document.createElement('div');
+    d.className = 'modal-form-overlay show';
+    d.innerHTML = `
+    <div class="modal-form" style="max-width:650px;">
+        <h3>🔄 Remplacer les élèves d'une classe/option</h3>
+        <div style="padding:14px;background:rgba(247,185,40,0.1);border:1px solid #f7b928;border-radius:6px;margin-bottom:16px;">
+            <div style="color:#f7b928;font-size:13px;font-weight:700;margin-bottom:4px;">⚠️ ATTENTION</div>
+            <div style="color:#e4e6eb;font-size:12px;line-height:1.5;">Tous les élèves correspondant à la sélection seront <strong>définitivement supprimés</strong> puis remplacés par ceux du fichier JSON.</div>
+        </div>
+        <div class="form-group">
+            <label>Classe à remplacer *</label>
+            <select id="repClasse">
+                <option value="">-- Sélectionner une classe --</option>
+                ${CLASSES_VALIDES.map(c => `<option value="${c}">${c}</option>`).join('')}
+            </select>
+        </div>
+        <div class="form-group" id="repOptionGroup" style="display:none;">
+            <label>Option à remplacer</label>
+            <select id="repOption">
+                <option value="">-- Toutes les options de la classe --</option>
+                ${OPTIONS_DISPONIBLES.map(o => `<option value="${o}">${o}</option>`).join('')}
+            </select>
+            <div style="font-size:11px;color:#b0b3b8;margin-top:4px;">Laissez vide pour remplacer TOUTES les options de la classe.</div>
+        </div>
+        <div id="repInfoBox" style="display:none;padding:14px;background:#1c1e21;border-radius:6px;margin-bottom:16px;">
+            <div style="font-size:12px;color:#b0b3b8;margin-bottom:6px;">📊 ÉLÈVES ACTUELS CONCERNÉS</div>
+            <div id="repInfoCount" style="font-size:20px;font-weight:800;color:#f02849;">0 élève(s)</div>
+            <div id="repInfoList" style="font-size:11px;color:#b0b3b8;margin-top:8px;max-height:100px;overflow-y:auto;"></div>
+        </div>
+        <div class="import-zone" id="repImportZone" style="padding:20px;">
+            <div class="import-zone-icon">📄</div>
+            <div class="import-zone-text">Déposez votre fichier .json ou cliquez</div>
+            <div class="import-zone-sub" style="margin-top:8px;">Ou collez le JSON ci-dessous</div>
+            <input type="file" id="repImportFile" accept=".json,application/json" style="display:none;">
+        </div>
+        <div class="form-group" style="margin-top:12px;">
+            <label>Ou coller le JSON directement</label>
+            <textarea id="repJsonText" rows="5" placeholder='[{"nom":"KABILA","postnom":"MUTOMBO","prenom":"Jean","sexe":"M"}]' style="font-family:monospace;font-size:12px;"></textarea>
+        </div>
+        <div id="repPreview" style="margin-top:12px;"></div>
+        <div class="modal-form-actions">
+            <button class="btn btn-secondary" id="repCancel">Annuler</button>
+            <button class="btn btn-danger" id="repConfirm" disabled style="opacity:0.5;">🔄 REMPLACER</button>
+        </div>
+    </div>`;
+    document.body.appendChild(d);
+
+    const classeSelect = d.querySelector('#repClasse');
+    const optionGroup = d.querySelector('#repOptionGroup');
+    const optionSelect = d.querySelector('#repOption');
+    const infoBox = d.querySelector('#repInfoBox');
+    const infoCount = d.querySelector('#repInfoCount');
+    const infoList = d.querySelector('#repInfoList');
+    const zone = d.querySelector('#repImportZone');
+    const fileInput = d.querySelector('#repImportFile');
+    const jsonText = d.querySelector('#repJsonText');
+    const preview = d.querySelector('#repPreview');
+    const confirmBtn = d.querySelector('#repConfirm');
+
+    let elevesJsonValides = null;
+    let elevesASupprimer = [];
+
+    const calculerElevesASupprimer = () => {
+        const classe = classeSelect.value;
+        const option = optionSelect.value;
+        if (!classe) return [];
+        return localEleves.filter(e => {
+            if (e.classe !== classe) return false;
+            if (classe === '7ème EB' || classe === '8ème EB') return true;
+            if (option && e.option !== option) return false;
+            return true;
+        });
+    };
+
+    const actualiserInfo = () => {
+        const classe = classeSelect.value;
+        if (!classe) { infoBox.style.display = 'none'; elevesASupprimer = []; mettreAJourBouton(); return; }
+        if (classe === '7ème EB' || classe === '8ème EB') optionGroup.style.display = 'none';
+        else optionGroup.style.display = 'block';
+        elevesASupprimer = calculerElevesASupprimer();
+        infoBox.style.display = 'block';
+        infoCount.textContent = elevesASupprimer.length + ' élève(s)';
+        if (elevesASupprimer.length === 0) {
+            infoCount.style.color = '#25d366';
+            infoList.innerHTML = '<em style="color:#25d366;">Aucun élève actuellement — import uniquement</em>';
+        } else {
+            infoCount.style.color = '#f02849';
+            infoList.innerHTML = elevesASupprimer.slice(0, 5).map(e => '• ' + escapeHtml(getNomComplet(e)) + (e.option ? ' (' + escapeHtml(e.option) + ')' : '')).join('<br>') + (elevesASupprimer.length > 5 ? `<br><em>... et ${elevesASupprimer.length - 5} autre(s)</em>` : '');
+        }
+        mettreAJourBouton();
+    };
+
+    const mettreAJourBouton = () => {
+        const classe = classeSelect.value;
+        if (!classe || !elevesJsonValides || elevesJsonValides.length === 0) {
+            confirmBtn.disabled = true; confirmBtn.style.opacity = '0.5'; return;
+        }
+        confirmBtn.disabled = false; confirmBtn.style.opacity = '1';
+        confirmBtn.textContent = `🔄 REMPLACER (${elevesASupprimer.length} → ${elevesJsonValides.length})`;
+    };
+
+    const parserJson = (text) => {
+        try {
+            const data = JSON.parse(text);
+            let bruts = [];
+            if (Array.isArray(data)) bruts = data;
+            else if (data && Array.isArray(data.eleves)) bruts = data.eleves;
+            else if (data && data.options) {
+                for (const opt in data.options) {
+                    if (Array.isArray(data.options[opt])) data.options[opt].forEach(e => bruts.push({ ...e, option: opt }));
+                }
+            } else return null;
+            const valides = [];
+            const erreurs = [];
+            bruts.forEach((e, idx) => {
+                if (!e || typeof e !== 'object') return;
+                const nom = (e.nom || '').toString().trim();
+                if (!nom) { erreurs.push(`Ligne ${idx + 1}: nom manquant`); return; }
+                valides.push({
+                    nom, postnom: (e.postnom || '').toString().trim(), prenom: (e.prenom || '').toString().trim(),
+                    sexe: (e.sexe || 'M').toString().toUpperCase() === 'F' ? 'F' : 'M',
+                    option: (e.option || '').toString().trim().toUpperCase()
+                });
+            });
+            return { valides, erreurs };
+        } catch (err) { return null; }
+    };
+
+    const traiterJson = (text) => {
+        const result = parserJson(text);
+        if (!result) { toast("JSON invalide", 'error'); return; }
+        const classe = classeSelect.value;
+        const option = optionSelect.value;
+        elevesJsonValides = result.valides.map(e => ({
+            ...e, classe,
+            option: (classe === '7ème EB' || classe === '8ème EB') ? '' : (option || e.option || '')
+        }));
+        preview.innerHTML = `<div style="padding:14px;background:#1c1e21;border-radius:6px;">
+            <div style="font-size:13px;font-weight:700;color:#25d366;margin-bottom:8px;">📊 Fichier JSON</div>
+            <div style="font-size:12px;color:#e4e6eb;line-height:1.7;">
+                • <strong style="color:#25d366;">${elevesJsonValides.length}</strong> élève(s) valide(s)<br>
+                ${result.erreurs.length > 0 ? `• <strong style="color:#f02849;">${result.erreurs.length}</strong> erreur(s) : ${result.erreurs.slice(0, 3).join(', ')}` : ''}
+            </div>
+            ${elevesJsonValides.length > 0 ? `<div style="margin-top:10px;font-size:11px;color:#b0b3b8;">Aperçu : ${elevesJsonValides.slice(0, 3).map(e => escapeHtml(e.nom)).join(', ')}${elevesJsonValides.length > 3 ? '...' : ''}</div>` : ''}
+        </div>`;
+        mettreAJourBouton();
+    };
+
+    zone.onclick = () => fileInput.click();
+    fileInput.onchange = (ev) => {
+        const file = ev.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => { jsonText.value = e.target.result.substring(0, 5000); traiterJson(e.target.result); };
+        reader.readAsText(file);
+    };
+    zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', (e) => {
+        e.preventDefault(); zone.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => { jsonText.value = ev.target.result.substring(0, 5000); traiterJson(ev.target.result); };
+        reader.readAsText(file);
+    });
+
+    let debounceTimer = null;
+    jsonText.oninput = function() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            if (this.value.trim().length < 5) { elevesJsonValides = null; preview.innerHTML = ''; mettreAJourBouton(); return; }
+            traiterJson(this.value);
+        }, 400);
+    };
+
+    d.querySelector('#repCancel').onclick = () => d.remove();
+
+    confirmBtn.onclick = async () => {
+        if (!elevesJsonValides || !elevesJsonValides.length) return;
+        const classe = classeSelect.value;
+        const option = optionSelect.value;
+        const nbSuppr = elevesASupprimer.length;
+        const nbAjout = elevesJsonValides.length;
+        const label = classe + (option ? ' — ' + option : (classe === '7ème EB' || classe === '8ème EB' ? '' : ' — TOUTES options'));
+        if (!confirm(`⚠️ SUPPRESSION DÉFINITIVE\n\n${label}\n\n• ${nbSuppr} élève(s) supprimé(s)\n• ${nbAjout} élève(s) ajouté(s)\n\nCette action est IRRÉVERSIBLE. Confirmer ?`)) return;
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Suppression...';
+        try {
+            let countSuppr = 0;
+            for (const e of elevesASupprimer) {
+                await deleteDoc(doc(db, "ecoles", ECOLET_ID, SC.ELEVES, e.id));
+                countSuppr++;
+            }
+            confirmBtn.textContent = 'Ajout...';
+            let countAjout = 0;
+            for (const eleve of elevesJsonValides) {
+                const newId = 'e' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+                await setDoc(doc(db, "ecoles", ECOLET_ID, SC.ELEVES, newId), {
+                    nom: eleve.nom, postnom: eleve.postnom, prenom: eleve.prenom,
+                    sexe: eleve.sexe, classe: eleve.classe, option: eleve.option,
+                    school: ECOLET_ID, createdAt: new Date()
+                });
+                countAjout++;
+            }
+            toast(`🔄 ${countSuppr} supprimé(s), ${countAjout} ajouté(s) — ${label}`, 'success');
+            d.remove();
+            await getAllEleves();
+            chargerElevesTable();
+            if (currentFiche) await refreshSelectors(currentFicheId);
+        } catch (err) {
+            console.error(err);
+            toast("Erreur : " + err.message, 'error');
+            confirmBtn.disabled = false; mettreAJourBouton();
+        }
+    };
+
+    actualiserInfo();
+};
+
 async function chargerProfsTable() {
     const snap = await getDocs(collection(db, "ecoles", ECOLET_ID, SC.PROFESSEURS));
     const profs = [];
@@ -1950,7 +2171,11 @@ function showProfForm(prof = null) {
     <div class="modal-form">
         <h3>${isEdit ? '✏️ Modifier un professeur' : '➕ Ajouter un professeur'}</h3>
         <div class="form-group"><label>Nom complet *</label><input type="text" id="pfNom" value="${escapeHtml(prof?.nom || '')}" placeholder="ex: Jean Dupont"></div>
-        <div class="form-group"><label>Email (auto-généré)</label><input type="text" id="pfEmail" value="${escapeHtml(prof?.email || '')}" readonly></div>
+        <div class="form-group">
+            <label>Email (auto-généré)</label>
+            <input type="text" id="pfEmail" value="${escapeHtml(prof?.email || '')}" readonly>
+            <div style="font-size:11px;color:#b0b3b8;margin-top:4px;">Format : <code style="color:#25d366;">prof.prenom.nom@gmail.com</code> — obligatoire pour que le prof puisse créer des fiches</div>
+        </div>
         <div class="form-group"><label>Code d'accès (6 chiffres) *</label><input type="text" id="pfCode" maxlength="6" inputmode="numeric" value="${escapeHtml(String(prof?.code || ''))}"></div>
         <div class="form-group"><label><input type="checkbox" id="pfActif" ${prof?.actif !== false ? 'checked' : ''}> Compte actif</label></div>
         <div class="modal-form-actions">
@@ -1985,9 +2210,7 @@ function showProfForm(prof = null) {
                 const authResult = await creerCompteAuth(email, code);
                 if (!authResult.ok) {
                     toast("Erreur Auth : " + authResult.error, 'error');
-                    this.disabled = false;
-                    this.textContent = 'Créer';
-                    return;
+                    this.disabled = false; this.textContent = 'Créer'; return;
                 }
                 if (authResult.alreadyExists) toast("Compte Auth existant pour " + email, 'warning');
             }
