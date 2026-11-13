@@ -3630,6 +3630,87 @@ window.selectAutreType=selectAutreType;
 var _bibleCurrentRef = "";
 var _bibleVersetTexte = "";
 
+var _livresBibleMap = {
+  "genese":"genesis","exode":"exodus","levitique":"leviticus","nombres":"numbers",
+  "deuteronome":"deuteronomy","josue":"joshua","juges":"judges","ruth":"ruth",
+  "1samuel":"1samuel","2samuel":"2samuel","1rois":"1kings","2rois":"2kings",
+  "1chroniques":"1chronicles","2chroniques":"2chronicles","esdras":"ezra",
+  "nehemie":"nehemiah","esther":"esther","job":"job","psaumes":"psalms",
+  "psaume":"psalms","proverbes":"proverbs","ecclesiaste":"ecclesiastes",
+  "cantique":"songofsolomon","esaie":"isaiah","jeremie":"jeremiah",
+  "lamentations":"lamentations","ezechiel":"ezekiel","daniel":"daniel",
+  "osee":"hosea","joel":"joel","amos":"amos","obadia":"obadiah","jonas":"jonah",
+  "michee":"micah","nahum":"nahum","habacuc":"habakkuk","sophonie":"zephaniah",
+  "aggee":"haggai","zacharie":"zechariah","malachie":"malachi",
+  "matthieu":"matthew","marc":"mark","luc":"luke","jean":"john","actes":"acts",
+  "romains":"romans","1corinthiens":"1corinthians","2corinthiens":"2corinthians",
+  "galates":"galatians","ephesiens":"ephesians","philippiens":"philippians",
+  "colossiens":"colossians","1thessaloniciens":"1thessalonians",
+  "2thessaloniciens":"2thessalonians","1timothee":"1timothy","2timothee":"2timothy",
+  "tite":"titus","philemon":"philemon","hebreux":"hebrews","jacques":"james",
+  "1pierre":"1peter","2pierre":"2peter","1jean":"1john","2jean":"2john",
+  "3jean":"3john","jude":"jude","apocalypse":"revelation"
+};
+
+function _extraireReferenceBible(ref) {
+  if (!ref) return null;
+  var regex = /^([1-3]?\s*[a-zA-ZÀ-ÿ]+)\s+(\d+)[:.](\d+)$/;
+  var match = String(ref).trim().match(regex);
+  if (!match) return null;
+  var livreSaisi = match[1].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '');
+  var livreAPI = _livresBibleMap[livreSaisi] || livreSaisi;
+  return { livre: livreAPI, chapitre: match[2], verset: match[3], original: ref };
+}
+
+function _escBible(s) {
+  if (!s) return '';
+  return String(s).replace(/[&<>"']/g, function(m) {
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+  });
+}
+
+async function rechercherVersetBible() {
+  var inp = document.getElementById('bibleRefInput');
+  var ref = inp ? inp.value.trim() : _bibleCurrentRef;
+  var resultatDiv = document.getElementById('bibleResultat');
+  var label = document.getElementById('bibleRefLabel');
+  if (!resultatDiv) return;
+  if (!ref) {
+    resultatDiv.innerHTML = '<div class="bible-error"><i class="fa-solid fa-triangle-exclamation"></i> Aucune référence fournie.</div>';
+    return;
+  }
+  if (label) label.textContent = ref;
+  _bibleCurrentRef = ref;
+  resultatDiv.innerHTML = '<div class="bible-loading"><div class="bible-spinner"></div><span>Chargement…</span></div>';
+  var refDecoupee = _extraireReferenceBible(ref);
+  if (!refDecoupee) {
+    resultatDiv.innerHTML = '<div class="bible-error"><i class="fa-solid fa-triangle-exclamation"></i> Format invalide : "' + _escBible(ref) + '"<br><span style="font-weight:600;font-size:13px;display:block;margin-top:6px">Exemple : Marc 11:24</span></div>';
+    return;
+  }
+  var url = 'https://api.midvash.com/v1/lsg/' + refDecoupee.livre + '/' + refDecoupee.chapitre + '/' + refDecoupee.verset;
+  var controller = new AbortController();
+  var timeoutId = setTimeout(function(){ controller.abort(); }, 10000);
+  try {
+    var response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (!response.ok) {
+      throw new Error("Verset introuvable (Code " + response.status + ")");
+    }
+    var jsonResponse = await response.json();
+    if (jsonResponse && jsonResponse.data && jsonResponse.data.text) {
+      var referenceAffichee = jsonResponse.data.reference || ref;
+      _bibleVersetTexte = jsonResponse.data.text.trim();
+      resultatDiv.innerHTML = '<div class="bible-panel-result"><div class="bible-ref-title"><i class="fa-solid fa-book-bible"></i> ' + _escBible(referenceAffichee) + '</div><div class="bible-verse-text">« ' + _escBible(_bibleVersetTexte) + ' »</div></div>';
+    } else {
+      throw new Error("Le verset est introuvable.");
+    }
+  } catch (error) {
+    clearTimeout(timeoutId);
+    var msgErr = error.name === 'AbortError' ? 'Délai dépassé (10s). Vérifiez votre connexion.' : error.message;
+    resultatDiv.innerHTML = '<div class="bible-error"><i class="fa-solid fa-triangle-exclamation"></i> Erreur : ' + _escBible(msgErr) + '<br><span style="font-weight:600;font-size:13px;display:block;margin-top:6px">Vérifiez la référence ou votre connexion.</span></div>';
+  }
+}
+
 function ouvrirMiniBible(reference) {
   var refDecodee = "";
   try { refDecodee = decodeURIComponent(reference || ""); }
@@ -3669,52 +3750,6 @@ function fermerBibleIframe() {
 }
 
 function fermerMiniBible() { fermerBibleIframe(); }
-
-async function rechercherVersetBible() {
-  var inp = document.getElementById('bibleRefInput');
-  var ref = inp ? inp.value.trim() : _bibleCurrentRef;
-  var resultatDiv = document.getElementById('bibleResultat');
-  var label = document.getElementById('bibleRefLabel');
-  
-  if (!resultatDiv) return;
-  if (!ref) {
-    resultatDiv.innerHTML = '<div class="bible-error"><i class="fa-solid fa-triangle-exclamation"></i> Aucune référence fournie.</div>';
-    return;
-  }
-  
-  if (label) label.textContent = ref;
-  _bibleCurrentRef = ref;
-  resultatDiv.innerHTML = '<div class="bible-loading"><div class="bible-spinner"></div><span>Chargement…</span></div>';
-  
-  var url = 'https://bible-api.com/' + encodeURIComponent(ref) + '?translation=lsg';
-  
-  var controller = new AbortController();
-  var timeoutId = setTimeout(function(){ controller.abort(); }, 8000);
-
-  try {
-    var response = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      throw new Error("Verset introuvable. Vérifiez l'orthographe (ex: Jean 3:16).");
-    }
-    
-    var jsonResponse = await response.json();
-    
-    if (jsonResponse && jsonResponse.text) {
-      var referenceAffichee = jsonResponse.reference || ref;
-      _bibleVersetTexte = jsonResponse.text.trim();
-      
-      resultatDiv.innerHTML = '<div class="bible-panel-result"><div class="bible-ref-title"><i class="fa-solid fa-book-bible"></i> ' + esc(referenceAffichee) + '</div><div class="bible-verse-text">« ' + esc(_bibleVersetTexte) + ' »</div></div>';
-    } else {
-      throw new Error("Le verset est introuvable.");
-    }
-  } catch (error) {
-    clearTimeout(timeoutId);
-    var msgErr = error.name === 'AbortError' ? 'Délai dépassé (8s). Vérifiez votre connexion internet.' : error.message;
-    resultatDiv.innerHTML = '<div class="bible-error"><i class="fa-solid fa-triangle-exclamation"></i> Erreur : ' + esc(msgErr) + '<br><span style="font-weight:600;font-size:13px;display:block;margin-top:6px">Vérifiez la référence ou votre connexion.</span></div>';
-  }
-}
 
 function copierVersetBible() {
   if (!_bibleVersetTexte) { showToast("Aucun verset à copier"); return; }
