@@ -1314,7 +1314,6 @@ const p=produitsAttente[realIdx];
 if(!p)return;
 const ok=await adminConfirm('Approuver ce produit ?',`<strong>${esc(p.nom)}</strong> deviendra visible dans le catalogue de <strong>${esc(p.commerceNom)}</strong>.`,'info');
 if(!ok)return;
-setLoader(true);
 try{
 const ref=doc(db,'commerces',p.commerceId);
 const snap=await getDoc(ref);
@@ -1329,14 +1328,12 @@ await notifierChangement('approveProduit',p.commerceId);
 toast('✅ Produit approuvé');
 await loadProduitsAttente(true);
 }catch(e){toast('Erreur : '+e.message,'err');}
-finally{setLoader(false);}
 }
 async function rejeterProduit(realIdx){
 const p=produitsAttente[realIdx];
 if(!p)return;
 const ok=await adminConfirm('Refuser ce produit ?',`<strong>${esc(p.nom)}</strong> restera invisible.`,'danger');
 if(!ok)return;
-setLoader(true);
 try{
 const ref=doc(db,'commerces',p.commerceId);
 const snap=await getDoc(ref);
@@ -1351,14 +1348,12 @@ await notifierChangement('rejectProduit',p.commerceId);
 toast('Produit refusé','warn');
 await loadProduitsAttente(true);
 }catch(e){toast('Erreur : '+e.message,'err');}
-finally{setLoader(false);}
 }
 async function supprimerProduitAttente(realIdx){
 const p=produitsAttente[realIdx];
 if(!p)return;
 const ok=await adminConfirm('Supprimer ce produit ?',`<strong>${esc(p.nom)}</strong> sera définitivement retiré.`,'danger');
 if(!ok)return;
-setLoader(true);
 try{
 const ref=doc(db,'commerces',p.commerceId);
 const snap=await getDoc(ref);
@@ -1371,13 +1366,11 @@ await notifierChangement('deleteProduitAttente',p.commerceId);
 toast('Produit supprimé','warn');
 await loadProduitsAttente(true);
 }catch(e){toast('Erreur : '+e.message,'err');}
-finally{setLoader(false);}
 }
 async function approuverTousProduits(){
 if(produitsAttente.length===0){toast('Aucun produit','warn');return;}
 const ok=await adminConfirm('Approuver tous les produits ?',`<strong>${produitsAttente.length}</strong> produit(s) deviendront visibles.`,'info');
 if(!ok)return;
-setLoader(true);
 try{
 const parCommerce={};
 produitsAttente.forEach(p=>{if(!parCommerce[p.commerceId])parCommerce[p.commerceId]=[];parCommerce[p.commerceId].push(p.index);});
@@ -1394,7 +1387,6 @@ await notifierChangement('approveAllProduits',null);
 toast(`✅ ${produitsAttente.length} produit(s) approuvé(s)`);
 await loadProduitsAttente(true);
 }catch(e){toast('Erreur : '+e.message,'err');}
-finally{setLoader(false);}
 }
 function renderBoutiques(){
 const tbody=document.getElementById('bodyBoutiques');
@@ -1424,7 +1416,6 @@ const b=boutiques.find(x=>x.id===id);
 if(!b)return;
 const ok=await adminConfirm('Approuver cette boutique ?','Rendre <strong>'+esc(b.nomCommerce)+'</strong> visible ?','info');
 if(!ok)return;
-setLoader(true);
 try{
 const batch=writeBatch(db);
 const now=new Date().toISOString();
@@ -1433,7 +1424,7 @@ let uid=b.uid||null;
 if(uid){
 const boutiqueData={uid,nom:b.nomCommerce,nomCommerce:b.nomCommerce,type:b.type,ville:b.ville,quartier:b.quartier,adresse:b.adresse||'',horaires:b.horaires||'08h - 20h',description:b.description||'Découvrez notre catalogue.',telephone:b.telephone,whatsapp:b.whatsappCommercial||b.telephone,whatsappCommercial:b.whatsappCommercial||b.telephone,img:b.img||'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80',emoji:'🏪',statut:'approuve',dateCreation:b.dateCreation||now,dateApprobation:now,retraitActif:true,livraisonActive:true,badgeConfiance:b.badgeConfiance===true,configLivraison:b.configLivraison||{frais:0,minProduits:0,minPrixPanier:0},actif:true};
 batch.update(doc(db,'netubers',uid),{boutique:boutiqueData});
-const commerceId='COM-'+id.replace('DEM-','');
+const commerceId='COM-'+id.replace('DEM-','').replace(/[^A-Za-z0-9]/g,'');
 batch.set(doc(db,'commerces',commerceId),{...boutiqueData,demandeId:id,produits:[],creeParDirection:false},{merge:true});
 }
 await batch.commit();
@@ -1446,14 +1437,12 @@ toast('Boutique approuvée');
 cacheInvalidate('netubers');cacheInvalidate('actives');cacheInvalidate('commerces');
 await reloadSome(['actives']);
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 }
 async function refuseBoutique(id){
 const b=boutiques.find(x=>x.id===id);
 if(!b)return;
 const ok=await adminConfirm('Refuser cette boutique ?','Refuser <strong>'+esc(b.nomCommerce)+'</strong> ?','danger');
 if(!ok)return;
-setLoader(true);
 try{
 const batch=writeBatch(db);
 batch.update(doc(db,'demandes_boutiques',id),{statut:'refuse',dateRefus:new Date().toISOString()});
@@ -1467,12 +1456,10 @@ await notifierChangement('refuseBoutique',id);
 toast('Boutique refusée','warn');
 cacheInvalidate('netubers');
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 }
 async function deleteDemandeBoutique(id){
 const ok=await adminConfirm('Supprimer cette demande ?','La demande sera définitivement supprimée.','danger');
 if(!ok)return;
-setLoader(true);
 try{
 await deleteDoc(doc(db,'demandes_boutiques',id));
 boutiques=boutiques.filter(x=>x.id!==id);
@@ -1481,7 +1468,6 @@ renderBoutiques();
 await notifierChangement('deleteDemandeBoutique',id);
 toast('Demande supprimée','warn');
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 }
 function detailBoutique(id){
 const b=boutiques.find(x=>x.id===id);
@@ -1535,12 +1521,20 @@ modal.onclick=e=>{if(e.target===modal)modal.remove();};
 async function validerDeblocage(id){
 const d=deblocages.find(x=>x.id===id);
 if(!d)return;
+let coordonnees=null;
+if(d.annonceId){
+try{
+const coordSnap=await getDoc(doc(db,'annonces',d.annonceId,'prive','contact'));
+if(coordSnap.exists())coordonnees=coordSnap.data();
+}catch(e){}
+}
+if(!coordonnees||!coordonnees.telephone){
+const warnOk=await adminConfirm('⚠️ Coordonnées introuvables',`L'annonce <strong>${esc(d.annonceId||'')}</strong> n'a pas de coordonnées privées enregistrées.<br><br>Si vous validez maintenant, le client verra <strong>"Coordonnées non disponibles"</strong>.<br><br>Voulez-vous <strong>quand même valider</strong> ?`,'warning');
+if(!warnOk)return;
+}
 const ok=await adminConfirm('Valider ce déblocage ?','ID : <strong>'+esc(d.transactionId||'—')+'</strong><br>N° : <strong>'+esc(d.numeroEnvoi||'—')+'</strong>','info');
 if(!ok)return;
-setLoader(true);
 try{
-let coordonnees=null;
-if(d.annonceId){try{const coordSnap=await getDoc(doc(db,'annonces',d.annonceId,'prive','contact'));if(coordSnap.exists())coordonnees=coordSnap.data();}catch(e){}}
 const now=new Date().toISOString();
 await setDoc(doc(db,'deblocages',id),{statut:'debloque',dateValidation:now,coordonnees:coordonnees||{nom:'Propriétaire',adresse:'—',telephone:'—',email:''}},{merge:true});
 const idx=deblocages.findIndex(x=>x.id===id);
@@ -1548,14 +1542,12 @@ if(idx>=0){deblocages[idx].statut='debloque';deblocages[idx].dateValidation=now;
 renderDeblocages();
 updateBadge('badgeDeblocages',deblocages.filter(x=>x.statut==='en_attente').length);
 await notifierChangement('validerDeblocage',id);
-toast('Déblocage validé');
+toast(coordonnees?'Déblocage validé':'Validé SANS coordonnées',coordonnees?'ok':'warn');
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 }
 async function rejeterDeblocage(id){
 const ok=await adminConfirm('Rejeter ce déblocage ?','La demande sera marquée non valide.','danger');
 if(!ok)return;
-setLoader(true);
 try{
 await setDoc(doc(db,'deblocages',id),{statut:'echoue',dateRejet:new Date().toISOString()},{merge:true});
 const idx=deblocages.findIndex(x=>x.id===id);
@@ -1565,7 +1557,6 @@ updateBadge('badgeDeblocages',deblocages.filter(x=>x.statut==='en_attente').leng
 await notifierChangement('rejeterDeblocage',id);
 toast('Déblocage rejeté','warn');
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 }
 async function deleteDeblocage(id){
 const ok=await adminConfirm('Supprimer ce déblocage ?','Action irréversible.','danger');
@@ -1595,7 +1586,6 @@ return `<tr><td>${offset+i+1}</td><td style="font-size:11.5px">${esc(date)}</td>
 }).join('');
 }
 async function approuverPublication(id){
-setLoader(true);
 try{
 const pub=publications.find(p=>p.id===id);
 const batch=writeBatch(db);
@@ -1619,10 +1609,8 @@ await notifierChangement('approuverPublication',id);
 toast('Publication approuvée');
 await reloadSome(['actives']);
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 }
 async function rejeterPublication(id){
-setLoader(true);
 try{
 await setDoc(doc(db,'publications',id),{statut:'refuse',dateRefus:new Date().toISOString()},{merge:true});
 const idx=publications.findIndex(x=>x.id===id);
@@ -1632,12 +1620,10 @@ updateBadge('badgePublications',publications.filter(x=>x.statut==='en_attente').
 await notifierChangement('rejeterPublication',id);
 toast('Publication refusée','warn');
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 }
 async function supprimerPublication(id){
 const ok=await adminConfirm('Supprimer cette publication ?','Le produit sera aussi retiré.','danger');
 if(!ok)return;
-setLoader(true);
 try{
 const pub=publications.find(p=>p.id===id);
 const batch=writeBatch(db);
@@ -1661,7 +1647,6 @@ await notifierChangement('supprimerPublication',id);
 toast('Publication supprimée','warn');
 await reloadSome(['actives']);
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 }
 function ouvrirModalEditPublication(id){
 const pub=publications.find(x=>x.id===id);
@@ -1687,7 +1672,6 @@ d.querySelector('#pubEditImgRemoveBtn').onclick=async()=>{const ok=await adminCo
 d.querySelector('[data-cancel]').onclick=()=>d.remove();
 d.onclick=e=>{if(e.target===d)d.remove();};
 d.querySelector('[data-save]').onclick=async()=>{
-setLoader(true);
 try{
 const uniteFinale=getUniteFinale('pubEditUnite','pubEditUniteAutre');
 const updates={titre:d.querySelector('#pubEditTitre').value.trim(),prix:parseInt(d.querySelector('#pubEditPrix').value,10)||0,prixLabel:uniteFinale,categorie:d.querySelector('#pubEditCat').value.trim(),desc:d.querySelector('#pubEditDesc').value.trim(),img:newImg,dateModification:new Date().toISOString()};
@@ -1713,7 +1697,6 @@ toast('Publication modifiée');
 d.remove();
 await reloadSome(['actives']);
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 };
 }
 function renderAnnonces(){
@@ -1751,11 +1734,12 @@ document.getElementById('filterAnnonceStatut').onchange=()=>{pagination.annonces
 async function approveAnnonceAdmin(id){
 const ok=await adminConfirm('Approuver cette publication ?','Vérifiez le paiement au <strong>+243 976 953 045</strong>.','info');
 if(!ok)return;
-setLoader(true);
 try{
-await setDoc(doc(db,'annonces',id),{statut:'approuve',actif:true,dateApprobation:new Date().toISOString()},{merge:true});
+const now=new Date();
+const expiration=new Date(now.getTime()+30*24*60*60*1000).toISOString();
+await setDoc(doc(db,'annonces',id),{statut:'approuve',actif:true,dateApprobation:now.toISOString(),dateExpiration:expiration,dateCreation:now.toISOString()},{merge:true});
 const idx=annonces.findIndex(x=>x.id===id);
-if(idx>=0){annonces[idx].statut='approuve';annonces[idx].actif=true;}
+if(idx>=0){annonces[idx].statut='approuve';annonces[idx].actif=true;annonces[idx].dateExpiration=expiration;}
 renderAnnonces();
 moderationAnnonces=annonces.slice();
 renderModerationFeed();
@@ -1763,12 +1747,10 @@ updateBadge('badgeAnnonces',annonces.filter(x=>x.statut==='en_attente').length);
 await notifierChangement('approveAnnonce',id);
 toast('Publication approuvée');
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 }
 async function refuseAnnonceAdmin(id){
 const ok=await adminConfirm('Refuser cette publication ?','L\'annonce restera invisible.','danger');
 if(!ok)return;
-setLoader(true);
 try{
 await setDoc(doc(db,'annonces',id),{statut:'refuse',actif:false,dateRefus:new Date().toISOString()},{merge:true});
 const idx=annonces.findIndex(x=>x.id===id);
@@ -1780,7 +1762,6 @@ updateBadge('badgeAnnonces',annonces.filter(x=>x.statut==='en_attente').length);
 await notifierChangement('refuseAnnonce',id);
 toast('Publication refusée','warn');
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 }
 function detailAnnonceAdmin(id){
 const a=annonces.find(x=>x.id===id);
@@ -1812,7 +1793,7 @@ const btnClose=modal.querySelector('[data-close]');
 if(btnRefuse)btnRefuse.onclick=()=>{modal.remove();refuseAnnonceAdmin(id);};
 if(btnApprove)btnApprove.onclick=async()=>{
 const newImg=modal.getAttribute('data-new-img');
-if(newImg){try{setLoader(true);await setDoc(doc(db,'annonces',id),{img:newImg},{merge:true});toast('✅ Image enregistrée');}catch(e){toast('Erreur image: '+e.message,'err');}finally{setLoader(false);}}
+if(newImg){try{await setDoc(doc(db,'annonces',id),{img:newImg},{merge:true});toast('✅ Image enregistrée');}catch(e){toast('Erreur image: '+e.message,'err');}}
 modal.remove();
 approveAnnonceAdmin(id);
 };
@@ -1824,7 +1805,6 @@ const a=annonces.find(x=>x.id===id);
 const titre=a?a.titre:'cette annonce';
 const ok=await adminConfirm('Supprimer cette annonce ?','L\'annonce <strong>'+esc(titre)+'</strong> sera supprimée.','danger');
 if(!ok)return;
-setLoader(true);
 try{
 await deleteDoc(doc(db,'annonces',id));
 annonces=annonces.filter(x=>x.id!==id);
@@ -1836,7 +1816,6 @@ updateBadge('badgeAnnonces',annonces.filter(x=>x.statut==='en_attente').length);
 await notifierChangement('supprimerAnnonce',id);
 toast('Annonce supprimée','warn');
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 }
 async function ouvrirModalEditAnnonce(id){
 const a=annonces.find(x=>x.id===id);
@@ -1872,7 +1851,6 @@ const tag=d.querySelector('#editAnnTag').value.trim();
 const tagClass=d.querySelector('#editAnnTagClass').value;
 const actif=d.querySelector('#editAnnActif').checked;
 if(!titre){toast('Titre obligatoire','err');return;}
-setLoader(true);
 try{
 const updates={titre,desc,cat,prix,ville,quartier,tag,tagClass,actif,img:imgBase64,dateModification:new Date().toISOString()};
 await setDoc(doc(db,'annonces',id),updates,{merge:true});
@@ -1885,7 +1863,6 @@ await notifierChangement('editAnnonce',id);
 toast('✅ Annonce modifiée');
 d.remove();
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 };
 }
 function renderModerationFeed(){
@@ -1926,7 +1903,6 @@ d.querySelector('[data-cancel]').onclick=()=>d.remove();
 d.onclick=e=>{if(e.target===d)d.remove();};
 okBtn.onclick=async()=>{
 d.remove();
-setLoader(true);
 let success=0;
 try{
 let batch=writeBatch(db);
@@ -1945,7 +1921,6 @@ renderAnnonces();
 moderationAnnonces=[];
 renderModerationFeed();
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 };
 };
 function renderActives(){
@@ -1983,7 +1958,6 @@ if(!b){toast('Commerce introuvable','err');return;}
 const message=nouvelEtat?`<strong>${esc(b.nom)}</strong> redeviendra visible pour les clients.`:`<strong>${esc(b.nom)}</strong> sera <strong>invisible</strong> pour tous les utilisateurs (feed, page commerces, recherche, catalogue).<br><br>Le commerçant verra un bandeau "Commerce désactivé".`;
 const ok=await adminConfirm((nouvelEtat?'Activer':'Désactiver')+' ce commerce ?',message,nouvelEtat?'info':'warning');
 if(!ok)return;
-setLoader(true);
 try{
 await setDoc(doc(db,'commerces',b.id),{actif:nouvelEtat,dateModificationActif:new Date().toISOString()},{merge:true});
 cacheInvalidate('commerces');
@@ -1992,13 +1966,11 @@ await notifierChangement(nouvelEtat?'activerCommerce':'desactiverCommerce',b.id)
 toast(nouvelEtat?'✅ Commerce activé':'⛔ Commerce désactivé');
 await reloadSome(['actives']);
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 }
 window.toggleActifCommerce=toggleActifCommerce;
 async function retirerActive(uid){
 const ok=await adminConfirm('Retirer cette boutique ?','La boutique ne sera plus visible.','warning');
 if(!ok)return;
-setLoader(true);
 try{
 await setDoc(doc(db,'netubers',uid),{boutique:{statut:'refuse'}},{merge:true});
 cacheInvalidate('netubers');cacheInvalidate('actives');
@@ -2006,7 +1978,6 @@ await notifierChangement('retirerActive',uid);
 toast('Boutique retirée','warn');
 await reloadSome(['netubers','actives']);
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 }
 async function supprimerBoutique(uid){
 const commerce=boutiquesActives.find(b=>b.uid===uid);
@@ -2023,7 +1994,6 @@ d.querySelector('[data-cancel]').onclick=()=>d.remove();
 d.onclick=e=>{if(e.target===d)d.remove();};
 okBtn.onclick=async()=>{
 d.remove();
-setLoader(true);
 try{
 const batch=writeBatch(db);
 const commercesList=await getCommerces();
@@ -2036,7 +2006,6 @@ await notifierChangement('supprimerBoutique',uid);
 toast('Boutique supprimée');
 await reloadSome(['netubers','actives','publications']);
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 };
 }
 const DESC_TEMPLATES={
@@ -2139,7 +2108,6 @@ const livraisonActive=livraisonBtn?livraisonBtn.getAttribute('data-state')==='on
 const badgeConfiance=badgeBtn?badgeBtn.getAttribute('data-state')==='on':false;
 const configLivraison=readConfigLivraisonFromModal(d);
 if(!nom||!type||!ville||!quartier||!tel||!whatsapp){toast('Remplissez tous les champs obligatoires','err');return;}
-setLoader(true);
 try{
 const now=new Date().toISOString();
 const boutiqueData={uid:newUid,nom,nomCommerce:nom,type,ville,quartier,adresse:commerce.adresse||'',horaires,description:desc||'Découvrez notre catalogue.',telephone:tel,whatsapp,whatsappCommercial:whatsapp,img:imgFinal,emoji:'🏪',statut:'approuve',dateCreation:commerce.dateCreation||now,dateApprobation:commerce.dateApprobation||now,retraitActif,livraisonActive,badgeConfiance,configLivraison,actif:commerce.actif!==false};
@@ -2154,7 +2122,6 @@ toast('Boutique modifiée');
 d.remove();
 await reloadSome(['netubers','actives']);
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 };
 }
 function renderNetubers(){
@@ -2208,7 +2175,6 @@ if(!n)return;
 const action=actif?'activer':'désactiver';
 const ok=await adminConfirm((action.charAt(0).toUpperCase()+action.slice(1))+' ce compte ?',esc(n.nomComplet||n.phone),actif?'info':'warning');
 if(!ok)return;
-setLoader(true);
 try{
 await setDoc(doc(db,'netubers',id),{actif},{merge:true});
 const idx=netubers.findIndex(x=>x.id===id);
@@ -2218,7 +2184,6 @@ renderKPIs();
 await notifierChangement('toggleActifUser',id);
 toast(`Compte ${action}`);
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 }
 async function supprimerUtilisateur(id){
 const n=netubers.find(x=>x.id===id);
@@ -2238,7 +2203,6 @@ d.querySelector('[data-cancel]').onclick=()=>d.remove();
 d.onclick=e=>{if(e.target===d)d.remove();};
 okBtn.onclick=async()=>{
 d.remove();
-setLoader(true);
 let stats={netuber:false,commerce:false,annonces:0,deblocages:0,publications:0,demandes:0,contacts:0,phoneIndex:false,userStats:false};
 try{
 let batch=writeBatch(db);
@@ -2302,19 +2266,16 @@ toast(`✅ Utilisateur supprimé (${total} élément${total>1?'s':''} + ${stats.
 cacheInvalidateAll();
 await reloadSome(['netubers','actives','annonces','deblocages','publications','boutiques']);
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 };
 }
 async function voirCatalogueAdmin(uid){
 const commerce=boutiquesActives.find(b=>b.uid===uid);
 if(!commerce){toast('Commerce introuvable','err');return;}
-setLoader(true);
 let commerceData=null;
 try{
 const commercesList=await getCommerces();
 commercesList.forEach(c=>{if(c.uid===uid){commerceData=c;}});
 }catch(e){}
-setLoader(false);
 if(!commerceData){toast('Commerce introuvable dans la base','err');return;}
 ouvrirModalCatalogueAdmin(uid,commerceData);
 }
@@ -2370,7 +2331,6 @@ const article=produits[idx];
 if(!article){toast('Article introuvable','err');return;}
 const ok=await adminConfirm('Supprimer cet article ?','L\'article <strong>'+esc(article.nom||'')+'</strong> sera supprimé.','danger');
 if(!ok)return;
-setLoader(true);
 try{
 const nouveaux=produits.slice();
 nouveaux.splice(idx,1);
@@ -2380,7 +2340,6 @@ await notifierChangement('supprimerArticle',commerceId);
 toast('Article supprimé','warn');
 if(onDone)onDone();
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 }
 async function telechargerImageArticle(src,nom){
 if(!src){toast('Aucune image','warn');return;}
@@ -2443,10 +2402,9 @@ const imgFinal=imgBase64||a.img||'';
 if(!nom){toast('Saisissez un nom','err');return;}
 if(!prix){toast('Saisissez un prix','err');return;}
 if(!imgFinal){toast('Ajoutez une image','err');return;}
-setLoader(true);
 try{
 const snap=await getDoc(doc(db,'commerces',commerceId));
-if(!snap.exists()){toast('Commerce introuvable','err');setLoader(false);return;}
+if(!snap.exists()){toast('Commerce introuvable','err');return;}
 const produits=snap.data().produits||[];
 const articleData={nom,prix,prixLabel,categorie,img:imgFinal,statut:'approuve',ajouteParDirection:true,dateAjout:isNew?new Date().toISOString():(a.dateAjout||new Date().toISOString()),dateModification:new Date().toISOString()};
 if(isNew){produits.push(articleData);}
@@ -2458,7 +2416,6 @@ toast(isNew?'Article ajouté':'Article modifié');
 modal.remove();
 if(onDone)onDone();
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 };
 }
 function ouvrirModalCreateBoutique(){
@@ -2517,7 +2474,6 @@ const livraisonActive=livraisonBtn?livraisonBtn.getAttribute('data-state')==='on
 const badgeConfiance=badgeBtn?badgeBtn.getAttribute('data-state')==='on':false;
 const configLivraison=readConfigLivraisonFromModal(d);
 if(!uid||!nom||!type||!ville||!quartier||!tel||!whatsapp||!imgFinal){toast('Remplissez tous les champs obligatoires','err');return;}
-setLoader(true);
 try{
 const now=new Date().toISOString();
 const commerceId='COM-'+Date.now();
@@ -2534,7 +2490,6 @@ toast('Boutique créée');
 d.remove();
 await reloadSome(['boutiques','actives','netubers']);
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 };
 }
 function ouvrirModalCreatePublication(){
@@ -2569,7 +2524,6 @@ const categorie=d.querySelector('#pubCat').value||'Autres';
 const desc=d.querySelector('#pubDesc').value.trim();
 const imgFinal=imgBase64;
 if(!commerce||!titre||!prix||!imgFinal){toast('Remplissez tous les champs obligatoires','err');return;}
-setLoader(true);
 try{
 const pubId='PUB-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
 const batch=writeBatch(db);
@@ -2591,7 +2545,6 @@ toast('Publication créée');
 d.remove();
 await reloadSome(['publications','actives']);
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 };
 }
 async function genererPDFQRCodeBoutique(uid){
@@ -2721,7 +2674,6 @@ if(!e){toast('École introuvable','err');return;}
 const message=nouvelEtat?`<strong>${esc(e.nom)}</strong> redeviendra accessible aux préfets, directeurs, professeurs et élèves.`:`<strong>${esc(e.nom)}</strong> sera <strong>inaccessible</strong> :<br><br>• Les préfets/directeurs ne verront plus leurs professeurs<br>• Les professeurs ne pourront plus se connecter<br>• Les codes d'accès élèves seront refusés`;
 const ok=await adminConfirm((nouvelEtat?'Activer':'Désactiver')+' cette école ?',message,nouvelEtat?'info':'warning');
 if(!ok)return;
-setLoader(true);
 try{
 await setDoc(doc(db,'ecoles',ecoleId),{actif:nouvelEtat,dateModificationActif:new Date().toISOString()},{merge:true});
 cacheInvalidate('ecoles');
@@ -2729,7 +2681,6 @@ await notifierChangement(nouvelEtat?'activerEcole':'desactiverEcole',ecoleId);
 toast(nouvelEtat?'✅ École activée':'⛔ École désactivée');
 await loadEcoles(true);
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 }
 window.toggleActifEcole=toggleActifEcole;
 
@@ -2780,7 +2731,6 @@ const ancienCode=e.codeEcole||'(aucun)';
 const nouvelCode=genererCodeEcoleSecure();
 const ok=await adminConfirm('Régénérer le code école ?',`<strong>${esc(e.nom)}</strong><br><br>Ancien code : <code style="font-family:monospace;color:#dc2626;font-weight:900">${esc(ancienCode)}</code><br>Nouveau code : <code style="font-family:monospace;color:#059669;font-weight:900">${esc(nouvelCode)}</code><br><br><strong>⚠️ L'ancien code ne fonctionnera plus.</strong><br>Tous les nouveaux élèves devront utiliser le nouveau code.`,'warning');
 if(!ok)return;
-setLoader(true);
 try{
 await setDoc(doc(db,'ecoles',ecoleId),{codeEcole:nouvelCode,codeEcoleActif:true,dateRegenerationCode:new Date().toISOString()},{merge:true});
 await notifierChangement('regenererCodeEcole',ecoleId);
@@ -2789,7 +2739,6 @@ document.querySelectorAll('.modal.show').forEach(m=>{if(m.textContent.includes('
 await loadEcoles(true);
 setTimeout(()=>ouvrirGestionCodeEcole(ecoleId),300);
 }catch(err){toast('Erreur: '+err.message,'err');}
-finally{setLoader(false);}
 }
 window.regenererCodeEcole=regenererCodeEcole;
 
@@ -2800,7 +2749,6 @@ const elevesActuel=e.elevesCount||0;
 if(elevesActuel===0){toast('Le compteur est déjà à 0','warn');return;}
 const ok=await adminConfirm('Réinitialiser le compteur élèves ?',`<strong>${esc(e.nom)}</strong><br><br>Compteur actuel : <strong>${elevesActuel} élèves</strong><br>Après réinitialisation : <strong>0 élèves</strong><br><br><strong>⚠️ Attention :</strong> Cela permet à de nouveaux élèves de s'inscrire avec le code. Les élèves déjà inscrits gardent leur accès.`,'warning');
 if(!ok)return;
-setLoader(true);
 try{
 await setDoc(doc(db,'ecoles',ecoleId),{elevesCount:0,dateResetCompteur:new Date().toISOString()},{merge:true});
 await notifierChangement('resetCompteurEleves',ecoleId);
@@ -2809,7 +2757,6 @@ document.querySelectorAll('.modal.show').forEach(m=>{if(m.textContent.includes('
 await loadEcoles(true);
 setTimeout(()=>ouvrirGestionCodeEcole(ecoleId),300);
 }catch(err){toast('Erreur: '+err.message,'err');}
-finally{setLoader(false);}
 }
 window.resetCompteurEleves=resetCompteurEleves;
 
@@ -2842,7 +2789,6 @@ const quartier=d.querySelector('#newEcoleQuartier').value.trim();
 const adresse=d.querySelector('#newEcoleAdresse').value.trim();
 const tel=d.querySelector('#newEcoleTel').value.trim();
 if(!nom||!ville){toast('Nom et ville obligatoires','err');return;}
-setLoader(true);
 try{
 const ecoleId='ECOLE-'+Date.now();
 const now=new Date().toISOString();
@@ -2852,7 +2798,6 @@ toast('✅ École créée — code : '+codeAuto);
 d.remove();
 await loadEcoles(true);
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 };
 }
 function ouvrirModalEditEcole(ecoleId){
@@ -2886,14 +2831,12 @@ const quartier=d.querySelector('#editEcoleQuartier').value.trim();
 const adresse=d.querySelector('#editEcoleAdresse').value.trim();
 const tel=d.querySelector('#editEcoleTel').value.trim();
 if(!nom||!ville){toast('Nom et ville obligatoires','err');return;}
-setLoader(true);
 try{
 await setDoc(doc(db,'ecoles',ecoleId),{nom,ville,quartier,adresse,telephone:tel,dateModification:new Date().toISOString()},{merge:true});
 toast('✅ École modifiée');
 d.remove();
 await loadEcoles(true);
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 };
 }
 async function supprimerEcole(ecoleId){
@@ -2903,14 +2846,12 @@ const nbProfs=professeurs.filter(p=>p.ecoles&&p.ecoles[ecoleId]).length;
 const nbPrefets=(e.prefets||[]).length;
 const ok=await adminConfirm('Supprimer cette école ?',`<strong>${esc(e.nom)}</strong> sera supprimée.<br><br>${nbProfs>0?`⚠️ ${nbProfs} professeur(s) référencent cette école.<br>`:''}${nbPrefets>0?`⚠️ ${nbPrefets} préfet(s) y sont rattachés.<br>`:''}<br>Cette action est irréversible.`,'danger');
 if(!ok)return;
-setLoader(true);
 try{
 await deleteDoc(doc(db,'ecoles',ecoleId));
 await notifierChangement('deleteEcole',ecoleId);
 toast('École supprimée','warn');
 await loadEcoles(true);
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 }
 function renderPrefects(prefects){
 const tbody=document.getElementById('bodyPrefects');
@@ -2977,7 +2918,6 @@ const phone='+243'+telRaw;
 const ecole=ecoles.find(e=>e.id===ecoleId);
 const saveBtn=d.querySelector('[data-save]');
 if(saveBtn){saveBtn.disabled=true;saveBtn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Création…';}
-setLoader(true);
 try{
 const q=query(collection(db,'netubers'),where('phone','==',phone),limit(1));
 const snap=await getDocs(q);
@@ -3046,7 +2986,7 @@ d.remove();
 cacheInvalidateAll();
 await Promise.all([loadNetubers(true),loadEcoles(true),loadPrefects()]);
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);if(saveBtn){saveBtn.disabled=false;saveBtn.innerHTML='CRÉER LE COMPTE';}}
+finally{if(saveBtn){saveBtn.disabled=false;saveBtn.innerHTML='CRÉER LE COMPTE';}}
 };
 }
 function afficherRecapPrefect(nom,phone,code,role,ecoleNom){
@@ -3160,7 +3100,6 @@ const tel='+243'+telRaw;
 const ecole=ecoles.find(e=>e.id===ecoleId);
 const saveBtn=d.querySelector('[data-save]');
 if(saveBtn){saveBtn.disabled=true;saveBtn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Création…';}
-setLoader(true);
 try{
 const q=query(collection(db,'professeurs'),where('telephone','==',tel),limit(1));
 const snap=await getDocs(q);
@@ -3211,7 +3150,7 @@ d.remove();
 cacheInvalidateAll();
 await Promise.all([loadProfesseurs(true),loadEcoles(true)]);
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);if(saveBtn){saveBtn.disabled=false;saveBtn.innerHTML='CRÉER';}}
+finally{if(saveBtn){saveBtn.disabled=false;saveBtn.innerHTML='CRÉER';}}
 };
 }
 function afficherRecapProf(nom,phone,email,mdp,ecoleNom){
@@ -3248,7 +3187,6 @@ const sansCompte=professeurs.filter(p=>!p.uid);
 if(sansCompte.length===0){toast('Aucun professeur à réparer','warn');return;}
 const ok=await adminConfirm('Réparer les comptes manquants ?',`<strong>${sansCompte.length}</strong> professeur(s) n'ont pas de compte.<br><br>Créer leurs comptes automatiquement ?`,'info');
 if(!ok)return;
-setLoader(true);
 let reparés=0,ignorés=0,erreurs=0;
 try{
 for(const prof of sansCompte){
@@ -3281,7 +3219,6 @@ toast(`✅ ${reparés} réparé(s)${ignorés>0?`, ${ignorés} ignoré(s)`:''}${e
 cacheInvalidateAll();
 await Promise.all([loadProfesseurs(true),loadNetubers(true)]);
 }catch(e){toast('Erreur: '+e.message,'err');}
-finally{setLoader(false);}
 }
 function detailProf(id){
 const p=professeurs.find(x=>x.id===id);
@@ -4164,7 +4101,6 @@ async function ztGenerer(){
   const ok = await adminConfirm('Générer la zone test ?', `Créer <strong>1 commerce + 1 annonce par quartier</strong> pour <strong>${esc(ville)}</strong>.`,'info');
   if(!ok) return;
 
-  setLoader(true);
   let nbComm = 0, nbAnn = 0, nbQuart = 0;
   const now = new Date().toISOString();
 
@@ -4243,7 +4179,6 @@ async function ztGenerer(){
     toast('✅ '+nbComm+' commerces + '+nbAnn+' annonces créés sur '+nbQuart+' quartiers','ok');
     await loadZoneTest();
   }catch(e){toast('Erreur: '+e.message,'err');}
-  finally{setLoader(false);}
 }
 
 async function ztNettoyer(){
@@ -4254,7 +4189,6 @@ async function ztNettoyer(){
   const ok = await adminConfirm('Nettoyer la zone test ?', `Supprimer <strong>${zoneTestCommerces.length} commerce(s)</strong> et <strong>${zoneTestAnnonces.length} annonce(s)</strong> de test.<br><br>Cette action est irréversible.`,'danger');
   if(!ok) return;
 
-  setLoader(true);
   try{
     let batch = writeBatch(db);
     let ops = 0;
@@ -4273,7 +4207,6 @@ async function ztNettoyer(){
     toast('🧹 Zone test nettoyée','ok');
     await loadZoneTest();
   }catch(e){toast('Erreur: '+e.message,'err');}
-  finally{setLoader(false);}
 }
 
 async function ztEditCommerce(id){
@@ -4302,7 +4235,6 @@ async function ztEditCommerce(id){
     const desc = d.querySelector('#ztEditDesc').value.trim();
     const img = d.querySelector('#ztEditImg').value.trim();
     if(!nom||!type){toast('Nom et type obligatoires','err');return;}
-    setLoader(true);
     try{
       await setDoc(doc(db,'commerces',id),{nom, nomCommerce:nom, type, description:desc, img, dateModification:new Date().toISOString()},{merge:true});
       await notifierChangement('zoneTestEditCommerce', id);
@@ -4310,7 +4242,6 @@ async function ztEditCommerce(id){
       d.remove();
       await loadZoneTest();
     }catch(e){toast('Erreur: '+e.message,'err');}
-    finally{setLoader(false);}
   };
 }
 
@@ -4340,7 +4271,6 @@ async function ztEditAnnonce(id){
     const desc = d.querySelector('#ztEditDesc').value.trim();
     const img = d.querySelector('#ztEditImg').value.trim();
     if(!titre){toast('Titre obligatoire','err');return;}
-    setLoader(true);
     try{
       const updates = {titre, prix, desc, img, dateModification:new Date().toISOString()};
       if(img) updates.images = [img];
@@ -4350,7 +4280,6 @@ async function ztEditAnnonce(id){
       d.remove();
       await loadZoneTest();
     }catch(e){toast('Erreur: '+e.message,'err');}
-    finally{setLoader(false);}
   };
 }
 
@@ -4359,14 +4288,12 @@ async function ztDeleteCommerce(id){
   if(!c) return;
   const ok = await adminConfirm('Supprimer ce commerce test ?', esc(c.nom||'')+' sera définitivement supprimé.','danger');
   if(!ok) return;
-  setLoader(true);
   try{
     await deleteDoc(doc(db,'commerces',id));
     await notifierChangement('zoneTestDeleteCommerce', id);
     toast('Commerce supprimé','warn');
     await loadZoneTest();
   }catch(e){toast('Erreur: '+e.message,'err');}
-  finally{setLoader(false);}
 }
 
 async function ztDeleteAnnonce(id){
@@ -4374,14 +4301,12 @@ async function ztDeleteAnnonce(id){
   if(!a) return;
   const ok = await adminConfirm('Supprimer cette annonce test ?', esc(a.titre||'')+' sera définitivement supprimée.','danger');
   if(!ok) return;
-  setLoader(true);
   try{
     await deleteDoc(doc(db,'annonces',id));
     await notifierChangement('zoneTestDeleteAnnonce', id);
     toast('Annonce supprimée','warn');
     await loadZoneTest();
   }catch(e){toast('Erreur: '+e.message,'err');}
-  finally{setLoader(false);}
 }
 
 document.getElementById('btnGenererZoneTest').onclick = ztGenerer;
