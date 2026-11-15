@@ -1,11 +1,15 @@
 
 name: Compression NeTubeX RDC
 
-on:
+"on":
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: compress-rdcv-main
+  cancel-in-progress: false
 
 jobs:
   compress:
@@ -17,15 +21,15 @@ jobs:
         with:
           ref: main
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Install minifier
+      - name: Install HTML minifier
         run: npm install --no-save --package-lock=false html-minifier-terser
 
-      - name: Compress HTML and CSS
+      - name: Compress rdcv.html
         run: |
           node <<'NODE'
           const fs = require('fs');
@@ -33,6 +37,11 @@ jobs:
 
           async function main() {
             const file = 'rdcv.html';
+            const temp = 'rdcv.html.tmp';
+
+            if (!fs.existsSync(file)) {
+              throw new Error('rdcv.html introuvable');
+            }
 
             const original = fs.readFileSync(file, 'utf8');
 
@@ -41,19 +50,30 @@ jobs:
               conservativeCollapse: true,
               removeComments: true,
               minifyCSS: true,
-              minifyJS: false
+              minifyJS: false,
+              removeOptionalTags: false,
+              removeAttributeQuotes: false
             });
 
-            if (!compressed || compressed.length >= original.length) {
-              throw new Error('Compression impossible ou sans gain');
+            if (!compressed) {
+              throw new Error('Compression echouee');
             }
 
-            fs.writeFileSync(file + '.tmp', compressed);
-            fs.renameSync(file + '.tmp', file);
+            const before = Buffer.byteLength(original);
+            const after = Buffer.byteLength(compressed);
 
-            console.log('Avant : ' + original.length);
-            console.log('Après : ' + compressed.length);
-            console.log('Compression terminée.');
+            if (after >= before) {
+              throw new Error('Aucune reduction. Original conserve.');
+            }
+
+            fs.writeFileSync(temp, compressed, 'utf8');
+            fs.renameSync(temp, file);
+
+            console.log('Compression reussie');
+            console.log('Avant : ' + before + ' octets');
+            console.log('Apres : ' + after + ' octets');
+            console.log('Reduction : ' +
+              ((1 - after / before) * 100).toFixed(2) + '%');
           }
 
           main().catch(error => {
@@ -66,8 +86,12 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
           git add rdcv.html
+
           if ! git diff --cached --quiet; then
             git commit -m "Compress rdcv.html"
             git push origin HEAD:main
+          else
+            echo "Aucun changement a enregistrer"
           fi
