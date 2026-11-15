@@ -1,48 +1,15 @@
-
-name: Compression automatique NeTubeX RDC
-
-on:
-  workflow_dispatch:
-
-permissions:
-  contents: write
-
-concurrency:
-  group: compress-rdcv-main
-  cancel-in-progress: false
-
-jobs:
-  compress:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Recuperer le depot
-        uses: actions/checkout@v4
-        with:
-          ref: main
-
-      - name: Installer Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Installer les outils de compression
-        run: |
-          npm install --no-save --package-lock=false html-minifier-terser terser
-
-      - name: Compresser rdcv.html
+- name: Compresser rdcv.html
         run: |
           node <<'NODE'
           const fs = require('fs');
           const { minify } = require('html-minifier-terser');
-          const terser = require('terser');
 
           async function main() {
             const input = 'rdcv.html';
             const output = 'rdcv.html.tmp';
 
             if (!fs.existsSync(input)) {
-              throw new Error('rdcv.html introuvable dans main');
+              throw new Error('rdcv.html introuvable');
             }
 
             const original = fs.readFileSync(input, 'utf8');
@@ -52,14 +19,9 @@ jobs:
               conservativeCollapse: true,
               removeComments: true,
               minifyCSS: true,
-              minifyJS: async (code) => {
-                const result = await terser.minify(code, {
-                  compress: false,
-                  mangle: false,
-                  format: { comments: false }
-                });
-                return result.code;
-              }
+              minifyJS: false,
+              removeOptionalTags: false,
+              removeAttributeQuotes: false
             });
 
             if (!compressed || compressed.length === 0) {
@@ -67,22 +29,22 @@ jobs:
             }
 
             if (compressed.length >= original.length) {
-              throw new Error('Le fichier compresse n est pas plus petit. Original conserve.');
+              throw new Error('Aucune reduction : original conserve');
             }
 
             fs.writeFileSync(output, compressed, 'utf8');
-
-            // Remplacement seulement apres validation
             fs.renameSync(output, input);
 
             const before = Buffer.byteLength(original);
             const after = Buffer.byteLength(compressed);
-            const reduction = ((1 - after / before) * 100).toFixed(2);
 
             console.log('Compression reussie');
             console.log('Avant : ' + before + ' octets');
             console.log('Apres : ' + after + ' octets');
-            console.log('Reduction : ' + reduction + '%');
+            console.log(
+              'Reduction : ' +
+              ((1 - after / before) * 100).toFixed(2) + '%'
+            );
           }
 
           main().catch(error => {
@@ -90,17 +52,3 @@ jobs:
             process.exit(1);
           });
           NODE
-
-      - name: Enregistrer la version compressee
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git add rdcv.html
-
-          if git diff --cached --quiet; then
-            echo "Aucun changement a enregistrer."
-          else
-            git commit -m "Compress rdcv.html automatically"
-            git push origin HEAD:main
-          fi
