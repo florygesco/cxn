@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>picrd admin — diagnostic</title>
+<title>picrd admin</title>
 <style>
   :root { --bg:#0f1115; --card:#181b22; --line:#2a2f3a; --text:#e6e8ee;
           --muted:#8b93a7; --accent:#4f8cff; --danger:#ff4d5e; --ok:#38c98b; --warn:#f5a623; }
@@ -16,12 +16,10 @@
   .spacer { flex:1; }
   .wrap { padding:24px; max-width:1400px; margin:0 auto; }
   input, select, button { font:inherit; }
-  input[type=text], select {
-    background:var(--card); border:1px solid var(--line); color:var(--text);
-    padding:10px 12px; border-radius:8px; outline:none; }
+  input[type=text], select { background:var(--card); border:1px solid var(--line);
+    color:var(--text); padding:10px 12px; border-radius:8px; outline:none; }
   input:focus, select:focus { border-color:var(--accent); }
-  button {
-    background:var(--accent); color:#fff; border:0; padding:10px 16px;
+  button { background:var(--accent); color:#fff; border:0; padding:10px 16px;
     border-radius:8px; cursor:pointer; font-weight:500; }
   button:hover { filter:brightness(1.1); }
   button.ghost { background:transparent; border:1px solid var(--line); color:var(--text); }
@@ -47,8 +45,6 @@
   .row { display:flex; gap:8px; flex-wrap:wrap; }
   .row button { padding:6px 10px; font-size:13px; }
   .empty { text-align:center; color:var(--muted); padding:60px 0; }
-
-  /* ---- Panneau de diagnostic ---- */
   #diag { background:#0b0d11; border:1px solid var(--line); border-radius:12px;
           margin-bottom:18px; padding:16px; display:none; }
   #diag.open { display:block; }
@@ -61,15 +57,13 @@
   .step .msg { flex:1; }
   .step .msg code { background:#181b22; padding:2px 6px; border-radius:4px;
                     font-size:12px; color:var(--warn); }
-  .step.ok .ico { color:var(--ok); }
-  .step.err .ico { color:var(--danger); }
+  .step.ok .ico { color:var(--ok); } .step.err .ico { color:var(--danger); }
   .step.warn .ico { color:var(--warn); }
   .step .hint { display:block; color:var(--muted); font-size:13px; margin-top:4px; }
   pre#raw { background:#000; border:1px solid var(--line); border-radius:8px;
             padding:12px; overflow:auto; max-height:280px; font-size:12px;
             color:#c8d0e0; display:none; margin-top:12px; }
   pre#raw.open { display:block; }
-
   #modal { position:fixed; inset:0; background:rgba(0,0,0,.8); display:none;
            align-items:center; justify-content:center; padding:20px; z-index:10; }
   #modal.open { display:flex; }
@@ -79,8 +73,7 @@
   .confirm { background:var(--card); border:1px solid var(--line); border-radius:12px;
              padding:24px; max-width:380px; width:100%; }
   .confirm h3 { margin:0 0 8px; font-size:16px; }
-  .confirm p { color:var(--muted); margin:0 0 18px; font-size:14px;
-               word-break:break-all; }
+  .confirm p { color:var(--muted); margin:0 0 18px; font-size:14px; word-break:break-all; }
   .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
            background:var(--card); border:1px solid var(--line); padding:12px 18px;
            border-radius:10px; font-size:14px; z-index:20;
@@ -99,7 +92,6 @@
 </header>
 
 <div class="wrap">
-  <!-- Diagnostic -->
   <div id="diag">
     <h2>Journal de diagnostic</h2>
     <div id="steps"></div>
@@ -107,9 +99,7 @@
   </div>
 
   <div class="bar">
-    <select id="collection">
-      <option value="">Toutes les collections</option>
-    </select>
+    <select id="collection"><option value="">Toutes les collections</option></select>
     <input type="text" id="filter" placeholder="Filtrer par id / url / type…" style="width:260px">
     <span id="status">Prêt.</span>
   </div>
@@ -122,13 +112,15 @@
 
 <script>
 (() => {
-  // ⬇️ TA CLÉ ICI
+  // ⬇️ TA CLÉ
   const API_KEY = "pk_niboT6oXkLa1IYxsgwPCwpBCu8M0xdmNgLY6nEU1aFY";
+
+  // ⬇️ Si CORS bloque depuis file://, mets le proxy ici :
+  // const API = "https://corsproxy.io/?https://picrd.com/api";
   const API = "https://picrd.com/api";
 
   const $ = (s) => document.querySelector(s);
   const state = { files: [], filter: "", collection: "" };
-
   const el = {
     diagToggle: $("#diagToggle"), diag: $("#diag"), steps: $("#steps"), raw: $("#raw"),
     refresh: $("#refresh"), status: $("#status"), grid: $("#grid"),
@@ -137,7 +129,6 @@
     toast: $("#toast"),
   };
 
-  // ---------- helpers UI ----------
   let toastTimer;
   function toast(msg) {
     el.toast.textContent = msg;
@@ -145,137 +136,111 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.toast.classList.remove("show"), 2600);
   }
-
   function step(ico, msg, hint = "", cls = "") {
     const div = document.createElement("div");
     div.className = "step " + cls;
     div.innerHTML = `<div class="ico">${ico}</div><div class="msg">${msg}${hint ? `<span class="hint">${hint}</span>` : ""}</div>`;
     el.steps.appendChild(div);
-    return div;
   }
-
-  function clearDiag() {
-    el.steps.innerHTML = "";
-    el.raw.textContent = "";
-    el.raw.classList.remove("open");
-  }
-
+  function clearDiag() { el.steps.innerHTML = ""; el.raw.textContent = ""; el.raw.classList.remove("open"); }
+  function showRaw(text) { el.raw.textContent = text || "(vide)"; el.raw.classList.add("open"); }
   el.diagToggle.onclick = () => el.diag.classList.toggle("open");
 
-  // ---------- API ----------
-  async function api(path, opts = {}) {
-    const url = API + path;
+  // ---------- requête bas niveau ----------
+  async function fetchFilesPage(page) {
+    const url = `${API}/files?page=${page}`;
     const res = await fetch(url, {
-      ...opts,
-      headers: { Authorization: `Bearer ${API_KEY}`, Accept: "application/json", ...(opts.headers || {}) },
+      headers: { Authorization: `Bearer ${API_KEY}`, Accept: "application/json" },
     });
-
     const text = await res.text().catch(() => "");
-    let json = null;
-    try { json = text ? JSON.parse(text) : null; } catch { /* pas du JSON */ }
 
+    // L'API déclare "string" → on parse manuellement.
+    let json = null;
+    if (text) {
+      try { json = JSON.parse(text); } catch {
+        // Peut-être un JSON doublement encodé (string contenant du JSON)
+        try { json = JSON.parse(JSON.parse(text)); } catch { /* vraiment pas du JSON */ }
+      }
+    }
     return { res, text, json, url };
+  }
+
+  // ---------- extraction générique d'un tableau ----------
+  function findArray(obj) {
+    if (Array.isArray(obj)) return obj;
+    if (!obj || typeof obj !== "object") return null;
+    for (const k of ["files", "data", "items", "results", "records"]) {
+      if (Array.isArray(obj[k])) return obj[k];
+    }
+    return null;
   }
 
   // ---------- diagnostic ----------
   async function diagnose() {
     clearDiag();
     el.diag.classList.add("open");
-    let ok = true;
-
-    // Étape 1 — clé présente ?
     if (!API_KEY || API_KEY === "pk_your_key") {
-      step("✖", "Clé API manquante ou placeholder.", "Remplace <code>pk_your_key</code> par ta vraie clé.", "err");
-      return false;
+      step("✖", "Clé API manquante.", "Remplis <code>API_KEY</code>.", "err"); return false;
     }
-    step("✓", "Clé API présente (<code>" + API_KEY.slice(0, 8) + "…" + API_KEY.slice(-4) + "</code>).", "", "ok");
+    step("✓", `Clé présente (<code>${API_KEY.slice(0,8)}…${API_KEY.slice(-4)}</code>).`, "", "ok");
 
-    // Étape 2 — endpoint /health accessible ?
+    // Test réseau
     try {
       const h = await fetch("https://picrd.com/health");
-      step(h.ok ? "✓" : "⚠", `Endpoint <code>/health</code> → HTTP ${h.status}`, "", h.ok ? "ok" : "warn");
+      step(h.ok ? "✓" : "⚠", `<code>/health</code> → HTTP ${h.status}`, "", h.ok ? "ok" : "warn");
     } catch (e) {
-      step("✖", "Impossible d'atteindre <code>picrd.com</code>.", "Réseau / DNS / CORS ? Détail : " + e.message, "err");
+      step("✖", "picrd.com injoignable.", `Erreur réseau : ${e.message}<br>CORS ? Essaie le proxy en haut du script.`, "err");
       return false;
     }
 
-    // Étape 3 — requête /files
+    // Test /files?page=1
     let r;
     try {
-      r = await api("/files");
+      r = await fetchFilesPage(1);
     } catch (e) {
-      step("✖", "Échec de la requête <code>GET /api/files</code>.", 
-           "Cela ressemble à une erreur réseau ou CORS. Si la console (F12) affiche « blocked by CORS », l'API n'autorise pas les appels depuis <code>file://</code>. Héberge le fichier ou utilise un proxy. Détail : " + e.message, "err");
+      step("✖", "Requête <code>GET /api/files?page=1</code> échouée.", `${e.message}<br>Si la console dit « CORS », active le proxy.`, "err");
       return false;
     }
 
-    // Étape 4 — code HTTP
-    if (r.res.status === 401) {
-      step("✖", "HTTP 401 — non authentifié.", "La clé est refusée par le serveur. Génère une nouvelle clé via <code>POST /api/keys</code> ou reconnecte-toi sur le dashboard.", "err");
-      showRaw(r.text);
-      return false;
-    }
-    if (r.res.status === 403) {
-      step("✖", "HTTP 403 — interdit.", "La clé existe mais n'a pas le scope <code>files:read</code>. Vérifie les permissions de la clé.", "err");
-      showRaw(r.text);
-      return false;
-    }
-    if (!r.res.ok) {
-      step("✖", `HTTP ${r.res.status} ${r.res.statusText}`, "Réponse inattendue.", "err");
-      showRaw(r.text);
-      return false;
-    }
+    if (r.res.status === 401) { step("✖", "HTTP 401 — clé refusée.", "Régénère une clé via le dashboard.", "err"); showRaw(r.text); return false; }
+    if (r.res.status === 403) { step("✖", "HTTP 403 — scope manquant.", "La clé n'a pas le droit <code>files:read</code>.", "err"); showRaw(r.text); return false; }
+    if (r.res.status === 422) { step("✖", "HTTP 422 — paramètre invalide.", "Le paramètre <code>page</code> est peut-être attendu différemment.", "err"); showRaw(r.text); return false; }
+    if (!r.res.ok) { step("✖", `HTTP ${r.res.status} ${r.res.statusText}`, "", "err"); showRaw(r.text); return false; }
     step("✓", `HTTP ${r.res.status} — authentification OK.`, "", "ok");
 
-    // Étape 5 — format JSON
+    // JSON ?
     if (r.json === null) {
-      step("⚠", "La réponse n'est pas du JSON valide.", "Le contenu brut est affiché ci-dessous.", "warn");
-      showRaw(r.text);
-      return false;
+      step("⚠", "Réponse non JSON.", "Contenu brut ci-dessous — peut-être du HTML (page de login ?).", "warn");
+      showRaw(r.text); return false;
     }
-    step("✓", "Réponse JSON valide.", "", "ok");
+    step("✓", "Réponse parsée en JSON.", "", "ok");
 
-    // Étape 6 — format de la liste
-    const arr = Array.isArray(r.json) ? r.json
-              : r.json?.files || r.json?.data || r.json?.items
-              || r.json?.results || null;
-
-    if (!Array.isArray(arr)) {
-      step("⚠", "Format JSON inattendu.",
-           "Attendu : tableau ou objet avec <code>files</code>/<code>data</code>/<code>items</code>. Clés détectées : <code>" +
-           Object.keys(r.json).join(", ") + "</code>.", "warn");
-      showRaw(r.text);
-      return false;
+    // Tableau ?
+    const arr = findArray(r.json);
+    if (!arr) {
+      const keys = typeof r.json === "object" ? Object.keys(r.json).join(", ") : typeof r.json;
+      step("⚠", "Aucun tableau dans la réponse.", `Clés détectées : <code>${keys}</code>`, "warn");
+      showRaw(r.text); return false;
     }
-    step("✓", `${arr.length} fichier(s) trouvé(s) dans la réponse.`, "", "ok");
+    step("✓", `Page 1 : ${arr.length} fichier(s).`, "", "ok");
 
-    // Étape 7 — champs des objets
-    if (arr.length > 0) {
+    if (arr.length) {
       const sample = arr[0];
       const keys = Object.keys(sample);
-      const hasId = keys.includes("id") || keys.includes("file_id");
-      const hasUrl = keys.includes("url") || keys.includes("raw_url");
-      step(hasId ? "✓" : "⚠", `Champs du 1er objet : <code>${keys.join(", ")}</code>`,
-           hasId ? (hasUrl ? "" : "Attention : pas de champ <code>url</code>/<code>raw_url</code> détecté.") :
-                   "Aucun champ <code>id</code>/<code>file_id</code> — l'app ne pourra pas identifier les fichiers.",
-           hasId && hasUrl ? "ok" : "warn");
-      el.raw.textContent = JSON.stringify(sample, null, 2);
-      el.raw.classList.add("open");
+      const hasId = keys.some(k => ["id","file_id","uuid"].includes(k));
+      const hasUrl = keys.some(k => ["url","raw_url"].includes(k));
+      step(hasId && hasUrl ? "✓" : "⚠",
+        `Champs du 1er objet : <code>${keys.join(", ")}</code>`,
+        hasId && hasUrl ? "" : "Champs <code>id</code> ou <code>url</code> manquants — vérifie.",
+        hasId && hasUrl ? "ok" : "warn");
+      showRaw(JSON.stringify(sample, null, 2));
     }
-
     return true;
   }
 
-  function showRaw(text) {
-    el.raw.textContent = text || "(vide)";
-    el.raw.classList.add("open");
-  }
-
   // ---------- transformation ----------
-  function extractFiles(payload) {
-    const arr = Array.isArray(payload) ? payload
-              : payload?.files || payload?.data || payload?.items || payload?.results || [];
-    return arr.map(f => ({
+  function normalize(f) {
+    return {
       id: f.id ?? f.file_id ?? f.uuid ?? null,
       url: f.url || f.raw_url || null,
       raw_url: f.raw_url || f.url || null,
@@ -283,14 +248,10 @@
       size: f.size ?? f.bytes ?? null,
       collection: f.collection || f.collection_slug || null,
       expires_at: f.expires_at || f.expiresAt || null,
-      created_at: f.created_at || f.createdAt || null,
-    })).filter(f => f.id);
+    };
   }
 
-  function isExpired(f) {
-    return f.expires_at && new Date(f.expires_at) < new Date();
-  }
-
+  function isExpired(f) { return f.expires_at && new Date(f.expires_at) < new Date(); }
   function fmtSize(n) {
     if (!n && n !== 0) return "";
     const u = ["o","Ko","Mo","Go"]; let i = 0; n = Number(n);
@@ -298,7 +259,6 @@
     return `${n.toFixed(i ? 1 : 0)} ${u[i]}`;
   }
 
-  // ---------- rendu ----------
   function render() {
     const f = state.filter.toLowerCase();
     const list = state.files.filter(x => {
@@ -306,22 +266,17 @@
       if (!f) return true;
       return (x.id + " " + (x.url||"") + " " + x.type).toLowerCase().includes(f);
     });
-
     el.count.textContent = `${list.length} fichier${list.length > 1 ? "s" : ""}`;
-
     if (!list.length) {
       el.grid.innerHTML = "";
       el.empty.style.display = "block";
-      el.empty.textContent = state.files.length
-        ? "Aucun fichier ne correspond au filtre."
-        : "Aucun fichier sur ce compte.";
+      el.empty.textContent = state.files.length ? "Aucun résultat pour ce filtre." : "Aucun fichier.";
       return;
     }
     el.empty.style.display = "none";
-
     el.grid.innerHTML = list.map(x => {
       const expired = isExpired(x);
-      const isImg = /^image\//.test(x.type) || /\.(png|jpe?g|gif|webp|avif|svg)$/i.test(x.url || "");
+      const isImg = /^image\//.test(x.type) || /\.(png|jpe?g|gif|webp|avif|svg)$/i.test(x.url||"");
       const thumb = isImg && x.raw_url
         ? `<img loading="lazy" src="${x.raw_url}" alt="" onerror="this.style.display='none';this.parentNode.innerHTML+='<div class=ext>image indisponible</div>'">`
         : `<div class="ext">📄 ${x.type || "fichier"}</div>`;
@@ -346,28 +301,50 @@
     }).join("");
   }
 
-  // ---------- chargement ----------
+  // ---------- chargement paginé ----------
   async function load() {
     el.status.textContent = "Chargement…";
     el.refresh.disabled = true;
 
     const ok = await diagnose();
-    if (!ok) {
-      el.status.textContent = "❌ Échec — voir le diagnostic.";
-      el.refresh.disabled = false;
-      toast("Échec du chargement — ouvre le Diagnostic");
-      return;
-    }
+    if (!ok) { el.status.textContent = "❌ Échec — voir le diagnostic."; el.refresh.disabled = false; return; }
 
     try {
-      const r = await api("/files");
-      state.files = extractFiles(r.json);
-      const cols = [...new Set(state.files.map(f => f.collection).filter(Boolean))];
+      const all = [];
+      let page = 1;
+      const seen = new Set();
+      while (page <= 50) { // garde-fou
+        const r = await fetchFilesPage(page);
+        if (!r.res.ok) {
+          step("✖", `Page ${page} : HTTP ${r.res.status}`, "", "err");
+          showRaw(r.text);
+          break;
+        }
+        const arr = findArray(r.json) || [];
+        if (!arr.length) break;
+
+        let newCount = 0;
+        for (const item of arr) {
+          const n = normalize(item);
+          if (!n.id) continue;
+          if (seen.has(n.id)) continue;
+          seen.add(n.id);
+          all.push(n);
+          newCount++;
+        }
+        step("✓", `Page ${page} : ${arr.length} reçu(s), ${newCount} nouveau(x).`, "", "ok");
+
+        if (newCount === 0 || arr.length === 0) break;
+        page++;
+      }
+
+      state.files = all;
+      const cols = [...new Set(all.map(f => f.collection).filter(Boolean))];
       el.collection.innerHTML = `<option value="">Toutes les collections</option>` +
         cols.map(c => `<option ${c === state.collection ? "selected" : ""}>${c}</option>`).join("");
       el.status.textContent = "";
       render();
-      toast(`${state.files.length} fichier(s) chargé(s)`);
+      toast(`${all.length} fichier(s) chargé(s) — ${page - 1} page(s)`);
     } catch (e) {
       el.status.textContent = "❌ " + e.message;
       toast("Erreur : " + e.message);
@@ -395,12 +372,13 @@
     box.querySelector("#yes").onclick = async () => {
       box.querySelector("#yes").disabled = true;
       try {
-        const r = await api("/files/" + encodeURIComponent(id), { method: "DELETE" });
-        if (!r.res.ok) {
-          showRaw(r.text);
-          el.diag.classList.add("open");
-          step("✖", `Suppression refusée — HTTP ${r.res.status}`, r.text.slice(0, 200), "err");
-          throw new Error(`HTTP ${r.res.status}`);
+        const res = await fetch(`${API}/files/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${API_KEY}` },
+        });
+        if (!res.ok) {
+          const t = await res.text().catch(()=>"");
+          throw new Error(`HTTP ${res.status} ${t.slice(0,120)}`);
         }
         state.files = state.files.filter(f => f.id !== id);
         render();
@@ -415,36 +393,29 @@
   el.refresh.onclick = load;
   el.filter.oninput = (e) => { state.filter = e.target.value; render(); };
   el.collection.onchange = (e) => { state.collection = e.target.value; render(); };
-
   el.grid.addEventListener("click", (e) => {
     const copy = e.target.closest("[data-copy]");
     const del  = e.target.closest("[data-del]");
     const open = e.target.closest("[data-open]");
     if (copy) { if (copy.dataset.copy) navigator.clipboard.writeText(copy.dataset.copy); toast("URL copiée"); return; }
     if (del)  { confirmDelete(del.dataset.del, del.closest(".card").querySelector("[data-copy]")?.dataset.copy); return; }
-    if (open) {
-      const src = open.dataset.open;
-      if (!src) return;
-      el.modalImg.src = src;
+    if (open && open.dataset.open) {
+      el.modalImg.src = open.dataset.open;
       el.modalImg.style.display = "";
       el.modal.querySelectorAll(".confirm").forEach(n => n.remove());
       el.modal.classList.add("open");
     }
   });
-
   $("#modalClose").onclick = () => {
     el.modal.classList.remove("open");
     el.modal.querySelectorAll(".confirm").forEach(n => n.remove());
     el.modalImg.style.display = "";
   };
-  el.modal.addEventListener("click", (e) => {
-    if (e.target === el.modal) $("#modalClose").click();
-  });
+  el.modal.addEventListener("click", (e) => { if (e.target === el.modal) $("#modalClose").click(); });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && el.modal.classList.contains("open")) $("#modalClose").click();
   });
 
-  // auto au démarrage
   load();
 })();
 </script>
