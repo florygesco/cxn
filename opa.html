@@ -2300,24 +2300,16 @@ async function validerDeblocage(){
   var payload={uid:window.CURRENT_ACCOUNT.id,annonceId:aId,transactionId:tx,montant:f,numeroEnvoi:ne,statut:'en_attente',dateDemande:new Date().toISOString(),destinataire:'+243976953045'};
   
   try{
-    if (typeof firebase !== 'undefined' && firebase.firestore) {
+    if(window.setDoc && window.docRef && window.db){
+      var newDocRef=window.docRef(window.db,'deblocages','deblocage_'+Date.now()+'_'+Math.random().toString(36).substr(2,9));
+      await window.setDoc(newDocRef,payload);
+    }else if(typeof firebase!=='undefined'&&firebase.firestore){
       await firebase.firestore().collection('deblocages').add(payload);
-    } else {
-      var dbRef = window.db || (typeof db !== 'undefined' ? db : null);
-      if (dbRef) {
-        if (typeof dbRef.collection === 'function') {
-          await dbRef.collection('deblocages').add(payload);
-        } else if (typeof window.addDoc === 'function' && typeof window.collection === 'function') {
-          await window.addDoc(window.collection(dbRef, 'deblocages'), payload);
-        } else {
-          throw new Error("Format db non reconnu");
-        }
-      } else {
-        throw new Error("db non trouvé");
-      }
+    }else{
+      throw new Error("Fonctions Firebase introuvables");
     }
   }catch(e){
-    alert("Erreur : " + e.message);
+    alert("Erreur Firestore : " + e.message);
     if(sb){sb.disabled=false;sb.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer';}
     return;
   }
