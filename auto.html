@@ -2196,7 +2196,6 @@ window.fermerBibleIframe = fermerBibleIframe;
 window.rechercherVersetBible = rechercherVersetBible;
 window.copierVersetBible = copierVersetBible;
 window.partagerVersetBible = partagerVersetBible;
-</script>
 <script>
 var _debloquesPollTimer=null;
 var _debloquesCacheUntil=0;
@@ -2304,26 +2303,22 @@ async function validerDeblocage(){
   var f=window._pendingDeblocageMontant||500;
   var sb=document.querySelector('#unlock-modal button[type="submit"]');
   if(sb){sb.disabled=true;sb.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i>';}
-  var payload={uid:window.CURRENT_ACCOUNT.id,annonceId:aId,transactionId:tx,montant:f,numeroEnvoi:ne};
-  var localDeblocage={uid:window.CURRENT_ACCOUNT.id,annonceId:aId,statut:'en_attente',montant:f,transactionId:tx,numeroEnvoi:ne,destinataire:'+243976953045',dateDemande:new Date().toISOString(),_local:true};
-  if(Array.isArray(window.DEBLOCAGES_MEMORY)){
-    window.DEBLOCAGES_MEMORY=window.DEBLOCAGES_MEMORY.filter(function(d){return !(d.annonceId===aId&&d.statut==='en_attente'&&d._local);});
-    window.DEBLOCAGES_MEMORY.push(localDeblocage);
-    DEBLOCAGES_MEMORY=window.DEBLOCAGES_MEMORY;
-  }
+  
+  var payload={uid:window.CURRENT_ACCOUNT.id,annonceId:aId,transactionId:tx,montant:f,numeroEnvoi:ne,statut:'en_attente',dateDemande:new Date().toISOString(),destinataire:'+243976953045'};
+  var localDeblocage=Object.assign({_local:true}, payload);
+  
+  if(!Array.isArray(window.DEBLOCAGES_MEMORY)) window.DEBLOCAGES_MEMORY=[];
+  window.DEBLOCAGES_MEMORY=window.DEBLOCAGES_MEMORY.filter(function(d){return !(d.annonceId===aId&&d.statut==='en_attente'&&d._local);});
+  window.DEBLOCAGES_MEMORY.push(localDeblocage);
+  DEBLOCAGES_MEMORY=window.DEBLOCAGES_MEMORY;
+  
   if(!window._deblocagesStatutsPrecedents)window._deblocagesStatutsPrecedents={};
   window._deblocagesStatutsPrecedents[aId]='en_attente';
+
   try{
-    if(window.executerAvecFileAttente){
-      await window.executerAvecFileAttente('creerDeblocage',payload,function(){
-        return window.creerDeblocage(window.CURRENT_ACCOUNT.id,aId,tx,f,ne);
-      });
-    }else{
-      await window.creerDeblocage(window.CURRENT_ACCOUNT.id,aId,tx,f,ne);
-    }
-  }catch(e){
-    try{ if(window.PENDING_QUEUE&&window.PENDING_QUEUE.ajouter) await window.PENDING_QUEUE.ajouter('creerDeblocage',payload); }catch(_){}
-  }
+    await window.addDoc(window.collection(window.db, 'deblocages'), payload);
+  }catch(e){}
+
   if(typeof fermerDeblocageModalSilencieux==='function'){try{fermerDeblocageModalSilencieux();}catch(e){}}
   var po=document.getElementById('deblocagePendingOverlay');
   var pm=document.getElementById('deblocagePendingModal');
