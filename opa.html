@@ -2300,24 +2300,24 @@ async function validerDeblocage(){
   var payload={uid:window.CURRENT_ACCOUNT.id,annonceId:aId,transactionId:tx,montant:f,numeroEnvoi:ne,statut:'en_attente',dateDemande:new Date().toISOString(),destinataire:'+243976953045'};
   
   try{
-    var rootDb = window.db || (typeof db !== 'undefined' ? db : null);
-    if (rootDb) {
-      if (typeof window.setDoc === 'function' && typeof window.doc === 'function' && typeof window.collection === 'function') {
-        await window.setDoc(window.doc(window.collection(rootDb, 'deblocages')), payload);
-      } else if (typeof window.addDoc === 'function' && typeof window.collection === 'function') {
-        await window.addDoc(window.collection(rootDb, 'deblocages'), payload);
-      } else if (rootDb.collection) {
-        await rootDb.collection('deblocages').add(payload);
-      } else {
-        throw new Error("Méthode d'écriture non trouvée sur db");
-      }
-    } else if (typeof firebase !== 'undefined' && firebase.firestore) {
+    if (typeof firebase !== 'undefined' && firebase.firestore) {
       await firebase.firestore().collection('deblocages').add(payload);
     } else {
-      throw new Error("db introuvable");
+      var dbRef = window.db || (typeof db !== 'undefined' ? db : null);
+      if (dbRef) {
+        if (typeof dbRef.collection === 'function') {
+          await dbRef.collection('deblocages').add(payload);
+        } else if (typeof window.addDoc === 'function' && typeof window.collection === 'function') {
+          await window.addDoc(window.collection(dbRef, 'deblocages'), payload);
+        } else {
+          throw new Error("Format db non reconnu");
+        }
+      } else {
+        throw new Error("db non trouvé");
+      }
     }
   }catch(e){
-    alert("Erreur Firestore : " + e.message);
+    alert("Erreur : " + e.message);
     if(sb){sb.disabled=false;sb.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer';}
     return;
   }
