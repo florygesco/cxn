@@ -2299,16 +2299,22 @@ async function validerDeblocage(){
   
   var payload={uid:window.CURRENT_ACCOUNT.id,annonceId:aId,transactionId:tx,montant:f,numeroEnvoi:ne,statut:'en_attente',dateDemande:new Date().toISOString(),destinataire:'+243976953045'};
   
+  var success=false;
   try{
     if(typeof firebase!=='undefined'&&firebase.firestore){
       await firebase.firestore().collection('deblocages').add(payload);
+      success=true;
     }else if(typeof window.addDoc==='function'&&typeof window.collection==='function'&&window.db){
       await window.addDoc(window.collection(window.db,'deblocages'),payload);
+      success=true;
     }else if(typeof db!=='undefined'&&typeof collection!=='undefined'&&typeof addDoc!=='undefined'){
       await addDoc(collection(db,'deblocages'),payload);
+      success=true;
     }
-  }catch(e){
-    showToast('Erreur réseau. Réessayez.');
+  }catch(e){}
+
+  if(!success){
+    showToast('Erreur réseau. Impossible de débloquer.');
     if(sb){sb.disabled=false;sb.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer';}
     return;
   }
