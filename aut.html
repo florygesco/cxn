@@ -2202,10 +2202,40 @@ var _debloquesPollTimer=null;
 var _debloquesCacheUntil=0;
 var DEBLOCAGE_POLL_INTERVAL=15000;
 window._vuesEgliseDejaComptees=window._vuesEgliseDejaComptees||{};
+if(typeof DEBLOCAGES_MEMORY==='undefined')var DEBLOCAGES_MEMORY=[];
+if(typeof _deblocagesStatutsPrecedents==='undefined')var _deblocagesStatutsPrecedents={};
+if(typeof _deblocagesToastAffiches==='undefined')var _deblocagesToastAffiches={};
+window.DEBLOCAGES_MEMORY=DEBLOCAGES_MEMORY;
+window._deblocagesStatutsPrecedents=_deblocagesStatutsPrecedents;
+window._deblocagesToastAffiches=_deblocagesToastAffiches;
+window.creerDeblocage=window.creerDeblocage||async function(uid,annonceId,transactionId,montant,numeroEnvoi){
+  return await window.addDoc(
+    window.collection(window.db,'deblocages'),
+    {
+      uid:uid,
+      annonceId:annonceId,
+      transactionId:transactionId,
+      montant:montant,
+      numeroEnvoi:numeroEnvoi,
+      statut:'en_attente',
+      dateDemande:new Date().toISOString(),
+      destinataire:'+243976953045'
+    }
+  );
+};
 document.addEventListener('error',function(e){
   var t=e.target;
   if(!t||t.tagName!=='IMG')return;
-  if(t.dataset.retryDone==='1')return;
+  if(t.dataset.retryDone==='2'){
+    t.style.background='var(--bg-card-soft)';
+    t.style.objectFit='contain';
+    if(!t.alt)t.alt='📦';
+    return;
+  }
+  if(t.dataset.retryDone==='1'){
+    t.dataset.retryDone='2';
+    return;
+  }
   t.dataset.retryDone='1';
   var src=t.getAttribute('src')||'';
   if(!src)return;
@@ -2231,6 +2261,7 @@ async function chargerDeblocagesGetDoc(force){
     });
     list.forEach(function(d){if(d.annonceId)_deblocagesStatutsPrecedents[d.annonceId]=d.statut;});
     DEBLOCAGES_MEMORY=list;
+    window.DEBLOCAGES_MEMORY=DEBLOCAGES_MEMORY;
     if(typeof majVisibiliteSectionDeblocages==='function')majVisibiliteSectionDeblocages();
     if(currentTab==='dashboard-utilisateur'){renderDeblocagesEnAttente();renderDeblocagesDebloques();}
     if(currentTab==='detail'&&CURRENT_OFFRE){renderDetail(CURRENT_OFFRE);}
@@ -2275,17 +2306,35 @@ async function validerDeblocage(){
   if(sb){sb.disabled=true;sb.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i>';}
   var payload={uid:window.CURRENT_ACCOUNT.id,annonceId:aId,transactionId:tx,montant:f,numeroEnvoi:ne};
   var localDeblocage={uid:window.CURRENT_ACCOUNT.id,annonceId:aId,statut:'en_attente',montant:f,transactionId:tx,numeroEnvoi:ne,destinataire:'+243976953045',dateDemande:new Date().toISOString(),_local:true};
-  DEBLOCAGES_MEMORY=DEBLOCAGES_MEMORY.filter(function(d){return !(d.annonceId===aId&&d.statut==='en_attente'&&d._local);});
-  DEBLOCAGES_MEMORY.push(localDeblocage);
-  _deblocagesStatutsPrecedents[aId]='en_attente';
-  try{await window.executerAvecFileAttente('creerDeblocage',payload,function(){return window.creerDeblocage(window.CURRENT_ACCOUNT.id,aId,tx,f,ne);});}catch(e){try{await window.PENDING_QUEUE.ajouter('creerDeblocage',payload);}catch(_){}}
-  fermerDeblocageModalSilencieux();
-  document.getElementById('deblocagePendingOverlay').classList.add('active');
-  document.getElementById('deblocagePendingModal').classList.add('active');
+  if(Array.isArray(window.DEBLOCAGES_MEMORY)){
+    window.DEBLOCAGES_MEMORY=window.DEBLOCAGES_MEMORY.filter(function(d){return !(d.annonceId===aId&&d.statut==='en_attente'&&d._local);});
+    window.DEBLOCAGES_MEMORY.push(localDeblocage);
+    DEBLOCAGES_MEMORY=window.DEBLOCAGES_MEMORY;
+  }
+  if(!window._deblocagesStatutsPrecedents)window._deblocagesStatutsPrecedents={};
+  window._deblocagesStatutsPrecedents[aId]='en_attente';
+  try{
+    if(window.executerAvecFileAttente){
+      await window.executerAvecFileAttente('creerDeblocage',payload,function(){
+        return window.creerDeblocage(window.CURRENT_ACCOUNT.id,aId,tx,f,ne);
+      });
+    }else{
+      await window.creerDeblocage(window.CURRENT_ACCOUNT.id,aId,tx,f,ne);
+    }
+  }catch(e){
+    try{ if(window.PENDING_QUEUE&&window.PENDING_QUEUE.ajouter) await window.PENDING_QUEUE.ajouter('creerDeblocage',payload); }catch(_){}
+  }
+  if(typeof fermerDeblocageModalSilencieux==='function'){try{fermerDeblocageModalSilencieux();}catch(e){}}
+  var po=document.getElementById('deblocagePendingOverlay');
+  var pm=document.getElementById('deblocagePendingModal');
+  if(po)po.classList.add('active');
+  if(pm)pm.classList.add('active');
   if(sb){sb.disabled=false;sb.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer';}
-  if(currentTab==='detail'&&CURRENT_OFFRE){renderDetail(CURRENT_OFFRE);}
-  if(currentTab==='index'){refreshFeedDeblocageButtons();}
-  if(currentTab==='dashboard-utilisateur'){renderDeblocagesEnAttente();}
+  if(typeof currentTab!=='undefined'){
+    if(currentTab==='detail'&&CURRENT_OFFRE&&typeof renderDetail==='function')renderDetail(CURRENT_OFFRE);
+    if(currentTab==='index'&&typeof refreshFeedDeblocageButtons==='function')refreshFeedDeblocageButtons();
+    if(currentTab==='dashboard-utilisateur'&&typeof renderDeblocagesEnAttente==='function')renderDeblocagesEnAttente();
+  }
   _debloquesCacheUntil=0;
   demarrerOnSnapshotDeblocages();
   setTimeout(function(){chargerDeblocagesGetDoc(true);},3000);
@@ -2301,7 +2350,7 @@ async function openDetail(oD){
     CURRENT_OFFRE=oD;
     if(oD.annonceId||oD.id){incrementerVuesAnnonce(oD.annonceId||oD.id,oD.publieurUid);}
     if(CAT_JOB.indexOf(normCat(oD.cat))!==-1){
-      try{ if(typeof postulerJob === 'function') postulerJob(oD); }catch(e){}
+      try{ if(typeof postulerJob==='function') postulerJob(oD); }catch(e){}
       return;
     }
     await renderDetail(oD);
