@@ -2195,4 +2195,272 @@ window.fermerMiniBible = fermerMiniBible;
 window.fermerBibleIframe = fermerBibleIframe;
 window.rechercherVersetBible = rechercherVersetBible;
 window.copierVersetBible = copierVersetBible;
-window.partagerVersetBible = partagerVersetBible; </script> </body> </html> 
+window.partagerVersetBible = partagerVersetBible;<script>
+var _debloquesPollTimer=null;
+var _debloquesCacheUntil=0;
+var DEBLOCAGE_POLL_INTERVAL=15000;
+window._vuesEgliseDejaComptees=window._vuesEgliseDejaComptees||{};
+if(typeof DEBLOCAGES_MEMORY==='undefined')var DEBLOCAGES_MEMORY=[];
+if(typeof _deblocagesStatutsPrecedents==='undefined')var _deblocagesStatutsPrecedents={};
+if(typeof _deblocagesToastAffiches==='undefined')var _deblocagesToastAffiches={};
+window.DEBLOCAGES_MEMORY=DEBLOCAGES_MEMORY;
+window._deblocagesStatutsPrecedents=_deblocagesStatutsPrecedents;
+window._deblocagesToastAffiches=_deblocagesToastAffiches;
+
+document.addEventListener('error',function(e){
+  var t=e.target;
+  if(!t||t.tagName!=='IMG')return;
+  if(t.dataset.retryDone==='2'){
+    t.style.background='var(--bg-card-soft)';
+    t.style.objectFit='contain';
+    if(!t.alt)t.alt='📦';
+    return;
+  }
+  if(t.dataset.retryDone==='1'){
+    t.dataset.retryDone='2';
+    return;
+  }
+  t.dataset.retryDone='1';
+  var src=t.getAttribute('src')||'';
+  if(!src)return;
+  if(/^http:\/\//i.test(src))src='https://'+src.slice(7);
+  setTimeout(function(){if(t.isConnected)t.src=src+(src.indexOf('?')===-1?'?':'&')+'ntx=1';},500);
+},true);
+
+async function chargerDeblocagesGetDoc(force){
+  if(!window.CURRENT_ACCOUNT||!window.CURRENT_ACCOUNT.id)return;
+  if(document.hidden)return;
+  var now=Date.now();
+  if(!force&&now<_debloquesCacheUntil)return;
+  try{
+    var snap=await getDocs(query(collection(db,'deblocages'),where('uid','==',window.CURRENT_ACCOUNT.id)));
+    _debloquesCacheUntil=Date.now()+12000;
+    var list=[];
+    snap.forEach(function(d){list.push(Object.assign({id:d.id},d.data()));});
+    var transitionDetectee=null;
+    list.forEach(function(d){
+      if(d.statut!=='debloque'||!d.annonceId||!d.dateValidation)return;
+      var ancien=_deblocagesStatutsPrecedents[d.annonceId];
+      var toastFait=_deblocagesToastAffiches[d.annonceId];
+      if((ancien==='en_attente'||ancien===undefined)&&!toastFait){transitionDetectee=d;}
+    });
+    list.forEach(function(d){if(d.annonceId)_deblocagesStatutsPrecedents[d.annonceId]=d.statut;});
+    DEBLOCAGES_MEMORY=list;
+    window.DEBLOCAGES_MEMORY=DEBLOCAGES_MEMORY;
+    if(typeof majVisibiliteSectionDeblocages==='function')majVisibiliteSectionDeblocages();
+    if(currentTab==='dashboard-utilisateur'){renderDeblocagesEnAttente();renderDeblocagesDebloques();}
+    if(currentTab==='detail'&&CURRENT_OFFRE){renderDetail(CURRENT_OFFRE);}
+    if(currentTab==='index'){refreshFeedDeblocageButtons();}
+    if(currentTab==='category'&&typeof renderCategoryFeed==='function'){renderCategoryFeed(CURRENT_CATEGORY||'autre',_autreSubFilter||'all');}
+    if(transitionDetectee){
+      var annonceId=transitionDetectee.annonceId;
+      _deblocagesToastAffiches[annonceId]=true;
+      _debloquesCacheUntil=0;
+      afficherToastDeblocageApprouve();
+    }
+  }catch(e){}
+}
+
+function demarrerOnSnapshotDeblocages(){
+  if(_debloquesPollTimer){clearInterval(_debloquesPollTimer);_debloquesPollTimer=null;}
+  if(!window.CURRENT_ACCOUNT||!window.CURRENT_ACCOUNT.id)return;
+  chargerDeblocagesGetDoc(true);
+  _debloquesPollTimer=setInterval(function(){chargerDeblocagesGetDoc(false);},DEBLOCAGE_POLL_INTERVAL);
+  _deblocageUnsubscribe=function(){if(_debloquesPollTimer){clearInterval(_debloquesPollTimer);_debloquesPollTimer=null;}};
+}
+
+function arreterOnSnapshotDeblocages(){
+  if(_debloquesPollTimer){clearInterval(_debloquesPollTimer);_debloquesPollTimer=null;}
+  _deblocageUnsubscribe=null;
+}
+
+document.addEventListener('visibilitychange',function(){
+  if(!document.hidden&&window.CURRENT_ACCOUNT&&window.CURRENT_ACCOUNT.id){_debloquesCacheUntil=0;chargerDeblocagesGetDoc(true);}
+});
+window.addEventListener('focus',function(){
+  if(window.CURRENT_ACCOUNT&&window.CURRENT_ACCOUNT.id){_debloquesCacheUntil=0;chargerDeblocagesGetDoc(true);}
+});
+
+async function validerDeblocage(){
+  if(!CURRENT_OFFRE){showToast('Annonce indisponible');return;}
+  if(!window.CURRENT_ACCOUNT){showToast('Connectez-vous');return;}
+  var aId=CURRENT_OFFRE.annonceId||CURRENT_OFFRE.id||('LOCAL-'+Date.now());
+  var tx=(document.getElementById('unlockTxId')||{}).value?document.getElementById('unlockTxId').value.trim():'';
+  var neRaw=(document.getElementById('unlockNumEnvoi')||{}).value?document.getElementById('unlockNumEnvoi').value.trim():'';
+  if(!tx||tx.length<6){showToast('ID Transaction invalide');return;}
+  if(!isValidePhone243(neRaw)){showToast('Numéro invalide');return;}
+  var ne=formatPhone243(neRaw);
+  var f=window._pendingDeblocageMontant||500;
+  var sb=document.querySelector('#unlock-modal button[type="submit"]');
+  if(sb){sb.disabled=true;sb.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i>';}
+  
+  var payload={uid:window.CURRENT_ACCOUNT.id,annonceId:aId,transactionId:tx,montant:f,numeroEnvoi:ne,statut:'en_attente',dateDemande:new Date().toISOString(),destinataire:'+243976953045'};
+  
+  try{
+    if(window.setDoc&&window.docRef&&window.db){
+      var newDocRef=window.docRef(window.db,'deblocages','deblocage_'+Date.now()+'_'+Math.random().toString(36).substr(2,9));
+      await window.setDoc(newDocRef,payload);
+    }else if(typeof firebase!=='undefined'&&firebase.firestore){
+      await firebase.firestore().collection('deblocages').add(payload);
+    }else{
+      throw new Error("Fonctions Firebase introuvables");
+    }
+  }catch(e){
+    if(sb){sb.disabled=false;sb.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer';}
+    return;
+  }
+  
+  var localDeblocage=Object.assign({_local:true},payload);
+  if(!Array.isArray(window.DEBLOCAGES_MEMORY))window.DEBLOCAGES_MEMORY=[];
+  window.DEBLOCAGES_MEMORY=window.DEBLOCAGES_MEMORY.filter(function(d){return !(d.annonceId===aId&&d.statut==='en_attente'&&d._local);});
+  window.DEBLOCAGES_MEMORY.push(localDeblocage);
+  DEBLOCAGES_MEMORY=window.DEBLOCAGES_MEMORY;
+  
+  if(!window._deblocagesStatutsPrecedents)window._deblocagesStatutsPrecedents={};
+  window._deblocagesStatutsPrecedents[aId]='en_attente';
+  
+  if(typeof fermerDeblocageModalSilencieux==='function'){try{fermerDeblocageModalSilencieux();}catch(e){}}
+  var po=document.getElementById('deblocagePendingOverlay');
+  var pm=document.getElementById('deblocagePendingModal');
+  if(po)po.classList.add('active');
+  if(pm)pm.classList.add('active');
+  if(sb){sb.disabled=false;sb.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer';}
+  
+  if(typeof currentTab!=='undefined'){
+    if(currentTab==='detail'&&CURRENT_OFFRE&&typeof renderDetail==='function')renderDetail(CURRENT_OFFRE);
+    if(currentTab==='index'&&typeof refreshFeedDeblocageButtons==='function')refreshFeedDeblocageButtons();
+    if(currentTab==='dashboard-utilisateur'&&typeof renderDeblocagesEnAttente==='function')renderDeblocagesEnAttente();
+  }
+  
+  _debloquesCacheUntil=0;
+  demarrerOnSnapshotDeblocages();
+  setTimeout(function(){chargerDeblocagesGetDoc(true);},3000);
+}
+
+async function openDetail(oD){
+  requireLogin('détails',async function(){
+    if(!oD){showToast('Annonce indisponible');go('index');return;}
+    if(oD.isFake===true){
+      if(!window.CURRENT_ACCOUNT){showAccountModal('Inscrivez-vous pour voir cette annonce.',function(){location.reload();});}
+      else{go('index');}
+      return;
+    }
+    CURRENT_OFFRE=oD;
+    if(oD.annonceId||oD.id){incrementerVuesAnnonce(oD.annonceId||oD.id,oD.publieurUid);}
+    if(CAT_JOB.indexOf(normCat(oD.cat))!==-1){
+      try{ if(typeof postulerJob==='function') postulerJob(oD); }catch(e){}
+      return;
+    }
+    await renderDetail(oD);
+    go('detail');
+  });
+}
+
+async function postulerJob(o){
+  requireLogin('postuler',function(){
+    try{
+      var jid = o.annonceId || o.id;
+      if(jid){
+        var today = new Date().toISOString().slice(0,10);
+        var localKey = 'vue_job_' + jid;
+        idbGet('stats', localKey).then(function(h){
+          h = h || {};
+          if(h._d === today) return;
+          window.incrementerVuesAnnonceFirestore(jid, o.publieurUid).then(function(ok){
+            if(ok){
+              h._d = today;
+              idbSet('stats', localKey, h).catch(function(){});
+            }
+          }).catch(function(){});
+        }).catch(function(){
+          window.incrementerVuesAnnonceFirestore(jid, o.publieurUid).catch(function(){});
+        });
+      }
+    }catch(e){}
+    var msg='*NeTubeX RDC*%0A%0A💼 *CANDIDATURE*%0A%0A📋 *Offre :* '+encodeURIComponent((o.title||'')+'')+'%0A%0A👤 *Candidat :*%0A• Nom : '+encodeURIComponent(window.CURRENT_ACCOUNT.name||'')+'%0A• Téléphone : '+encodeURIComponent(window.CURRENT_ACCOUNT.phone||'')+'%0A%0A✅ _Merci de me recontacter._';
+    afficherPopupWhatsApp(msg,o.phone);
+  });
+}
+
+async function incrementerVuesAnnonce(annonceId,proprietaireUid){
+  if(!annonceId)return;
+  var k='vue_annonce_'+annonceId;
+  var today=new Date().toISOString().slice(0,10);
+  try{var h=await idbGet('stats',k)||{};if(h._d===today)return;}catch(e){}
+  try{
+    var ok=await window.incrementerVuesAnnonceFirestore(annonceId,proprietaireUid);
+    if(ok){try{await idbSet('stats',k,{_d:today});}catch(e){}}
+  }catch(e){}
+}
+
+window.incrementerVueSynthese=async function(egliseId,syntheseId){
+  if(!window.CURRENT_ACCOUNT||!window.CURRENT_ACCOUNT.id)return false;
+  if(!egliseId||!syntheseId)return false;
+  if(document.hidden)return false;
+  var uid=window.CURRENT_ACCOUNT.id;
+  var today=new Date().toISOString().slice(0,10);
+  var localKey='vue_synthese_'+syntheseId;
+  try{var hist=await idbGet('stats',localKey)||{};if(hist[uid]===today)return false;}catch(e){}
+  try{
+    var dejaRef=window.docRef(window.db,'eglises',egliseId,'syntheses',syntheseId,'vues_uniques',uid);
+    var dejaSnap=await window.getDocRef(dejaRef);
+    if(dejaSnap.exists()&&dejaSnap.data()&&dejaSnap.data().derniereDate===today){
+      var h0=await idbGet('stats',localKey)||{};h0[uid]=today;await idbSet('stats',localKey,h0);
+      return false;
+    }
+    var batch=window.writeBatch(window.db);
+    batch.update(window.docRef(window.db,'eglises',egliseId,'syntheses',syntheseId),{vues:window.increment(1)});
+    batch.set(dejaRef,{derniereDate:today,derniereVue:new Date().toISOString()},{merge:true});
+    await batch.commit();
+    var h=await idbGet('stats',localKey)||{};h[uid]=today;await idbSet('stats',localKey,h);
+    if(window.SYNTHESES_EGLISE_DATA){
+      for(var i=0;i<window.SYNTHESES_EGLISE_DATA.length;i++){
+        if(window.SYNTHESES_EGLISE_DATA[i].id===syntheseId){window.SYNTHESES_EGLISE_DATA[i].vues=(window.SYNTHESES_EGLISE_DATA[i].vues||0)+1;break;}
+      }
+    }
+    return true;
+  }catch(e){return false;}
+};
+
+window.enregistrerVueEglise=async function(egliseId){
+  if(!window.CURRENT_ACCOUNT||!window.CURRENT_ACCOUNT.id)return false;
+  if(!egliseId)return false;
+  if(document.hidden)return false;
+  var uid=window.CURRENT_ACCOUNT.id;
+  var today=new Date().toISOString().slice(0,10);
+  var localKey='vue_eglise_'+egliseId+'_'+uid;
+  try{var hist=await idbGet('stats',localKey)||{};if(hist._d===today)return false;}catch(e){}
+  var statV=document.getElementById('egliseStatVues');
+  if(statV){
+    var compteurActuel=parseInt(String(statV.textContent).replace(/\s/g,''),10)||0;
+    statV.textContent=(compteurActuel+1).toLocaleString('fr-FR');
+  }
+  try{
+    var dejaRef=window.docRef(window.db,'eglises',egliseId,'vues_uniques_utilisateurs',uid);
+    var dejaSnap=await window.getDocRef(dejaRef);
+    if(dejaSnap.exists()){
+      try{await idbSet('stats',localKey,{_d:today});}catch(e){}
+      if(window.chargerTotalVuesEglise)await window.chargerTotalVuesEglise(egliseId);
+      return false;
+    }
+    await window.setDoc(dejaRef,{dateVue:new Date().toISOString(),uid:uid});
+    var globalRef=window.docRef(window.db,'eglises',egliseId,'stats','global');
+    var globalSnap=await window.getDocRef(globalRef);
+    var currentTotal=0;
+    if(globalSnap.exists()&&globalSnap.data()){
+      currentTotal=globalSnap.data().totalVuesEglise||0;
+    }
+    await window.setDoc(globalRef,{totalVuesEglise:currentTotal+1,derniereMiseAJour:new Date().toISOString()},{merge:true});
+    try{await idbSet('stats',localKey,{_d:today});}catch(e){}
+    return true;
+  }catch(e){
+    if(statV){
+      var c=parseInt(String(statV.textContent).replace(/\s/g,''),10)||0;
+      statV.textContent=Math.max(0,c-1).toLocaleString('fr-FR');
+    }
+    return false;
+  }
+};
+</script>
+</body>
+</html>
