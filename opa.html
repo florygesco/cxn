@@ -2201,7 +2201,7 @@ window.partagerVersetBible = partagerVersetBible;
 <script>
 var _debloquesPollTimer=null;
 var _debloquesCacheUntil=0;
-var DEBLOCAGE_POLL_INTERVAL=15000;
+var DEBLOCAGE_POLL_INTERVAL=300000;
 window._vuesEgliseDejaComptees=window._vuesEgliseDejaComptees||{};
 if(typeof DEBLOCAGES_MEMORY==='undefined')var DEBLOCAGES_MEMORY=[];
 if(typeof _deblocagesStatutsPrecedents==='undefined')var _deblocagesStatutsPrecedents={};
@@ -2261,14 +2261,40 @@ async function chargerDeblocagesGetDoc(force){
       _debloquesCacheUntil=0;
       afficherToastDeblocageApprouve();
     }
+    
+    if(_debloquesPollTimer){
+      var encoreEnAttente=false;
+      for(var j=0;j<list.length;j++){
+        if(list[j].statut==='en_attente'){encoreEnAttente=true;break;}
+      }
+      if(!encoreEnAttente){
+        clearInterval(_debloquesPollTimer);
+        _debloquesPollTimer=null;
+      }
+    }
   }catch(e){}
 }
 
 function demarrerOnSnapshotDeblocages(){
   if(_debloquesPollTimer){clearInterval(_debloquesPollTimer);_debloquesPollTimer=null;}
   if(!window.CURRENT_ACCOUNT||!window.CURRENT_ACCOUNT.id)return;
+  
+  var aDesDemandesEnAttente=false;
+  if(Array.isArray(window.DEBLOCAGES_MEMORY)){
+    for(var i=0;i<window.DEBLOCAGES_MEMORY.length;i++){
+      if(window.DEBLOCAGES_MEMORY[i].statut==='en_attente'){
+        aDesDemandesEnAttente=true;
+        break;
+      }
+    }
+  }
+
   chargerDeblocagesGetDoc(true);
-  _debloquesPollTimer=setInterval(function(){chargerDeblocagesGetDoc(false);},DEBLOCAGE_POLL_INTERVAL);
+  
+  if(aDesDemandesEnAttente){
+    _debloquesPollTimer=setInterval(function(){chargerDeblocagesGetDoc(false);},DEBLOCAGE_POLL_INTERVAL);
+  }
+  
   _deblocageUnsubscribe=function(){if(_debloquesPollTimer){clearInterval(_debloquesPollTimer);_debloquesPollTimer=null;}};
 }
 
@@ -2300,7 +2326,7 @@ async function validerDeblocage(){
   var payload={uid:window.CURRENT_ACCOUNT.id,annonceId:aId,transactionId:tx,montant:f,numeroEnvoi:ne,statut:'en_attente',dateDemande:new Date().toISOString(),destinataire:'+243976953045'};
   
   try{
-    if(window.setDoc && window.docRef && window.db){
+    if(window.setDoc&&window.docRef&&window.db){
       var newDocRef=window.docRef(window.db,'deblocages','deblocage_'+Date.now()+'_'+Math.random().toString(36).substr(2,9));
       await window.setDoc(newDocRef,payload);
     }else if(typeof firebase!=='undefined'&&firebase.firestore){
@@ -2309,7 +2335,6 @@ async function validerDeblocage(){
       throw new Error("Fonctions Firebase introuvables");
     }
   }catch(e){
-    alert("Erreur Firestore : " + e.message);
     if(sb){sb.disabled=false;sb.innerHTML='<i class="fa-solid fa-paper-plane"></i> Envoyer';}
     return;
   }
@@ -2360,6 +2385,32 @@ async function openDetail(oD){
   });
 }
 
+async function postulerJob(o){
+  requireLogin('postuler',function(){
+    try{
+      var jid = o.annonceId || o.id;
+      if(jid){
+        var today = new Date().toISOString().slice(0,10);
+        var localKey = 'vue_job_' + jid;
+        idbGet('stats', localKey).then(function(h){
+          h = h || {};
+          if(h._d === today) return;
+          window.incrementerVuesAnnonceFirestore(jid, o.publieurUid).then(function(ok){
+            if(ok){
+              h._d = today;
+              idbSet('stats', localKey, h).catch(function(){});
+            }
+          }).catch(function(){});
+        }).catch(function(){
+          window.incrementerVuesAnnonceFirestore(jid, o.publieurUid).catch(function(){});
+        });
+      }
+    }catch(e){}
+    var msg='*NeTubeX RDC*%0A%0A💼 *CANDIDATURE*%0A%0A📋 *Offre :* '+encodeURIComponent((o.title||'')+'')+'%0A%0A👤 *Candidat :*%0A• Nom : '+encodeURIComponent(window.CURRENT_ACCOUNT.name||'')+'%0A• Téléphone : '+encodeURIComponent(window.CURRENT_ACCOUNT.phone||'')+'%0A%0A✅ _Merci de me recontacter._';
+    afficherPopupWhatsApp(msg,o.phone);
+  });
+}
+
 async function incrementerVuesAnnonce(annonceId,proprietaireUid){
   if(!annonceId)return;
   var k='vue_annonce_'+annonceId;
@@ -2400,38 +2451,70 @@ window.incrementerVueSynthese=async function(egliseId,syntheseId){
   }catch(e){return false;}
 };
 
+window.chargerTotalVuesEglise=async function(egliseId){
+  if(!egliseId)return 0;
+  try{
+    var globalRef=window.docRef(window.db,'eglises',egliseId,'stats','global');
+    var globalSnap=await window.getDocRef(globalRef);
+    var total=0;
+    if(globalSnap.exists()&&globalSnap.data()){
+      total=Number(globalSnap.data().totalVuesEglise)||0;
+    }
+    var statV=document.getElementById('egliseStatVues');
+    if(statV){
+      statV.textContent=total.toLocaleString('fr-FR');
+    }
+    return total;
+  }catch(e){return 0;}
+};
+
 window.enregistrerVueEglise=async function(egliseId){
   if(!window.CURRENT_ACCOUNT||!window.CURRENT_ACCOUNT.id)return false;
   if(!egliseId)return false;
   if(document.hidden)return false;
   var uid=window.CURRENT_ACCOUNT.id;
-  var dejaCompteKey=egliseId+'_'+uid;
+  var today=new Date().toISOString().slice(0,10);
+  var localKey='vue_eglise_'+egliseId+'_'+uid;
+  
+  try{
+    var hist=await idbGet('stats',localKey)||{};
+    if(hist._d===today)return false;
+  }catch(e){}
+  
   var statV=document.getElementById('egliseStatVues');
-  if(window._vuesEgliseDejaComptees[dejaCompteKey])return false;
   if(statV){
     var compteurActuel=parseInt(String(statV.textContent).replace(/\s/g,''),10)||0;
     statV.textContent=(compteurActuel+1).toLocaleString('fr-FR');
   }
-  window._vuesEgliseDejaComptees[dejaCompteKey]=true;
+  
   try{
     var dejaRef=window.docRef(window.db,'eglises',egliseId,'vues_uniques_utilisateurs',uid);
     var dejaSnap=await window.getDocRef(dejaRef);
+    
     if(dejaSnap.exists()){
+      try{await idbSet('stats',localKey,{_d:today});}catch(e){}
       if(window.chargerTotalVuesEglise)await window.chargerTotalVuesEglise(egliseId);
       return false;
     }
-    var batch=window.writeBatch(window.db);
-    batch.set(dejaRef,{dateVue:new Date().toISOString(),uid:uid});
-    batch.set(window.docRef(window.db,'eglises',egliseId,'stats','global'),{totalVuesEglise:window.increment(1),derniereMiseAJour:new Date().toISOString()},{merge:true});
-    await batch.commit();
+    
+    await window.setDoc(dejaRef,{dateVue:new Date().toISOString(),uid:uid},{merge:true});
+    
+    var globalRef=window.docRef(window.db,'eglises',egliseId,'stats','global');
+    var globalSnap=await window.getDocRef(globalRef);
+    var currentTotal=0;
+    if(globalSnap.exists()&&globalSnap.data()){
+      currentTotal=Number(globalSnap.data().totalVuesEglise)||0;
+    }
+    
+    await window.setDoc(globalRef,{totalVuesEglise:currentTotal+1,derniereMiseAJour:new Date().toISOString()},{merge:true});
+    
+    try{await idbSet('stats',localKey,{_d:today});}catch(e){}
     return true;
   }catch(e){
-    delete window._vuesEgliseDejaComptees[dejaCompteKey];
     if(statV){
       var c=parseInt(String(statV.textContent).replace(/\s/g,''),10)||0;
       statV.textContent=Math.max(0,c-1).toLocaleString('fr-FR');
     }
-    setTimeout(function(){window.enregistrerVueEglise(egliseId);},10000);
     return false;
   }
 };
