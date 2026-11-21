@@ -14,6 +14,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .solde-total{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end}
 .solde-total .label{font-size:12px;color:var(--doux);text-transform:uppercase;letter-spacing:.5px}
 .solde-total .valeur{font-size:24px;font-weight:700;color:var(--primaire)}
+.btn-logout{background:none;border:1px solid var(--bord);color:var(--doux);padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer}
+.btn-logout:hover{border-color:var(--danger);color:var(--danger)}
 .section{margin-bottom:32px}
 .section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
 .section-head h2{font-size:16px;font-weight:600}
@@ -56,10 +58,32 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .apercu .ligne{display:flex;justify-content:space-between;font-size:13px;color:var(--doux)}
 .apercu .ligne strong{color:var(--texte)}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--texte);color:#fff;padding:12px 20px;border-radius:8px;font-size:14px;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+.erreur{color:var(--danger);font-size:13px;margin-top:8px}
+#ecranLogin{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.login-box{background:var(--card);padding:36px 32px;border-radius:var(--rayon);box-shadow:var(--ombre);width:100%;max-width:380px;display:flex;flex-direction:column;gap:10px}
+.login-box h1{font-size:22px;margin-bottom:4px}
+.login-box p{font-size:13px;color:var(--doux);margin-bottom:14px}
+.login-box label{font-size:13px;color:var(--doux)}
+.login-box input{padding:11px 12px;border:1px solid var(--bord);border-radius:8px;font-size:14px;width:100%}
+.login-box input:focus{outline:none;border-color:var(--primaire)}
+.login-box button{margin-top:14px}
 @media(max-width:600px){.topbar{flex-direction:column;align-items:stretch}.solde-total{align-items:flex-start}}
 </style>
 </head>
 <body>
+<div id="ecranLogin">
+<div class="login-box">
+<h1>Private Bank</h1>
+<p>Sign in to access your vault</p>
+<label for="loginEmail">Email</label>
+<input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="username">
+<label for="loginPassword">Password</label>
+<input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+<button id="btnLogin" class="btn-primary">Sign in</button>
+<p id="loginErreur" class="erreur cache"></p>
+</div>
+</div>
+<div id="ecranApp" class="cache">
 <div id="app">
 <header class="topbar">
 <div class="brand">Private Bank</div>
@@ -68,6 +92,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 <span id="soldeTotal" class="valeur">0</span>
 </div>
 <button id="btnDepot" class="btn-primary">+ Deposit</button>
+<button id="btnLogout" class="btn-logout">Log out</button>
 </header>
 <main>
 <section class="section">
@@ -119,12 +144,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 </div>
 <div id="toast" class="toast cache"></div>
 </div>
+</div>
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import{getFirestore,doc,getDoc,setDoc}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 const firebaseConfig={apiKey:"AIzaSyDX430AIfzzgfq3o8tXHwQfIptgWOZ-K8c",authDomain:"gesco-67c43.firebaseapp.com",projectId:"gesco-67c43",storageBucket:"gesco-67c43.firebasestorage.app",messagingSenderId:"333004443566",appId:"1:333004443566:web:de41f60000e418dce9023f",measurementId:"G-V7MF88Y5EE"};
 const app=initializeApp(firebaseConfig);
 const db=getFirestore(app);
+const auth=getAuth(app);
+const ADMIN_EMAIL="ngendaflory2@gmail.com";
 const DOC_REF=doc(db,"banque","data");
 let etat={config:{devise:"FC"},enveloppes:[],transactions:[]};
 let indexEdition=-1;
@@ -147,6 +176,9 @@ function fermerModalEnveloppe(){$("modalEnveloppe").classList.add("cache")}
 function validerEnveloppe(){const nom=$("inputNomEnveloppe").value.trim();const objectif=parseFloat($("inputObjectifEnveloppe").value)||0;const pourcentage=parseFloat($("inputPourcentageEnveloppe").value)||0;const couleur=$("inputCouleurEnveloppe").value;if(!nom){toast("Name required");return}if(pourcentage<0||pourcentage>100){toast("Percentage must be 0-100");return}const autres=etat.enveloppes.filter((_,i)=>i!==indexEdition);const totalPct=autres.reduce((s,e)=>s+Number(e.pourcentage),0);if(totalPct+pourcentage>100){toast("Total allocation cannot exceed 100%");return}if(indexEdition>=0){etat.enveloppes[indexEdition]={...etat.enveloppes[indexEdition],nom,objectif,pourcentage,couleur}}else{etat.enveloppes.push({id:"env_"+Date.now()+"_"+Math.random().toString(36).slice(2,7),nom,objectif,pourcentage,couleur,masquee:false})}sauver();rendre();fermerModalEnveloppe();toast("Envelope saved")}
 function supprimerEnveloppe(i){if(!confirm("Delete this envelope? History is kept."))return;etat.enveloppes.splice(i,1);sauver();rendre();toast("Envelope deleted")}
 function masquerEnveloppe(i){etat.enveloppes[i].masquee=!etat.enveloppes[i].masquee;sauver();rendre()}
+function afficherErreurLogin(msg){const e=$("loginErreur");e.textContent=msg;e.classList.remove("cache")}
+async function doLogin(){const email=$("loginEmail").value.trim();const pwd=$("loginPassword").value;if(!email||!pwd){afficherErreurLogin("Please enter email and password");return}try{$("loginErreur").classList.add("cache");await signInWithEmailAndPassword(auth,email,pwd)}catch(e){afficherErreurLogin("Invalid credentials")}}
+async function doLogout(){await signOut(auth)}
 $("btnDepot").addEventListener("click",ouvrirModalDepot);
 $("btnAnnulerDepot").addEventListener("click",fermerModalDepot);
 $("btnValiderDepot").addEventListener("click",validerDepot);
@@ -155,7 +187,10 @@ $("btnNouvelleEnveloppe").addEventListener("click",()=>ouvrirModalEnveloppe());
 $("btnAnnulerEnveloppe").addEventListener("click",fermerModalEnveloppe);
 $("btnValiderEnveloppe").addEventListener("click",validerEnveloppe);
 $("listeEnveloppes").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const i=parseInt(b.dataset.i);const a=b.dataset.action;if(a==="edit")ouvrirModalEnveloppe(i);else if(a==="del")supprimerEnveloppe(i);else if(a==="mask")masquerEnveloppe(i)});
-charger();
+$("btnLogin").addEventListener("click",doLogin);
+$("loginPassword").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin()});
+$("btnLogout").addEventListener("click",doLogout);
+onAuthStateChanged(auth,user=>{if(user&&user.email===ADMIN_EMAIL){$("ecranLogin").classList.add("cache");$("ecranApp").classList.remove("cache");charger()}else{if(user){signOut(auth)} $("ecranApp").classList.add("cache");$("ecranLogin").classList.remove("cache");$("loginPassword").value=""}});
 </script>
 </body>
 </html>
