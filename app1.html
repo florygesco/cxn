@@ -4,7 +4,60 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Private Bank</title>
-<link rel="stylesheet" href="style.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f5f6fa;--card:#fff;--texte:#1a1d29;--doux:#6b7280;--bord:#e5e7eb;--primaire:#2563eb;--hover:#1d4ed8;--danger:#dc2626;--ok:#16a34a;--rayon:12px;--ombre:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04)}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--texte);min-height:100vh}
+#app{max-width:1100px;margin:0 auto;padding:20px}
+.topbar{display:flex;align-items:center;gap:20px;background:var(--card);padding:18px 22px;border-radius:var(--rayon);box-shadow:var(--ombre);margin-bottom:24px;flex-wrap:wrap}
+.brand{font-weight:700;font-size:18px;letter-spacing:-.3px}
+.solde-total{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end}
+.solde-total .label{font-size:12px;color:var(--doux);text-transform:uppercase;letter-spacing:.5px}
+.solde-total .valeur{font-size:24px;font-weight:700;color:var(--primaire)}
+.section{margin-bottom:32px}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.section-head h2{font-size:16px;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.carte-enveloppe{background:var(--card);border-radius:var(--rayon);padding:16px;box-shadow:var(--ombre);border-left:4px solid var(--primaire);display:flex;flex-direction:column;gap:8px;transition:transform .15s}
+.carte-enveloppe:hover{transform:translateY(-2px)}
+.carte-enveloppe.masquee{opacity:.5}
+.carte-enveloppe .nom{font-weight:600;font-size:15px}
+.carte-enveloppe .solde{font-size:20px;font-weight:700}
+.carte-enveloppe .objectif{font-size:12px;color:var(--doux)}
+.pct-badge{align-self:flex-start;font-size:11px;background:#eff6ff;color:var(--primaire);padding:2px 8px;border-radius:20px;font-weight:600}
+.barre-progress{height:6px;background:#eef0f4;border-radius:3px;overflow:hidden}
+.barre-progress>div{height:100%;border-radius:3px;transition:width .4s}
+.carte-actions{display:flex;gap:8px;margin-top:4px}
+.carte-actions button{background:none;border:none;cursor:pointer;font-size:12px;color:var(--doux);padding:4px 0}
+.carte-actions button:hover{color:var(--primaire)}
+.carte-actions button.suppr:hover{color:var(--danger)}
+.btn-primary{background:var(--primaire);color:#fff;border:none;padding:10px 18px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;transition:background .15s}
+.btn-primary:hover{background:var(--hover)}
+.btn-ghost{background:transparent;color:var(--primaire);border:1px solid var(--primaire);padding:8px 14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px}
+.btn-ghost:hover{background:#eff6ff}
+.vide{color:var(--doux);font-size:14px;padding:16px 0}
+.cache{display:none!important}
+.historique{display:flex;flex-direction:column;gap:10px}
+.ligne-historique{background:var(--card);border-radius:var(--rayon);padding:14px 16px;box-shadow:var(--ombre);display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.ligne-historique .infos{display:flex;flex-direction:column;gap:2px}
+.ligne-historique .date{font-size:12px;color:var(--doux)}
+.ligne-historique .montant{font-weight:700;font-size:16px;color:var(--ok)}
+.ligne-historique .note{font-size:13px;color:var(--texte)}
+.repartition{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.repartition span{font-size:11px;background:#f3f4f6;padding:3px 8px;border-radius:20px;color:var(--doux)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px}
+.modal-content{background:var(--card);border-radius:var(--rayon);padding:24px;width:100%;max-width:420px;display:flex;flex-direction:column;gap:8px;max-height:90vh;overflow-y:auto}
+.modal-content h3{font-size:18px;margin-bottom:8px}
+.modal-content label{font-size:13px;color:var(--doux);margin-top:6px}
+.modal-content input{padding:10px 12px;border:1px solid var(--bord);border-radius:8px;font-size:14px;width:100%}
+.modal-content input:focus{outline:none;border-color:var(--primaire)}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+.apercu{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.apercu .ligne{display:flex;justify-content:space-between;font-size:13px;color:var(--doux)}
+.apercu .ligne strong{color:var(--texte)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--texte);color:#fff;padding:12px 20px;border-radius:8px;font-size:14px;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+@media(max-width:600px){.topbar{flex-direction:column;align-items:stretch}.solde-total{align-items:flex-start}}
+</style>
 </head>
 <body>
 <div id="app">
@@ -66,6 +119,43 @@
 </div>
 <div id="toast" class="toast cache"></div>
 </div>
-<script type="module" src="app.js"></script>
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import{getFirestore,doc,getDoc,setDoc}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+const firebaseConfig={apiKey:"AIzaSyDX430AIfzzgfq3o8tXHwQfIptgWOZ-K8c",authDomain:"gesco-67c43.firebaseapp.com",projectId:"gesco-67c43",storageBucket:"gesco-67c43.firebasestorage.app",messagingSenderId:"333004443566",appId:"1:333004443566:web:de41f60000e418dce9023f",measurementId:"G-V7MF88Y5EE"};
+const app=initializeApp(firebaseConfig);
+const db=getFirestore(app);
+const DOC_REF=doc(db,"banque","data");
+let etat={config:{devise:"FC"},enveloppes:[],transactions:[]};
+let indexEdition=-1;
+const $=id=>document.getElementById(id);
+function toast(msg){const t=$("toast");t.textContent=msg;t.classList.remove("cache");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.add("cache"),2500)}
+function formatMontant(n){const v=Number(n)||0;return v.toLocaleString("en-US",{maximumFractionDigits:2})+" "+etat.config.devise}
+function soldeEnveloppe(id){return etat.transactions.reduce((s,t)=>{const l=t.repartition.find(r=>r.envId===id);return s+(l?l.montant:0)},0)}
+function soldeTotal(){return etat.transactions.reduce((s,t)=>s+t.montant,0)}
+async function charger(){try{const snap=await getDoc(DOC_REF);if(snap.exists()){const d=snap.data();etat={config:d.config||{devise:"FC"},enveloppes:d.enveloppes||[],transactions:d.transactions||[]}}else{await setDoc(DOC_REF,etat)}}catch(e){toast("Firebase load error");console.error(e)}rendre()}
+async function sauver(){try{await setDoc(DOC_REF,etat)}catch(e){toast("Save error");console.error(e)}}
+function rendre(){$("soldeTotal").textContent=formatMontant(soldeTotal());rendreEnveloppes();rendreHistorique()}
+function rendreEnveloppes(){const zone=$("listeEnveloppes");zone.innerHTML="";$("messageVideEnveloppes").classList.toggle("cache",etat.enveloppes.length>0);etat.enveloppes.forEach((env,i)=>{const solde=soldeEnveloppe(env.id);const pct=env.objectif>0?Math.min(100,solde/env.objectif*100):0;const carte=document.createElement("div");carte.className="carte-enveloppe"+(env.masquee?" masquee":"");carte.style.borderLeftColor=env.couleur||"#2563eb";carte.innerHTML=`<div class="nom">${env.nom}</div><div class="solde">${formatMontant(solde)}</div>${env.objectif>0?`<div class="objectif">Goal: ${formatMontant(env.objectif)} · ${pct.toFixed(1)}%</div><div class="barre-progress"><div style="width:${pct}%;background:${env.couleur||"#2563eb"}"></div></div>`:""}<span class="pct-badge">${env.pourcentage}%</span><div class="carte-actions"><button data-action="edit" data-i="${i}">Edit</button><button data-action="mask" data-i="${i}">${env.masquee?"Show":"Hide"}</button><button class="suppr" data-action="del" data-i="${i}">Delete</button></div>`;zone.appendChild(carte)})}
+function rendreHistorique(){const zone=$("listeHistorique");zone.innerHTML="";$("messageVideHistorique").classList.toggle("cache",etat.transactions.length>0);[...etat.transactions].reverse().forEach(t=>{const el=document.createElement("div");el.className="ligne-historique";const date=new Date(t.date).toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"});const rep=t.repartition.map(r=>`<span>${r.nom}: ${formatMontant(r.montant)}</span>`).join("");el.innerHTML=`<div class="infos"><span class="date">${date}</span><span class="montant">+ ${formatMontant(t.montant)}</span>${t.note?`<span class="note">${t.note}</span>`:""}<div class="repartition">${rep}</div></div>`;zone.appendChild(el)})}
+function ouvrirModalDepot(){$("inputMontantDepot").value="";$("inputNoteDepot").value="";$("apercuRepartition").innerHTML="";$("modalDepot").classList.remove("cache")}
+function fermerModalDepot(){$("modalDepot").classList.add("cache")}
+function majApercu(){const m=parseFloat($("inputMontantDepot").value)||0;const zone=$("apercuRepartition");zone.innerHTML="";if(m<=0||etat.enveloppes.length===0)return;const actives=etat.enveloppes.filter(e=>!e.masquee);let total=0;actives.forEach(env=>{const part=Math.round(m*env.pourcentage)/100;total+=part;const l=document.createElement("div");l.className="ligne";l.innerHTML=`<span>${env.nom} (${env.pourcentage}%)</span><strong>${formatMontant(part)}</strong>`;zone.appendChild(l)});const reste=m-total;if(Math.abs(reste)>0.001){const l=document.createElement("div");l.className="ligne";l.innerHTML=`<span>Rounding</span><strong>${formatMontant(reste)}</strong>`;zone.appendChild(l)}}
+function validerDepot(){const m=parseFloat($("inputMontantDepot").value);if(!m||m<=0){toast("Enter a valid amount");return}const actives=etat.enveloppes.filter(e=>!e.masquee);if(actives.length===0){toast("Create an envelope first");return}let total=0;const rep=actives.map(env=>{const part=Math.round(m*env.pourcentage)/100;total+=part;return{envId:env.id,nom:env.nom,montant:part}});const reste=m-total;if(Math.abs(reste)>0.001)rep.push({envId:"__rounding__",nom:"Rounding",montant:reste});etat.transactions.push({date:new Date().toISOString(),montant:m,note:$("inputNoteDepot").value.trim(),repartition:rep});sauver();rendre();fermerModalDepot();toast("Deposit recorded")}
+function ouvrirModalEnveloppe(i=-1){indexEdition=i;const t=$("titreModalEnveloppe");if(i>=0){const e=etat.enveloppes[i];t.textContent="Edit Envelope";$("inputNomEnveloppe").value=e.nom;$("inputObjectifEnveloppe").value=e.objectif||"";$("inputPourcentageEnveloppe").value=e.pourcentage;$("inputCouleurEnveloppe").value=e.couleur||"#2563eb"}else{t.textContent="New Envelope";$("inputNomEnveloppe").value="";$("inputObjectifEnveloppe").value="";$("inputPourcentageEnveloppe").value="";$("inputCouleurEnveloppe").value="#2563eb"}$("modalEnveloppe").classList.remove("cache")}
+function fermerModalEnveloppe(){$("modalEnveloppe").classList.add("cache")}
+function validerEnveloppe(){const nom=$("inputNomEnveloppe").value.trim();const objectif=parseFloat($("inputObjectifEnveloppe").value)||0;const pourcentage=parseFloat($("inputPourcentageEnveloppe").value)||0;const couleur=$("inputCouleurEnveloppe").value;if(!nom){toast("Name required");return}if(pourcentage<0||pourcentage>100){toast("Percentage must be 0-100");return}const autres=etat.enveloppes.filter((_,i)=>i!==indexEdition);const totalPct=autres.reduce((s,e)=>s+Number(e.pourcentage),0);if(totalPct+pourcentage>100){toast("Total allocation cannot exceed 100%");return}if(indexEdition>=0){etat.enveloppes[indexEdition]={...etat.enveloppes[indexEdition],nom,objectif,pourcentage,couleur}}else{etat.enveloppes.push({id:"env_"+Date.now()+"_"+Math.random().toString(36).slice(2,7),nom,objectif,pourcentage,couleur,masquee:false})}sauver();rendre();fermerModalEnveloppe();toast("Envelope saved")}
+function supprimerEnveloppe(i){if(!confirm("Delete this envelope? History is kept."))return;etat.enveloppes.splice(i,1);sauver();rendre();toast("Envelope deleted")}
+function masquerEnveloppe(i){etat.enveloppes[i].masquee=!etat.enveloppes[i].masquee;sauver();rendre()}
+$("btnDepot").addEventListener("click",ouvrirModalDepot);
+$("btnAnnulerDepot").addEventListener("click",fermerModalDepot);
+$("btnValiderDepot").addEventListener("click",validerDepot);
+$("inputMontantDepot").addEventListener("input",majApercu);
+$("btnNouvelleEnveloppe").addEventListener("click",()=>ouvrirModalEnveloppe());
+$("btnAnnulerEnveloppe").addEventListener("click",fermerModalEnveloppe);
+$("btnValiderEnveloppe").addEventListener("click",validerEnveloppe);
+$("listeEnveloppes").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const i=parseInt(b.dataset.i);const a=b.dataset.action;if(a==="edit")ouvrirModalEnveloppe(i);else if(a==="del")supprimerEnveloppe(i);else if(a==="mask")masquerEnveloppe(i)});
+charger();
+</script>
 </body>
 </html>
